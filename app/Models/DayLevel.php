@@ -2202,7 +2202,9 @@ class DayLevel extends Model
         $list = array_values($byPackageId);
         usort($list, fn ($a, $b) => strcmp((string) ($b['package_id'] ?? ''), (string) ($a['package_id'] ?? '')));
 
-        return self::hydrateFlatExportDmcEmails($list);
+        return self::hydrateFlatExportDmcRootFields(
+            self::hydrateFlatExportDmcEmails($list)
+        );
     }
 
     /**
@@ -2241,6 +2243,36 @@ class DayLevel extends Model
             }
             $entry['DMC_email'] = $email;
             $entries[$i] = self::orderFlatPackageExportKeys($entry);
+        }
+
+        return $entries;
+    }
+
+    /**
+     * Attach Func App + mail/IMAP/AI settings to each flat package export by DMC_id.
+     *
+     * @param  list<array<string, mixed>>  $entries
+     * @return list<array<string, mixed>>
+     */
+    private static function hydrateFlatExportDmcRootFields(array $entries): array
+    {
+        $dmcIds = [];
+        foreach ($entries as $entry) {
+            $dmcId = (int) ($entry['DMC_id'] ?? 0);
+            if ($dmcId > 0) {
+                $dmcIds[$dmcId] = true;
+            }
+        }
+
+        $fieldsByDmc = \App\Helpers\CommonHelper::getDmcAzureRootFieldsForMany(array_keys($dmcIds));
+
+        foreach ($entries as $i => $entry) {
+            $dmcId = (int) ($entry['DMC_id'] ?? 0);
+            $fields = $fieldsByDmc[$dmcId] ?? array_merge(
+                \App\Helpers\CommonHelper::emptyDmcFuncAppSettings(),
+                \App\Helpers\CommonHelper::emptyDmcMailSettings()
+            );
+            $entries[$i] = self::orderFlatPackageExportKeys(array_merge($entry, $fields));
         }
 
         return $entries;
@@ -2334,6 +2366,8 @@ class DayLevel extends Model
             $rawAllServicesJson = '{}';
         }
 
+        $dmcRootFields = \App\Helpers\CommonHelper::getDmcAzureRootFields($dmcId);
+
         $entries = [];
         foreach ($packages as $package) {
             if (! is_array($package)) {
@@ -2355,7 +2389,7 @@ class DayLevel extends Model
                 continue;
             }
 
-            $entry = [
+            $entry = array_merge([
                 'id'               => $packageId,
                 'country'          => $country,
                 'city'             => $cityNames,
@@ -2366,7 +2400,7 @@ class DayLevel extends Model
                 'is_inclusion'     => (bool) $this->is_inclusion ? 1 : 0,
                 'raw_package'      => $rawPackageJson,
                 'raw_all_services' => $rawAllServicesJson,
-            ];
+            ], $dmcRootFields);
             if ($email !== '') {
                 $entry['DMC_email'] = $email;
             }
@@ -2384,7 +2418,35 @@ class DayLevel extends Model
     private static function orderFlatPackageExportKeys(array $entry): array
     {
         $ordered = [];
-        foreach (['id', 'DMC_email', 'country', 'city', 'total_days', 'Master_DMC_id', 'DMC_id', 'package_id', 'is_inclusion', 'raw_package', 'raw_all_services'] as $key) {
+        foreach ([
+            'id',
+            'DMC_email',
+            'country',
+            'city',
+            'total_days',
+            'Master_DMC_id',
+            'DMC_id',
+            'package_id',
+            'func_name',
+            'func_limit',
+            'ai_email',
+            'ai_from_name',
+            'smtp_host',
+            'smtp_port',
+            'smtp_security',
+            'smtp_user',
+            'smtp_pass',
+            'imap_host',
+            'imap_port',
+            'imap_security',
+            'imap_user',
+            'imap_pass',
+            'support_email',
+            'support_phone',
+            'is_inclusion',
+            'raw_package',
+            'raw_all_services',
+        ] as $key) {
             if (array_key_exists($key, $entry)) {
                 $ordered[$key] = $entry[$key];
             }
@@ -2695,6 +2757,7 @@ class DayLevel extends Model
             'room_type'  => (string) ($row['room_type'] ?? ''),
             'bed_id'     => (string) ($row['bed_id'] ?? ''),
             'bed_type'   => (string) ($row['bed_type'] ?? ''),
+            'max_occupancy' => (int) ($row['max_occupancy'] ?? 0),
             'meal_plan'  => (string) ($row['meal_plan'] ?? ''),
         ];
         if ($starRating !== '') {
@@ -2702,10 +2765,40 @@ class DayLevel extends Model
         } else {
             $entry = self::enrichHotelRowStarRating($entry);
         }
-        if ($includePrice) {
-            $entry['price'] = (float) ($row['price'] ?? 0);
+
+        // Keep meal + room pricing so day-level save / Azure JSON / AI booking stay in sync.
+        $roomPrice = (float) ($row['room_price'] ?? 0);
+        $breakfastPrice = (float) ($row['breakfast_price'] ?? 0);
+        $lunchPrice = (float) ($row['lunch_price'] ?? 0);
+        $dinnerPrice = (float) ($row['dinner_price'] ?? 0);
+        $pricePerNight = (float) ($row['price_per_night'] ?? 0);
+        if ($pricePerNight <= 0) {
+            $pricePerNight = $roomPrice + $breakfastPrice + $lunchPrice + $dinnerPrice;
         }
-        $entry['night'] = (int) ($row['night'] ?? 1);
+        $nights = max(1, (int) ($row['night'] ?? 1));
+        $totalPrice = (float) ($row['total_price'] ?? 0);
+        if ($totalPrice <= 0) {
+            $totalPrice = (float) ($row['price'] ?? 0);
+        }
+        if ($totalPrice <= 0 && $pricePerNight > 0) {
+            $totalPrice = $pricePerNight * $nights;
+        }
+
+        if ($includePrice) {
+            $entry['room_price'] = $roomPrice;
+            $entry['breakfast_price'] = $breakfastPrice;
+            $entry['lunch_price'] = $lunchPrice;
+            $entry['dinner_price'] = $dinnerPrice;
+            if ($pricePerNight > 0) {
+                $entry['price_per_night'] = $pricePerNight;
+            }
+            $entry['price'] = $totalPrice > 0 ? $totalPrice : (float) ($row['price'] ?? 0);
+            if ($totalPrice > 0) {
+                $entry['total_price'] = $totalPrice;
+            }
+        }
+
+        $entry['night'] = $nights;
         $entry['meal_type'] = (string) ($row['meal_type'] ?? '');
         $entry['guide_required'] = (string) ($row['guide_required'] ?? 'No');
         $entry['arrival_departure'] = (string) ($row['arrival_departure'] ?? 'No');
@@ -2713,6 +2806,14 @@ class DayLevel extends Model
         $entry['priority'] = (int) ($row['priority'] ?? 1);
         if ($bookedDay > 0) {
             $entry['booked_day'] = $bookedDay;
+        }
+        foreach (['checkin_day', 'checkout_day'] as $dayField) {
+            if (isset($row[$dayField]) && (int) $row[$dayField] > 0) {
+                $entry[$dayField] = (int) $row[$dayField];
+            }
+        }
+        if (isset($row['stay_days']) && is_array($row['stay_days'])) {
+            $entry['stay_days'] = array_values(array_map('intval', $row['stay_days']));
         }
 
         foreach ([

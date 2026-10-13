@@ -85,7 +85,7 @@
                 </div>
             @endif
 
-            <form id="driverForm" method="POST" action="{{ route('driver.store') }}" enctype="multipart/form-data" class="card-body">
+            <form id="driverForm" method="POST" action="{{ route('driver.store') }}" enctype="multipart/form-data" class="card-body js-submit-loader-form" data-loader-message="Saving...">
                 @csrf
                 <!-- Hidden Fields -->
                 <input id="userId" type="hidden" class="form-control" name="user_id" >
@@ -184,26 +184,28 @@
                                     @enderror
                                 </div>
                                 
-                                <!-- Country -->
+                                <!-- Country (Master DMC countries) -->
                                 <div class="mb-3 col-md-3">
                                     <label for="country" class="form-label"><strong><i class="ri-map-pin-line"></i> Country</strong>
                                         <span style="color: red; font-weight: bold;">*</span>
                                     </label>
-                                    @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 20)
-                                        <select name="country" id="country" class="form-control" required onchange="validateDriverAge(document.getElementById('driver_age'))">
+                                    @php
+                                        $scopedCountries = $masterDmcCountries ?? $country ?? collect();
+                                        $preselectedCountry = old('country', $userCountry ?? '');
+                                        if ($preselectedCountry === '' && $scopedCountries->count() === 1) {
+                                            $preselectedCountry = $scopedCountries->first()->name;
+                                        }
+                                    @endphp
+                                    <select name="country" id="country" class="form-control" required onchange="validateDriverAge(document.getElementById('driver_age'))">
+                                        @if($scopedCountries->count() !== 1)
                                             <option value="">Select Country</option>
-                                            @foreach($country as $countryItem)
-                                                <option value="{{ $countryItem->name }}" {{ old('country') == $countryItem->name ? 'selected' : '' }}>
-                                                    {{ $countryItem->name }}
-                                                </option>
-                                            @endforeach
-                                        </select>
-                                    @else
-                                        <input type="text" class="form-control" id="country" onchange="validateDriverAge(document.getElementById('driver_age'))" value="{{in_array(auth()->user()->role_id, [11, 35, 76, 111, 130, 132, 133, 135, 136, 137, 138, 139, 140]) ? $userCountry : ''}}"
-                                            placeholder="{{ auth()->user()->role_id == 11 ? 'Your country' : 'Select DMC First' }}" 
-                                            name="country" required 
-                                            {{ auth()->user()->role_id == 11 ? 'readonly' : 'readonly' }}>
-                                    @endif
+                                        @endif
+                                        @foreach($scopedCountries as $countryItem)
+                                            <option value="{{ $countryItem->name }}" {{ $preselectedCountry == $countryItem->name ? 'selected' : '' }}>
+                                                {{ $countryItem->name }}
+                                            </option>
+                                        @endforeach
+                                    </select>
                                     @error('country')
                                         <div class="text-danger mt-1">{{ $message }}</div>
                                     @enderror
@@ -214,16 +216,15 @@
                                 <label for="city" class="form-label"><strong><i class="ri-building-2-line"></i> City</strong><span class="text-danger">*</span></label>
 
                                 @php
-                                    $roleId = auth()->user()->role_id;
-                                    $placeholder = 'Select Country First';
-                                    $isDmcWithCities = in_array($roleId, [11, 35, 76, 111, 130, 132, 133, 135, 136, 137, 138, 139, 140]) && isset($cities) && count($cities) > 0;
+                                    $hasPreloadedCities = isset($cities) && count($cities) > 0 && $preselectedCountry !== '';
+                                    $placeholder = $hasPreloadedCities ? 'Select City' : 'Select Country First';
                                 @endphp
                                 
-                                <select name="city" id="citySelect" class="form-control" required {{ !$isDmcWithCities ? 'disabled' : '' }}>
+                                <select name="city" id="citySelect" class="form-control" required {{ !$hasPreloadedCities ? 'disabled' : '' }}>
                                     <option value="">{{ $placeholder }}</option>
-                                    @if($isDmcWithCities)
+                                    @if($hasPreloadedCities)
                                         @foreach($cities as $city)
-                                            <option value="{{ $city->name }}">{{ $city->name }}</option>
+                                            <option value="{{ $city->name }}" {{ old('city') == $city->name ? 'selected' : '' }}>{{ $city->name }}</option>
                                         @endforeach
                                     @endif
                                 </select>
@@ -372,7 +373,13 @@
 
                         <!-- Submit Buttons -->
                         <div class="d-flex gap-3 mt-4">
-                            <button type="submit" class="btn btn-primary px-4">Save</button>
+                            <button type="submit" class="btn btn-primary px-4 js-submit-loader-btn">
+                                <span class="js-submit-loader-btn-text">Save</span>
+                                <span class="js-submit-loader-btn-loading d-none">
+                                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                    Saving...
+                                </span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -381,6 +388,7 @@
     </div>
 </div>
 <!-- End of the form -->
+<x-form-submit-loader message="Saving..." />
 @endsection
 
 @section('scripts')
@@ -1057,208 +1065,134 @@ $(document).ready(function() {
 
 <script>
 $(document).ready(function() {
-    // Get the user's role ID
     var userRoleId = {{ auth()->user()->role_id }};
-    
-    // Country/city can be preloaded by controller for several roles
     var userCountry = @json($userCountry ?? '');
     var dmcId = "{{ auth()->user()->role_id == 11 ? auth()->user()->userId : '' }}";
-    
-    // Initialize Select2 for city (disabled until country is selected)
+    var currentCity = @json(old('city', ''));
+
     @php
-        $isDmcWithCities = in_array(auth()->user()->role_id, [11, 35, 76, 111, 130, 132, 133, 135, 136, 137, 138, 139, 140]) && isset($cities) && count($cities) > 0;
+        $hasPreloadedCitiesJs = isset($cities) && count($cities) > 0 && !empty($userCountry ?? old('country'));
     @endphp
     $('#citySelect').select2({
         placeholder: "Select Country First",
         allowClear: true,
         width: '100%',
-        disabled: {{ $isDmcWithCities ? 'false' : 'true' }}
+        disabled: {{ $hasPreloadedCitiesJs ? 'false' : 'true' }}
     });
-    
-    // Function to load cities for DMC
-    function loadCitiesForDmc(dmcId) {
-        if (dmcId) {
-            // Show loading state and disable city field
-            $('#citySelect').prop('disabled', true).empty().append('<option value="">Loading cities...</option>').trigger('change');
-            
-            console.log("Loading cities for DMC ID:", dmcId);
-            
-            $.ajax({
-                url: "{{ route('fetch.cities_countries') }}",
-                type: "GET",
-                data: { dmc_id: dmcId },
-                dataType: 'json',
-                success: function(response) {
-                    console.log("DMC Response received:", response);
-                    
-                    // Clear loading state
-                    $('#citySelect').empty();
-                    
-                    // Add default option
-                    $('#citySelect').append('<option value="">Select a City</option>');
-                    
-                    // Add cities from response
-                    if (response.cities && response.cities.length > 0) {
-                        $.each(response.cities, function(key, city) {
-                            $('#citySelect').append('<option value="' + city.name + '">' + city.name + '</option>');
-                        });
-                        // Enable city field when cities are loaded
-                        $('#citySelect').prop('disabled', false);
-                    } else {
-                        // No cities found, keep disabled
-                        $('#citySelect').append('<option value="">No cities available</option>');
-                    }
-                    
-                    // Set the country value
-                    if (response.country) {
-                        $('#country').val(response.country).trigger('change');
-                    }
 
-                    // Trigger change to refresh Select2
-                    $('#citySelect').trigger('change');
-                },
-                error: function(xhr, status, error) {
-                    console.error("Error loading cities for DMC:", error);
-                    console.log("XHR Status:", xhr.status);
-                    console.log("Response:", xhr.responseText);
-                    
-                    $('#citySelect').prop('disabled', true).empty().append('<option value="">Error loading cities</option>').trigger('change');
-                }
-            });
-        } else {
-            // DMC cleared, disable city field
-            $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
+    $('#country').select2({
+        placeholder: "Search and Select Country",
+        allowClear: true,
+        width: '100%'
+    });
+
+    function populateCountryOptions(countries, selectedCountry) {
+        var $country = $('#country');
+        $country.empty();
+        if (!countries || countries.length !== 1) {
+            $country.append('<option value="">Select Country</option>');
         }
+        $.each(countries || [], function(i, name) {
+            var selected = (name === selectedCountry) ? 'selected' : '';
+            $country.append('<option value="' + name + '" ' + selected + '>' + name + '</option>');
+        });
+        $country.trigger('change.select2');
     }
-    
-    // Function to load cities by country name
-    function loadCitiesByCountry(countryName) {
+
+    function loadCitiesByCountry(countryName, preserveCity) {
         if (!countryName) {
-            // Disable city field if no country is selected
             $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
             return;
         }
-        
-        // Show loading state and disable city field
+
         $('#citySelect').prop('disabled', true).empty().append('<option value="">Loading cities...</option>').trigger('change');
-        
+
         $.ajax({
             url: "{{ route('get.cities.by.country') }}",
             type: "GET",
             data: { country: countryName },
             dataType: 'json',
             success: function(response) {
-                console.log("Cities loaded for country:", response);
-                
-                // Clear loading state
-                $('#citySelect').empty();
-                
-                // Add default option
-                $('#citySelect').append('<option value="">Select a City</option>');
-                
-                // Add cities from response
+                $('#citySelect').empty().append('<option value="">Select a City</option>');
                 if (response.cities && response.cities.length > 0) {
                     $.each(response.cities, function(key, city) {
-                        $('#citySelect').append('<option value="' + city.name + '">' + city.name + '</option>');
+                        var selected = (preserveCity && city.name === currentCity) ? 'selected' : '';
+                        $('#citySelect').append('<option value="' + city.name + '" ' + selected + '>' + city.name + '</option>');
                     });
-                    // Enable city field when cities are loaded
                     $('#citySelect').prop('disabled', false);
                 } else {
-                    // No cities found, keep disabled
                     $('#citySelect').append('<option value="">No cities available</option>');
                 }
-                
-                // Trigger change to refresh Select2
                 $('#citySelect').trigger('change');
             },
-            error: function(xhr, status, error) {
-                console.error("Error loading cities:", error);
+            error: function() {
                 $('#citySelect').prop('disabled', true).empty().append('<option value="">Error loading cities</option>').trigger('change');
             }
         });
     }
-    
-    // Role-based initialization
-    if (userRoleId == 11) {
-        // DMC user - hide DMC selector and auto-populate
-        $('#dmc-container').hide();
-        $('#dmc').prop('required', false);
-        
-        // Auto-fill the country field with the DMC's country
-        $('#country').val(userCountry);
-        
-        // Load cities for this DMC
-        if (dmcId) {
-            loadCitiesForDmc(dmcId);
+
+    function loadCountriesAndCitiesForDmc(selectedDmcId) {
+        if (!selectedDmcId) {
+            $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
+            return;
         }
-        
-        // Initial load: enable city field if DMC has pre-loaded cities
-        @if($isDmcWithCities)
-            $('#citySelect').prop('disabled', false).trigger('change');
-        @endif
-    } 
-    else if ([1, 2, 3, 4, 23, 25, 62, 46, 109, 110].includes(userRoleId)) {
-        // Admin roles - show DMC dropdown and handle DMC selection
+
+        $('#citySelect').prop('disabled', true).empty().append('<option value="">Loading cities...</option>').trigger('change');
+
+        $.ajax({
+            url: "{{ route('fetch.cities_countries') }}",
+            type: "GET",
+            data: { dmc_id: selectedDmcId },
+            dataType: 'json',
+            success: function(response) {
+                var countries = response.countries || (response.country ? [response.country] : []);
+                var selected = response.country || (countries[0] || '');
+                populateCountryOptions(countries, selected);
+                loadCitiesByCountry(selected, false);
+            },
+            error: function() {
+                $('#citySelect').prop('disabled', true).empty().append('<option value="">Error loading cities</option>').trigger('change');
+            }
+        });
+    }
+
+    // Always reload cities when country changes
+    $('#country').on('change', function() {
+        var selectedCountry = $(this).val();
+        if (!selectedCountry) {
+            $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
+            return;
+        }
+        loadCitiesByCountry(selectedCountry, false);
+    });
+
+    if ([1, 2, 3, 4, 20, 23, 25, 62, 46, 109, 110].includes(userRoleId)) {
         $('#dmc-container').show();
         $('#dmc').prop('required', true);
-        
-        // When DMC is changed (for admin users)
         $('#dmc').change(function() {
             var selectedDmcId = $(this).val();
             if (selectedDmcId) {
-                loadCitiesForDmc(selectedDmcId);
+                loadCountriesAndCitiesForDmc(selectedDmcId);
             } else {
-                // Clear city select and country, disable city field
                 $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
                 $('#country').val('').trigger('change');
             }
         });
-        
-        // Also handle direct country changes for these roles
-        $('#country').on('change', function() {
-            var selectedCountry = $(this).val();
-            var selectedCountryValue = $(this).val();
-            
-            if (!selectedCountryValue || selectedCountryValue === '') {
-                // Country cleared, disable city field
-                $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
-                return;
-            }
-            
-            loadCitiesByCountry(selectedCountry);
-        });
-    } 
-    else if ([35, 76, 111, 130, 132, 133, 135, 136, 137, 138, 139, 140].includes(userRoleId)) {
-        // Other roles with specific DMC relationships
+    } else {
         $('#dmc-container').hide();
         $('#dmc').prop('required', false);
-        
-        // These roles should auto-populate their country and cities
-        if (userCountry) {
-            $('#country').val(userCountry);
-            loadCitiesByCountry(userCountry);
-        }
     }
-    else {
-        // Default case for other roles
-        $('#dmc-container').hide();
-        $('#dmc').prop('required', false);
-        
-        // Handle country changes if country dropdown is available
-        $('#country').on('change', function() {
-            var selectedCountry = $(this).val();
-            var selectedCountryValue = $(this).val();
-            
-            if (!selectedCountryValue || selectedCountryValue === '') {
-                // Country cleared, disable city field
-                $('#citySelect').prop('disabled', true).empty().append('<option value="">Select Country First</option>').trigger('change');
-                return;
-            }
-            
-            loadCitiesByCountry(selectedCountry);
-        });
+
+    // Initial city load for preselected country
+    var initialCountry = $('#country').val();
+    if (initialCountry) {
+        @if(empty(old('city')) && empty($hasPreloadedCitiesJs))
+            loadCitiesByCountry(initialCountry, true);
+        @else
+            $('#citySelect').prop('disabled', false);
+        @endif
     }
-    
+
     // Toggle App Password Visibility
     $('#toggleAppPassword').on('click', function() {
         const passwordInput = $('#app_password');

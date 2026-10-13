@@ -125,6 +125,8 @@ class AgentFinanceTestDashboardController extends Controller
                 'ledgerFilters' => $ledgerData['ledgerFilters'],
                 'ledgerQueryParams' => $ledgerQueryParams,
                 'showReferenceColumn' => false,
+                'ledgerSummary' => $ledgerData['ledgerSummary'] ?? null,
+                'ledgerFilteredSummary' => $ledgerData['ledgerFilteredSummary'] ?? null,
             ])->render(),
             'meta' => [
                 'total' => $ledgerData['ledger']->total(),

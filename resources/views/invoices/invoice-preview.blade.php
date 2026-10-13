@@ -136,27 +136,51 @@ use Illuminate\Support\Facades\Crypt;
                     <span class="toolbar-label">Invoice View</span>
                     <div class="btn-group btn-group-sm" role="group" aria-label="Full invoice or price breakup">
                         <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($invoice->invoice_id), 'mode' => 'full', 'currency' => $selectedCurrency, 'logo_type' => $logoType ?? 'dmc', 'format' => $format ?? 'standard']) }}"
-                           class="btn {{ $mode === 'full' ? 'btn-primary' : 'btn-outline-secondary' }}">Packaged</a>
+                           class="btn {{ $mode === 'full' ? 'btn-primary' : 'btn-outline-secondary' }}">Price breakup</a>
                         <a href="{{ route('invoices.preview', ['invoiceId' => Crypt::encrypt($invoice->invoice_id), 'mode' => 'price-only', 'currency' => $selectedCurrency, 'logo_type' => $logoType ?? 'dmc', 'format' => $format ?? 'standard']) }}"
-                           class="btn {{ $mode === 'price-only' ? 'btn-info' : 'btn-outline-secondary' }}">Price breakup</a>
+                           class="btn {{ $mode === 'price-only' ? 'btn-info' : 'btn-outline-secondary' }}">Packaged</a>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    @if(($selectedCurrency ?? 'SGD') !== 'SGD' && !empty($currencyConversion ?? []))
+    @php
+        $previewMultiGeo = $invoiceMultiGeo ?? \App\Helpers\CommonHelper::detectInvoiceMultiGeo($invoice);
+        $previewIsThirdParty = $isThirdPartyInvoice ?? \App\Helpers\CommonHelper::isInvoiceThirdPartyEnabled($invoice);
+        $showPreviewMultiGeoNotice = !empty($previewMultiGeo['is_multi']) && empty($previewIsThirdParty);
+    @endphp
+    @if($showPreviewMultiGeoNotice)
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="alert alert-warning mb-0" role="alert" style="border-left: 4px solid #f59e0b;">
+                <strong>Multi-country / multi-city booking</strong>
+                <div class="small mt-1 mb-0">
+                    This itinerary spans multiple countries or cities
+                    @if(!empty($previewMultiGeo['countries']))
+                        ({{ implode(', ', $previewMultiGeo['countries']) }})
+                    @endif.
+                    Country-wise service and negotiation breakdown is hidden because multi-country pricing is not enabled for this DMC.
+                    Please enable multi-country / third-party pricing in the DMC profile settings to show amounts separately by country, city, and currency.
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    @if($selectedCurrency !== $baseCurrency && !empty($currencyConversion ?? []))
     <div class="row mb-3">
         <div class="col-12">
             <div class="card border-success">
                 <div class="card-header bg-success text-white">
-                    <h5 class="mb-0"><i class="ri-exchange-dollar-line me-2"></i>Currency Conversion (SGD + {{ $selectedCurrency }})</h5>
+                    <h5 class="mb-0"><i class="ri-exchange-dollar-line me-2"></i>Currency Conversion ({{ $baseCurrency }} + {{ $selectedCurrency }})</h5>
                 </div>
                 <div class="card-body">
+                    <p class="small text-muted mb-2">Equivalent of the invoice final / outstanding amount in each currency (aligned with the PDF summary).</p>
                     <div class="row">
                         @foreach($currencyConversion ?? [] as $curr => $amount)
                         <div class="col-md-4">
-                            <strong>{{ $curr }}:</strong> {{ number_format(round($amount)) }}
+                            <strong>{{ $curr }}:</strong> {{ number_format(round((float) $amount, 2), 2) }}
                         </div>
                         @endforeach
                     </div>

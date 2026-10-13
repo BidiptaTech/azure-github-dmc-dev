@@ -129,7 +129,10 @@ class PackageController extends Controller
             }
         }
 
-        return view('package.package', compact('packages'));
+        // Currency of the DMC who maintains these packages (users.currency of the DMC).
+        $currency = CommonHelper::getDmcCurrency($dmc_id);
+
+        return view('package.package', compact('packages', 'currency'));
     }
 
     /**
@@ -138,7 +141,9 @@ class PackageController extends Controller
     public function create()
     {
         $countries = Country::where('is_active', 1)->orderBy('name')->get();
-        return view('package.create-predefined', compact('countries'));
+        // New package: resolve DMC from the current user.
+        $currency = CommonHelper::getDmcCurrency(CommonHelper::getDmcId(Auth::user()));
+        return view('package.create-predefined', compact('countries', 'currency'));
     }
 
     /**
@@ -397,8 +402,11 @@ class PackageController extends Controller
         
         // Increment views
         $package->incrementViews();
-        
-        return view('package.show-predefined', compact('package'));
+
+        // Existing package: currency of the DMC that maintains it.
+        $currency = CommonHelper::getDmcCurrency($package->dmc_id);
+
+        return view('package.show-predefined', compact('package', 'currency'));
     }
 
     /**
@@ -426,7 +434,10 @@ class PackageController extends Controller
 
         $categories = Package::CATEGORIES;
 
-        return view('package.edit-predefined', compact('package', 'countries', 'categories', 'hotels', 'attractions', 'restaurants', 'guides'));
+        // Existing package: currency of the DMC that maintains it.
+        $currency = CommonHelper::getDmcCurrency($package->dmc_id);
+
+        return view('package.edit-predefined', compact('package', 'countries', 'categories', 'hotels', 'attractions', 'restaurants', 'guides', 'currency'));
     }
 
     /**
@@ -807,7 +818,9 @@ class PackageController extends Controller
         $mode = 'create';
         $package = null;
         $initialDefinition = null;
-        return view('package.package-definition', compact('countries', 'mode', 'package', 'initialDefinition'));
+        // New definition: package does not exist yet, resolve DMC from the current user.
+        $currency = CommonHelper::getDmcCurrency(CommonHelper::getDmcId(Auth::user()));
+        return view('package.package-definition', compact('countries', 'mode', 'package', 'initialDefinition', 'currency'));
     }
 
     /**
@@ -825,8 +838,10 @@ class PackageController extends Controller
         $countries = $this->getAllowedCountriesForPackageDefinition(Auth::user());
         $mode = 'edit';
         $initialDefinition = $this->buildInitialDefinition($package);
+        // Existing package: use the DMC stored on the package.
+        $currency = CommonHelper::getDmcCurrency($package->dmc_id);
 
-        return view('package.package-definition', compact('countries', 'mode', 'package', 'initialDefinition'));
+        return view('package.package-definition', compact('countries', 'mode', 'package', 'initialDefinition', 'currency'));
     }
 
     /**
@@ -872,6 +887,9 @@ class PackageController extends Controller
             DB::beginTransaction();
 
             $mainImagePath = $package->main_image;
+            if ($request->boolean('remove_main_image') && !$request->hasFile('main_image')) {
+                $mainImagePath = null;
+            }
             if ($request->hasFile('main_image')) {
                 $imageData = CommonHelper::image_path('file_storage', $request->file('main_image'));
                 if (!empty($imageData['master_value'])) {
@@ -880,6 +898,12 @@ class PackageController extends Controller
             }
 
             $galleryImages = is_array($package->gallery_images) ? $package->gallery_images : (is_string($package->gallery_images) ? (json_decode($package->gallery_images, true) ?: []) : []);
+            $removeGalleryImages = array_values(array_filter((array) $request->input('remove_gallery_images', [])));
+            if (!empty($removeGalleryImages) && !$request->hasFile('gallery_images')) {
+                $galleryImages = array_values(array_filter($galleryImages, function ($img) use ($removeGalleryImages) {
+                    return !in_array((string) $img, array_map('strval', $removeGalleryImages), true);
+                }));
+            }
             if ($request->hasFile('gallery_images')) {
                 $galleryImages = [];
                 foreach ($request->file('gallery_images') as $image) {
@@ -2036,8 +2060,12 @@ class PackageController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
         }
-        
-        return view('package.booking-list', compact('bookings'));
+
+        // Map of DMC currency keyed by dmc_id so each booking shows the maintaining DMC's currency.
+        $dmcIds = $bookings->pluck('dmc_id')->filter()->unique()->values();
+        $currencies = User::whereIn('userId', $dmcIds)->pluck('currency', 'userId')->toArray();
+
+        return view('package.booking-list', compact('bookings', 'currencies'));
     }
     
     /**

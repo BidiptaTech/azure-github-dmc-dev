@@ -23,7 +23,9 @@ class Country extends Model
     protected $fillable = [
         'name',
         'country_code',
+        'short_code',
         'currency',
+        'timezone',
         'is_active',
         'country_image',
         'tax_percentage',

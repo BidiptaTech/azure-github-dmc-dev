@@ -36,10 +36,23 @@ return [
     ],
 
     'azure' => [
-    'vault' => env('AZURE_KEYVAULT_NAME'),
-    'client_id' => env('AZURE_CLIENT_ID'),
-    'client_secret' => env('AZURE_CLIENT_SECRET'),
-    'tenant_id' => env('AZURE_TENANT_ID'),
+        'vault' => env('AZURE_KEYVAULT_NAME'),
+        'client_id' => env('AZURE_CLIENT_ID'),
+        'client_secret' => env('AZURE_CLIENT_SECRET'),
+        'tenant_id' => env('AZURE_TENANT_ID'),
+    ],
+
+    /*
+    | Azure AI Search — day-level JSON indexer.
+    | Fill these so delete removes index docs, then reset+run refreshes from current blobs.
+    */
+    'azure_search' => [
+        'endpoint' => rtrim((string) env('AZURE_SEARCH_ENDPOINT', ''), '/'),
+        'admin_key' => env('AZURE_SEARCH_ADMIN_KEY', ''),
+        'index' => env('AZURE_SEARCH_INDEX_NAME', ''),
+        'indexer' => env('AZURE_SEARCH_INDEXER_NAME', ''),
+        'key_field' => env('AZURE_SEARCH_KEY_FIELD', 'id'),
+        'api_version' => env('AZURE_SEARCH_API_VERSION', '2024-07-01'),
     ],
 
     'tiniva' => [

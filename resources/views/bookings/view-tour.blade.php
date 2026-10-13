@@ -751,6 +751,9 @@
                                     $amount = $item['amount'] ?? null;
                                     $comment = $item['comment'] ?? null;
                                     $actualAmount = $item['actual_amount'] ?? null;
+                                    $offers = (isset($item['offers']) && is_array($item['offers'])) ? $item['offers'] : [];
+                                    $hasOffers = !empty($offers);
+                                    $confirmCurrency = !empty($item['confirm_currency']) ? strtoupper(trim((string) $item['confirm_currency'])) : null;
                                     $changedByName = $item['changed_by_name'] ?? null;
                                     $action = $item['action'] ?? null;
                                     $Amount=$item['sgd_amount'] ?? null;
@@ -792,23 +795,101 @@
                                                 <span class="badge bg-label-{{ $color }} ms-2">{{ $date->diffForHumans() }}</span>
                                             </p>
                                             @php
-                                                $showDetails = ($amount !== null && $amount !== '') || ($actualAmount !== null && $actualAmount !== '') || !empty($comment);
+                                                $showDetails = $hasOffers
+                                                    || ($amount !== null && $amount !== '')
+                                                    || ($actualAmount !== null && $actualAmount !== '')
+                                                    || !empty($comment);
                                                 $isConfirmed = $to === 'Confirmed';
                                                 $isRefundPending = $to === 'Refund - Pending';
                                                 $isCancelStatus = $to && str_starts_with((string)$to, 'Cancel -');
-                                                $showDetailsBox = ($showDetails || $isRefundPending || $isCancelStatus) && !($isConfirmed && !$showDetails);
+                                                $showDetailsBox = ($showDetails || $isRefundPending || $isCancelStatus) && !($isConfirmed && !$showDetails && !$hasOffers);
                                             @endphp
                                             @if($showDetailsBox)
                                             <div class="timeline-details-box mt-2">
-                                                @if($isConfirmed)
-                                                    <p class="mb-1"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Original Amount: <span class="fw-semibold">{{ $actualAmount !== null && $actualAmount !== '' ? (is_numeric($actualAmount) ? number_format((float)$actualAmount, 2) : $actualAmount) : '—' }}</span></p>
-                                                    <p class="mb-0"><i class="ri-checkbox-circle-line me-1 text-success"></i>Agent accepted at the Price <span class="fw-semibold">{{ $amount !== null && $amount !== '' ? (is_numeric($amount) ? number_format((float)$amount, 2) : $amount) : '—' }}</span></p>
-                                                @elseif($isRefundPending)
+                                                @if($isRefundPending)
                                                     <p class="mb-1"><i class="ri-close-circle-line me-1 text-danger"></i><span class="fw-semibold">Agent Cancelled the Tour</span></p>
                                                     <p class="mb-0"><i class="ri-refund-line me-1 text-warning"></i>Tour's Refund is pending</p>
                                                 @elseif($isCancelStatus)
                                                     <p class="mb-1"><i class="ri-close-circle-line me-1 text-danger"></i><span class="fw-semibold">Agent Cancelled the Tour</span></p>
                                                     <p class="mb-0"><i class="ri-information-line me-1 text-muted"></i>Tour Status is <span class="fw-medium">{{ $to }}</span></p>
+                                                @elseif($hasOffers)
+                                                    @if($isConfirmed)
+                                                        <p class="mb-2"><i class="ri-checkbox-circle-line me-1 text-success"></i><span class="fw-semibold">Agent accepted these country prices</span></p>
+                                                    @endif
+                                                    <div class="timeline-offers-grid">
+                                                        @foreach($offers as $offer)
+                                                            @php
+                                                                $offerCountry = trim((string) ($offer['country'] ?? ''));
+                                                                $offerCurrency = strtoupper(trim((string) ($offer['currency'] ?? '')));
+                                                                $offerAmount = $offer['amount'] ?? null;
+                                                                $offerActualAmount = $offer['actual_amount'] ?? null;
+                                                            @endphp
+                                                            <div class="timeline-offer-box">
+                                                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                                                    <span class="fw-semibold">{{ $offerCountry !== '' ? $offerCountry : 'Country' }}</span>
+                                                                    @if($offerCurrency !== '')
+                                                                        <span class="badge bg-label-secondary">{{ $offerCurrency }}</span>
+                                                                    @endif
+                                                                </div>
+                                                                <p class="mb-1">
+                                                                    <i class="ri-hand-coin-line me-1"></i>
+                                                                    {{ $isConfirmed ? 'Accepted Amount' : 'Negotiate Amount' }}:
+                                                                    <span class="fw-semibold">
+                                                                        {{ $offerAmount !== null && $offerAmount !== '' ? (is_numeric($offerAmount) ? number_format((float) $offerAmount, 2) : $offerAmount) : '—' }}
+                                                                    </span>
+                                                                    @if($offerCurrency !== '')
+                                                                        <span class="text-muted">{{ $offerCurrency }}</span>
+                                                                    @endif
+                                                                </p>
+                                                                <p class="mb-0">
+                                                                    <i class="ri-price-tag-3-line me-1"></i>
+                                                                    {{ $isConfirmed ? 'Original Amount' : 'Offered Amount' }}:
+                                                                    <span class="fw-semibold">
+                                                                        {{ $offerActualAmount !== null && $offerActualAmount !== '' ? (is_numeric($offerActualAmount) ? number_format((float) $offerActualAmount, 2) : $offerActualAmount) : '—' }}
+                                                                    </span>
+                                                                    @if($offerCurrency !== '')
+                                                                        <span class="text-muted">{{ $offerCurrency }}</span>
+                                                                    @endif
+                                                                </p>
+                                                            </div>
+                                                        @endforeach
+                                                    </div>
+                                                    @if($isConfirmed)
+                                                        <div class="timeline-offer-box mt-2">
+                                                            <p class="mb-1">
+                                                                <i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Original Amount:
+                                                                <span class="fw-semibold">{{ $actualAmount !== null && $actualAmount !== '' ? (is_numeric($actualAmount) ? number_format((float)$actualAmount, 2) : $actualAmount) : '—' }}</span>
+                                                                @if(!empty($confirmCurrency))
+                                                                    <span class="badge bg-label-secondary ms-1">{{ $confirmCurrency }}</span>
+                                                                @endif
+                                                            </p>
+                                                            <p class="mb-0">
+                                                                <i class="ri-checkbox-circle-line me-1 text-success"></i>Total Accepted Amount:
+                                                                <span class="fw-semibold">{{ $amount !== null && $amount !== '' ? (is_numeric($amount) ? number_format((float)$amount, 2) : $amount) : '—' }}</span>
+                                                                @if(!empty($confirmCurrency))
+                                                                    <span class="badge bg-label-secondary ms-1">{{ $confirmCurrency }}</span>
+                                                                @endif
+                                                            </p>
+                                                        </div>
+                                                    @endif
+                                                    @if(!empty($comment))
+                                                        <p class="mb-0 mt-2"><i class="ri-chat-3-line me-1"></i>Comment: <span class="text-body">{{ $comment }}</span></p>
+                                                    @endif
+                                                @elseif($isConfirmed)
+                                                    <p class="mb-1">
+                                                        <i class="ri-money-dollar-circle-line me-1 text-success"></i>Original Amount:
+                                                        <span class="fw-semibold">{{ $actualAmount !== null && $actualAmount !== '' ? (is_numeric($actualAmount) ? number_format((float)$actualAmount, 2) : $actualAmount) : '—' }}</span>
+                                                        @if(!empty($confirmCurrency))
+                                                            <span class="badge bg-label-secondary ms-1">{{ $confirmCurrency }}</span>
+                                                        @endif
+                                                    </p>
+                                                    <p class="mb-0">
+                                                        <i class="ri-checkbox-circle-line me-1 text-success"></i>Agent accepted at the Price
+                                                        <span class="fw-semibold">{{ $amount !== null && $amount !== '' ? (is_numeric($amount) ? number_format((float)$amount, 2) : $amount) : '—' }}</span>
+                                                        @if(!empty($confirmCurrency))
+                                                            <span class="badge bg-label-secondary ms-1">{{ $confirmCurrency }}</span>
+                                                        @endif
+                                                    </p>
                                                 @else
                                                     @if($amount !== null && $amount !== '')
                                                     <p class="mb-1"><i class="ri-hand-coin-line me-1"></i>On the Agent's Negotiate Amount: <span class="fw-semibold">{{ is_numeric($amount) ? number_format((float)$amount, 2) : $amount }}</span></p>
@@ -1023,6 +1104,23 @@
     margin-bottom: 0.35rem;
 }
 .timeline-details-box p:last-child {
+    margin-bottom: 0;
+}
+.timeline-offers-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+}
+.timeline-offer-box {
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 6px;
+    padding: 0.6rem 0.75rem;
+}
+.timeline-offer-box p {
+    margin-bottom: 0.25rem;
+}
+.timeline-offer-box p:last-child {
     margin-bottom: 0;
 }
 

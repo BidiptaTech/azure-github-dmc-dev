@@ -22,7 +22,7 @@
         <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
             <div>
                 <h4 class="mb-1">Wallet Management</h4>
-                <p class="text-muted mb-0">Prepaid balance for bookings and settlements</p>
+                <p class="text-muted mb-0">{{ $ownerDisplayName ?? 'Wallet' }} · {{ $currency ?? 'SGD' }} wallet</p>
             </div>
             <a href="{{ route('finance.wallet.transactions', !empty($isAdmin) ? ['scope' => 'master_dmc_flow'] : array_filter(['owner_type' => $ownerType ?? null, 'owner_id' => $ownerId ?? null, 'currency' => $currency ?? null])) }}"
                class="btn btn-primary btn-sm">
@@ -66,7 +66,7 @@
                         </div>
                         <div>
                             <div class="text-muted small">Total Credited</div>
-                            <div class="fs-5 fw-semibold">{{ number_format((float)($wallet->total_credited ?? 0), 2) }}</div>
+                            <div class="fs-5 fw-semibold">{{ number_format((float)($ledgerSummary['credit'] ?? $wallet->total_credited ?? 0), 2) }}</div>
                         </div>
                     </div>
                 </div>
@@ -79,7 +79,7 @@
                         </div>
                         <div>
                             <div class="text-muted small">Total Debited</div>
-                            <div class="fs-5 fw-semibold">{{ number_format((float)($wallet->total_debited ?? 0), 2) }}</div>
+                            <div class="fs-5 fw-semibold">{{ number_format((float)($ledgerSummary['debit'] ?? $wallet->total_debited ?? 0), 2) }}</div>
                         </div>
                     </div>
                 </div>
@@ -182,7 +182,9 @@
                     'ledger' => $ledger,
                     'ledgerFilters' => $ledgerFilters ?? null,
                     'ledgerBadge' => $ownerDisplayName ?? (ucfirst($ownerType ?? 'wallet').' #'.($ownerId ?? '-')),
-                    'ledgerAjaxUrl' => route('finance.wallet.ledger'),
+                    'ledgerAjaxUrl' => route('finance.wallet.ledger', [], false),
+                    'ledgerSummary' => $ledgerSummary ?? null,
+                    'ledgerFilteredSummary' => $ledgerFilteredSummary ?? null,
                     'ledgerPersistParams' => [
                         'owner_type' => $ownerType ?? null,
                         'owner_id' => $ownerId ?? null,

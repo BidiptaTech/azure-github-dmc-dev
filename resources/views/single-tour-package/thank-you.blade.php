@@ -1,5 +1,5 @@
 @extends('layouts.layout')
-@section('title', 'Thank You - Tour Package Created')
+@section('title', 'Thank You - Enquiry Created')
 @section('content')
 
 <div class="content-wrapper">
@@ -30,7 +30,7 @@
 
                         <!-- Thank You Message -->
                         <h1 class="display-4 text-success fw-bold mb-3">Thank You!</h1>
-                        <h4 class="text-muted mb-4">Your Tour Package Has Been Successfully Created</h4>
+                        <h4 class="text-muted mb-4">Your Enquiry Has Been Successfully Created</h4>
                         
                         <!-- Tour Details -->
                         @if(session('tour_details'))
@@ -78,7 +78,7 @@
                             <div class="row justify-content-center mb-4">
                                 <div class="col-md-10">
                                     <h5 class="text-primary mb-3">
-                                        <i class="ri-service-line me-2"></i>Services Successfully Booked
+                                        <i class="ri-service-line me-2"></i>Enquiry Successfully Created
                                     </h5>
                                     <div class="row">
                                         @foreach($createdOrders as $order)
@@ -121,8 +121,8 @@
                                 class="btn btn-primary btn-lg px-3"
                                 data-bs-toggle="tooltip"
                                 data-bs-placement="top"
-                                title="Create Another Tour Package"
-                                aria-label="Create Another Tour Package"
+                                title="Create Another Enquiry"
+                                aria-label="Create Another Enquiry"
                             >
                                 <i class="ri-add-line"></i>
                             </a>

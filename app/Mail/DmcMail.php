@@ -26,9 +26,13 @@ class DmcMail extends Mailable
     /** @var list<string> */
     public array $bccEmails;
 
+    /** @var array<string, mixed>|null */
+    protected ?array $runtimeMailConfig;
+
     /**
      * @param  list<string>  $ccEmails
      * @param  list<string>  $bccEmails
+     * @param  array<string, mixed>|null  $runtimeMailConfig
      */
     public function __construct(
         $htmlContent,
@@ -37,7 +41,8 @@ class DmcMail extends Mailable
         ?string $fromName = null,
         ?string $replyToEmail = null,
         array $ccEmails = [],
-        array $bccEmails = []
+        array $bccEmails = [],
+        ?array $runtimeMailConfig = null
     ) {
         $this->htmlContent = $htmlContent;
         $this->emailSubject = $subject ?: 'Booking Confirmation';
@@ -46,10 +51,26 @@ class DmcMail extends Mailable
         $this->replyToEmail = $replyToEmail;
         $this->ccEmails = $ccEmails;
         $this->bccEmails = $bccEmails;
+        $this->runtimeMailConfig = $runtimeMailConfig;
     }
 
     public function build()
     {
+        $setup = null;
+        if ($this->runtimeMailConfig !== null) {
+            \App\Helpers\CommonHelper::applyRuntimeMailConfig($this->runtimeMailConfig);
+            $this->fromEmail = $this->fromEmail ?: ($this->runtimeMailConfig['from_email'] ?? null);
+            $this->fromName = $this->fromName ?: ($this->runtimeMailConfig['from_name'] ?? null);
+        } else {
+            // Prefer DMC emails_setup SMTP over .env for normal sends.
+            $setup = \App\Helpers\CommonHelper::applyEmailsSetupMailConfig();
+        }
+
+        if (empty($this->fromEmail) && $setup && !empty($setup->From_Email)) {
+            $this->fromEmail = $setup->From_Email;
+            $this->fromName = $setup->From_Name ?: $this->fromName;
+        }
+
         $mail = $this->subject($this->emailSubject)->html($this->htmlContent);
 
         if ($this->fromEmail && filter_var($this->fromEmail, FILTER_VALIDATE_EMAIL)) {

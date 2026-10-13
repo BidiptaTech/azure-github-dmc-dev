@@ -200,8 +200,22 @@
         pointer-events: none;
     }
 
-    .readonly-field-container input:hover {
+    .readonly-field-container input:hover,
+    .readonly-field-container .select2-selection:hover {
         border-color: #dfe3e7 !important;
+    }
+
+    .select2-container--default.select2-container--disabled .select2-selection--single {
+        background-color: #f0f2f5 !important;
+        cursor: not-allowed !important;
+        border: 1px solid #dfe3e7 !important;
+        color: #6e7781 !important;
+    }
+
+    #mapping_filter_country:disabled {
+        background-color: #f0f2f5 !important;
+        cursor: not-allowed !important;
+        color: #6e7781 !important;
     }
 
     .field-info-message {
@@ -345,6 +359,39 @@
                     </span>
                 </a>
             </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link port-port-tab {{ request()->get('mapping_type') == 'hotel_hotel' ? 'active' : '' }}"
+                   href="{{ route('vehicle.edit', ['vehicle' => Crypt::encrypt($vehicle->vehicle_id), 'zone_mapping' => true, 'mapping_type' => 'hotel_hotel']) }}"
+                   role="tab">
+                    <span class="d-flex align-items-center">
+                        <span>Hotel</span>
+                        <i class="fa-solid fa-repeat mx-2" aria-hidden="true"></i>
+                        <span>Hotel</span>
+                    </span>
+                </a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link port-port-tab {{ request()->get('mapping_type') == 'attraction_attraction' ? 'active' : '' }}"
+                   href="{{ route('vehicle.edit', ['vehicle' => Crypt::encrypt($vehicle->vehicle_id), 'zone_mapping' => true, 'mapping_type' => 'attraction_attraction']) }}"
+                   role="tab">
+                    <span class="d-flex align-items-center">
+                        <span>Attraction</span>
+                        <i class="fa-solid fa-repeat mx-2" aria-hidden="true"></i>
+                        <span>Attraction</span>
+                    </span>
+                </a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link port-port-tab {{ request()->get('mapping_type') == 'restaurant_restaurant' ? 'active' : '' }}"
+                   href="{{ route('vehicle.edit', ['vehicle' => Crypt::encrypt($vehicle->vehicle_id), 'zone_mapping' => true, 'mapping_type' => 'restaurant_restaurant']) }}"
+                   role="tab">
+                    <span class="d-flex align-items-center">
+                        <span>Restaurant</span>
+                        <i class="fa-solid fa-repeat mx-2" aria-hidden="true"></i>
+                        <span>Restaurant</span>
+                    </span>
+                </a>
+            </li>
         </ul>
         @endif
         
@@ -360,12 +407,20 @@
                               data-bs-title="Note: Vice-versa prices will be the same (Zone A → Zone B = Zone B → Zone A).">
                             <i class="fas fa-info-circle"></i>
                         </span>
-                        <x-currency-price-note />
+                        <x-currency-price-note
+                            :country="old('country', $selectedCountry ?? $vehicle->country ?? null)"
+                            :watch-country="true"
+                            country-select-id="country"
+                        />
                     </span>
                 @else
                     <span class="d-flex align-items-center flex-wrap gap-2">
                         Edit Vehicle Details
-                        <x-currency-price-note />
+                        <x-currency-price-note
+                            :country="old('country', $selectedCountry ?? $vehicle->country ?? null)"
+                            :watch-country="true"
+                            country-select-id="country"
+                        />
                     </span>
                 @endif
                 <a href="{{ route('vehicle.index') }}" class="btn btn-sm btn-outline-danger">
@@ -426,9 +481,13 @@
                             </div>
 
                             <!-- Country -->
+                            @php $locationLockedByMappings = !empty($hasZoneMappings); @endphp
                             <div class="col-md-3 mb-3">
                                 <label for="country" class="form-label"><strong>Country</strong><span class="text-danger">*</span></label>
-                                <select name="country" id="country" class="form-select" required>
+                                @if($locationLockedByMappings)
+                                    <input type="hidden" name="country" value="{{ $selectedCountry ?? $vehicle->country }}">
+                                @endif
+                                <select @if(!$locationLockedByMappings) name="country" required @endif id="country" class="form-select" @disabled($locationLockedByMappings)>
                                     @php $scopedCountries = $countries ?? collect(); @endphp
                                     @if($scopedCountries->count() !== 1)
                                         <option value="">Select Country</option>
@@ -437,6 +496,11 @@
                                         <option value="{{ $c->name }}" {{ ($selectedCountry ?? '') == $c->name ? 'selected' : '' }}>{{ $c->name }}</option>
                                     @endforeach
                                 </select>
+                                @if($locationLockedByMappings)
+                                    <div class="field-info-message">
+                                        <i class="fas fa-lock"></i> Country cannot be changed because zone mapping prices already exist for this vehicle.
+                                    </div>
+                                @endif
                                 @error('country')
                                     <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
@@ -445,12 +509,20 @@
                             <!-- City Name -->
                             <div class="col-md-3 mb-3">
                                 <label for="city_name" class="form-label"><strong>City Name</strong><span class="text-danger">*</span></label>
-                                <select name="city_name" id="city_name" class="form-select" required>
+                                @if($locationLockedByMappings)
+                                    <input type="hidden" name="city_name" value="{{ $vehicle->city }}">
+                                @endif
+                                <select @if(!$locationLockedByMappings) name="city_name" required @endif id="city_name" class="form-select" @disabled($locationLockedByMappings)>
                                     <option value="">Select a city</option>
                                     @foreach($city as $c)
                                         <option {{ $c->name == $vehicle->city ? 'selected' : '' }} value="{{ $c->name }}">{{ $c->name }}</option>
                                     @endforeach
                                 </select>
+                                @if($locationLockedByMappings)
+                                    <div class="field-info-message">
+                                        <i class="fas fa-lock"></i> City cannot be changed because zone mapping prices already exist for this vehicle.
+                                    </div>
+                                @endif
                                 @error('city_name')
                                     <div class="text-danger mt-1">{{ $message }}</div>
                                 @enderror
@@ -586,6 +658,36 @@
                                 @enderror
                             </div> -->
 
+                            <fieldset id="vehicle_profit" class="border p-4 rounded mb-4">
+                                <h5 class="card-title mb-3">Profit</h5>
+                                <div class="row">
+                                    <div class="col-md-3 mb-3">
+                                        <label for="day_profit_type" class="form-label"><strong>Type</strong></label>
+                                        <select id="day_profit_type" name="day_profit_type" class="form-select form-select-sm">
+                                            <option value="percentage" {{ old('day_profit_type', 'percentage') === 'percentage' ? 'selected' : '' }}>Percentage</option>
+                                            <option value="flat" {{ old('day_profit_type') === 'flat' ? 'selected' : '' }}>Flat</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="mark_up" class="form-label"><strong>Mark up</strong></label>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm" id="mark_up" name="mark_up" placeholder="0.00" value="{{ old('mark_up') }}">
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-3 mb-3">
+                                        <label for="night_profit_type" class="form-label"><strong>Type</strong></label>
+                                        <select id="night_profit_type" name="night_profit_type" class="form-select form-select-sm">
+                                            <option value="percentage" {{ old('night_profit_type', 'percentage') === 'percentage' ? 'selected' : '' }}>Percentage</option>
+                                            <option value="flat" {{ old('night_profit_type') === 'flat' ? 'selected' : '' }}>Flat</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3 mb-3">
+                                        <label for="night_surcharge" class="form-label"><strong>Night Surcharge</strong></label>
+                                        <input type="number" step="0.01" min="0" inputmode="decimal" class="form-control form-control-sm" id="night_surcharge" name="night_surcharge" placeholder="0.00" value="{{ old('night_surcharge') }}">
+                                    </div>
+                                </div>
+                            </fieldset>
+
                             <!-- Regular Pricing Fields -->
 
                             <fieldset id="tarrifs" class="border p-4 rounded mb-4">
@@ -594,64 +696,56 @@
                                     <h5 class="card-title mb-3">Day Charges</h5>
                                     <div class="row">
                                         <div class="col-md-3 mb-3">
-                                            <label for="base_price" class="form-label"><strong>Base Sell Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="base_price" value="{{ old('base_price', $vehicle->base_price) }}" placeholder="Enter Base Sell Price" required>
-                                            @error('base_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                        </div>
-                                        <div class="col-md-3 mb-3">
                                             <label for="base_cost_price" class="form-label"><strong>Base Cost Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="base_cost_price" value="{{ old('base_cost_price', $vehicle->base_cost_price) }}" placeholder="Enter Base Cost Price" required>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-cost-input" id="base_cost_price" name="base_cost_price" data-sell-target="base_price" value="{{ old('base_cost_price', $vehicle->base_cost_price) }}" placeholder="Enter Base Cost Price" required>
                                             @error('base_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
                                         <div class="col-md-3 mb-3">
-                                            <label for="cost_per_km_below_10" class="form-label"><strong>Per KM Below 10km Sell Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="cost_per_km_below_10" value="{{ old('cost_per_km_below_10', $vehicle->cost_per_km_below_10) }}" placeholder="Enter Sell Price" required>
-                                            @error('cost_per_km_below_10')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                            <label for="base_price" class="form-label"><strong>Base Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-sell-input" id="base_price" name="base_price" value="{{ old('base_price', $vehicle->base_price) }}" placeholder="Enter Base Sell Price" required>
+                                            @error('base_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
+                                        {{-- Per KM pricing temporarily hidden
                                         <div class="col-md-3 mb-3">
                                             <label for="per_km_below_10_cost_price" class="form-label"><strong>Per KM Below 10km Cost Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="per_km_below_10_cost_price" value="{{ old('per_km_below_10_cost_price', $vehicle->per_km_below_10_cost_price) }}" placeholder="Enter Cost Price" required>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-cost-input" name="per_km_below_10_cost_price" data-sell-target="cost_per_km_below_10" value="{{ old('per_km_below_10_cost_price', $vehicle->per_km_below_10_cost_price) }}" placeholder="Enter Cost Price" required>
                                             @error('per_km_below_10_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
                                         <div class="col-md-3 mb-3">
-                                            <label for="cost_per_km_10_to_25" class="form-label"><strong>Per KM 10-25km Sell Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="cost_per_km_10_to_25" value="{{ old('cost_per_km_10_to_25', $vehicle->cost_per_km_10_to_25) }}" placeholder="Enter Sell Price" required>
-                                            @error('cost_per_km_10_to_25')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                            <label for="cost_per_km_below_10" class="form-label"><strong>Per KM Below 10km Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-sell-input" name="cost_per_km_below_10" value="{{ old('cost_per_km_below_10', $vehicle->cost_per_km_below_10) }}" placeholder="Enter Sell Price" required>
+                                            @error('cost_per_km_below_10')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
                                         <div class="col-md-3 mb-3">
                                             <label for="per_km_10_to_25_cost_price" class="form-label"><strong>Per KM 10-25km Cost Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="per_km_10_to_25_cost_price" value="{{ old('per_km_10_to_25_cost_price', $vehicle->per_km_10_to_25_cost_price) }}" placeholder="Enter Cost Price" required>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-cost-input" name="per_km_10_to_25_cost_price" data-sell-target="cost_per_km_10_to_25" value="{{ old('per_km_10_to_25_cost_price', $vehicle->per_km_10_to_25_cost_price) }}" placeholder="Enter Cost Price" required>
                                             @error('per_km_10_to_25_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
                                         <div class="col-md-3 mb-3">
-                                            <label for="cost_per_km_above_25" class="form-label"><strong>Per KM Above 25km Sell Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="cost_per_km_above_25" value="{{ old('cost_per_km_above_25', $vehicle->cost_per_km_above_25) }}" placeholder="Enter Sell Price" required>
-                                            @error('cost_per_km_above_25')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                            <label for="cost_per_km_10_to_25" class="form-label"><strong>Per KM 10-25km Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-sell-input" name="cost_per_km_10_to_25" value="{{ old('cost_per_km_10_to_25', $vehicle->cost_per_km_10_to_25) }}" placeholder="Enter Sell Price" required>
+                                            @error('cost_per_km_10_to_25')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
                                         <div class="col-md-3 mb-3">
                                             <label for="per_km_above_25_cost_price" class="form-label"><strong>Per KM Above 25km Cost Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="per_km_above_25_cost_price" value="{{ old('per_km_above_25_cost_price', $vehicle->per_km_above_25_cost_price) }}" placeholder="Enter Cost Price" required>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-cost-input" name="per_km_above_25_cost_price" data-sell-target="cost_per_km_above_25" value="{{ old('per_km_above_25_cost_price', $vehicle->per_km_above_25_cost_price) }}" placeholder="Enter Cost Price" required>
                                             @error('per_km_above_25_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
                                         <div class="col-md-3 mb-3">
-                                            <label for="cost_per_hour" class="form-label"><strong>Per Hour Sell Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="cost_per_hour" value="{{ old('cost_per_hour', $vehicle->cost_per_hour) }}" placeholder="Enter Sell Price" required>
-                                            @error('cost_per_hour')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                            <label for="cost_per_km_above_25" class="form-label"><strong>Per KM Above 25km Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-sell-input" name="cost_per_km_above_25" value="{{ old('cost_per_km_above_25', $vehicle->cost_per_km_above_25) }}" placeholder="Enter Sell Price" required>
+                                            @error('cost_per_km_above_25')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
+                                        --}}
                                         <div class="col-md-3 mb-3">
                                             <label for="per_hour_cost_price" class="form-label"><strong>Per Hour Cost Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="per_hour_cost_price" value="{{ old('per_hour_cost_price', $vehicle->per_hour_cost_price) }}" placeholder="Enter Cost Price" required>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-cost-input" id="per_hour_cost_price" name="per_hour_cost_price" data-sell-target="cost_per_hour" value="{{ old('per_hour_cost_price', $vehicle->per_hour_cost_price) }}" placeholder="Enter Cost Price" required>
                                             @error('per_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
                                         <div class="col-md-3 mb-3">
-                                            <label for="cancel_cost" class="form-label"><strong>Cancel Sell Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="cancel_cost" value="{{ old('cancel_cost', $vehicle->cancel_cost) }}" placeholder="Enter Cancel Sell Price" required>
-                                            @error('cancel_cost')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                        </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label for="cancel_cost_price" class="form-label"><strong>Cancel Cost Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="cancel_cost_price" value="{{ old('cancel_cost_price', $vehicle->cancel_cost_price) }}" placeholder="Enter Cancel Cost Price" required>
-                                            @error('cancel_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                            <label for="cost_per_hour" class="form-label"><strong>Per Hour Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-day-sell-input" id="cost_per_hour" name="cost_per_hour" value="{{ old('cost_per_hour', $vehicle->cost_per_hour) }}" placeholder="Enter Sell Price" required>
+                                            @error('cost_per_hour')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
                                     </div>
                                 </fieldset>
@@ -661,66 +755,76 @@
                                     <h5 class="card-title mb-3">Night Charges</h5>
                                     <div class="row">
                                         <div class="col-md-3 mb-3">
-                                            <label for="night_base_price" class="form-label"><strong>Base Sell Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="night_base_price" value="{{ old('night_base_price', $vehicle->night_base_price) }}" placeholder="Enter Base Sell Price" required>
-                                            @error('night_base_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                        </div>
-                                        <div class="col-md-3 mb-3">
                                             <label for="night_base_cost_price" class="form-label"><strong>Base Cost Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control" name="night_base_cost_price" value="{{ old('night_base_cost_price', $vehicle->night_base_cost_price) }}" placeholder="Enter Base Cost Price" required>
+                                            <input type="number" step="0.01" class="form-control vehicle-night-cost-input" id="night_base_cost_price" name="night_base_cost_price" data-sell-target="night_base_price" value="{{ old('night_base_cost_price', $vehicle->night_base_cost_price) }}" placeholder="Enter Base Cost Price" required>
                                             @error('night_base_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
                                         <div class="col-md-3 mb-3">
-                                            <label for="night_cost_per_km_below_10" class="form-label"><strong>Per KM Below 10km Sell Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control auto-calculated-sell" name="night_cost_per_km_below_10" value="{{ old('night_cost_per_km_below_10', $vehicle->night_cost_per_km_below_10) }}" placeholder="Auto-calculated" required>
-                                            @error('night_cost_per_km_below_10')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                            <label for="night_base_price" class="form-label"><strong>Base Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control vehicle-night-sell-input" id="night_base_price" name="night_base_price" value="{{ old('night_base_price', $vehicle->night_base_price) }}" placeholder="Enter Base Sell Price" required>
+                                            @error('night_base_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
+                                        {{-- Per KM pricing temporarily hidden
                                         <div class="col-md-3 mb-3">
                                             <label for="night_per_km_below_10_cost_price" class="form-label"><strong>Per KM Below 10km Cost Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control auto-calculated-cost" name="night_per_km_below_10_cost_price" value="{{ old('night_per_km_below_10_cost_price', $vehicle->night_per_km_below_10_cost_price) }}" placeholder="Auto-calculated" required>
+                                            <input type="number" step="0.01" class="form-control auto-calculated-cost vehicle-night-cost-input" name="night_per_km_below_10_cost_price" data-sell-target="night_cost_per_km_below_10" value="{{ old('night_per_km_below_10_cost_price', $vehicle->night_per_km_below_10_cost_price) }}" placeholder="Auto-calculated" required>
                                             @error('night_per_km_below_10_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
                                         <div class="col-md-3 mb-3">
-                                            <label for="night_cost_per_km_10_to_25" class="form-label"><strong>Per KM 10-25km Sell Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control auto-calculated-sell" name="night_cost_per_km_10_to_25" value="{{ old('night_cost_per_km_10_to_25', $vehicle->night_cost_per_km_10_to_25) }}" placeholder="Auto-calculated" required>
-                                            @error('night_cost_per_km_10_to_25')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                            <label for="night_cost_per_km_below_10" class="form-label"><strong>Per KM Below 10km Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control auto-calculated-sell vehicle-night-sell-input" name="night_cost_per_km_below_10" value="{{ old('night_cost_per_km_below_10', $vehicle->night_cost_per_km_below_10) }}" placeholder="Auto-calculated" required>
+                                            @error('night_cost_per_km_below_10')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
                                         <div class="col-md-3 mb-3">
                                             <label for="night_per_km_10_to_25_cost_price" class="form-label"><strong>Per KM 10-25km Cost Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control auto-calculated-cost" name="night_per_km_10_to_25_cost_price" value="{{ old('night_per_km_10_to_25_cost_price', $vehicle->night_per_km_10_to_25_cost_price) }}" placeholder="Auto-calculated" required>
+                                            <input type="number" step="0.01" class="form-control auto-calculated-cost vehicle-night-cost-input" name="night_per_km_10_to_25_cost_price" data-sell-target="night_cost_per_km_10_to_25" value="{{ old('night_per_km_10_to_25_cost_price', $vehicle->night_per_km_10_to_25_cost_price) }}" placeholder="Auto-calculated" required>
                                             @error('night_per_km_10_to_25_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
                                         <div class="col-md-3 mb-3">
-                                            <label for="night_cost_per_km_above_25" class="form-label"><strong>Per KM Above 25km Sell Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control auto-calculated-sell" name="night_cost_per_km_above_25" value="{{ old('night_cost_per_km_above_25', $vehicle->night_cost_per_km_above_25) }}" placeholder="Auto-calculated" required>
-                                            @error('night_cost_per_km_above_25')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                            <label for="night_cost_per_km_10_to_25" class="form-label"><strong>Per KM 10-25km Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control auto-calculated-sell vehicle-night-sell-input" name="night_cost_per_km_10_to_25" value="{{ old('night_cost_per_km_10_to_25', $vehicle->night_cost_per_km_10_to_25) }}" placeholder="Auto-calculated" required>
+                                            @error('night_cost_per_km_10_to_25')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
                                         <div class="col-md-3 mb-3">
                                             <label for="night_per_km_above_25_cost_price" class="form-label"><strong>Per KM Above 25km Cost Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control auto-calculated-cost" name="night_per_km_above_25_cost_price" value="{{ old('night_per_km_above_25_cost_price', $vehicle->night_per_km_above_25_cost_price) }}" placeholder="Auto-calculated" required>
+                                            <input type="number" step="0.01" class="form-control auto-calculated-cost vehicle-night-cost-input" name="night_per_km_above_25_cost_price" data-sell-target="night_cost_per_km_above_25" value="{{ old('night_per_km_above_25_cost_price', $vehicle->night_per_km_above_25_cost_price) }}" placeholder="" required>
                                             @error('night_per_km_above_25_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
                                         <div class="col-md-3 mb-3">
-                                            <label for="night_cost_per_hour" class="form-label"><strong>Per Hour Sell Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control auto-calculated-sell" name="night_cost_per_hour" value="{{ old('night_cost_per_hour', $vehicle->night_cost_per_hour) }}" placeholder="Auto-calculated" required>
-                                            @error('night_cost_per_hour')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                            <label for="night_cost_per_km_above_25" class="form-label"><strong>Per KM Above 25km Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control auto-calculated-sell vehicle-night-sell-input" name="night_cost_per_km_above_25" value="{{ old('night_cost_per_km_above_25', $vehicle->night_cost_per_km_above_25) }}" placeholder="Auto-calculated" required>
+                                            @error('night_cost_per_km_above_25')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
+                                        --}}
                                         <div class="col-md-3 mb-3">
                                             <label for="night_per_hour_cost_price" class="form-label"><strong>Per Hour Cost Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control auto-calculated-cost" name="night_per_hour_cost_price" value="{{ old('night_per_hour_cost_price', $vehicle->night_per_hour_cost_price) }}" placeholder="Auto-calculated" required>
+                                            <input type="number" step="0.01" class="form-control auto-calculated-cost vehicle-night-cost-input" id="night_per_hour_cost_price" name="night_per_hour_cost_price" data-sell-target="night_cost_per_hour" value="{{ old('night_per_hour_cost_price', $vehicle->night_per_hour_cost_price) }}" placeholder="Enter Hourly Cost" required>
                                             @error('night_per_hour_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
                                         <div class="col-md-3 mb-3">
-                                            <label for="night_cancel_cost" class="form-label"><strong>Cancel Sell Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control auto-calculated-sell" name="night_cancel_cost" value="{{ old('night_cancel_cost', $vehicle->night_cancel_cost) }}" placeholder="Auto-calculated" required>
-                                            @error('night_cancel_cost')<div class="text-danger mt-1">{{ $message }}</div>@enderror
-                                        </div>
-                                        <div class="col-md-3 mb-3">
-                                            <label for="night_cancel_cost_price" class="form-label"><strong>Cancel Cost Price</strong><span class="text-danger">*</span></label>
-                                            <input type="number" step="0.01" class="form-control auto-calculated-cost" name="night_cancel_cost_price" value="{{ old('night_cancel_cost_price', $vehicle->night_cancel_cost_price) }}" placeholder="Auto-calculated" required>
-                                            @error('night_cancel_cost_price')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                            <label for="night_cost_per_hour" class="form-label"><strong>Per Hour Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control auto-calculated-sell vehicle-night-sell-input" id="night_cost_per_hour" name="night_cost_per_hour" value="{{ old('night_cost_per_hour', $vehicle->night_cost_per_hour) }}" placeholder="Enter Sell Price" required>
+                                            @error('night_cost_per_hour')<div class="text-danger mt-1">{{ $message }}</div>@enderror
                                         </div>
                                     </div>
+                                </fieldset>
+
+                                <fieldset id="taxi_cancellation" class="border p-4 rounded mb-4">
+                                    <h5 class="card-title mb-3">Cancellation</h5>
+                                    <div class="row">
+                                        <div class="col-md-3 mb-3">
+                                            <label for="cancellation_cost" class="form-label"><strong>Cancellation Cost Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control" id="cancellation_cost" name="cancellation_cost" value="{{ old('cancellation_cost', $vehicle->cancellation_cost ?? $vehicle->cancel_cost_price) }}" placeholder="From Base Cost Price" required>
+                                            @error('cancellation_cost')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                        </div>
+                                        <div class="col-md-3 mb-3">
+                                            <label for="cancellation_sell" class="form-label"><strong>Cancellation Sell Price</strong><span class="text-danger">*</span></label>
+                                            <input type="number" step="0.01" class="form-control" id="cancellation_sell" name="cancellation_sell" value="{{ old('cancellation_sell', $vehicle->cancellation_sell ?? $vehicle->cancel_cost) }}" placeholder="From Base Sell Price" required>
+                                            @error('cancellation_sell')<div class="text-danger mt-1">{{ $message }}</div>@enderror
+                                        </div>
+                                    </div>
+                                    <input type="hidden" name="night_cancel_cost_price" id="night_cancel_cost_price" value="{{ old('night_cancel_cost_price', $vehicle->night_cancel_cost_price) }}">
+                                    <input type="hidden" name="night_cancel_cost" id="night_cancel_cost" value="{{ old('night_cancel_cost', $vehicle->night_cancel_cost) }}">
                                 </fieldset>
                             </fieldset>
 
@@ -844,6 +948,19 @@
                 <input type="hidden" name="vehicle_id" value="{{ $vehicle->vehicle_id }}">
                 <input type="hidden" name="mapping_type" value="{{ request()->get('mapping_type') }}">
 
+                @if(session('success'))
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        {{ session('success') }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                @endif
+                @if(session('error'))
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        {{ session('error') }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                @endif
+
                 @php
                     $portsSorted = collect($ports ?? [])
                         ->sortByDesc(fn ($p) => mb_strtolower(trim((string) ($p->port_name ?? ''))))
@@ -961,11 +1078,56 @@
                 })();
                 </script>
 
-                @if(in_array(request()->get('mapping_type'), ['port_port', 'port_attraction', 'port_restaurant', 'port_hotel']))
+                @php
+                    $zoneMappingTypesWithFilters = [
+                        'port_port', 'port_attraction', 'port_restaurant', 'port_hotel',
+                        'hotel_attraction', 'hotel_restaurant', 'attraction_restaurant',
+                        'hotel_hotel', 'attraction_attraction', 'restaurant_restaurant',
+                    ];
+                    // City picker is only meaningful for the zone-to-zone tabs; the port tabs
+                    // stay country-scoped.
+                    $zoneMappingTypesWithCityFilter = [
+                        'hotel_attraction', 'hotel_restaurant', 'attraction_restaurant',
+                        'hotel_hotel', 'attraction_attraction', 'restaurant_restaurant',
+                    ];
+                    $currentMappingType = request()->get('mapping_type');
+                    $showCityFilter = in_array($currentMappingType, $zoneMappingTypesWithCityFilter);
+                    $zoneFilterFromSelectMode = 'port';
+                    $zoneFilterFromPlaceholder = '-- Select From Port --';
+                    $zoneFilterFromZones = collect();
+
+                    if ($currentMappingType === 'hotel_attraction' || $currentMappingType === 'hotel_restaurant' || $currentMappingType === 'hotel_hotel') {
+                        $zoneFilterFromSelectMode = 'zone';
+                        $zoneFilterFromPlaceholder = '-- Select Hotel --';
+                        $zoneFilterFromZones = collect($zones ?? [])
+                            ->filter(fn ($z) => ($z->zone_type ?? null) === 'Hotel')
+                            ->map($buildVehicleZonePayload)
+                            ->values();
+                    } elseif ($currentMappingType === 'attraction_restaurant' || $currentMappingType === 'attraction_attraction') {
+                        $zoneFilterFromSelectMode = 'zone';
+                        $zoneFilterFromPlaceholder = '-- Select Attraction --';
+                        $zoneFilterFromZones = collect($zones ?? [])
+                            ->filter(fn ($z) => ($z->zone_type ?? null) === 'Attraction')
+                            ->map($buildVehicleZonePayload)
+                            ->values();
+                    } elseif ($currentMappingType === 'restaurant_restaurant') {
+                        $zoneFilterFromSelectMode = 'zone';
+                        $zoneFilterFromPlaceholder = '-- Select Restaurant --';
+                        $zoneFilterFromZones = collect($zones ?? [])
+                            ->filter(fn ($z) => ($z->zone_type ?? null) === 'Restaurant')
+                            ->map($buildVehicleZonePayload)
+                            ->values();
+                    }
+                @endphp
+
+                @if(in_array($currentMappingType, $zoneMappingTypesWithFilters))
                 <script>
                 (function () {
                     window.VehicleZoneMappingFilters = {
                         ports: [],
+                        fromZones: [],
+                        fromSelectMode: 'port',
+                        fromSelectPlaceholder: '-- Select From Port --',
                         country: '',
                         cityId: '',
                         cityIdsForCountry: [],
@@ -987,8 +1149,31 @@
                             return true;
                         },
 
+                        initCitySelect2(selectedValue) {
+                            const cityEl = document.getElementById('mapping_filter_city');
+                            if (!cityEl || !window.jQuery) return;
+
+                            const $city = window.jQuery(cityEl);
+                            if ($city.hasClass('select2-hidden-accessible')) {
+                                $city.select2('destroy');
+                            }
+
+                            $city.select2({
+                                placeholder: 'Search and select a city',
+                                allowClear: true,
+                                width: '100%'
+                            });
+
+                            if (selectedValue !== undefined && selectedValue !== null) {
+                                $city.val(selectedValue || '').trigger('change.select2');
+                            }
+                        },
+
                         init(config) {
                             this.ports = config.ports || [];
+                            this.fromZones = config.fromZones || [];
+                            this.fromSelectMode = config.fromSelectMode || 'port';
+                            this.fromSelectPlaceholder = config.fromSelectPlaceholder || '-- Select From Port --';
                             this.country = config.selectedCountry || '';
                             this.cityId = config.defaultCityId ? String(config.defaultCityId) : '';
                             this.citiesUrl = config.citiesUrl || '';
@@ -996,31 +1181,46 @@
 
                             const countryEl = document.getElementById('mapping_filter_country');
                             const cityEl = document.getElementById('mapping_filter_city');
-                            if (!countryEl || !cityEl) return;
+                            // The city dropdown only exists on the zone-to-zone tabs. Country
+                            // filtering must still work on the port tabs without it.
+                            if (!countryEl) return;
 
                             const self = this;
                             const onCountryChange = function () {
                                 self.country = this.value || '';
                                 self.cityId = '';
-                                cityEl.value = '';
+                                if (cityEl) {
+                                    cityEl.value = '';
+                                }
                                 self.loadCitiesForCountry(self.country, function () {
                                     self.applyToFromZoneSelect();
                                 });
                             };
                             const onCityChange = function () {
-                                self.cityId = this.value || '';
+                                self.cityId = cityEl ? (cityEl.value || '') : '';
                                 self.applyToFromZoneSelect();
                             };
 
                             countryEl.addEventListener('change', onCountryChange);
-                            cityEl.addEventListener('change', onCityChange);
+
+                            if (cityEl) {
+                                // Select2 publishes its change through jQuery.trigger(), which never
+                                // reaches a native addEventListener handler, so bind through jQuery
+                                // when it is present. A jQuery binding still catches real DOM events.
+                                if (window.jQuery) {
+                                    window.jQuery(cityEl).off('change.zoneMappingFilter')
+                                        .on('change.zoneMappingFilter', onCityChange);
+                                } else {
+                                    cityEl.addEventListener('change', onCityChange);
+                                }
+                            }
+
+                            // Searchable city dropdown (Select2)
+                            this.initCitySelect2('');
 
                             if (this.country) {
                                 countryEl.value = this.country;
                                 this.loadCitiesForCountry(this.country, function () {
-                                    if (self.cityId) {
-                                        cityEl.value = self.cityId;
-                                    }
                                     self.applyToFromZoneSelect();
                                     document.dispatchEvent(new CustomEvent('zoneMappingFiltersReady'));
                                 });
@@ -1030,21 +1230,25 @@
                             }
                         },
 
+                        // Always resolves the country's city ids, even on tabs that render no city
+                        // dropdown, because getFilteredZones() narrows zones by those ids.
                         loadCitiesForCountry(countryName, done) {
                             const cityEl = document.getElementById('mapping_filter_city');
-                            if (!cityEl) {
-                                if (typeof done === 'function') done();
-                                return;
-                            }
 
                             if (!countryName) {
                                 this.cityIdsForCountry = [];
-                                cityEl.innerHTML = '<option value="">All Cities</option>';
+                                if (cityEl) {
+                                    cityEl.innerHTML = '<option value="">All Cities</option>';
+                                    this.initCitySelect2('');
+                                }
                                 if (typeof done === 'function') done();
                                 return;
                             }
 
-                            cityEl.innerHTML = '<option value="">Loading cities...</option>';
+                            if (cityEl) {
+                                cityEl.innerHTML = '<option value="">Loading cities...</option>';
+                                this.initCitySelect2('');
+                            }
 
                             const self = this;
                             fetch(this.citiesUrl + '?country=' + encodeURIComponent(countryName), {
@@ -1054,18 +1258,32 @@
                                 .then(function (response) {
                                     const cities = response.cities || [];
                                     self.cityIdsForCountry = cities.map(c => String(c.city_id));
-                                    cityEl.innerHTML = '<option value="">All Cities</option>';
-                                    cities.forEach(function (city) {
-                                        const opt = document.createElement('option');
-                                        opt.value = city.city_id;
-                                        opt.textContent = city.name;
-                                        cityEl.appendChild(opt);
-                                    });
+
+                                    if (cityEl) {
+                                        cityEl.innerHTML = '<option value="">All Cities</option>';
+                                        cities.forEach(function (city) {
+                                            const opt = document.createElement('option');
+                                            opt.value = city.city_id;
+                                            opt.textContent = city.name;
+                                            cityEl.appendChild(opt);
+                                        });
+                                        // Drop a stale selection that no longer belongs to this country.
+                                        if (self.cityId && !self.cityIdsForCountry.includes(String(self.cityId))) {
+                                            self.cityId = '';
+                                        }
+                                        self.initCitySelect2(self.cityId || '');
+                                    } else {
+                                        self.cityId = '';
+                                    }
+
                                     if (typeof done === 'function') done();
                                 })
                                 .catch(function () {
                                     self.cityIdsForCountry = [];
-                                    cityEl.innerHTML = '<option value="">All Cities</option>';
+                                    if (cityEl) {
+                                        cityEl.innerHTML = '<option value="">All Cities</option>';
+                                        self.initCitySelect2('');
+                                    }
                                     if (typeof done === 'function') done();
                                 });
                         },
@@ -1111,7 +1329,141 @@
                             );
                         },
 
+                        filterExistingZoneZoneMappings(existing, fromZones, toZones) {
+                            return (existing || []).filter(m =>
+                                this.isZoneInFilter(m.from, fromZones) && this.isZoneInFilter(m.to, toZones)
+                            );
+                        },
+
+                        zoneOptionLabel(z) {
+                            const count = (z.items || []).length;
+                            const type = String(z.zone_type || '').toLowerCase();
+                            let countPart = '';
+                            if (type === 'hotel') {
+                                countPart = count + ' hotels';
+                            } else if (type === 'attraction') {
+                                countPart = count + ' attractions';
+                            } else if (type === 'restaurant') {
+                                countPart = count + ' restaurants';
+                            }
+                            const Ui = window.VehicleZoneMappingUi;
+                            const desc = Ui ? Ui.stripHtml(z.description || '') : String(z.description || '');
+                            const name = String(z.zone_name || 'Zone');
+                            return name + (countPart ? ' (' + countPart + ')' : '') + (desc ? ' - ' + desc : '');
+                        },
+
+                        appendZoneOption(selectEl, z, useJq) {
+                            const label = this.zoneOptionLabel(z);
+                            const itemNames = (z.items || []).map(i => i.name).filter(Boolean).join(', ');
+                            const itemImages = JSON.stringify(z.items || []);
+
+                            if (useJq) {
+                                const opt = new Option(label, z.zone_id, false, false);
+                                opt.dataset.type = z.zone_type || '';
+                                opt.dataset.description = z.description || 'No description available';
+                                opt.dataset.zoneName = z.zone_name || '';
+                                opt.dataset.itemNames = itemNames;
+                                opt.dataset.itemImages = itemImages;
+                                if (z.zone_type === 'Hotel') {
+                                    opt.dataset.hotelCount = String((z.items || []).length);
+                                } else if (z.zone_type === 'Restaurant') {
+                                    opt.dataset.restaurantCount = String((z.items || []).length);
+                                }
+                                selectEl.append(opt);
+                                return;
+                            }
+
+                            const opt = document.createElement('option');
+                            opt.value = z.zone_id;
+                            opt.textContent = label;
+                            opt.dataset.type = z.zone_type || '';
+                            opt.dataset.description = z.description || 'No description available';
+                            opt.dataset.zoneName = z.zone_name || '';
+                            opt.dataset.itemNames = itemNames;
+                            opt.dataset.itemImages = itemImages;
+                            if (z.zone_type === 'Hotel') {
+                                opt.dataset.hotelCount = String((z.items || []).length);
+                            } else if (z.zone_type === 'Attraction') {
+                                opt.dataset.attractionCount = String((z.items || []).length);
+                            } else if (z.zone_type === 'Restaurant') {
+                                opt.dataset.restaurantCount = String((z.items || []).length);
+                            }
+                            selectEl.appendChild(opt);
+                        },
+
+                        applyToFromZoneSelectForZones() {
+                            const fromEl = document.getElementById('from_zone');
+                            if (!fromEl) return;
+
+                            const current = fromEl.value;
+                            const filtered = this.getFilteredZones(this.fromZones || []);
+                            const placeholder = this.fromSelectPlaceholder || '-- Select --';
+                            const $from = window.jQuery ? window.jQuery(fromEl) : null;
+
+                            if ($from) {
+                                $from.empty().append(new Option(placeholder, '', true, false));
+                                filtered.forEach(z => this.appendZoneOption($from, z, true));
+                                const stillValid = filtered.some(z => String(z.zone_id) === String(current));
+                                $from.val(stillValid ? current : '').trigger('change');
+                            } else {
+                                fromEl.innerHTML = '';
+                                const placeholderOpt = document.createElement('option');
+                                placeholderOpt.value = '';
+                                placeholderOpt.textContent = placeholder;
+                                fromEl.appendChild(placeholderOpt);
+                                filtered.forEach(z => this.appendZoneOption(fromEl, z, false));
+                                const stillValid = filtered.some(z => String(z.zone_id) === String(current));
+                                fromEl.value = stillValid ? current : '';
+                                fromEl.dispatchEvent(new Event('change'));
+                            }
+
+                            document.dispatchEvent(new CustomEvent('zoneMappingFiltersChanged'));
+                            this.updateExportLink();
+                        },
+
+                        getExportParams() {
+                            const fromEl = document.getElementById('from_zone');
+                            const fromZoneId = fromEl ? String(fromEl.value || '').trim() : '';
+                            const params = new URLSearchParams();
+
+                            if (this.country) {
+                                params.set('country', this.country);
+                            }
+                            if (this.cityId) {
+                                params.set('city_id', this.cityId);
+                            }
+                            if (fromZoneId) {
+                                params.set('from_zone_id', fromZoneId);
+                            }
+
+                            return params;
+                        },
+
+                        updateExportLink() {
+                            const link = document.getElementById('zone_mapping_export_btn');
+                            if (!link) return;
+
+                            const base = link.dataset.exportUrl || link.getAttribute('href') || '';
+                            if (!base) return;
+
+                            const url = new URL(base, window.location.origin);
+                            url.searchParams.delete('country');
+                            url.searchParams.delete('city_id');
+                            url.searchParams.delete('from_zone_id');
+
+                            const params = this.getExportParams();
+                            params.forEach(function (value, key) {
+                                url.searchParams.set(key, value);
+                            });
+                            link.href = url.pathname + url.search;
+                        },
+
                         applyToFromZoneSelect() {
+                            if (this.fromSelectMode === 'zone') {
+                                this.applyToFromZoneSelectForZones();
+                                return;
+                            }
+
                             const fromEl = document.getElementById('from_zone');
                             if (!fromEl) return;
 
@@ -1146,6 +1498,7 @@
                             }
 
                             document.dispatchEvent(new CustomEvent('zoneMappingFiltersChanged'));
+                            this.updateExportLink();
                         }
                     };
                 })();
@@ -1169,6 +1522,12 @@
                                 Map Hotel to Restaurant Transportation
                             @elseif(request()->get('mapping_type') == 'attraction_restaurant')
                                 Map Attraction to Restaurant Transportation
+                            @elseif(request()->get('mapping_type') == 'hotel_hotel')
+                                Map Hotel to Hotel Transportation
+                            @elseif(request()->get('mapping_type') == 'attraction_attraction')
+                                Map Attraction to Attraction Transportation
+                            @elseif(request()->get('mapping_type') == 'restaurant_restaurant')
+                                Map Restaurant to Restaurant Transportation
                             @else
                                 Map Transportation Services
                             @endif
@@ -1177,27 +1536,78 @@
                     </div>
                 </div>
 
-                @if(in_array(request()->get('mapping_type'), ['port_port', 'port_attraction', 'port_restaurant', 'port_hotel']))
+                @if(in_array($currentMappingType, $zoneMappingTypesWithFilters))
+                @php
+                    $seedProfitMapping = collect($mappings ?? [])->first();
+                    $seedPrivateProfitType = $seedProfitMapping?->private_profit_type ?? 'percentage';
+                    $seedPrivateProfitAmount = $seedProfitMapping?->private_profit_amount ?? 0;
+                    $seedSharedProfitType = $seedProfitMapping?->shared_profit_type ?? 'percentage';
+                    $seedSharedProfitAmount = $seedProfitMapping?->shared_profit_amount ?? 0;
+                    $vehicleMappingCountry = $zoneMappingFilterCountry ?: ($selectedCountry ?? '');
+                    $mappingCountries = collect($countries ?? [])->filter(function ($c) use ($vehicleMappingCountry) {
+                        return strcasecmp((string) ($c->name ?? ''), (string) $vehicleMappingCountry) === 0;
+                    });
+                    if ($mappingCountries->isEmpty() && $vehicleMappingCountry !== '') {
+                        $mappingCountries = collect([(object) ['name' => $vehicleMappingCountry]]);
+                    }
+                @endphp
+                <div class="field-info-message mb-3">
+                    <i class="fas fa-info-circle"></i>
+                    Zone mapping prices are given for this vehicle's country
+                    @if($vehicleMappingCountry)
+                        (<strong>{{ $vehicleMappingCountry }}</strong>)
+                    @endif.
+                    Ports and zones shown here belong to this country only.
+                </div>
                 <div class="row mb-3 align-items-end" id="zone-mapping-filters"
                      data-ports='@json($portsSorted ?? [])'
+                     data-from-zones='@json($zoneFilterFromZones ?? [])'
+                     data-from-select-mode="{{ $zoneFilterFromSelectMode }}"
+                     data-from-select-placeholder="{{ $zoneFilterFromPlaceholder }}"
                      data-selected-country="{{ $zoneMappingFilterCountry ?? '' }}"
                      data-default-city-id="{{ $defaultFilterCityId ?? '' }}"
                      data-cities-url="{{ route('fetch-cities-by-country') }}">
-                    <div class="col-md-3">
+                    <div class="{{ $showCityFilter ? 'col-md-2' : 'col-md-4' }}">
                         <label for="mapping_filter_country" class="form-label"><strong>Country</strong></label>
-                        <select id="mapping_filter_country" class="form-select">
-                            @php $scopedCountries = $countries ?? collect(); @endphp
-                            <option value="" selected>All Countries</option>
-                            @foreach($scopedCountries as $c)
-                                <option value="{{ $c->name }}">{{ $c->name }}</option>
-                            @endforeach
+                        <select id="mapping_filter_country" class="form-select" disabled>
+                            @forelse($mappingCountries as $c)
+                                <option value="{{ $c->name }}" selected>{{ $c->name }}</option>
+                            @empty
+                                <option value="" selected>No country assigned</option>
+                            @endforelse
                         </select>
                     </div>
-                    <div class="col-md-3">
+                    @if($showCityFilter)
+                    <div class="col-md-2">
                         <label for="mapping_filter_city" class="form-label"><strong>City</strong></label>
                         <select id="mapping_filter_city" class="form-select">
                             <option value="">All Cities</option>
                         </select>
+                    </div>
+                    @endif
+                    <div class="col-md-2">
+                        <label for="global_private_profit_type" class="form-label"><strong>Private Profit</strong></label>
+                        <select id="global_private_profit_type" name="global_private_profit_type" class="form-select js-global-private-profit-type">
+                            <option value="percentage" {{ $seedPrivateProfitType === 'percentage' ? 'selected' : '' }}>%</option>
+                            <option value="flat" {{ $seedPrivateProfitType === 'flat' ? 'selected' : '' }}>Flat</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="global_private_profit_amount" class="form-label"><strong>Private Amount</strong></label>
+                        <input type="number" id="global_private_profit_amount" name="global_private_profit_amount"
+                               class="form-control js-global-private-profit-amount" value="{{ $seedPrivateProfitAmount }}" step="0.01" min="0">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="global_shared_profit_type" class="form-label"><strong>Shared Profit</strong></label>
+                        <select id="global_shared_profit_type" name="global_shared_profit_type" class="form-select js-global-shared-profit-type">
+                            <option value="percentage" {{ $seedSharedProfitType === 'percentage' ? 'selected' : '' }}>%</option>
+                            <option value="flat" {{ $seedSharedProfitType === 'flat' ? 'selected' : '' }}>Flat</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="global_shared_profit_amount" class="form-label"><strong>Shared Amount</strong></label>
+                        <input type="number" id="global_shared_profit_amount" name="global_shared_profit_amount"
+                               class="form-control js-global-shared-profit-amount" value="{{ $seedSharedProfitAmount }}" step="0.01" min="0">
                     </div>
                 </div>
                 <script>
@@ -1209,14 +1619,23 @@
                         }
 
                         let ports = [];
+                        let fromZones = [];
                         try {
                             ports = JSON.parse(holder.dataset.ports || '[]');
                         } catch (e) {
                             ports = [];
                         }
+                        try {
+                            fromZones = JSON.parse(holder.dataset.fromZones || '[]');
+                        } catch (e) {
+                            fromZones = [];
+                        }
 
                         window.VehicleZoneMappingFilters.init({
                             ports: ports,
+                            fromZones: fromZones,
+                            fromSelectMode: holder.dataset.fromSelectMode || 'port',
+                            fromSelectPlaceholder: holder.dataset.fromSelectPlaceholder || '-- Select From Port --',
                             selectedCountry: holder.dataset.selectedCountry || '',
                             defaultCityId: holder.dataset.defaultCityId || '',
                             citiesUrl: holder.dataset.citiesUrl || ''
@@ -1326,7 +1745,7 @@
                         </div>
                     </div>
                     
-                    @elseif(request()->get('mapping_type') == 'hotel_attraction')
+                    @elseif(in_array(request()->get('mapping_type'), ['hotel_attraction', 'hotel_hotel']))
                     <div class="col-md-6">
                         <label for="from_zone" class="form-label"><strong>Hotel</strong><span class="text-danger">*</span></label>
                         <select id="from_zone" name="from_zone" class="form-select" data-show-description="true">
@@ -1408,7 +1827,7 @@
                         </div>
                     </div>
                     
-                    @elseif(request()->get('mapping_type') == 'attraction_restaurant')
+                    @elseif(in_array(request()->get('mapping_type'), ['attraction_restaurant', 'attraction_attraction']))
                     <div class="col-md-6">
                         <label for="from_zone" class="form-label"><strong>Attraction</strong><span class="text-danger">*</span></label>
                         <select id="from_zone" name="from_zone" class="form-select" data-show-description="true">
@@ -1449,9 +1868,73 @@
                             </div>
                         </div>
                     </div>
+                    @elseif(request()->get('mapping_type') == 'restaurant_restaurant')
+                    <div class="col-md-6">
+                        <label for="from_zone" class="form-label"><strong>Restaurant</strong><span class="text-danger">*</span></label>
+                        <select id="from_zone" name="from_zone" class="form-select" data-show-description="true">
+                            <option value="">-- Select Restaurant --</option>
+                            @foreach($zonesSorted as $zone)
+                                @if($zone->zone_type == 'Restaurant')
+                                    @php
+                                        $assignedRestaurants = App\Models\Restaurant::where('status', 1)
+                                            ->whereJsonContains('dmc_id', $zone->dmc_id)
+                                            ->get()
+                                            ->filter(function($restaurant) use ($zone) {
+                                                return $restaurant->getZoneForDmc($zone->dmc_id) == $zone->zone_id;
+                                            });
+                                        $restaurantCount = $assignedRestaurants->count();
+                                        $restaurantNames = $assignedRestaurants->pluck('name')->filter()->implode(', ');
+                                        $restaurantItems = $assignedRestaurants->map(fn($r) => ['name' => $r->name ?? '', 'image' => ($r->master_image ?? '') ? (str_starts_with($r->master_image ?? '', 'http') || str_starts_with($r->master_image ?? '', '/') ? $r->master_image : asset($r->master_image)) : ''])->toArray();
+                                    @endphp
+                                    <option value="{{ $zone->zone_id }}"
+                                            data-type="{{ $zone->zone_type }}"
+                                            data-description="{{ $zone->description ?? 'No description available' }}"
+                                            data-zone-name="{{ $zone->zone_name }}"
+                                            data-restaurant-count="{{ $restaurantCount }}"
+                                            data-item-names="{{ e($restaurantNames) }}"
+                                            data-item-images="{{ e(json_encode($restaurantItems)) }}">
+                                        {{ $zone->zone_name }} ({{ $restaurantCount }} restaurants) - {{ html_entity_decode(strip_tags($zone->description)) ?? 'Unknown Description' }}
+                                    </option>
+                                @endif
+                            @endforeach
+                        </select>
+                        <div id="from_zone_description" class="mt-2 zone-description d-none">
+                            <div class="card">
+                                <div class="card-body bg-light p-3">
+                                    <h6 class="card-subtitle text-muted mb-2"><span id="from_zone_type_label">Restaurant</span>: <span id="from_zone_name_label"></span></h6>
+                                    <p class="card-text" id="from_zone_description_text"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    @endif
+
+                    @if(in_array(request()->get('mapping_type'), ['port_port','port_attraction','port_restaurant','port_hotel','hotel_attraction','hotel_restaurant','attraction_restaurant','hotel_hotel','attraction_attraction','restaurant_restaurant']))
+                    <div class="col-md-6 d-flex flex-column justify-content-end">
+                        <label class="form-label d-none d-md-block">&nbsp;</label>
+                        <div class="d-flex justify-content-md-end align-items-center gap-2 flex-wrap">
+                            <a href="{{ route('vehicle.zone_mappings.export', ['vehicle' => Crypt::encrypt($vehicle->vehicle_id), 'mapping_type' => request()->get('mapping_type')]) }}"
+                               id="zone_mapping_export_btn"
+                               data-export-url="{{ route('vehicle.zone_mappings.export', ['vehicle' => Crypt::encrypt($vehicle->vehicle_id), 'mapping_type' => request()->get('mapping_type')]) }}"
+                               class="btn btn-outline-success px-3">
+                                <i class="ri-file-excel-2-line me-1"></i> Download Template
+                            </a>
+                            <input type="file"
+                                   class="d-none"
+                                   id="zone_mapping_import_file"
+                                   name="import_file"
+                                   form="zoneMappingImportForm"
+                                   accept=".xlsx,.xls,.csv">
+                            <button type="button"
+                                    id="zone_mapping_upload_btn"
+                                    class="btn btn-success px-3">
+                                <i class="ri-upload-2-line me-1"></i> Upload
+                            </button>
+                        </div>
+                    </div>
                     @endif
                     
-                    @if(!in_array(request()->get('mapping_type'), ['port_port','port_attraction','port_restaurant','port_hotel','hotel_attraction','hotel_restaurant','attraction_restaurant']))
+                    @if(!in_array(request()->get('mapping_type'), ['port_port','port_attraction','port_restaurant','port_hotel','hotel_attraction','hotel_restaurant','attraction_restaurant','hotel_hotel','attraction_attraction','restaurant_restaurant']))
                         <div class="col-md-2 d-flex align-items-end">
                             <button type="button" id="addMapping" class="btn btn-primary w-100">Add Mapping</button>
                         </div>
@@ -1460,11 +1943,11 @@
                 
                 <div class="row">
                     <div class="col-md-12">
-                        <div class="table-responsive">
-                            <table class="table table-bordered">
+                        <div class="table-responsive zone-mapping-price-wrap">
+                            <table class="table table-bordered table-sm zone-mapping-price-table">
                                 <thead>
                                     <tr>
-                                        <th>
+                                        <th rowspan="2" class="align-middle zone-col-from">
                                             @if(request()->get('mapping_type') == 'port_port')
                                                 From Port
                                             @elseif(request()->get('mapping_type') == 'port_attraction')
@@ -1479,11 +1962,17 @@
                                                 From Hotel
                                             @elseif(request()->get('mapping_type') == 'attraction_restaurant')
                                                 From Attraction
+                                            @elseif(request()->get('mapping_type') == 'hotel_hotel')
+                                                From Hotel
+                                            @elseif(request()->get('mapping_type') == 'attraction_attraction')
+                                                From Attraction
+                                            @elseif(request()->get('mapping_type') == 'restaurant_restaurant')
+                                                From Restaurant
                                             @else
                                                 From Zone
                                             @endif
                                         </th>
-                                        <th>
+                                        <th rowspan="2" class="align-middle zone-col-to">
                                             @if(request()->get('mapping_type') == 'port_port')
                                                 To Port
                                             @elseif(request()->get('mapping_type') == 'port_attraction')
@@ -1498,13 +1987,25 @@
                                                 To Restaurant
                                             @elseif(request()->get('mapping_type') == 'attraction_restaurant')
                                                 To Restaurant
+                                            @elseif(request()->get('mapping_type') == 'hotel_hotel')
+                                                To Hotel
+                                            @elseif(request()->get('mapping_type') == 'attraction_attraction')
+                                                To Attraction
+                                            @elseif(request()->get('mapping_type') == 'restaurant_restaurant')
+                                                To Restaurant
                                             @else
                                                 To Zone
                                             @endif
                                         </th>
-                                        <th>Private Price</th>
-                                        <th>Shared Price</th>
-                                        <th>Actions</th>
+                                        <th colspan="2" class="text-center zone-price-group-head">Private Price</th>
+                                        <th colspan="2" class="text-center zone-price-group-head">Shared Price</th>
+                                        <th rowspan="2" class="align-middle text-center zone-col-actions">Actions</th>
+                                    </tr>
+                                    <tr>
+                                        <th class="text-center zone-price-sub-head">Cost</th>
+                                        <th class="text-center zone-price-sub-head">Sell</th>
+                                        <th class="text-center zone-price-sub-head">Cost</th>
+                                        <th class="text-center zone-price-sub-head">Sell</th>
                                     </tr>
                                 </thead>
                                 <tbody id="mappingsTableBody">
@@ -1550,6 +2051,12 @@
                                                 } elseif(request()->get('mapping_type') == 'hotel_restaurant' && $fromType == 'Hotel' && $toType == 'Restaurant') {
                                                     $showMapping = true;
                                                 } elseif(request()->get('mapping_type') == 'attraction_restaurant' && $fromType == 'Attraction' && $toType == 'Restaurant') {
+                                                    $showMapping = true;
+                                                } elseif(request()->get('mapping_type') == 'hotel_hotel' && $fromType == 'Hotel' && $toType == 'Hotel') {
+                                                    $showMapping = true;
+                                                } elseif(request()->get('mapping_type') == 'attraction_attraction' && $fromType == 'Attraction' && $toType == 'Attraction') {
+                                                    $showMapping = true;
+                                                } elseif(request()->get('mapping_type') == 'restaurant_restaurant' && $fromType == 'Restaurant' && $toType == 'Restaurant') {
                                                     $showMapping = true;
                                                 }
                                             @endphp
@@ -1621,16 +2128,24 @@
                                                     </td>
                                                 @endif
                                                 <td>
-                                                    <input type="number" name="private_prices[{{ $mapping->from_zone_id }}][{{ $mapping->to_zone_id }}]" 
-                                                        class="form-control" value="{{ $mapping->private_price }}" step="0.01" min="0">
+                                                    <input type="number" name="private_cost_prices[{{ $mapping->from_zone_id }}][{{ $mapping->to_zone_id }}]"
+                                                        class="form-control js-zone-private-cost" value="{{ $mapping->private_cost_price ?? $mapping->private_price }}" step="0.01" min="0">
                                                 </td>
                                                 <td>
-                                                    <input type="number" name="shared_prices[{{ $mapping->from_zone_id }}][{{ $mapping->to_zone_id }}]" 
-                                                        class="form-control" value="{{ $mapping->shared_price }}" step="0.01" min="0">
+                                                    <input type="number" name="private_prices[{{ $mapping->from_zone_id }}][{{ $mapping->to_zone_id }}]"
+                                                        class="form-control js-zone-private-sell" value="{{ $mapping->private_price }}" step="0.01" min="0">
                                                 </td>
                                                 <td>
-                                                    <button type="button" class="btn btn-sm btn-danger remove-mapping" data-mapping-id="{{ $mapping->mapping_id }}">
-                                                        <i class="ri-delete-bin-line"></i> Remove
+                                                    <input type="number" name="shared_cost_prices[{{ $mapping->from_zone_id }}][{{ $mapping->to_zone_id }}]"
+                                                        class="form-control js-zone-shared-cost" value="{{ $mapping->shared_cost_price ?? $mapping->shared_price }}" step="0.01" min="0">
+                                                </td>
+                                                <td>
+                                                    <input type="number" name="shared_prices[{{ $mapping->from_zone_id }}][{{ $mapping->to_zone_id }}]"
+                                                        class="form-control js-zone-shared-sell" value="{{ $mapping->shared_price }}" step="0.01" min="0">
+                                                </td>
+                                                <td class="zone-col-actions">
+                                                    <button type="button" class="btn btn-sm btn-danger remove-mapping" data-mapping-id="{{ $mapping->mapping_id }}" title="Remove">
+                                                        <i class="ri-delete-bin-line"></i>
                                                     </button>
                                                 </td>
                                             </tr>
@@ -1644,10 +2159,252 @@
                     </div>
                 </div>
                 
-                <div class="d-flex gap-3 mt-4">
+                <div class="d-flex gap-3 mt-4 flex-wrap align-items-center">
                     <button type="submit" class="btn btn-primary px-4">Save Mappings</button>
                 </div>
             </form>
+
+            <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const table = document.getElementById('mappingsTableBody');
+                if (!table || table.dataset.costSyncBound === '1') return;
+                table.dataset.costSyncBound = '1';
+
+                function round2(n) {
+                    return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+                }
+
+                function calcSellFromCost(cost, type, amount) {
+                    const c = parseFloat(cost);
+                    const a = parseFloat(amount);
+                    const costVal = isNaN(c) ? 0 : c;
+                    const amtVal = isNaN(a) ? 0 : a;
+                    // No cost → no sell (flat amount must not apply when cost is 0)
+                    if (costVal <= 0) {
+                        return 0;
+                    }
+                    if (type === 'flat') {
+                        return round2(costVal + amtVal);
+                    }
+                    return round2(costVal + (costVal * amtVal / 100));
+                }
+
+                function globalProfit(prefix) {
+                    const typeEl = document.querySelector('.js-global-' + prefix + '-profit-type');
+                    const amountEl = document.querySelector('.js-global-' + prefix + '-profit-amount');
+                    return {
+                        type: typeEl ? typeEl.value : 'percentage',
+                        amount: amountEl ? amountEl.value : 0
+                    };
+                }
+
+                function updateSellForPrefix(row, prefix) {
+                    const cost = row.querySelector('.js-zone-' + prefix + '-cost');
+                    const sell = row.querySelector('.js-zone-' + prefix + '-sell');
+                    if (!cost || !sell) return;
+                    if (sell.dataset.userEdited === '1') return;
+                    const g = globalProfit(prefix);
+                    sell.value = calcSellFromCost(cost.value, g.type, g.amount);
+                }
+
+                function recalculateAllRows(force) {
+                    table.querySelectorAll('tr').forEach(function (row) {
+                        ['private', 'shared'].forEach(function (prefix) {
+                            const sell = row.querySelector('.js-zone-' + prefix + '-sell');
+                            if (sell && force) sell.dataset.userEdited = '';
+                            updateSellForPrefix(row, prefix);
+                        });
+                    });
+                }
+
+                function onRowPricingChange(el) {
+                    const row = el.closest('tr');
+                    if (!row) return;
+                    if (el.classList.contains('js-zone-private-sell') || el.classList.contains('js-zone-shared-sell')) {
+                        el.dataset.userEdited = '1';
+                        return;
+                    }
+                    if (el.classList.contains('js-zone-private-cost')) {
+                        const sell = row.querySelector('.js-zone-private-sell');
+                        if (sell) sell.dataset.userEdited = '';
+                        updateSellForPrefix(row, 'private');
+                    }
+                    if (el.classList.contains('js-zone-shared-cost')) {
+                        const sell = row.querySelector('.js-zone-shared-sell');
+                        if (sell) sell.dataset.userEdited = '';
+                        updateSellForPrefix(row, 'shared');
+                    }
+                }
+
+                table.addEventListener('input', function (e) {
+                    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) {
+                        onRowPricingChange(e.target);
+                    }
+                });
+                table.addEventListener('change', function (e) {
+                    if (e.target instanceof HTMLSelectElement) {
+                        onRowPricingChange(e.target);
+                    }
+                });
+
+                document.querySelectorAll(
+                    '.js-global-private-profit-type, .js-global-private-profit-amount, .js-global-shared-profit-type, .js-global-shared-profit-amount'
+                ).forEach(function (el) {
+                    el.addEventListener('input', function () { recalculateAllRows(true); });
+                    el.addEventListener('change', function () { recalculateAllRows(true); });
+                });
+
+                // Cost 0 must show Sell 0 (do not leave leftover flat amounts on load)
+                table.querySelectorAll('tr').forEach(function (row) {
+                    ['private', 'shared'].forEach(function (prefix) {
+                        const cost = row.querySelector('.js-zone-' + prefix + '-cost');
+                        const sell = row.querySelector('.js-zone-' + prefix + '-sell');
+                        if (!cost || !sell) return;
+                        const costVal = parseFloat(cost.value);
+                        if (isNaN(costVal) || costVal <= 0) {
+                            sell.value = 0;
+                            sell.dataset.userEdited = '';
+                        }
+                    });
+                });
+            });
+            </script>
+
+            <style>
+                .zone-mapping-price-wrap {
+                    width: 100%;
+                    overflow-x: auto;
+                }
+                .zone-mapping-price-table {
+                    width: 100%;
+                    table-layout: fixed;
+                    margin-bottom: 0;
+                    font-size: 0.8rem;
+                }
+                .zone-mapping-price-table thead th {
+                    padding: 0.35rem 0.4rem;
+                    vertical-align: middle;
+                    white-space: nowrap;
+                }
+                .zone-mapping-price-table tbody td {
+                    padding: 0.3rem 0.35rem;
+                    vertical-align: middle;
+                }
+                .zone-mapping-price-table thead th.zone-price-group-head {
+                    background: #f1f5f9;
+                    font-weight: 700;
+                    font-size: 0.78rem;
+                    border-bottom-width: 1px;
+                }
+                .zone-mapping-price-table thead th.zone-price-sub-head {
+                    background: #f8fafc;
+                    font-size: 0.7rem;
+                    font-weight: 600;
+                    color: #475569;
+                    width: 10%;
+                }
+                .zone-mapping-price-table .zone-col-from,
+                .zone-mapping-price-table .zone-col-to {
+                    width: 28%;
+                }
+                .zone-mapping-price-table .zone-col-actions {
+                    width: 6%;
+                    text-align: center;
+                    position: sticky;
+                    right: 0;
+                    background: #fff;
+                    z-index: 2;
+                    box-shadow: -4px 0 6px rgba(0,0,0,0.04);
+                }
+                .zone-mapping-price-table thead th.zone-col-actions {
+                    background: #f8fafc;
+                    z-index: 3;
+                }
+                .zone-mapping-price-table .zone-cell-text {
+                    display: -webkit-box;
+                    -webkit-line-clamp: 2;
+                    -webkit-box-orient: vertical;
+                    overflow: hidden;
+                    line-height: 1.25;
+                    max-width: 100%;
+                    word-break: break-word;
+                }
+                .zone-mapping-price-table .badge {
+                    font-size: 0.65rem;
+                    padding: 0.2em 0.4em;
+                    flex-shrink: 0;
+                }
+                .zone-mapping-price-table tbody td input.form-control {
+                    min-width: 0 !important;
+                    width: 100%;
+                    height: 30px;
+                    padding: 0.15rem 0.35rem;
+                    font-size: 0.78rem;
+                }
+                .zone-mapping-price-table .btn-sm {
+                    padding: 0.15rem 0.4rem;
+                    font-size: 0.72rem;
+                    white-space: nowrap;
+                }
+                .zone-mapping-price-table .btn-sm i {
+                    font-size: 0.75rem;
+                }
+            </style>
+
+            @if(in_array(request()->get('mapping_type'), ['port_port','port_attraction','port_restaurant','port_hotel','hotel_attraction','hotel_restaurant','attraction_restaurant','hotel_hotel','attraction_attraction','restaurant_restaurant']))
+            <form id="zoneMappingImportForm"
+                  method="POST"
+                  action="{{ route('vehicle.zone_mappings.import') }}"
+                  enctype="multipart/form-data"
+                  class="d-none">
+                @csrf
+                <input type="hidden" name="vehicle_id" value="{{ $vehicle->vehicle_id }}">
+                <input type="hidden" name="mapping_type" value="{{ request()->get('mapping_type') }}">
+            </form>
+            <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const fileInput = document.getElementById('zone_mapping_import_file');
+                const uploadBtn = document.getElementById('zone_mapping_upload_btn');
+                const importForm = document.getElementById('zoneMappingImportForm');
+
+                function syncExportLink() {
+                    const F = window.VehicleZoneMappingFilters;
+                    if (F && typeof F.updateExportLink === 'function') {
+                        F.updateExportLink();
+                    }
+                }
+
+                document.addEventListener('zoneMappingFiltersChanged', syncExportLink);
+                document.addEventListener('zoneMappingFiltersReady', syncExportLink);
+                document.addEventListener('change', function (e) {
+                    if (e.target && e.target.id === 'from_zone') {
+                        syncExportLink();
+                    }
+                });
+
+                if (window.jQuery) {
+                    window.jQuery(document).on('select2:select select2:clear', '#from_zone', syncExportLink);
+                }
+
+                syncExportLink();
+
+                if (!fileInput || !uploadBtn || !importForm) return;
+
+                uploadBtn.addEventListener('click', function () {
+                    fileInput.click();
+                });
+
+                fileInput.addEventListener('change', function () {
+                    if (!fileInput.files || !fileInput.files.length) return;
+
+                    uploadBtn.disabled = true;
+                    uploadBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Uploading...';
+
+                    importForm.submit();
+                });
+            });
+            </script>
+            @endif
 
             @if(request()->get('mapping_type') == 'port_port')
                 @php
@@ -1660,7 +2417,13 @@
                                 'from' => (string) $m->from_zone_id,
                                 'to' => (string) $m->to_zone_id,
                                 'private_price' => (float) ($m->private_price ?? 0),
+                                'private_cost_price' => (float) ($m->private_cost_price ?? $m->private_price ?? 0),
+                                'private_profit_type' => (string) ($m->private_profit_type ?? 'percentage'),
+                                'private_profit_amount' => (float) ($m->private_profit_amount ?? 0),
                                 'shared_price' => (float) ($m->shared_price ?? 0),
+                                'shared_cost_price' => (float) ($m->shared_cost_price ?? $m->shared_price ?? 0),
+                                'shared_profit_type' => (string) ($m->shared_profit_type ?? 'percentage'),
+                                'shared_profit_amount' => (float) ($m->shared_profit_amount ?? 0),
                                 'mapping_id' => $m->mapping_id ?? null,
                             ];
                         })
@@ -1675,7 +2438,7 @@
                         const ports = @json($ports ?? []);
                         const existing = @json($portPortMappings);
 
-                        const portById = new Map((ports || []).map(p => [String(p.port_id), p]));
+                        const portById = new Map((ports || []).map(p => [String(p.port_id ?? p.id ?? ''), p]));
                         const existingKeyed = new Map((existing || []).map(m => [`${String(m.from)}__${String(m.to)}`, m]));
 
                         const tbody = document.getElementById('mappingsTableBody');
@@ -1707,25 +2470,42 @@
                                 <td>${escapeHtml(toText)}</td>
                                 <td>
                                     <input type="number"
+                                           name="private_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-private-cost"
+                                           value="${Number(existingMapping?.private_cost_price ?? existingMapping?.private_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
                                            name="private_prices[${String(fromId)}][${String(toId)}]"
-                                           class="form-control"
+                                           class="form-control js-zone-private-sell"
                                            value="${Number(existingMapping?.private_price ?? 0)}"
                                            step="0.01"
                                            min="0">
                                 </td>
                                 <td>
                                     <input type="number"
-                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
-                                           class="form-control"
-                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           name="shared_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-cost"
+                                           value="${Number(existingMapping?.shared_cost_price ?? existingMapping?.shared_price ?? 0)}"
                                            step="0.01"
                                            min="0">
                                 </td>
                                 <td>
+                                    <input type="number"
+                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-sell"
+                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td class="zone-col-actions">
                                     <button type="button"
                                             class="btn btn-sm btn-danger remove-mapping"
+                                            title="Remove"
                                             ${existingMapping?.mapping_id ? `data-mapping-id="${escapeHtml(String(existingMapping.mapping_id))}"` : ''}>
-                                        <i class="ri-delete-bin-line"></i> Remove
+                                        <i class="ri-delete-bin-line"></i>
                                     </button>
                                 </td>
                             `;
@@ -1760,7 +2540,7 @@
 
                             if (!rows.length) {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">Select a <strong>From Port</strong> to auto-populate destination ports for the selected country/city.</td>`;
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">Select a <strong>From Port</strong> to auto-populate destination ports for the selected country/city.</td>`;
                                 tbody.appendChild(tr);
                                 return;
                             }
@@ -1794,14 +2574,18 @@
 
                             const fromStr = String(fromId);
                             const filteredPorts = (F ? F.getFilteredPorts() : (ports || []));
+                            const resolvePortId = (p) => (F && F.resolvePortId) ? F.resolvePortId(p) : String(p?.port_id ?? p?.id ?? '');
 
                             const destinations = filteredPorts
                                 .slice()
-                                .filter(p => String(p.port_id) && String(p.port_id) !== fromStr);
+                                .filter(p => {
+                                    const portId = resolvePortId(p);
+                                    return portId && portId !== fromStr;
+                                });
 
                             if (!destinations.length) {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">No destination ports found for the selected country/city.</td>`;
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">No destination ports found for the selected country/city.</td>`;
                                 tbody.appendChild(tr);
                                 return;
                             }
@@ -1813,11 +2597,15 @@
                                     return bt.localeCompare(at);
                                 })
                                 .forEach(p => {
-                                    tbody.appendChild(buildRow(fromStr, String(p.port_id)));
+                                    tbody.appendChild(buildRow(fromStr, resolvePortId(p)));
                                 });
                         }
 
                         function getFromValue() {
+                            const F = window.VehicleZoneMappingFilters;
+                            if (F && typeof F.getFromZoneValue === 'function') {
+                                return F.getFromZoneValue();
+                            }
                             const el = document.getElementById('from_zone');
                             return el ? el.value : '';
                         }
@@ -1843,7 +2631,11 @@
                         setTimeout(function () { renderForFromPort(getFromValue()); }, 0);
                         }
 
-                        document.addEventListener('zoneMappingFiltersReady', startPortPortMappingUi, { once: true });
+                        if (window.VehicleZoneMappingFilters && window.VehicleZoneMappingFilters._inited) {
+                            startPortPortMappingUi();
+                        } else {
+                            document.addEventListener('zoneMappingFiltersReady', startPortPortMappingUi, { once: true });
+                        }
                     });
                 </script>
             @endif
@@ -1859,7 +2651,13 @@
                                 'from' => (string) $m->from_zone_id,
                                 'to' => (string) $m->to_zone_id,
                                 'private_price' => (float) ($m->private_price ?? 0),
+                                'private_cost_price' => (float) ($m->private_cost_price ?? $m->private_price ?? 0),
+                                'private_profit_type' => (string) ($m->private_profit_type ?? 'percentage'),
+                                'private_profit_amount' => (float) ($m->private_profit_amount ?? 0),
                                 'shared_price' => (float) ($m->shared_price ?? 0),
+                                'shared_cost_price' => (float) ($m->shared_cost_price ?? $m->shared_price ?? 0),
+                                'shared_profit_type' => (string) ($m->shared_profit_type ?? 'percentage'),
+                                'shared_profit_amount' => (float) ($m->shared_profit_amount ?? 0),
                                 'mapping_id' => $m->mapping_id ?? null,
                             ];
                         })
@@ -1881,7 +2679,7 @@
                         const toZones = @json($toAttractions);
                         const existing = @json($portAttractionMappings);
 
-                        const portById = new Map((ports || []).map(p => [String(p.port_id), p]));
+                        const portById = new Map((ports || []).map(p => [String(p.port_id ?? p.id ?? ''), p]));
                         const toById = new Map((toZones || []).map(z => [String(z.zone_id), z]));
                         const existingKeyed = new Map((existing || []).map(m => [`${String(m.from)}__${String(m.to)}`, m]));
 
@@ -1925,25 +2723,42 @@
                                 <td>${Ui.zoneCellHtml(toById, toId)}</td>
                                 <td>
                                     <input type="number"
+                                           name="private_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-private-cost"
+                                           value="${Number(existingMapping?.private_cost_price ?? existingMapping?.private_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
                                            name="private_prices[${String(fromId)}][${String(toId)}]"
-                                           class="form-control"
+                                           class="form-control js-zone-private-sell"
                                            value="${Number(existingMapping?.private_price ?? 0)}"
                                            step="0.01"
                                            min="0">
                                 </td>
                                 <td>
                                     <input type="number"
-                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
-                                           class="form-control"
-                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           name="shared_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-cost"
+                                           value="${Number(existingMapping?.shared_cost_price ?? existingMapping?.shared_price ?? 0)}"
                                            step="0.01"
                                            min="0">
                                 </td>
                                 <td>
+                                    <input type="number"
+                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-sell"
+                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td class="zone-col-actions">
                                     <button type="button"
                                             class="btn btn-sm btn-danger remove-mapping"
+                                            title="Remove"
                                             ${existingMapping?.mapping_id ? `data-mapping-id="${escapeHtml(String(existingMapping.mapping_id))}"` : ''}>
-                                        <i class="ri-delete-bin-line"></i> Remove
+                                        <i class="ri-delete-bin-line"></i>
                                     </button>
                                 </td>
                             `;
@@ -1969,7 +2784,7 @@
 
                             if (!rows.length) {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">Select a <strong>From Port</strong> to auto-populate attractions for the selected country/city.</td>`;
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">Select a <strong>From Port</strong> to auto-populate attractions for the selected country/city.</td>`;
                                 tbody.appendChild(tr);
                                 return;
                             }
@@ -2004,7 +2819,7 @@
 
                             if (!filteredZones.length) {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">No attractions found for the selected country/city.</td>`;
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">No attractions found for the selected country/city.</td>`;
                                 tbody.appendChild(tr);
                                 return;
                             }
@@ -2019,6 +2834,10 @@
                         }
 
                         function getFromValue() {
+                            const F = window.VehicleZoneMappingFilters;
+                            if (F && typeof F.getFromZoneValue === 'function') {
+                                return F.getFromZoneValue();
+                            }
                             const el = document.getElementById('from_zone');
                             return el ? el.value : '';
                         }
@@ -2044,7 +2863,11 @@
                         });
                         }
 
-                        document.addEventListener('zoneMappingFiltersReady', bootPortAttractionMappingUi, { once: true });
+                        if (window.VehicleZoneMappingFilters && window.VehicleZoneMappingFilters._inited) {
+                            bootPortAttractionMappingUi();
+                        } else {
+                            document.addEventListener('zoneMappingFiltersReady', bootPortAttractionMappingUi, { once: true });
+                        }
                     });
                 </script>
             @endif
@@ -2060,7 +2883,13 @@
                                 'from' => (string) $m->from_zone_id,
                                 'to' => (string) $m->to_zone_id,
                                 'private_price' => (float) ($m->private_price ?? 0),
+                                'private_cost_price' => (float) ($m->private_cost_price ?? $m->private_price ?? 0),
+                                'private_profit_type' => (string) ($m->private_profit_type ?? 'percentage'),
+                                'private_profit_amount' => (float) ($m->private_profit_amount ?? 0),
                                 'shared_price' => (float) ($m->shared_price ?? 0),
+                                'shared_cost_price' => (float) ($m->shared_cost_price ?? $m->shared_price ?? 0),
+                                'shared_profit_type' => (string) ($m->shared_profit_type ?? 'percentage'),
+                                'shared_profit_amount' => (float) ($m->shared_profit_amount ?? 0),
                                 'mapping_id' => $m->mapping_id ?? null,
                             ];
                         })
@@ -2082,7 +2911,7 @@
                         const toZones = @json($toRestaurants);
                         const existing = @json($portRestaurantMappings);
 
-                        const portById = new Map((ports || []).map(p => [String(p.port_id), p]));
+                        const portById = new Map((ports || []).map(p => [String(p.port_id ?? p.id ?? ''), p]));
                         const toById = new Map((toZones || []).map(z => [String(z.zone_id), z]));
                         const existingKeyed = new Map((existing || []).map(m => [`${String(m.from)}__${String(m.to)}`, m]));
 
@@ -2126,25 +2955,42 @@
                                 <td>${Ui.zoneCellHtml(toById, toId)}</td>
                                 <td>
                                     <input type="number"
+                                           name="private_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-private-cost"
+                                           value="${Number(existingMapping?.private_cost_price ?? existingMapping?.private_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
                                            name="private_prices[${String(fromId)}][${String(toId)}]"
-                                           class="form-control"
+                                           class="form-control js-zone-private-sell"
                                            value="${Number(existingMapping?.private_price ?? 0)}"
                                            step="0.01"
                                            min="0">
                                 </td>
                                 <td>
                                     <input type="number"
-                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
-                                           class="form-control"
-                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           name="shared_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-cost"
+                                           value="${Number(existingMapping?.shared_cost_price ?? existingMapping?.shared_price ?? 0)}"
                                            step="0.01"
                                            min="0">
                                 </td>
                                 <td>
+                                    <input type="number"
+                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-sell"
+                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td class="zone-col-actions">
                                     <button type="button"
                                             class="btn btn-sm btn-danger remove-mapping"
+                                            title="Remove"
                                             ${existingMapping?.mapping_id ? `data-mapping-id="${escapeHtml(String(existingMapping.mapping_id))}"` : ''}>
-                                        <i class="ri-delete-bin-line"></i> Remove
+                                        <i class="ri-delete-bin-line"></i>
                                     </button>
                                 </td>
                             `;
@@ -2170,7 +3016,7 @@
 
                             if (!rows.length) {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">Select a <strong>From Port</strong> to auto-populate restaurants for the selected country/city.</td>`;
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">Select a <strong>From Port</strong> to auto-populate restaurants for the selected country/city.</td>`;
                                 tbody.appendChild(tr);
                                 return;
                             }
@@ -2205,7 +3051,7 @@
 
                             if (!filteredZones.length) {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">No restaurants found for the selected country/city.</td>`;
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">No restaurants found for the selected country/city.</td>`;
                                 tbody.appendChild(tr);
                                 return;
                             }
@@ -2218,6 +3064,10 @@
                         }
 
                         function getFromValue() {
+                            const F = window.VehicleZoneMappingFilters;
+                            if (F && typeof F.getFromZoneValue === 'function') {
+                                return F.getFromZoneValue();
+                            }
                             const el = document.getElementById('from_zone');
                             return el ? el.value : '';
                         }
@@ -2243,7 +3093,11 @@
                         });
                         }
 
-                        document.addEventListener('zoneMappingFiltersReady', bootPortRestaurantMappingUi, { once: true });
+                        if (window.VehicleZoneMappingFilters && window.VehicleZoneMappingFilters._inited) {
+                            bootPortRestaurantMappingUi();
+                        } else {
+                            document.addEventListener('zoneMappingFiltersReady', bootPortRestaurantMappingUi, { once: true });
+                        }
                     });
                 </script>
             @endif
@@ -2259,7 +3113,13 @@
                                 'from' => (string) $m->from_zone_id,
                                 'to' => (string) $m->to_zone_id,
                                 'private_price' => (float) ($m->private_price ?? 0),
+                                'private_cost_price' => (float) ($m->private_cost_price ?? $m->private_price ?? 0),
+                                'private_profit_type' => (string) ($m->private_profit_type ?? 'percentage'),
+                                'private_profit_amount' => (float) ($m->private_profit_amount ?? 0),
                                 'shared_price' => (float) ($m->shared_price ?? 0),
+                                'shared_cost_price' => (float) ($m->shared_cost_price ?? $m->shared_price ?? 0),
+                                'shared_profit_type' => (string) ($m->shared_profit_type ?? 'percentage'),
+                                'shared_profit_amount' => (float) ($m->shared_profit_amount ?? 0),
                                 'mapping_id' => $m->mapping_id ?? null,
                             ];
                         })
@@ -2281,7 +3141,7 @@
                         const toZones = @json($toHotels);
                         const existing = @json($portHotelMappings);
 
-                        const portById = new Map((ports || []).map(p => [String(p.port_id), p]));
+                        const portById = new Map((ports || []).map(p => [String(p.port_id ?? p.id ?? ''), p]));
                         const toById = new Map((toZones || []).map(z => [String(z.zone_id), z]));
                         const existingKeyed = new Map((existing || []).map(m => [`${String(m.from)}__${String(m.to)}`, m]));
 
@@ -2325,25 +3185,42 @@
                                 <td>${Ui.zoneCellHtml(toById, toId)}</td>
                                 <td>
                                     <input type="number"
+                                           name="private_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-private-cost"
+                                           value="${Number(existingMapping?.private_cost_price ?? existingMapping?.private_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
                                            name="private_prices[${String(fromId)}][${String(toId)}]"
-                                           class="form-control"
+                                           class="form-control js-zone-private-sell"
                                            value="${Number(existingMapping?.private_price ?? 0)}"
                                            step="0.01"
                                            min="0">
                                 </td>
                                 <td>
                                     <input type="number"
-                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
-                                           class="form-control"
-                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           name="shared_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-cost"
+                                           value="${Number(existingMapping?.shared_cost_price ?? existingMapping?.shared_price ?? 0)}"
                                            step="0.01"
                                            min="0">
                                 </td>
                                 <td>
+                                    <input type="number"
+                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-sell"
+                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td class="zone-col-actions">
                                     <button type="button"
                                             class="btn btn-sm btn-danger remove-mapping"
+                                            title="Remove"
                                             ${existingMapping?.mapping_id ? `data-mapping-id="${escapeHtml(String(existingMapping.mapping_id))}"` : ''}>
-                                        <i class="ri-delete-bin-line"></i> Remove
+                                        <i class="ri-delete-bin-line"></i>
                                     </button>
                                 </td>
                             `;
@@ -2369,7 +3246,7 @@
 
                             if (!rows.length) {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">Select a <strong>From Port</strong> to auto-populate hotels for the selected country/city.</td>`;
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">Select a <strong>From Port</strong> to auto-populate hotels for the selected country/city.</td>`;
                                 tbody.appendChild(tr);
                                 return;
                             }
@@ -2404,7 +3281,7 @@
 
                             if (!filteredZones.length) {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">No hotels found for the selected country/city.</td>`;
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">No hotels found for the selected country/city.</td>`;
                                 tbody.appendChild(tr);
                                 return;
                             }
@@ -2417,6 +3294,10 @@
                         }
 
                         function getFromValue() {
+                            const F = window.VehicleZoneMappingFilters;
+                            if (F && typeof F.getFromZoneValue === 'function') {
+                                return F.getFromZoneValue();
+                            }
                             const el = document.getElementById('from_zone');
                             return el ? el.value : '';
                         }
@@ -2442,7 +3323,11 @@
                         });
                         }
 
-                        document.addEventListener('zoneMappingFiltersReady', bootPortHotelMappingUi, { once: true });
+                        if (window.VehicleZoneMappingFilters && window.VehicleZoneMappingFilters._inited) {
+                            bootPortHotelMappingUi();
+                        } else {
+                            document.addEventListener('zoneMappingFiltersReady', bootPortHotelMappingUi, { once: true });
+                        }
                     });
                 </script>
             @endif
@@ -2458,7 +3343,13 @@
                                 'from' => (string) $m->from_zone_id,
                                 'to' => (string) $m->to_zone_id,
                                 'private_price' => (float) ($m->private_price ?? 0),
+                                'private_cost_price' => (float) ($m->private_cost_price ?? $m->private_price ?? 0),
+                                'private_profit_type' => (string) ($m->private_profit_type ?? 'percentage'),
+                                'private_profit_amount' => (float) ($m->private_profit_amount ?? 0),
                                 'shared_price' => (float) ($m->shared_price ?? 0),
+                                'shared_cost_price' => (float) ($m->shared_cost_price ?? $m->shared_price ?? 0),
+                                'shared_profit_type' => (string) ($m->shared_profit_type ?? 'percentage'),
+                                'shared_profit_amount' => (float) ($m->shared_profit_amount ?? 0),
                                 'mapping_id' => $m->mapping_id ?? null,
                             ];
                         })
@@ -2523,25 +3414,42 @@
                                 <td>${Ui.zoneCellHtml(toById, toId)}</td>
                                 <td>
                                     <input type="number"
+                                           name="private_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-private-cost"
+                                           value="${Number(existingMapping?.private_cost_price ?? existingMapping?.private_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
                                            name="private_prices[${String(fromId)}][${String(toId)}]"
-                                           class="form-control"
+                                           class="form-control js-zone-private-sell"
                                            value="${Number(existingMapping?.private_price ?? 0)}"
                                            step="0.01"
                                            min="0">
                                 </td>
                                 <td>
                                     <input type="number"
-                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
-                                           class="form-control"
-                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           name="shared_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-cost"
+                                           value="${Number(existingMapping?.shared_cost_price ?? existingMapping?.shared_price ?? 0)}"
                                            step="0.01"
                                            min="0">
                                 </td>
                                 <td>
+                                    <input type="number"
+                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-sell"
+                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td class="zone-col-actions">
                                     <button type="button"
                                             class="btn btn-sm btn-danger remove-mapping"
+                                            title="Remove"
                                             ${existingMapping?.mapping_id ? `data-mapping-id="${escapeHtml(String(existingMapping.mapping_id))}"` : ''}>
-                                        <i class="ri-delete-bin-line"></i> Remove
+                                        <i class="ri-delete-bin-line"></i>
                                     </button>
                                 </td>
                             `;
@@ -2557,14 +3465,17 @@
                             if (!tbody) return;
                             tbody.innerHTML = '';
 
-                            const rows = (existing || [])
-                                .filter(m => priceScore(m) > 0)
-                                .slice()
-                                .sort((a, b) => priceScore(b) - priceScore(a));
+                            const F = window.VehicleZoneMappingFilters;
+                            let rows = (existing || []).filter(m => priceScore(m) > 0);
+                            if (F && F._inited) {
+                                rows = F.filterExistingZoneZoneMappings(rows, fromZones || [], toZones || []);
+                            }
+
+                            rows = rows.slice().sort((a, b) => priceScore(b) - priceScore(a));
 
                             if (!rows.length) {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">Select a <strong>Hotel</strong> to auto-populate all attractions.</td>`;
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">Select a <strong>Hotel</strong> to auto-populate attractions for the selected country/city.</td>`;
                                 tbody.appendChild(tr);
                                 return;
                             }
@@ -2576,15 +3487,33 @@
                             if (!tbody) return;
                             tbody.innerHTML = '';
 
+                            const F = window.VehicleZoneMappingFilters;
+                            if (fromId && F && F._inited && !F.isZoneInFilter(fromId, fromZones || [])) {
+                                fromId = '';
+                                const fromEl = document.getElementById('from_zone');
+                                if (fromEl) {
+                                    if (window.jQuery) {
+                                        window.jQuery(fromEl).val('').trigger('change');
+                                    } else {
+                                        fromEl.value = '';
+                                    }
+                                }
+                            }
+
                             if (!fromId) {
                                 renderExistingRows();
                                 return;
                             }
 
                             const fromStr = String(fromId);
-                            const filteredZones = (window.VehicleZoneMappingFilters
-                                ? window.VehicleZoneMappingFilters.getFilteredZones(toZones || [])
-                                : (toZones || []));
+                            const filteredZones = (F ? F.getFilteredZones(toZones || []) : (toZones || []));
+
+                            if (!filteredZones.length) {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">No attractions found for the selected country/city.</td>`;
+                                tbody.appendChild(tr);
+                                return;
+                            }
 
                             filteredZones
                                 .slice()
@@ -2594,10 +3523,15 @@
                         }
 
                         function getFromValue() {
+                            const F = window.VehicleZoneMappingFilters;
+                            if (F && typeof F.getFromZoneValue === 'function') {
+                                return F.getFromZoneValue();
+                            }
                             const el = document.getElementById('from_zone');
                             return el ? el.value : '';
                         }
 
+                        function bootHotelAttractionMappingUi() {
                         document.addEventListener('change', function (e) {
                             if (e.target && e.target.id === 'from_zone') {
                                 renderForFrom(getFromValue());
@@ -2612,6 +3546,17 @@
 
                         renderForFrom(getFromValue());
                         setTimeout(function () { renderForFrom(getFromValue()); }, 0);
+
+                        document.addEventListener('zoneMappingFiltersChanged', function () {
+                            renderForFrom(getFromValue());
+                        });
+                        }
+
+                        if (window.VehicleZoneMappingFilters && window.VehicleZoneMappingFilters._inited) {
+                            bootHotelAttractionMappingUi();
+                        } else {
+                            document.addEventListener('zoneMappingFiltersReady', bootHotelAttractionMappingUi, { once: true });
+                        }
                     });
                 </script>
             @endif
@@ -2627,7 +3572,13 @@
                                 'from' => (string) $m->from_zone_id,
                                 'to' => (string) $m->to_zone_id,
                                 'private_price' => (float) ($m->private_price ?? 0),
+                                'private_cost_price' => (float) ($m->private_cost_price ?? $m->private_price ?? 0),
+                                'private_profit_type' => (string) ($m->private_profit_type ?? 'percentage'),
+                                'private_profit_amount' => (float) ($m->private_profit_amount ?? 0),
                                 'shared_price' => (float) ($m->shared_price ?? 0),
+                                'shared_cost_price' => (float) ($m->shared_cost_price ?? $m->shared_price ?? 0),
+                                'shared_profit_type' => (string) ($m->shared_profit_type ?? 'percentage'),
+                                'shared_profit_amount' => (float) ($m->shared_profit_amount ?? 0),
                                 'mapping_id' => $m->mapping_id ?? null,
                             ];
                         })
@@ -2692,25 +3643,42 @@
                                 <td>${Ui.zoneCellHtml(toById, toId)}</td>
                                 <td>
                                     <input type="number"
+                                           name="private_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-private-cost"
+                                           value="${Number(existingMapping?.private_cost_price ?? existingMapping?.private_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
                                            name="private_prices[${String(fromId)}][${String(toId)}]"
-                                           class="form-control"
+                                           class="form-control js-zone-private-sell"
                                            value="${Number(existingMapping?.private_price ?? 0)}"
                                            step="0.01"
                                            min="0">
                                 </td>
                                 <td>
                                     <input type="number"
-                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
-                                           class="form-control"
-                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           name="shared_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-cost"
+                                           value="${Number(existingMapping?.shared_cost_price ?? existingMapping?.shared_price ?? 0)}"
                                            step="0.01"
                                            min="0">
                                 </td>
                                 <td>
+                                    <input type="number"
+                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-sell"
+                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td class="zone-col-actions">
                                     <button type="button"
                                             class="btn btn-sm btn-danger remove-mapping"
+                                            title="Remove"
                                             ${existingMapping?.mapping_id ? `data-mapping-id="${escapeHtml(String(existingMapping.mapping_id))}"` : ''}>
-                                        <i class="ri-delete-bin-line"></i> Remove
+                                        <i class="ri-delete-bin-line"></i>
                                     </button>
                                 </td>
                             `;
@@ -2726,14 +3694,17 @@
                             if (!tbody) return;
                             tbody.innerHTML = '';
 
-                            const rows = (existing || [])
-                                .filter(m => priceScore(m) > 0)
-                                .slice()
-                                .sort((a, b) => priceScore(b) - priceScore(a));
+                            const F = window.VehicleZoneMappingFilters;
+                            let rows = (existing || []).filter(m => priceScore(m) > 0);
+                            if (F && F._inited) {
+                                rows = F.filterExistingZoneZoneMappings(rows, fromZones || [], toZones || []);
+                            }
+
+                            rows = rows.slice().sort((a, b) => priceScore(b) - priceScore(a));
 
                             if (!rows.length) {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">Select a <strong>Hotel</strong> to auto-populate all restaurants.</td>`;
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">Select a <strong>Hotel</strong> to auto-populate restaurants for the selected country/city.</td>`;
                                 tbody.appendChild(tr);
                                 return;
                             }
@@ -2745,15 +3716,33 @@
                             if (!tbody) return;
                             tbody.innerHTML = '';
 
+                            const F = window.VehicleZoneMappingFilters;
+                            if (fromId && F && F._inited && !F.isZoneInFilter(fromId, fromZones || [])) {
+                                fromId = '';
+                                const fromEl = document.getElementById('from_zone');
+                                if (fromEl) {
+                                    if (window.jQuery) {
+                                        window.jQuery(fromEl).val('').trigger('change');
+                                    } else {
+                                        fromEl.value = '';
+                                    }
+                                }
+                            }
+
                             if (!fromId) {
                                 renderExistingRows();
                                 return;
                             }
 
                             const fromStr = String(fromId);
-                            const filteredZones = (window.VehicleZoneMappingFilters
-                                ? window.VehicleZoneMappingFilters.getFilteredZones(toZones || [])
-                                : (toZones || []));
+                            const filteredZones = (F ? F.getFilteredZones(toZones || []) : (toZones || []));
+
+                            if (!filteredZones.length) {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">No restaurants found for the selected country/city.</td>`;
+                                tbody.appendChild(tr);
+                                return;
+                            }
 
                             filteredZones
                                 .slice()
@@ -2763,10 +3752,15 @@
                         }
 
                         function getFromValue() {
+                            const F = window.VehicleZoneMappingFilters;
+                            if (F && typeof F.getFromZoneValue === 'function') {
+                                return F.getFromZoneValue();
+                            }
                             const el = document.getElementById('from_zone');
                             return el ? el.value : '';
                         }
 
+                        function bootHotelRestaurantMappingUi() {
                         document.addEventListener('change', function (e) {
                             if (e.target && e.target.id === 'from_zone') {
                                 renderForFrom(getFromValue());
@@ -2781,6 +3775,17 @@
 
                         renderForFrom(getFromValue());
                         setTimeout(function () { renderForFrom(getFromValue()); }, 0);
+
+                        document.addEventListener('zoneMappingFiltersChanged', function () {
+                            renderForFrom(getFromValue());
+                        });
+                        }
+
+                        if (window.VehicleZoneMappingFilters && window.VehicleZoneMappingFilters._inited) {
+                            bootHotelRestaurantMappingUi();
+                        } else {
+                            document.addEventListener('zoneMappingFiltersReady', bootHotelRestaurantMappingUi, { once: true });
+                        }
                     });
                 </script>
             @endif
@@ -2796,7 +3801,13 @@
                                 'from' => (string) $m->from_zone_id,
                                 'to' => (string) $m->to_zone_id,
                                 'private_price' => (float) ($m->private_price ?? 0),
+                                'private_cost_price' => (float) ($m->private_cost_price ?? $m->private_price ?? 0),
+                                'private_profit_type' => (string) ($m->private_profit_type ?? 'percentage'),
+                                'private_profit_amount' => (float) ($m->private_profit_amount ?? 0),
                                 'shared_price' => (float) ($m->shared_price ?? 0),
+                                'shared_cost_price' => (float) ($m->shared_cost_price ?? $m->shared_price ?? 0),
+                                'shared_profit_type' => (string) ($m->shared_profit_type ?? 'percentage'),
+                                'shared_profit_amount' => (float) ($m->shared_profit_amount ?? 0),
                                 'mapping_id' => $m->mapping_id ?? null,
                             ];
                         })
@@ -2861,25 +3872,42 @@
                                 <td>${Ui.zoneCellHtml(toById, toId)}</td>
                                 <td>
                                     <input type="number"
+                                           name="private_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-private-cost"
+                                           value="${Number(existingMapping?.private_cost_price ?? existingMapping?.private_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td>
+                                    <input type="number"
                                            name="private_prices[${String(fromId)}][${String(toId)}]"
-                                           class="form-control"
+                                           class="form-control js-zone-private-sell"
                                            value="${Number(existingMapping?.private_price ?? 0)}"
                                            step="0.01"
                                            min="0">
                                 </td>
                                 <td>
                                     <input type="number"
-                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
-                                           class="form-control"
-                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           name="shared_cost_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-cost"
+                                           value="${Number(existingMapping?.shared_cost_price ?? existingMapping?.shared_price ?? 0)}"
                                            step="0.01"
                                            min="0">
                                 </td>
                                 <td>
+                                    <input type="number"
+                                           name="shared_prices[${String(fromId)}][${String(toId)}]"
+                                           class="form-control js-zone-shared-sell"
+                                           value="${Number(existingMapping?.shared_price ?? 0)}"
+                                           step="0.01"
+                                           min="0">
+                                </td>
+                                <td class="zone-col-actions">
                                     <button type="button"
                                             class="btn btn-sm btn-danger remove-mapping"
+                                            title="Remove"
                                             ${existingMapping?.mapping_id ? `data-mapping-id="${escapeHtml(String(existingMapping.mapping_id))}"` : ''}>
-                                        <i class="ri-delete-bin-line"></i> Remove
+                                        <i class="ri-delete-bin-line"></i>
                                     </button>
                                 </td>
                             `;
@@ -2895,14 +3923,17 @@
                             if (!tbody) return;
                             tbody.innerHTML = '';
 
-                            const rows = (existing || [])
-                                .filter(m => priceScore(m) > 0)
-                                .slice()
-                                .sort((a, b) => priceScore(b) - priceScore(a));
+                            const F = window.VehicleZoneMappingFilters;
+                            let rows = (existing || []).filter(m => priceScore(m) > 0);
+                            if (F && F._inited) {
+                                rows = F.filterExistingZoneZoneMappings(rows, fromZones || [], toZones || []);
+                            }
+
+                            rows = rows.slice().sort((a, b) => priceScore(b) - priceScore(a));
 
                             if (!rows.length) {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td colspan="5" class="text-center text-muted py-4">Select an <strong>Attraction</strong> to auto-populate all restaurants.</td>`;
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">Select an <strong>Attraction</strong> to auto-populate restaurants for the selected country/city.</td>`;
                                 tbody.appendChild(tr);
                                 return;
                             }
@@ -2914,15 +3945,33 @@
                             if (!tbody) return;
                             tbody.innerHTML = '';
 
+                            const F = window.VehicleZoneMappingFilters;
+                            if (fromId && F && F._inited && !F.isZoneInFilter(fromId, fromZones || [])) {
+                                fromId = '';
+                                const fromEl = document.getElementById('from_zone');
+                                if (fromEl) {
+                                    if (window.jQuery) {
+                                        window.jQuery(fromEl).val('').trigger('change');
+                                    } else {
+                                        fromEl.value = '';
+                                    }
+                                }
+                            }
+
                             if (!fromId) {
                                 renderExistingRows();
                                 return;
                             }
 
                             const fromStr = String(fromId);
-                            const filteredZones = (window.VehicleZoneMappingFilters
-                                ? window.VehicleZoneMappingFilters.getFilteredZones(toZones || [])
-                                : (toZones || []));
+                            const filteredZones = (F ? F.getFilteredZones(toZones || []) : (toZones || []));
+
+                            if (!filteredZones.length) {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">No restaurants found for the selected country/city.</td>`;
+                                tbody.appendChild(tr);
+                                return;
+                            }
 
                             filteredZones
                                 .slice()
@@ -2932,10 +3981,15 @@
                         }
 
                         function getFromValue() {
+                            const F = window.VehicleZoneMappingFilters;
+                            if (F && typeof F.getFromZoneValue === 'function') {
+                                return F.getFromZoneValue();
+                            }
                             const el = document.getElementById('from_zone');
                             return el ? el.value : '';
                         }
 
+                        function bootAttractionRestaurantMappingUi() {
                         document.addEventListener('change', function (e) {
                             if (e.target && e.target.id === 'from_zone') {
                                 renderForFrom(getFromValue());
@@ -2950,6 +4004,190 @@
 
                         renderForFrom(getFromValue());
                         setTimeout(function () { renderForFrom(getFromValue()); }, 0);
+
+                        document.addEventListener('zoneMappingFiltersChanged', function () {
+                            renderForFrom(getFromValue());
+                        });
+                        }
+
+                        if (window.VehicleZoneMappingFilters && window.VehicleZoneMappingFilters._inited) {
+                            bootAttractionRestaurantMappingUi();
+                        } else {
+                            document.addEventListener('zoneMappingFiltersReady', bootAttractionRestaurantMappingUi, { once: true });
+                        }
+                    });
+                </script>
+            @endif
+
+            @if(in_array(request()->get('mapping_type'), ['hotel_hotel', 'attraction_attraction', 'restaurant_restaurant']))
+                @php
+                    $sameTypeMap = [
+                        'hotel_hotel' => ['type' => 'Hotel', 'label' => 'Hotel', 'plural' => 'hotels'],
+                        'attraction_attraction' => ['type' => 'Attraction', 'label' => 'Attraction', 'plural' => 'attractions'],
+                        'restaurant_restaurant' => ['type' => 'Restaurant', 'label' => 'Restaurant', 'plural' => 'restaurants'],
+                    ];
+                    $sameTypeCfg = $sameTypeMap[request()->get('mapping_type')];
+                    $sameType = $sameTypeCfg['type'];
+                    $sameTypeLabel = $sameTypeCfg['label'];
+                    $sameTypePlural = $sameTypeCfg['plural'];
+
+                    $sameTypeMappings = collect($mappings ?? [])
+                        ->filter(function ($m) use ($sameType) {
+                            return (($m->from_zone_type ?? $sameType) === $sameType)
+                                && (($m->to_zone_type ?? $sameType) === $sameType);
+                        })
+                        ->map(function ($m) {
+                            return [
+                                'from' => (string) $m->from_zone_id,
+                                'to' => (string) $m->to_zone_id,
+                                'private_price' => (float) ($m->private_price ?? 0),
+                                'private_cost_price' => (float) ($m->private_cost_price ?? $m->private_price ?? 0),
+                                'private_profit_type' => (string) ($m->private_profit_type ?? 'percentage'),
+                                'private_profit_amount' => (float) ($m->private_profit_amount ?? 0),
+                                'shared_price' => (float) ($m->shared_price ?? 0),
+                                'shared_cost_price' => (float) ($m->shared_cost_price ?? $m->shared_price ?? 0),
+                                'shared_profit_type' => (string) ($m->shared_profit_type ?? 'percentage'),
+                                'shared_profit_amount' => (float) ($m->shared_profit_amount ?? 0),
+                                'mapping_id' => $m->mapping_id ?? null,
+                            ];
+                        })
+                        ->values();
+
+                    $sameTypeZones = collect($zones ?? [])
+                        ->filter(fn ($z) => ($z->zone_type ?? null) === $sameType)
+                        ->map($buildVehicleZonePayload)
+                        ->values();
+                @endphp
+
+                <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        const mappingType = document.querySelector('input[name="mapping_type"]')?.value;
+                        if (!['hotel_hotel', 'attraction_attraction', 'restaurant_restaurant'].includes(mappingType)) return;
+
+                        const Ui = window.VehicleZoneMappingUi;
+                        const zoneType = @json($sameType);
+                        const zoneLabel = @json($sameTypeLabel);
+                        const zonePlural = @json($sameTypePlural);
+                        const fromZones = @json($sameTypeZones);
+                        const toZones = fromZones;
+                        const existing = @json($sameTypeMappings);
+                        const fromById = new Map((fromZones || []).map(z => [String(z.zone_id), z]));
+                        const toById = fromById;
+                        const existingKeyed = new Map((existing || []).map(m => [`${String(m.from)}__${String(m.to)}`, m]));
+                        const tbody = document.getElementById('mappingsTableBody');
+
+                        function zoneText(map, zoneId) {
+                            const z = map.get(String(zoneId));
+                            if (!z) return `Zone ID: ${zoneId}`;
+                            const name = (z.zone_name || '').trim();
+                            return name ? `${name}` : `Zone ID: ${zoneId}`;
+                        }
+
+                        function buildRow(fromId, toId) {
+                            const key = `${String(fromId)}__${String(toId)}`;
+                            const existingMapping = existingKeyed.get(key);
+                            const tr = document.createElement('tr');
+                            tr.setAttribute('data-from', String(fromId));
+                            tr.setAttribute('data-to', String(toId));
+                            tr.setAttribute('data-from-type', zoneType);
+                            tr.setAttribute('data-to-type', zoneType);
+                            if (existingMapping?.mapping_id) tr.setAttribute('data-mapping-id', existingMapping.mapping_id);
+                            tr.innerHTML = `
+                                <td>${Ui.zoneCellHtml(fromById, fromId)}</td>
+                                <td>${Ui.zoneCellHtml(toById, toId)}</td>
+                                <td><input type="number" name="private_cost_prices[${String(fromId)}][${String(toId)}]" class="form-control js-zone-private-cost" value="${Number(existingMapping?.private_cost_price ?? existingMapping?.private_price ?? 0)}" step="0.01" min="0"></td>
+                                <td><input type="number" name="private_prices[${String(fromId)}][${String(toId)}]" class="form-control js-zone-private-sell" value="${Number(existingMapping?.private_price ?? 0)}" step="0.01" min="0"></td>
+                                <td><input type="number" name="shared_cost_prices[${String(fromId)}][${String(toId)}]" class="form-control js-zone-shared-cost" value="${Number(existingMapping?.shared_cost_price ?? existingMapping?.shared_price ?? 0)}" step="0.01" min="0"></td>
+                                <td><input type="number" name="shared_prices[${String(fromId)}][${String(toId)}]" class="form-control js-zone-shared-sell" value="${Number(existingMapping?.shared_price ?? 0)}" step="0.01" min="0"></td>
+                                <td class="zone-col-actions">
+                                    <button type="button" class="btn btn-sm btn-danger remove-mapping" title="Remove" ${existingMapping?.mapping_id ? `data-mapping-id="${String(existingMapping.mapping_id).replaceAll('"','&quot;')}"` : ''}>
+                                        <i class="ri-delete-bin-line"></i>
+                                    </button>
+                                </td>
+                            `;
+                            return tr;
+                        }
+
+                        function priceScore(m) {
+                            return Math.max(Number(m?.private_price ?? 0), Number(m?.shared_price ?? 0));
+                        }
+
+                        function renderExistingRows() {
+                            if (!tbody) return;
+                            tbody.innerHTML = '';
+                            const F = window.VehicleZoneMappingFilters;
+                            let rows = (existing || []).filter(m => priceScore(m) > 0);
+                            if (F && F._inited) {
+                                rows = F.filterExistingZoneZoneMappings(rows, fromZones || [], toZones || []);
+                            }
+                            rows = rows.slice().sort((a, b) => priceScore(b) - priceScore(a));
+                            if (!rows.length) {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">Select a <strong>${zoneLabel}</strong> to auto-populate destination ${zonePlural} for the selected country/city.</td>`;
+                                tbody.appendChild(tr);
+                                return;
+                            }
+                            rows.forEach(m => tbody.appendChild(buildRow(String(m.from), String(m.to))));
+                        }
+
+                        function renderForFrom(fromId) {
+                            if (!tbody) return;
+                            tbody.innerHTML = '';
+                            const F = window.VehicleZoneMappingFilters;
+                            if (fromId && F && F._inited && !F.isZoneInFilter(fromId, fromZones || [])) {
+                                fromId = '';
+                                const fromEl = document.getElementById('from_zone');
+                                if (fromEl) {
+                                    if (window.jQuery) window.jQuery(fromEl).val('').trigger('change');
+                                    else fromEl.value = '';
+                                }
+                            }
+                            if (!fromId) {
+                                renderExistingRows();
+                                return;
+                            }
+                            const fromStr = String(fromId);
+                            const filteredZones = (F ? F.getFilteredZones(toZones || []) : (toZones || []));
+                            if (!filteredZones.length) {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `<td colspan="7" class="text-center text-muted py-4">No ${zonePlural} found for the selected country/city.</td>`;
+                                tbody.appendChild(tr);
+                                return;
+                            }
+                            filteredZones
+                                .slice()
+                                .sort((a, b) => zoneText(toById, String(b.zone_id)).localeCompare(zoneText(toById, String(a.zone_id))))
+                                .forEach(z => tbody.appendChild(buildRow(fromStr, String(z.zone_id))));
+                        }
+
+                        function getFromValue() {
+                            const F = window.VehicleZoneMappingFilters;
+                            if (F && typeof F.getFromZoneValue === 'function') return F.getFromZoneValue();
+                            const el = document.getElementById('from_zone');
+                            return el ? el.value : '';
+                        }
+
+                        function bootSameTypeMappingUi() {
+                            document.addEventListener('change', function (e) {
+                                if (e.target && e.target.id === 'from_zone') renderForFrom(getFromValue());
+                            });
+                            if (window.jQuery) {
+                                window.jQuery(document).on('select2:select select2:clear', '#from_zone', function () {
+                                    renderForFrom(getFromValue());
+                                });
+                            }
+                            renderForFrom(getFromValue());
+                            setTimeout(function () { renderForFrom(getFromValue()); }, 0);
+                            document.addEventListener('zoneMappingFiltersChanged', function () {
+                                renderForFrom(getFromValue());
+                            });
+                        }
+
+                        if (window.VehicleZoneMappingFilters && window.VehicleZoneMappingFilters._inited) {
+                            bootSameTypeMappingUi();
+                        } else {
+                            document.addEventListener('zoneMappingFiltersReady', bootSameTypeMappingUi, { once: true });
+                        }
                     });
                 </script>
             @endif
@@ -2985,17 +4223,24 @@
             width: '100%'
         });
 
+        const locationLockedByMappings = {{ !empty($hasZoneMappings) ? 'true' : 'false' }};
+
         $('#country').select2({
             placeholder: "Search and Select Country",
-            allowClear: true,
+            allowClear: !locationLockedByMappings,
             width: '100%'
         });
 
         $('#city_name').select2({
             placeholder: "Search and Select a City",
-            allowClear: true,
+            allowClear: !locationLockedByMappings,
             width: '100%'
         });
+
+        if (locationLockedByMappings) {
+            $('#country').prop('disabled', true);
+            $('#city_name').prop('disabled', true);
+        }
     });
 </script>
 <script>
@@ -3281,7 +4526,13 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
 
+        const locationLockedByMappings = {{ !empty($hasZoneMappings) ? 'true' : 'false' }};
+
         function loadCitiesByCountry(countryName, preserveCity) {
+            if (locationLockedByMappings) {
+                return;
+            }
+
             if (!countryName) {
                 $('#city_name').prop('disabled', true)
                     .empty()
@@ -3327,9 +4578,11 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
 
-        $('#country').on('change', function () {
-            loadCitiesByCountry($(this).val(), false);
-        });
+        if (!locationLockedByMappings) {
+            $('#country').on('change', function () {
+                loadCitiesByCountry($(this).val(), false);
+            });
+        }
 
         function loadDriversForDmc(dmcId) {
             if (!dmcId) return;
@@ -3778,6 +5031,7 @@ function initNightChargeAutoPopulate() {
                 const computed = compute(getNum(dayEl), nightBaseVal);
                 nightEl.value = computed === null ? '' : format(computed);
                 nightEl.classList.add(cssClass, 'value-updated');
+                nightEl.dispatchEvent(new Event('input', { bubbles: true }));
                 setTimeout(() => nightEl.classList.remove('value-updated'), 800);
             });
         };
@@ -3808,11 +5062,7 @@ function initNightChargeAutoPopulate() {
         nightBaseName: 'night_base_price',
         cssClass: 'auto-calculated-sell',
         pairs: [
-            { day: 'cost_per_km_below_10', night: 'night_cost_per_km_below_10' },
-            { day: 'cost_per_km_10_to_25', night: 'night_cost_per_km_10_to_25' },
-            { day: 'cost_per_km_above_25', night: 'night_cost_per_km_above_25' },
-            { day: 'cost_per_hour', night: 'night_cost_per_hour' },
-            { day: 'cancel_cost', night: 'night_cancel_cost' },
+            // Sell prices are calculated from night cost + Night Surcharge (see vehicle profit script)
         ],
     });
 
@@ -3820,11 +5070,10 @@ function initNightChargeAutoPopulate() {
         nightBaseName: 'night_base_cost_price',
         cssClass: 'auto-calculated-cost',
         pairs: [
-            { day: 'per_km_below_10_cost_price', night: 'night_per_km_below_10_cost_price' },
-            { day: 'per_km_10_to_25_cost_price', night: 'night_per_km_10_to_25_cost_price' },
-            { day: 'per_km_above_25_cost_price', night: 'night_per_km_above_25_cost_price' },
+            // { day: 'per_km_below_10_cost_price', night: 'night_per_km_below_10_cost_price' },
+            // { day: 'per_km_10_to_25_cost_price', night: 'night_per_km_10_to_25_cost_price' },
+            // { day: 'per_km_above_25_cost_price', night: 'night_per_km_above_25_cost_price' },
             { day: 'per_hour_cost_price', night: 'night_per_hour_cost_price' },
-            { day: 'cancel_cost_price', night: 'night_cancel_cost_price' },
         ],
     });
 }
@@ -3834,6 +5083,137 @@ if (document.readyState === 'loading') {
 } else {
     initNightChargeAutoPopulate();
 }
+</script>
+
+<script>
+(function () {
+    function parseAmount(value) {
+        const n = parseFloat(String(value || '0').replace(',', '.'));
+        return isNaN(n) ? null : n;
+    }
+
+    function calculateSell(costValue, typeEl, amountEl) {
+        const cost = parseAmount(costValue);
+        if (cost === null) return '';
+        const type = (typeEl?.value || 'percentage').toLowerCase();
+        const amount = parseAmount(amountEl?.value) ?? 0;
+        let sell = cost;
+        if (type === 'flat') {
+            sell = cost + amount;
+        } else {
+            sell = cost + (cost * amount / 100);
+        }
+        return Number(Math.max(0, sell).toFixed(2));
+    }
+
+    function updateSellFromCost(costInput, typeEl, amountEl) {
+        if (!costInput) return;
+        const sellId = costInput.getAttribute('data-sell-target');
+        const sellInput = sellId ? document.getElementById(sellId) || document.querySelector(`input[name="${sellId}"]`) : null;
+        if (!sellInput) return;
+        if (costInput.value === '' || costInput.value === null) return;
+        sellInput.value = calculateSell(costInput.value, typeEl, amountEl);
+        sellInput.dataset.autoFilled = '1';
+        if (sellInput.name === 'base_price' || sellInput.id === 'base_price') {
+            syncCancellationFromBase();
+        }
+    }
+
+    function updateGroup(costSelector, typeId, amountId) {
+        const typeEl = document.getElementById(typeId);
+        const amountEl = document.getElementById(amountId);
+        document.querySelectorAll(costSelector).forEach(function (costInput) {
+            updateSellFromCost(costInput, typeEl, amountEl);
+        });
+    }
+
+    function syncCancellationFromBase() {
+        const baseCost = document.getElementById('base_cost_price') || document.querySelector('input[name="base_cost_price"]');
+        const baseSell = document.getElementById('base_price') || document.querySelector('input[name="base_price"]');
+        const cancelCost = document.getElementById('cancellation_cost') || document.querySelector('input[name="cancellation_cost"]');
+        const cancelSell = document.getElementById('cancellation_sell') || document.querySelector('input[name="cancellation_sell"]');
+        const nightCancelCost = document.getElementById('night_cancel_cost_price');
+        const nightCancelSell = document.getElementById('night_cancel_cost');
+
+        if (baseCost && cancelCost && (cancelCost.dataset.manual !== '1')) {
+            cancelCost.value = baseCost.value;
+        }
+        if (baseSell && cancelSell && (cancelSell.dataset.manual !== '1')) {
+            cancelSell.value = baseSell.value;
+        }
+        if (cancelCost && nightCancelCost) nightCancelCost.value = cancelCost.value;
+        if (cancelSell && nightCancelSell) nightCancelSell.value = cancelSell.value;
+    }
+
+    function bindGroup(costSelector, sellSelector, typeId, amountId) {
+        const typeEl = document.getElementById(typeId);
+        const amountEl = document.getElementById(amountId);
+
+        document.querySelectorAll(costSelector).forEach(function (costInput) {
+            costInput.addEventListener('input', function () {
+                updateSellFromCost(this, typeEl, amountEl);
+                if (this.name === 'base_cost_price' || this.id === 'base_cost_price') {
+                    syncCancellationFromBase();
+                }
+            });
+            costInput.addEventListener('change', function () {
+                updateSellFromCost(this, typeEl, amountEl);
+                if (this.name === 'base_cost_price' || this.id === 'base_cost_price') {
+                    syncCancellationFromBase();
+                }
+            });
+        });
+
+        document.querySelectorAll(sellSelector).forEach(function (sellInput) {
+            sellInput.addEventListener('input', function () {
+                this.dataset.autoFilled = '0';
+                if (this.name === 'base_price' || this.id === 'base_price') {
+                    syncCancellationFromBase();
+                }
+            });
+        });
+
+        if (typeEl) typeEl.addEventListener('change', function () { updateGroup(costSelector, typeId, amountId); });
+        if (amountEl) {
+            amountEl.addEventListener('input', function () { updateGroup(costSelector, typeId, amountId); });
+            amountEl.addEventListener('change', function () { updateGroup(costSelector, typeId, amountId); });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        bindGroup('.vehicle-day-cost-input', '.vehicle-day-sell-input', 'day_profit_type', 'mark_up');
+        bindGroup('.vehicle-night-cost-input', '.vehicle-night-sell-input', 'night_profit_type', 'night_surcharge');
+
+        const cancelCost = document.getElementById('cancellation_cost');
+        const cancelSell = document.getElementById('cancellation_sell');
+        if (cancelCost) {
+            if (cancelCost.value !== '') cancelCost.dataset.manual = '1';
+            cancelCost.addEventListener('input', function () {
+                this.dataset.manual = '1';
+                const nightCancelCost = document.getElementById('night_cancel_cost_price');
+                if (nightCancelCost) nightCancelCost.value = this.value;
+            });
+        }
+        if (cancelSell) {
+            if (cancelSell.value !== '') cancelSell.dataset.manual = '1';
+            cancelSell.addEventListener('input', function () {
+                this.dataset.manual = '1';
+                const nightCancelSell = document.getElementById('night_cancel_cost');
+                if (nightCancelSell) nightCancelSell.value = this.value;
+            });
+        }
+
+        syncCancellationFromBase();
+        if (cancelCost && cancelCost.value) {
+            const nightCancelCost = document.getElementById('night_cancel_cost_price');
+            if (nightCancelCost && !nightCancelCost.value) nightCancelCost.value = cancelCost.value;
+        }
+        if (cancelSell && cancelSell.value) {
+            const nightCancelSell = document.getElementById('night_cancel_cost');
+            if (nightCancelSell && !nightCancelSell.value) nightCancelSell.value = cancelSell.value;
+        }
+    });
+})();
 </script>
 
 
@@ -3884,15 +5264,23 @@ if (document.readyState === 'loading') {
                     <td>${fromZoneText}</td>
                     <td>${toZoneText}</td>
                     <td>
-                        <input type="number" name="private_prices[${fromZone}][${toZone}]" 
-                            class="form-control" value="0" step="0.01" min="0">
+                        <input type="number" name="private_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-cost" value="0" step="0.01" min="0">
                     </td>
                     <td>
-                        <input type="number" name="shared_prices[${fromZone}][${toZone}]" 
-                            class="form-control" value="0" step="0.01" min="0">
+                        <input type="number" name="private_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-sell" value="0" step="0.01" min="0">
                     </td>
                     <td>
-                        <button type="button" class="btn btn-sm btn-danger remove-mapping">Remove</button>
+                        <input type="number" name="shared_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-cost" value="0" step="0.01" min="0">
+                    </td>
+                    <td>
+                        <input type="number" name="shared_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-sell" value="0" step="0.01" min="0">
+                    </td>
+                    <td class="zone-col-actions">
+                        <button type="button" class="btn btn-sm btn-danger remove-mapping" title="Remove"><i class="ri-delete-bin-line"></i></button>
                     </td>
                 </tr>
             `;
@@ -4021,15 +5409,23 @@ $(document).ready(function() {
                     </div>
                 </td>
                 <td>
-                    <input type="number" name="private_prices[${fromZone}][${toZone}]" 
-                        class="form-control" value="0" step="0.01" min="0">
+                        <input type="number" name="private_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-cost" value="0" step="0.01" min="0">
                 </td>
                 <td>
-                    <input type="number" name="shared_prices[${fromZone}][${toZone}]" 
-                        class="form-control" value="0" step="0.01" min="0">
+                        <input type="number" name="private_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-sell" value="0" step="0.01" min="0">
                 </td>
                 <td>
-                    <button type="button" class="btn btn-sm btn-danger remove-mapping">Remove</button>
+                        <input type="number" name="shared_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-cost" value="0" step="0.01" min="0">
+                </td>
+                <td>
+                        <input type="number" name="shared_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-sell" value="0" step="0.01" min="0">
+                </td>
+                <td class="zone-col-actions">
+                    <button type="button" class="btn btn-sm btn-danger remove-mapping" title="Remove"><i class="ri-delete-bin-line"></i></button>
                 </td>
             </tr>
         `;
@@ -4221,15 +5617,23 @@ $(document).ready(function() {
                         </div>
                     </td>
                     <td>
-                        <input type="number" name="private_prices[${fromZone}][${toZone}]" 
-                            class="form-control" value="0" step="0.01" min="0">
+                        <input type="number" name="private_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-cost" value="0" step="0.01" min="0">
                     </td>
                     <td>
-                        <input type="number" name="shared_prices[${fromZone}][${toZone}]" 
-                            class="form-control" value="0" step="0.01" min="0">
+                        <input type="number" name="private_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-sell" value="0" step="0.01" min="0">
                     </td>
                     <td>
-                        <button type="button" class="btn btn-sm btn-danger remove-mapping">Remove</button>
+                        <input type="number" name="shared_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-cost" value="0" step="0.01" min="0">
+                    </td>
+                    <td>
+                        <input type="number" name="shared_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-sell" value="0" step="0.01" min="0">
+                    </td>
+                    <td class="zone-col-actions">
+                        <button type="button" class="btn btn-sm btn-danger remove-mapping" title="Remove"><i class="ri-delete-bin-line"></i></button>
                     </td>
                 </tr>
             `;
@@ -4480,9 +5884,15 @@ $(document).ready(function() {
             $('#from_zone, #to_zone').val('').trigger('change');
         });
         
-        function addMappingRowToTable(fromZone, toZone, fromZoneText, toZoneText, fromType, toType, fromDescription, toDescription, privatePrice, sharedPrice, mappingId, fromZoneItems, toZoneItems) {
+        function addMappingRowToTable(fromZone, toZone, fromZoneText, toZoneText, fromType, toType, fromDescription, toDescription, privatePrice, sharedPrice, mappingId, fromZoneItems, toZoneItems, privateCostPrice, sharedCostPrice, privateProfitType, privateProfitAmount, sharedProfitType, sharedProfitAmount) {
             fromZoneItems = fromZoneItems || [];
             toZoneItems = toZoneItems || [];
+            privateCostPrice = (privateCostPrice !== undefined && privateCostPrice !== null) ? privateCostPrice : privatePrice;
+            sharedCostPrice = (sharedCostPrice !== undefined && sharedCostPrice !== null) ? sharedCostPrice : sharedPrice;
+            privateProfitType = privateProfitType || 'percentage';
+            sharedProfitType = sharedProfitType || 'percentage';
+            privateProfitAmount = (privateProfitAmount !== undefined && privateProfitAmount !== null) ? privateProfitAmount : 0;
+            sharedProfitAmount = (sharedProfitAmount !== undefined && sharedProfitAmount !== null) ? sharedProfitAmount : 0;
             const fromItemsAttr = (['Hotel','Attraction','Restaurant'].includes(fromType)) ? ' data-zone-items="' + escapeHtml(JSON.stringify(fromZoneItems || [])) + '" data-zone-type="' + fromType + '"' : '';
             const toItemsAttr = (['Hotel','Attraction','Restaurant'].includes(toType)) ? ' data-zone-items="' + escapeHtml(JSON.stringify(toZoneItems || [])) + '" data-zone-type="' + toType + '"' : '';
             const fromSpan = fromItemsAttr ? '<span class="zone-cell-hover"' + fromItemsAttr + '>' + fromZoneText + '</span>' : '<span data-bs-toggle="tooltip" title="' + escapeHtml(fromDescription) + '">' + fromZoneText + '</span>';
@@ -4504,16 +5914,24 @@ $(document).ready(function() {
                         </div>
                     </td>
                     <td>
-                        <input type="number" name="private_prices[${fromZone}][${toZone}]" 
-                            class="form-control" value="${privatePrice}" step="0.01" min="0">
+                        <input type="number" name="private_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-cost" value="${privateCostPrice}" step="0.01" min="0">
                     </td>
                     <td>
-                        <input type="number" name="shared_prices[${fromZone}][${toZone}]" 
-                            class="form-control" value="${sharedPrice}" step="0.01" min="0">
+                        <input type="number" name="private_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-sell" value="${privatePrice}" step="0.01" min="0">
                     </td>
                     <td>
-                        <button type="button" class="btn btn-sm btn-danger remove-mapping" data-mapping-id="${mappingId}">
-                            <i class="ri-delete-bin-line"></i> Remove
+                        <input type="number" name="shared_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-cost" value="${sharedCostPrice}" step="0.01" min="0">
+                    </td>
+                    <td>
+                        <input type="number" name="shared_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-sell" value="${sharedPrice}" step="0.01" min="0">
+                    </td>
+                    <td class="zone-col-actions">
+                        <button type="button" class="btn btn-sm btn-danger remove-mapping" data-mapping-id="${mappingId}" title="Remove">
+                            <i class="ri-delete-bin-line"></i>
                         </button>
                     </td>
                 </tr>
@@ -4915,7 +6333,13 @@ $(document).ready(function() {
                                         fromZone, toZone, fromZoneText, toZoneText, 
                                         fromType, toType, fromDescription, toDescription,
                                         restoreResponse.private_price, restoreResponse.shared_price,
-                                        restoreResponse.mapping_id, fromZoneItems, toZoneItems
+                                        restoreResponse.mapping_id, fromZoneItems, toZoneItems,
+                                        restoreResponse.private_cost_price ?? restoreResponse.private_price,
+                                        restoreResponse.shared_cost_price ?? restoreResponse.shared_price,
+                                        restoreResponse.private_profit_type ?? 'percentage',
+                                        restoreResponse.private_profit_amount ?? 0,
+                                        restoreResponse.shared_profit_type ?? 'percentage',
+                                        restoreResponse.shared_profit_amount ?? 0
                                     );
                                     showSuccessToast("Mapping restored successfully");
                                 },
@@ -4966,9 +6390,15 @@ $(document).ready(function() {
             $('#from_zone, #to_zone').val('').trigger('change');
         });
         
-        function addMappingRowToTable(fromZone, toZone, fromZoneText, toZoneText, fromType, toType, fromDescription, toDescription, privatePrice, sharedPrice, mappingId, fromZoneItems, toZoneItems) {
+        function addMappingRowToTable(fromZone, toZone, fromZoneText, toZoneText, fromType, toType, fromDescription, toDescription, privatePrice, sharedPrice, mappingId, fromZoneItems, toZoneItems, privateCostPrice, sharedCostPrice, privateProfitType, privateProfitAmount, sharedProfitType, sharedProfitAmount) {
             fromZoneItems = fromZoneItems || [];
             toZoneItems = toZoneItems || [];
+            privateCostPrice = (privateCostPrice !== undefined && privateCostPrice !== null) ? privateCostPrice : privatePrice;
+            sharedCostPrice = (sharedCostPrice !== undefined && sharedCostPrice !== null) ? sharedCostPrice : sharedPrice;
+            privateProfitType = privateProfitType || 'percentage';
+            sharedProfitType = sharedProfitType || 'percentage';
+            privateProfitAmount = (privateProfitAmount !== undefined && privateProfitAmount !== null) ? privateProfitAmount : 0;
+            sharedProfitAmount = (sharedProfitAmount !== undefined && sharedProfitAmount !== null) ? sharedProfitAmount : 0;
             const fromItemsAttr = (['Hotel','Attraction','Restaurant'].includes(fromType)) ? ' data-zone-items="' + escapeHtml(JSON.stringify(fromZoneItems || [])) + '" data-zone-type="' + fromType + '"' : '';
             const toItemsAttr = (['Hotel','Attraction','Restaurant'].includes(toType)) ? ' data-zone-items="' + escapeHtml(JSON.stringify(toZoneItems || [])) + '" data-zone-type="' + toType + '"' : '';
             const fromSpan = fromItemsAttr ? '<span class="zone-cell-hover"' + fromItemsAttr + '>' + fromZoneText + '</span>' : '<span data-bs-toggle="tooltip" title="' + escapeHtml(fromDescription) + '">' + fromZoneText + '</span>';
@@ -4990,16 +6420,24 @@ $(document).ready(function() {
                         </div>
                     </td>
                     <td>
-                        <input type="number" name="private_prices[${fromZone}][${toZone}]" 
-                            class="form-control" value="${privatePrice}" step="0.01" min="0">
+                        <input type="number" name="private_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-cost" value="${privateCostPrice}" step="0.01" min="0">
                     </td>
                     <td>
-                        <input type="number" name="shared_prices[${fromZone}][${toZone}]" 
-                            class="form-control" value="${sharedPrice}" step="0.01" min="0">
+                        <input type="number" name="private_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-private-sell" value="${privatePrice}" step="0.01" min="0">
                     </td>
                     <td>
-                        <button type="button" class="btn btn-sm btn-danger remove-mapping" data-mapping-id="${mappingId}">
-                            <i class="ri-delete-bin-line"></i> Remove
+                        <input type="number" name="shared_cost_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-cost" value="${sharedCostPrice}" step="0.01" min="0">
+                    </td>
+                    <td>
+                        <input type="number" name="shared_prices[${fromZone}][${toZone}]"
+                            class="form-control js-zone-shared-sell" value="${sharedPrice}" step="0.01" min="0">
+                    </td>
+                    <td class="zone-col-actions">
+                        <button type="button" class="btn btn-sm btn-danger remove-mapping" data-mapping-id="${mappingId}" title="Remove">
+                            <i class="ri-delete-bin-line"></i>
                         </button>
                     </td>
                 </tr>
@@ -5279,4 +6717,5 @@ $(document).ready(function() {
 </script>
 @endif
 
+@include('components.currency-price-note-dmc-script')
 @endsection

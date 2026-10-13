@@ -115,8 +115,8 @@
                     <div class="card-body p-3">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <div class="text-primary">
-                                <div class="small">From SGD</div>
-                                <div class="h4 mb-0">${{ number_format($finalPrice, 2) }}</div>
+                                <div class="small">From {{ $currency ?? 'SGD' }}</div>
+                                <div class="h4 mb-0">{{ number_format($finalPrice, 2) }}</div>
                             </div>
                             <span class="badge bg-{{ $statusClass }}">
                                 {{ $statusLabel }}

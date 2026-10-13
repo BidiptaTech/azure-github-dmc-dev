@@ -32,6 +32,8 @@ class Tour extends Model
         'dmc_commission' => 'decimal:4',
         'selling_price' => 'decimal:4',
         'payment_received_amount' => 'decimal:4',
+        'city_date_ranges' => 'array',
+        'currency_markups' => 'array',
     ];
 
     protected static $TourStatus = [

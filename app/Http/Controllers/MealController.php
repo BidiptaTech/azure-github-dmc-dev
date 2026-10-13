@@ -44,7 +44,7 @@ class MealController extends Controller
         if ($auth_user->role_id == 1) {
             $dmcUsers = User::where('role_id', 11)
             ->where('user_type', 2)
-            ->select('userId', 'name', 'company_name')
+            ->select('userId', 'name', 'company_name', 'currency')
             ->orderBy('company_name', 'asc')
             ->get();
         }
@@ -152,7 +152,8 @@ class MealController extends Controller
         $restaurants = Restaurant::where('is_active', 1)->get();
 
         $meals = Meal::where('meal_id',$id)->first();
-        return view('meals.edit-meal', compact('meals', 'restaurants'));
+        $auth_user = Auth::user();
+        return view('meals.edit-meal', compact('meals', 'restaurants', 'auth_user'));
     }
     /*
     * Update the specified role.

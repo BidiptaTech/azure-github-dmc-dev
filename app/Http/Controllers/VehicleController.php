@@ -26,6 +26,8 @@ use App\Services\LogActivityService;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Crypt;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\VehicleZoneMappingExport;
 
 class VehicleController extends Controller
 {
@@ -321,11 +323,20 @@ class VehicleController extends Controller
         }
         $authuser = auth()->user();
         $resolvedDmcId = $this->resolveDmcIdForUser($authuser);
-        $resolvedDmcCountry = null;
-        if ($resolvedDmcId) {
-            $resolvedDmcCountry = User::where('userId', $resolvedDmcId)->value('country');
+        $masterDmcCountryNames = $resolvedDmcId
+            ? $this->getMasterDmcCountryNamesForDmc((int) $resolvedDmcId)
+            : [];
+
+        $countriesQuery = Country::where('is_active', 1);
+        if (!empty($masterDmcCountryNames) && !in_array((int) $authuser->role_id, [1, 2, 3, 20, 23], true)) {
+            $countriesQuery->whereIn('name', $masterDmcCountryNames);
         }
-        $selectedCountry = $resolvedDmcCountry ?: $authuser->country;
+        $countries = $countriesQuery->orderBy('name')->get();
+
+        $selectedCountry = old('country', $masterDmcCountryNames[0] ?? null);
+        if (!$selectedCountry && $countries->isNotEmpty()) {
+            $selectedCountry = $countries->first()->name;
+        }
         $cities = $selectedCountry
             ? City::where('country', $selectedCountry)->orderBy('name')->get()
             : collect();
@@ -370,12 +381,11 @@ class VehicleController extends Controller
                 $zones = Zone::where('dmc_id', $vehicle->dmc_id)->get();
                 $ports = Port::where('country', $dmc_country)->get();
                 
-                return view('vehicles.add-vehicle', compact('dmcs', 'cities', 'zones', 'ports', 'resolvedDmcId'));
+                return view('vehicles.add-vehicle', compact('dmcs', 'cities', 'zones', 'ports', 'resolvedDmcId', 'countries', 'selectedCountry', 'masterDmcCountryNames'));
             }
         }
         
-        return view('vehicles.add-vehicle', compact('dmcs', 'cities', 'resolvedDmcId'));
-        // return view('vehicles.add-vehicle', compact('dmcs', 'cities'));
+        return view('vehicles.add-vehicle', compact('dmcs', 'cities', 'resolvedDmcId', 'countries', 'selectedCountry', 'masterDmcCountryNames'));
     }
 
     public function fetchDrivers(Request $request)
@@ -407,8 +417,23 @@ class VehicleController extends Controller
 
     public function fetchCities(Request $request)
     {
-        $country = User::where('userId', $request->country_name)->first()->country;
-        $cities = City::where('country', $country)->get();
+        $dmcUser = User::where('userId', $request->country_name)->first();
+        if (!$dmcUser) {
+            return response()->json([]);
+        }
+
+        $countries = $this->getMasterDmcCountryNamesForDmc((int) $dmcUser->userId);
+        if (empty($countries) && !empty($dmcUser->country)) {
+            $countries = array_values(array_filter(array_map(
+                static fn ($c) => trim($c),
+                preg_split('/\s*,\s*/', (string) $dmcUser->country)
+            )));
+        }
+
+        $cities = !empty($countries)
+            ? City::whereIn('country', $countries)->orderBy('name')->get()
+            : collect();
+
         return response()->json($cities);
     }
     /*
@@ -520,13 +545,15 @@ class VehicleController extends Controller
                     'cost_per_km_10_to_25' => $request->input('cost_per_km_10_to_25') ?? 0,
                     'cost_per_km_above_25' => $request->input('cost_per_km_above_25') ?? 0,
                     'cost_per_hour' => $request->input('cost_per_hour') ?? 0,
-                    'cancel_cost' => $request->input('cancel_cost') ?? 0,
+                    'cancel_cost' => $request->input('cancellation_sell') ?? $request->input('cancel_cost') ?? 0,
                     'base_cost_price' => $request->input('base_cost_price') ?? 0,
                     'per_km_below_10_cost_price' => $request->input('per_km_below_10_cost_price') ?? 0,
                     'per_km_10_to_25_cost_price' => $request->input('per_km_10_to_25_cost_price') ?? 0,
                     'per_km_above_25_cost_price' => $request->input('per_km_above_25_cost_price') ?? 0,
                     'per_hour_cost_price' => $request->input('per_hour_cost_price') ?? 0,
-                    'cancel_cost_price' => $request->input('cancel_cost_price') ?? 0,
+                    'cancel_cost_price' => $request->input('cancellation_cost') ?? $request->input('cancel_cost_price') ?? 0,
+                    'cancellation_cost' => $request->input('cancellation_cost') ?? 0,
+                    'cancellation_sell' => $request->input('cancellation_sell') ?? 0,
                     'night_base_price' => $request->input('night_base_price') ?? 0,
                     'night_cost_per_km_below_10' => $request->input('night_cost_per_km_below_10') ?? 0,
                     'night_cost_per_km_10_to_25' => $request->input('night_cost_per_km_10_to_25') ?? 0,
@@ -600,13 +627,15 @@ class VehicleController extends Controller
         $vehicle->cost_per_km_10_to_25 = $request->input('cost_per_km_10_to_25')?? 0;
         $vehicle->cost_per_km_above_25 = $request->input('cost_per_km_above_25')?? 0;
         $vehicle->cost_per_hour = $request->input('cost_per_hour')?? 0;
-        $vehicle->cancel_cost = $request->input('cancel_cost')?? 0;
+        $vehicle->cancellation_cost = $request->input('cancellation_cost') ?? 0;
+        $vehicle->cancellation_sell = $request->input('cancellation_sell') ?? 0;
+        $vehicle->cancel_cost = $request->input('cancellation_sell') ?? $request->input('cancel_cost') ?? 0;
         $vehicle->base_cost_price = $request->input('base_cost_price')?? 0;
         $vehicle->per_km_below_10_cost_price = $request->input('per_km_below_10_cost_price')?? 0;
         $vehicle->per_km_10_to_25_cost_price = $request->input('per_km_10_to_25_cost_price')?? 0;
         $vehicle->per_km_above_25_cost_price = $request->input('per_km_above_25_cost_price')?? 0;
         $vehicle->per_hour_cost_price = $request->input('per_hour_cost_price')?? 0;
-        $vehicle->cancel_cost_price = $request->input('cancel_cost_price')?? 0;
+        $vehicle->cancel_cost_price = $request->input('cancellation_cost') ?? $request->input('cancel_cost_price') ?? 0;
             
         // Night charges for sharable
         $vehicle->night_base_price = $request->input('night_base_price');
@@ -709,7 +738,11 @@ class VehicleController extends Controller
             $fallbackDmcCountry = $dmcCountryParts[0] ?? '';
         }
 
-        $selectedCountry = $vehicle->country ?: $fallbackDmcCountry;
+        $selectedCountry = (\Schema::hasColumn('vehicles', 'country') ? $vehicle->country : null) ?: null;
+        if (!$selectedCountry && !empty($vehicle->city)) {
+            $selectedCountry = City::where('name', $vehicle->city)->value('country');
+        }
+        $selectedCountry = $selectedCountry ?: $fallbackDmcCountry;
         if (!$selectedCountry && !empty($masterDmcCountryNames)) {
             $selectedCountry = $masterDmcCountryNames[0];
         }
@@ -732,18 +765,28 @@ class VehicleController extends Controller
             $dmcs = User::where('role_id', 11)->get();
         }
 
+        $hasZoneMappings = $this->vehicleHasZoneMappings((int) $vehicle->vehicle_id);
+
         // Check if we're in the zone mapping tab
         if (request()->has('zone_mapping')) {
-            // Zone mapping filters default to "All Countries" / "All Cities"
-            $zoneMappingFilterCountry = '';
+            // Zone mapping is always for this vehicle's country (not all master DMC countries)
+            $zoneMappingFilterCountry = $selectedCountry ?: '';
             $defaultFilterCityId = null;
 
-            // Zones for this DMC (city filter applied client-side in zone mapping UI)
-            $zones = Zone::where('dmc_id', $vehicle->dmc_id)->orWhereNull('dmc_id')->get();
+            // Zones for this DMC, limited to the vehicle's country
+            $zonesQuery = Zone::where(function ($q) use ($vehicle) {
+                $q->where('dmc_id', $vehicle->dmc_id)->orWhereNull('dmc_id');
+            });
+            if (!empty($cityIds)) {
+                $zonesQuery->whereIn('city', $cityIds);
+            }
+            $zones = $zonesQuery->get();
 
-            // Ports scoped to master DMC countries (city filter applied client-side)
+            // Ports scoped to this vehicle's country
             $portsQuery = Port::where('status', 1);
-            if (!empty($masterDmcCountryNames)) {
+            if (!empty($selectedCountry)) {
+                $portsQuery->where('country', $selectedCountry);
+            } elseif (!empty($masterDmcCountryNames)) {
                 $portsQuery->whereIn('country', $masterDmcCountryNames);
             }
             $ports = $portsQuery->orderBy('port_name')->get();
@@ -776,10 +819,10 @@ class VehicleController extends Controller
                 ];
             }
             
-            return view('vehicles.edit-vehicle', compact('vehicle', 'drivers', 'dmcs', 'city', 'countries', 'selectedCountry', 'zoneMappingFilterCountry', 'masterDmcCountryNames', 'defaultFilterCityId', 'zones', 'ports', 'mappings', 'mappingZoneItems'));
+            return view('vehicles.edit-vehicle', compact('vehicle', 'drivers', 'dmcs', 'city', 'countries', 'selectedCountry', 'zoneMappingFilterCountry', 'masterDmcCountryNames', 'defaultFilterCityId', 'zones', 'ports', 'mappings', 'mappingZoneItems', 'hasZoneMappings'));
         }
         
-        return view('vehicles.edit-vehicle', compact('vehicle', 'drivers', 'dmcs', 'city', 'countries', 'selectedCountry', 'masterDmcCountryNames'));
+        return view('vehicles.edit-vehicle', compact('vehicle', 'drivers', 'dmcs', 'city', 'countries', 'selectedCountry', 'masterDmcCountryNames', 'hasZoneMappings'));
 
         // return view('vehicles.edit-vehicle', compact('vehicle', 'drivers', 'dmcs', 'city'));
     }
@@ -879,30 +922,31 @@ class VehicleController extends Controller
                 'vehicle_plate_no' => $vehiclePlateRules,
                 // Regular Day Pricing
                 'base_price' => 'required|numeric',
-                'cost_per_km_below_10' => 'required|numeric',
-                'cost_per_km_10_to_25' => 'required|numeric',
-                'cost_per_km_above_25' => 'required|numeric',
+                // Per KM pricing temporarily hidden from forms
+                // 'cost_per_km_below_10' => 'required|numeric',
+                // 'cost_per_km_10_to_25' => 'required|numeric',
+                // 'cost_per_km_above_25' => 'required|numeric',
                 'cost_per_hour' => 'required|numeric',
-                'cancel_cost' => 'required|numeric',
+                'cancellation_cost' => 'required|numeric',
+                'cancellation_sell' => 'required|numeric',
                 'base_cost_price' => 'required|numeric',
-                'per_km_below_10_cost_price' => 'required|numeric',
-                'per_km_10_to_25_cost_price' => 'required|numeric',
-                'per_km_above_25_cost_price' => 'required|numeric',
+                // 'per_km_below_10_cost_price' => 'required|numeric',
+                // 'per_km_10_to_25_cost_price' => 'required|numeric',
+                // 'per_km_above_25_cost_price' => 'required|numeric',
                 'per_hour_cost_price' => 'required|numeric',
-                'cancel_cost_price' => 'required|numeric',
                 // Regular Night Pricing
                 'night_base_price' => 'required|numeric',
-                'night_cost_per_km_below_10' => 'required|numeric',
-                'night_cost_per_km_10_to_25' => 'required|numeric',
-                'night_cost_per_km_above_25' => 'required|numeric',
+                // 'night_cost_per_km_below_10' => 'required|numeric',
+                // 'night_cost_per_km_10_to_25' => 'required|numeric',
+                // 'night_cost_per_km_above_25' => 'required|numeric',
                 'night_cost_per_hour' => 'required|numeric',
-                'night_cancel_cost' => 'required|numeric',
+                'night_cancel_cost' => 'nullable|numeric',
                 'night_base_cost_price' => 'required|numeric',
-                'night_per_km_below_10_cost_price' => 'required|numeric',
-                'night_per_km_10_to_25_cost_price' => 'required|numeric',
-                'night_per_km_above_25_cost_price' => 'required|numeric',
+                // 'night_per_km_below_10_cost_price' => 'required|numeric',
+                // 'night_per_km_10_to_25_cost_price' => 'required|numeric',
+                // 'night_per_km_above_25_cost_price' => 'required|numeric',
                 'night_per_hour_cost_price' => 'required|numeric',
-                'night_cancel_cost_price' => 'required|numeric',
+                'night_cancel_cost_price' => 'nullable|numeric',
             ],[
                 'vehicle_plate_no.required' => 'Vehicle plate number is required.',
             ]);
@@ -950,35 +994,66 @@ class VehicleController extends Controller
         $vehicle->is_available = $request->input('vehicle_status') == 1 ? 1 : 0;
         $vehicle->image = $master_image;
         $vehicle->driver_id = $request->driver_id;
-        $vehicle->country = $request->input('country');
-        $vehicle->city = $request->city_name;
+        $hasZoneMappings = $this->vehicleHasZoneMappings((int) $vehicle->vehicle_id);
+        if (!$hasZoneMappings) {
+            if (\Schema::hasColumn('vehicles', 'country')) {
+                $vehicle->country = $request->input('country');
+            }
+            $vehicle->city = $request->city_name;
+        }
         $vehicle->city_tour_seating_capacity = $request->input('city_tour_seating_capacity')?? 0;
         // $vehicle->city_tour_guides = $request->input('city_tour_guides')?? 0;
         // Regular Day Pricing
         $vehicle->base_price = $request->input('base_price')?? 0;
-        $vehicle->cost_per_km_below_10 = $request->input('cost_per_km_below_10')?? 0;
-        $vehicle->cost_per_km_10_to_25 = $request->input('cost_per_km_10_to_25')?? 0;
-        $vehicle->cost_per_km_above_25 = $request->input('cost_per_km_above_25')?? 0;
+        if ($request->has('cost_per_km_below_10')) {
+            $vehicle->cost_per_km_below_10 = $request->input('cost_per_km_below_10') ?? 0;
+        }
+        if ($request->has('cost_per_km_10_to_25')) {
+            $vehicle->cost_per_km_10_to_25 = $request->input('cost_per_km_10_to_25') ?? 0;
+        }
+        if ($request->has('cost_per_km_above_25')) {
+            $vehicle->cost_per_km_above_25 = $request->input('cost_per_km_above_25') ?? 0;
+        }
         $vehicle->cost_per_hour = $request->input('cost_per_hour')?? 0;
-        $vehicle->cancel_cost = $request->input('cancel_cost')?? 0;
+        $vehicle->cancellation_cost = $request->input('cancellation_cost') ?? 0;
+        $vehicle->cancellation_sell = $request->input('cancellation_sell') ?? 0;
+        $vehicle->cancel_cost = $request->input('cancellation_sell') ?? $request->input('cancel_cost') ?? 0;
         $vehicle->base_cost_price = $request->input('base_cost_price')?? 0;
-        $vehicle->per_km_below_10_cost_price = $request->input('per_km_below_10_cost_price')?? 0;
-        $vehicle->per_km_10_to_25_cost_price = $request->input('per_km_10_to_25_cost_price')?? 0;
-        $vehicle->per_km_above_25_cost_price = $request->input('per_km_above_25_cost_price')?? 0;
+        if ($request->has('per_km_below_10_cost_price')) {
+            $vehicle->per_km_below_10_cost_price = $request->input('per_km_below_10_cost_price') ?? 0;
+        }
+        if ($request->has('per_km_10_to_25_cost_price')) {
+            $vehicle->per_km_10_to_25_cost_price = $request->input('per_km_10_to_25_cost_price') ?? 0;
+        }
+        if ($request->has('per_km_above_25_cost_price')) {
+            $vehicle->per_km_above_25_cost_price = $request->input('per_km_above_25_cost_price') ?? 0;
+        }
         $vehicle->per_hour_cost_price = $request->input('per_hour_cost_price')?? 0;
-        $vehicle->cancel_cost_price = $request->input('cancel_cost_price')?? 0;
+        $vehicle->cancel_cost_price = $request->input('cancellation_cost') ?? $request->input('cancel_cost_price') ?? 0;
 
         // Regular Night Pricing
         $vehicle->night_base_price = $request->input('night_base_price')?? 0;
-        $vehicle->night_cost_per_km_below_10 = $request->input('night_cost_per_km_below_10')?? 0;
-        $vehicle->night_cost_per_km_10_to_25 = $request->input('night_cost_per_km_10_to_25')?? 0;
-        $vehicle->night_cost_per_km_above_25 = $request->input('night_cost_per_km_above_25')?? 0;
+        if ($request->has('night_cost_per_km_below_10')) {
+            $vehicle->night_cost_per_km_below_10 = $request->input('night_cost_per_km_below_10') ?? 0;
+        }
+        if ($request->has('night_cost_per_km_10_to_25')) {
+            $vehicle->night_cost_per_km_10_to_25 = $request->input('night_cost_per_km_10_to_25') ?? 0;
+        }
+        if ($request->has('night_cost_per_km_above_25')) {
+            $vehicle->night_cost_per_km_above_25 = $request->input('night_cost_per_km_above_25') ?? 0;
+        }
         $vehicle->night_cost_per_hour = $request->input('night_cost_per_hour')?? 0;
         $vehicle->night_cancel_cost = $request->input('night_cancel_cost')?? 0;
         $vehicle->night_base_cost_price = $request->input('night_base_cost_price')?? 0;
-        $vehicle->night_per_km_below_10_cost_price = $request->input('night_per_km_below_10_cost_price')?? 0;
-        $vehicle->night_per_km_10_to_25_cost_price = $request->input('night_per_km_10_to_25_cost_price')?? 0;
-        $vehicle->night_per_km_above_25_cost_price = $request->input('night_per_km_above_25_cost_price')?? 0;
+        if ($request->has('night_per_km_below_10_cost_price')) {
+            $vehicle->night_per_km_below_10_cost_price = $request->input('night_per_km_below_10_cost_price') ?? 0;
+        }
+        if ($request->has('night_per_km_10_to_25_cost_price')) {
+            $vehicle->night_per_km_10_to_25_cost_price = $request->input('night_per_km_10_to_25_cost_price') ?? 0;
+        }
+        if ($request->has('night_per_km_above_25_cost_price')) {
+            $vehicle->night_per_km_above_25_cost_price = $request->input('night_per_km_above_25_cost_price') ?? 0;
+        }
         $vehicle->night_per_hour_cost_price = $request->input('night_per_hour_cost_price')?? 0;
         $vehicle->night_cancel_cost_price = $request->input('night_cancel_cost_price')?? 0;
 
@@ -1020,12 +1095,24 @@ class VehicleController extends Controller
             'vehicle_id' => 'required|exists:vehicles,vehicle_id',
             'private_prices' => 'required|array',
             'shared_prices' => 'required|array',
+            'private_cost_prices' => 'nullable|array',
+            'shared_cost_prices' => 'nullable|array',
+            'global_private_profit_type' => 'nullable|in:percentage,flat',
+            'global_private_profit_amount' => 'nullable|numeric|min:0',
+            'global_shared_profit_type' => 'nullable|in:percentage,flat',
+            'global_shared_profit_amount' => 'nullable|numeric|min:0',
             'mapping_type' => 'required|string',
         ]);
 
         $vehicleId = $request->vehicle_id;
         $privatePrices = $request->private_prices;
         $sharedPrices = $request->shared_prices;
+        $privateCostPrices = $request->private_cost_prices ?? [];
+        $sharedCostPrices = $request->shared_cost_prices ?? [];
+        $privateProfitType = $request->input('global_private_profit_type', 'percentage');
+        $privateProfitAmount = $request->input('global_private_profit_amount', 0);
+        $sharedProfitType = $request->input('global_shared_profit_type', 'percentage');
+        $sharedProfitAmount = $request->input('global_shared_profit_amount', 0);
         $mappingType = $request->mapping_type;
         
         // Set zone types based on mapping type
@@ -1061,67 +1148,45 @@ class VehicleController extends Controller
                 $fromZoneType = 'Attraction';
                 $toZoneType = 'Restaurant';
                 break;
+            case 'hotel_hotel':
+                $fromZoneType = 'Hotel';
+                $toZoneType = 'Hotel';
+                break;
+            case 'attraction_attraction':
+                $fromZoneType = 'Attraction';
+                $toZoneType = 'Attraction';
+                break;
+            case 'restaurant_restaurant':
+                $fromZoneType = 'Restaurant';
+                $toZoneType = 'Restaurant';
+                break;
             default:
                 $fromZoneType = 'Unknown';
                 $toZoneType = 'Unknown';
         }
-        
-        // Process each mapping
         foreach ($privatePrices as $fromZoneId => $toZones) {
             foreach ($toZones as $toZoneId => $privatePrice) {
-                $sharedPrice = $sharedPrices[$fromZoneId][$toZoneId] ?? 0;
-
-                // Find existing mapping (including soft deleted)
-                $mapping = VehicleZoneMapping::withTrashed()
-                    ->where('vehicle_id', $vehicleId)
-                    ->where('from_zone_id', $fromZoneId)
-                    ->where('to_zone_id', $toZoneId)
-                    ->first();
-
-                if ($mapping) {
-                    // Do not restore soft-deleted mappings.
-                    // If a record exists in trash, permanently delete and recreate
-                    // so we never reuse an old mapping_id value.
-                    if ($mapping->trashed()) {
-                        $mapping->forceDelete();
-
-                        $newMapping = VehicleZoneMapping::create([
-                            'vehicle_id' => $vehicleId,
-                            'from_zone_id' => $fromZoneId,
-                            'to_zone_id' => $toZoneId,
-                            'from_zone_type' => $fromZoneType,
-                            'to_zone_type' => $toZoneType,
-                            'private_price' => $privatePrice,
-                            'shared_price' => $sharedPrice,
-                        ]);
-
-                        if (empty($newMapping->mapping_id)) {
-                            $newMapping->update(['mapping_id' => (string) $newMapping->id]);
-                        }
-                    } else {
-                        // Update prices and types
-                        $mapping->update([
-                            'private_price' => $privatePrice,
-                            'shared_price' => $sharedPrice,
-                            'from_zone_type' => $fromZoneType,
-                            'to_zone_type' => $toZoneType,
-                        ]);
-                    }
-                } else {
-                    // Create new mapping (use DB id as unique stable identifier)
-                    $newMapping = VehicleZoneMapping::create([
-                        'vehicle_id' => $vehicleId,
-                        'from_zone_id' => $fromZoneId,
-                        'to_zone_id' => $toZoneId,
-                        'from_zone_type' => $fromZoneType,
-                        'to_zone_type' => $toZoneType,
-                        'private_price' => $privatePrice,
-                        'shared_price' => $sharedPrice,
-                    ]);
-                    if (empty($newMapping->mapping_id)) {
-                        $newMapping->update(['mapping_id' => (string) $newMapping->id]);
-                    }
+                if ($mappingType === 'port_port' && (string) $fromZoneId === (string) $toZoneId) {
+                    continue;
                 }
+                $sharedPrice = $sharedPrices[$fromZoneId][$toZoneId] ?? 0;
+                $privateCostPrice = $privateCostPrices[$fromZoneId][$toZoneId] ?? $privatePrice;
+                $sharedCostPrice = $sharedCostPrices[$fromZoneId][$toZoneId] ?? $sharedPrice;
+                $this->upsertVehicleZoneMapping(
+                    $vehicleId,
+                    (string) $fromZoneId,
+                    (string) $toZoneId,
+                    $fromZoneType,
+                    $toZoneType,
+                    $privatePrice,
+                    $sharedPrice,
+                    $privateCostPrice,
+                    $sharedCostPrice,
+                    $privateProfitType,
+                    $privateProfitAmount,
+                    $sharedProfitType,
+                    $sharedProfitAmount
+                );
             }
         }
         
@@ -1130,6 +1195,564 @@ class VehicleController extends Controller
             'zone_mapping' => true,
             'mapping_type' => $mappingType
         ])->with('success', 'Zone mappings saved successfully!');
+    }
+
+    public function exportZoneMappings(Request $request, $vehicle)
+    {
+        if (!hasPermission('edit vehicle')) {
+            abort(403, 'You do not have permission to access this page.');
+        }
+
+        $vehicleId = Crypt::decrypt($vehicle);
+        $vehicle = Vehicle::where('vehicle_id', $vehicleId)->firstOrFail();
+
+        $mappingType = trim((string) $request->query('mapping_type', ''));
+        if (!$this->isValidZoneMappingType($mappingType)) {
+            return redirect()->back()->with('error', 'Invalid mapping type for export.');
+        }
+
+        $vehicleCountry = $this->resolveVehicleCountryName($vehicle);
+        $requestedCountry = trim((string) $request->query('country', ''));
+        $filters = [
+            'country' => $vehicleCountry !== '' ? $vehicleCountry : $requestedCountry,
+            'city_id' => trim((string) $request->query('city_id', '')),
+            'from_zone_id' => trim((string) $request->query('from_zone_id', '')),
+        ];
+
+        $rows = $this->buildZoneMappingExportRows($vehicle, $mappingType, $filters);
+        $filename = 'vehicle_' . $vehicle->vehicle_id . '_' . $mappingType . '_prices.xlsx';
+
+        return Excel::download(new VehicleZoneMappingExport($rows), $filename, \Maatwebsite\Excel\Excel::XLSX);
+    }
+
+    public function importZoneMappings(Request $request)
+    {
+        if (!hasPermission('edit vehicle')) {
+            abort(403, 'You do not have permission to access this page.');
+        }
+
+        $validated = $request->validate([
+            'vehicle_id' => 'required|exists:vehicles,vehicle_id',
+            'mapping_type' => 'required|string',
+            'import_file' => 'required|file|mimes:xlsx,xls,csv|max:20480',
+        ]);
+
+        $vehicleId = $validated['vehicle_id'];
+        $mappingType = $validated['mapping_type'];
+
+        if (!$this->isValidZoneMappingType($mappingType)) {
+            return redirect()->back()->with('error', 'Invalid mapping type for import.');
+        }
+
+        [$fromZoneType, $toZoneType] = $this->zoneTypesForMappingType($mappingType);
+
+        $sheets = Excel::toArray([], $request->file('import_file'));
+        $rows = $sheets[0] ?? [];
+
+        if (count($rows) < 2) {
+            return redirect()->route('vehicle.edit', [
+                'vehicle' => Crypt::encrypt($vehicleId),
+                'zone_mapping' => true,
+                'mapping_type' => $mappingType,
+            ])->with('error', 'The uploaded file is empty or has no data rows.');
+        }
+
+        $header = array_map(static fn ($value) => strtolower(trim((string) $value)), $rows[0]);
+        $columnIndex = static function (array $names) use ($header): ?int {
+            foreach ((array) $names as $name) {
+                $idx = array_search(strtolower($name), $header, true);
+                if ($idx !== false) {
+                    return $idx;
+                }
+            }
+            return null;
+        };
+
+        $fromIdx = $columnIndex(['from_zone_id', 'from zone id']);
+        $toIdx = $columnIndex(['to_zone_id', 'to zone id']);
+        $privateIdx = $columnIndex(['private_price', 'private price', 'private sell price']);
+        $sharedIdx = $columnIndex(['shared_price', 'shared price', 'shared sell price']);
+        $privateCostIdx = $columnIndex(['private_cost_price', 'private cost price']);
+        $sharedCostIdx = $columnIndex(['shared_cost_price', 'shared cost price']);
+        $privateProfitTypeIdx = $columnIndex(['private_profit_type', 'private profit type']);
+        $privateProfitAmountIdx = $columnIndex(['private_profit_amount', 'private profit amount']);
+        $sharedProfitTypeIdx = $columnIndex(['shared_profit_type', 'shared profit type']);
+        $sharedProfitAmountIdx = $columnIndex(['shared_profit_amount', 'shared profit amount']);
+
+        if ($fromIdx === null || $toIdx === null || $privateIdx === null || $sharedIdx === null) {
+            return redirect()->route('vehicle.edit', [
+                'vehicle' => Crypt::encrypt($vehicleId),
+                'zone_mapping' => true,
+                'mapping_type' => $mappingType,
+            ])->with('error', 'Invalid Excel format. Please download the template and use the same column headers.');
+        }
+
+        $updated = 0;
+        $skipped = 0;
+
+        for ($i = 1; $i < count($rows); $i++) {
+            $row = $rows[$i];
+            if (!is_array($row)) {
+                $skipped++;
+                continue;
+            }
+
+            $fromZoneId = trim((string) ($row[$fromIdx] ?? ''));
+            $toZoneId = trim((string) ($row[$toIdx] ?? ''));
+            if ($fromZoneId === '' || $toZoneId === '') {
+                $skipped++;
+                continue;
+            }
+            if ($mappingType === 'port_port' && $fromZoneId === $toZoneId) {
+                $skipped++;
+                continue;
+            }
+
+            $rowVehicleId = trim((string) ($vehicleId));
+            $vehicleIdx = $columnIndex(['vehicle_id', 'vehicle id']);
+            if ($vehicleIdx !== null) {
+                $rowVehicleId = trim((string) ($row[$vehicleIdx] ?? $vehicleId));
+            }
+
+            $rowMappingType = $mappingType;
+            $mappingTypeIdx = $columnIndex(['mapping_type', 'mapping type']);
+            if ($mappingTypeIdx !== null) {
+                $rowMappingType = trim((string) ($row[$mappingTypeIdx] ?? $mappingType));
+            }
+
+            if ($rowVehicleId !== '' && (string) $rowVehicleId !== (string) $vehicleId) {
+                $skipped++;
+                continue;
+            }
+            if ($rowMappingType !== '' && $rowMappingType !== $mappingType) {
+                $skipped++;
+                continue;
+            }
+
+            $privatePrice = is_numeric($row[$privateIdx] ?? null) ? (float) $row[$privateIdx] : 0;
+            $sharedPrice = is_numeric($row[$sharedIdx] ?? null) ? (float) $row[$sharedIdx] : 0;
+            $privateCostPrice = ($privateCostIdx !== null && is_numeric($row[$privateCostIdx] ?? null))
+                ? (float) $row[$privateCostIdx]
+                : $privatePrice;
+            $sharedCostPrice = ($sharedCostIdx !== null && is_numeric($row[$sharedCostIdx] ?? null))
+                ? (float) $row[$sharedCostIdx]
+                : $sharedPrice;
+            $privateProfitType = ($privateProfitTypeIdx !== null)
+                ? strtolower(trim((string) ($row[$privateProfitTypeIdx] ?? 'percentage')))
+                : 'percentage';
+            $sharedProfitType = ($sharedProfitTypeIdx !== null)
+                ? strtolower(trim((string) ($row[$sharedProfitTypeIdx] ?? 'percentage')))
+                : 'percentage';
+            $privateProfitAmount = ($privateProfitAmountIdx !== null && is_numeric($row[$privateProfitAmountIdx] ?? null))
+                ? (float) $row[$privateProfitAmountIdx]
+                : 0;
+            $sharedProfitAmount = ($sharedProfitAmountIdx !== null && is_numeric($row[$sharedProfitAmountIdx] ?? null))
+                ? (float) $row[$sharedProfitAmountIdx]
+                : 0;
+
+            $this->upsertVehicleZoneMapping(
+                $vehicleId,
+                $fromZoneId,
+                $toZoneId,
+                $fromZoneType,
+                $toZoneType,
+                $privatePrice,
+                $sharedPrice,
+                $privateCostPrice,
+                $sharedCostPrice,
+                $privateProfitType,
+                $privateProfitAmount,
+                $sharedProfitType,
+                $sharedProfitAmount
+            );
+            $updated++;
+        }
+
+        return redirect()->route('vehicle.edit', [
+            'vehicle' => Crypt::encrypt($vehicleId),
+            'zone_mapping' => true,
+            'mapping_type' => $mappingType,
+        ])->with('success', "Imported {$updated} mapping price(s) successfully." . ($skipped ? " Skipped {$skipped} row(s)." : ''));
+    }
+
+    private function isValidZoneMappingType(string $mappingType): bool
+    {
+        return array_key_exists($mappingType, $this->zoneMappingTypeConfig());
+    }
+
+    /**
+     * @return array<string, array{from: string, to: string}>
+     */
+    private function zoneMappingTypeConfig(): array
+    {
+        return [
+            'port_port' => ['from' => 'Port', 'to' => 'Port'],
+            'port_attraction' => ['from' => 'Port', 'to' => 'Attraction'],
+            'port_restaurant' => ['from' => 'Port', 'to' => 'Restaurant'],
+            'port_hotel' => ['from' => 'Port', 'to' => 'Hotel'],
+            'hotel_attraction' => ['from' => 'Hotel', 'to' => 'Attraction'],
+            'hotel_restaurant' => ['from' => 'Hotel', 'to' => 'Restaurant'],
+            'attraction_restaurant' => ['from' => 'Attraction', 'to' => 'Restaurant'],
+            'hotel_hotel' => ['from' => 'Hotel', 'to' => 'Hotel'],
+            'attraction_attraction' => ['from' => 'Attraction', 'to' => 'Attraction'],
+            'restaurant_restaurant' => ['from' => 'Restaurant', 'to' => 'Restaurant'],
+        ];
+    }
+
+    /**
+     * @return array{0: string, 1: string}
+     */
+    private function zoneTypesForMappingType(string $mappingType): array
+    {
+        $config = $this->zoneMappingTypeConfig()[$mappingType];
+        return [$config['from'], $config['to']];
+    }
+
+    private function vehicleHasZoneMappings(int $vehicleId): bool
+    {
+        return VehicleZoneMapping::where('vehicle_id', $vehicleId)->exists();
+    }
+
+    private function resolveVehicleCountryName(Vehicle $vehicle): string
+    {
+        if (\Schema::hasColumn('vehicles', 'country') && !empty($vehicle->country)) {
+            return trim((string) $vehicle->country);
+        }
+
+        if (!empty($vehicle->city)) {
+            $country = City::where('name', $vehicle->city)->value('country');
+            if (!empty($country)) {
+                return trim((string) $country);
+            }
+        }
+
+        $masterDmcCountryNames = $this->getMasterDmcCountryNamesForDmc((int) $vehicle->dmc_id);
+
+        return (string) ($masterDmcCountryNames[0] ?? '');
+    }
+
+    private function getScopedPortsForVehicle(Vehicle $vehicle)
+    {
+        $query = Port::where('status', 1);
+        $vehicleCountry = $this->resolveVehicleCountryName($vehicle);
+        if ($vehicleCountry !== '') {
+            $query->where('country', $vehicleCountry);
+        } else {
+            $masterDmcCountryNames = $this->getMasterDmcCountryNamesForDmc((int) $vehicle->dmc_id);
+            if (!empty($masterDmcCountryNames)) {
+                $query->whereIn('country', $masterDmcCountryNames);
+            }
+        }
+
+        return $query->orderBy('port_name')->get();
+    }
+
+    private function getScopedZonesForVehicle(Vehicle $vehicle, ?string $zoneType = null)
+    {
+        $query = Zone::query()
+            ->where(function ($q) use ($vehicle) {
+                $q->where('dmc_id', $vehicle->dmc_id)->orWhereNull('dmc_id');
+            })
+            ->where('status', 1);
+
+        if ($zoneType) {
+            $query->where('zone_type', $zoneType);
+        }
+
+        $vehicleCountry = $this->resolveVehicleCountryName($vehicle);
+        $countryNames = $vehicleCountry !== ''
+            ? [$vehicleCountry]
+            : $this->getMasterDmcCountryNamesForDmc((int) $vehicle->dmc_id);
+
+        if (!empty($countryNames)) {
+            $cityIds = City::whereIn('country', $countryNames)->pluck('city_id');
+            if ($cityIds->isNotEmpty()) {
+                $query->whereIn('city', $cityIds);
+            }
+        }
+
+        return $query->orderBy('zone_name')->get();
+    }
+
+    /**
+     * @param array{country?: string, city_id?: string, from_zone_id?: string} $filters
+     * @return array<int, array<int, mixed>>
+     */
+    private function buildZoneMappingExportRows(Vehicle $vehicle, string $mappingType, array $filters = []): array
+    {
+        [$fromZoneType, $toZoneType] = $this->zoneTypesForMappingType($mappingType);
+
+        $country = trim((string) ($filters['country'] ?? ''));
+        $cityId = trim((string) ($filters['city_id'] ?? ''));
+        $fromZoneId = trim((string) ($filters['from_zone_id'] ?? ''));
+
+        $existing = VehicleZoneMapping::where('vehicle_id', $vehicle->vehicle_id)
+            ->where('from_zone_type', $fromZoneType)
+            ->where('to_zone_type', $toZoneType)
+            ->get()
+            ->keyBy(static fn ($mapping) => (string) $mapping->from_zone_id . '__' . (string) $mapping->to_zone_id);
+
+        $fromItems = $fromZoneType === 'Port'
+            ? $this->getScopedPortsForVehicle($vehicle)
+            : $this->getScopedZonesForVehicle($vehicle, $fromZoneType);
+
+        $toItems = $toZoneType === 'Port'
+            ? $this->getScopedPortsForVehicle($vehicle)
+            : $this->getScopedZonesForVehicle($vehicle, $toZoneType);
+
+        if ($fromZoneType === 'Port') {
+            $fromItems = $this->filterPortsForExport($fromItems, $country, $cityId);
+            $toItems = $this->filterPortsForExport($toItems, $country, $cityId);
+        } else {
+            $fromItems = $this->filterZonesForExport($fromItems, $country, $cityId);
+            $toItems = $this->filterZonesForExport($toItems, $country, $cityId);
+        }
+
+        $rows = [];
+
+        if ($fromZoneId !== '') {
+            if ($fromZoneType === 'Port') {
+                $fromItems = $fromItems->filter(static fn ($from) => (string) $from->port_id === $fromZoneId)->values();
+            } else {
+                $fromItems = $fromItems->filter(static fn ($from) => (string) $from->zone_id === $fromZoneId)->values();
+            }
+
+            foreach ($fromItems as $from) {
+                $fromId = $fromZoneType === 'Port' ? (string) $from->port_id : (string) $from->zone_id;
+                $fromName = $fromZoneType === 'Port' ? (string) $from->port_name : (string) $from->zone_name;
+
+                $destinations = $toItems;
+                if ($mappingType === 'port_port') {
+                    $destinations = $toItems->filter(static fn ($to) => (string) $to->port_id !== $fromId)->values();
+                }
+
+                foreach ($destinations as $to) {
+                    $toId = $toZoneType === 'Port' ? (string) $to->port_id : (string) $to->zone_id;
+                    $toName = $toZoneType === 'Port' ? (string) $to->port_name : (string) $to->zone_name;
+                    $mapping = $existing->get($fromId . '__' . $toId);
+
+                    $rows[] = $this->makeZoneMappingExportRow(
+                        $vehicle,
+                        $mappingType,
+                        $fromId,
+                        $fromName,
+                        $fromZoneType,
+                        $toId,
+                        $toName,
+                        $toZoneType,
+                        $mapping
+                    );
+                }
+            }
+
+            return $rows;
+        }
+
+        $fromIds = $fromItems->map(static function ($item) use ($fromZoneType) {
+            return $fromZoneType === 'Port' ? (string) $item->port_id : (string) $item->zone_id;
+        })->flip();
+
+        $toIds = $toItems->map(static function ($item) use ($toZoneType) {
+            return $toZoneType === 'Port' ? (string) $item->port_id : (string) $item->zone_id;
+        })->flip();
+
+        $fromNameById = $fromItems->mapWithKeys(static function ($item) use ($fromZoneType) {
+            $id = $fromZoneType === 'Port' ? (string) $item->port_id : (string) $item->zone_id;
+            $name = $fromZoneType === 'Port' ? (string) $item->port_name : (string) $item->zone_name;
+
+            return [$id => $name];
+        });
+
+        $toNameById = $toItems->mapWithKeys(static function ($item) use ($toZoneType) {
+            $id = $toZoneType === 'Port' ? (string) $item->port_id : (string) $item->zone_id;
+            $name = $toZoneType === 'Port' ? (string) $item->port_name : (string) $item->zone_name;
+
+            return [$id => $name];
+        });
+
+        foreach ($existing as $mapping) {
+            $privatePrice = (float) ($mapping->private_price ?? 0);
+            $sharedPrice = (float) ($mapping->shared_price ?? 0);
+            if ($privatePrice <= 0 && $sharedPrice <= 0) {
+                continue;
+            }
+
+            $fromId = (string) $mapping->from_zone_id;
+            $toId = (string) $mapping->to_zone_id;
+
+            if (!$fromIds->has($fromId) || !$toIds->has($toId)) {
+                continue;
+            }
+
+            $rows[] = $this->makeZoneMappingExportRow(
+                $vehicle,
+                $mappingType,
+                $fromId,
+                (string) ($fromNameById[$fromId] ?? $fromId),
+                $fromZoneType,
+                $toId,
+                (string) ($toNameById[$toId] ?? $toId),
+                $toZoneType,
+                $mapping
+            );
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @return array<int, mixed>
+     */
+    private function makeZoneMappingExportRow(
+        Vehicle $vehicle,
+        string $mappingType,
+        string $fromId,
+        string $fromName,
+        string $fromZoneType,
+        string $toId,
+        string $toName,
+        string $toZoneType,
+        ?VehicleZoneMapping $mapping = null
+    ): array {
+        return [
+            (string) $vehicle->vehicle_id,
+            $mappingType,
+            $fromId,
+            $fromName,
+            $fromZoneType,
+            $toId,
+            $toName,
+            $toZoneType,
+            (float) ($mapping->private_price ?? 0),
+            (float) ($mapping->private_cost_price ?? $mapping->private_price ?? 0),
+            (string) ($mapping->private_profit_type ?? 'percentage'),
+            (float) ($mapping->private_profit_amount ?? 0),
+            (float) ($mapping->shared_price ?? 0),
+            (float) ($mapping->shared_cost_price ?? $mapping->shared_price ?? 0),
+            (string) ($mapping->shared_profit_type ?? 'percentage'),
+            (float) ($mapping->shared_profit_amount ?? 0),
+        ];
+    }
+
+    private function filterPortsForExport($ports, string $country, string $cityId)
+    {
+        $collection = $ports instanceof \Illuminate\Support\Collection ? $ports : collect($ports);
+
+        if ($cityId !== '') {
+            return $collection
+                ->filter(static fn ($port) => (string) ($port->city_id ?? '') === $cityId)
+                ->values();
+        }
+
+        if ($country !== '') {
+            $normalizedCountry = strtolower($country);
+
+            return $collection
+                ->filter(static fn ($port) => strtolower(trim((string) ($port->country ?? ''))) === $normalizedCountry)
+                ->values();
+        }
+
+        return $collection->values();
+    }
+
+    private function filterZonesForExport($zones, string $country, string $cityId)
+    {
+        $collection = $zones instanceof \Illuminate\Support\Collection ? $zones : collect($zones);
+
+        if ($cityId !== '') {
+            return $collection
+                ->filter(static fn ($zone) => (string) ($zone->city ?? '') === $cityId)
+                ->values();
+        }
+
+        if ($country !== '') {
+            $cityIds = City::where('country', $country)
+                ->pluck('city_id')
+                ->map(static fn ($id) => (string) $id)
+                ->all();
+
+            if (empty($cityIds)) {
+                return collect();
+            }
+
+            return $collection
+                ->filter(static fn ($zone) => in_array((string) ($zone->city ?? ''), $cityIds, true))
+                ->values();
+        }
+
+        return $collection->values();
+    }
+
+    private function upsertVehicleZoneMapping(
+        string $vehicleId,
+        string $fromZoneId,
+        string $toZoneId,
+        string $fromZoneType,
+        string $toZoneType,
+        $privatePrice,
+        $sharedPrice,
+        $privateCostPrice = null,
+        $sharedCostPrice = null,
+        $privateProfitType = 'percentage',
+        $privateProfitAmount = 0,
+        $sharedProfitType = 'percentage',
+        $sharedProfitAmount = 0
+    ): void {
+        $privateCostPrice = $privateCostPrice ?? $privatePrice;
+        $sharedCostPrice = $sharedCostPrice ?? $sharedPrice;
+        $privateProfitType = in_array($privateProfitType, ['percentage', 'flat'], true) ? $privateProfitType : 'percentage';
+        $sharedProfitType = in_array($sharedProfitType, ['percentage', 'flat'], true) ? $sharedProfitType : 'percentage';
+        $privateProfitAmount = is_numeric($privateProfitAmount) ? (float) $privateProfitAmount : 0;
+        $sharedProfitAmount = is_numeric($sharedProfitAmount) ? (float) $sharedProfitAmount : 0;
+
+        $payload = [
+            'from_zone_type' => $fromZoneType,
+            'to_zone_type' => $toZoneType,
+            'private_price' => $privatePrice,
+            'private_cost_price' => $privateCostPrice,
+            'private_profit_type' => $privateProfitType,
+            'private_profit_amount' => $privateProfitAmount,
+            'shared_price' => $sharedPrice,
+            'shared_cost_price' => $sharedCostPrice,
+            'shared_profit_type' => $sharedProfitType,
+            'shared_profit_amount' => $sharedProfitAmount,
+        ];
+
+        $mapping = VehicleZoneMapping::withTrashed()
+            ->where('vehicle_id', $vehicleId)
+            ->where('from_zone_id', $fromZoneId)
+            ->where('to_zone_id', $toZoneId)
+            ->first();
+
+        if ($mapping) {
+            if ($mapping->trashed()) {
+                $mapping->forceDelete();
+
+                $newMapping = VehicleZoneMapping::create(array_merge([
+                    'vehicle_id' => $vehicleId,
+                    'from_zone_id' => $fromZoneId,
+                    'to_zone_id' => $toZoneId,
+                ], $payload));
+
+                if (empty($newMapping->mapping_id)) {
+                    $newMapping->update(['mapping_id' => (string) $newMapping->id]);
+                }
+            } else {
+                $mapping->update($payload);
+            }
+
+            return;
+        }
+
+        $newMapping = VehicleZoneMapping::create(array_merge([
+            'vehicle_id' => $vehicleId,
+            'from_zone_id' => $fromZoneId,
+            'to_zone_id' => $toZoneId,
+        ], $payload));
+
+        if (empty($newMapping->mapping_id)) {
+            $newMapping->update(['mapping_id' => (string) $newMapping->id]);
+        }
     }
 
 /**
@@ -1204,7 +1827,13 @@ class VehicleController extends Controller
                         'from_zone_type' => $fromZoneType,
                         'to_zone_type' => $toZoneType,
                         'private_price' => 0,
-                        'shared_price' => 0
+                        'private_cost_price' => 0,
+                        'private_profit_type' => 'percentage',
+                        'private_profit_amount' => 0,
+                        'shared_price' => 0,
+                        'shared_cost_price' => 0,
+                        'shared_profit_type' => 'percentage',
+                        'shared_profit_amount' => 0,
                     ]);
                     if (empty($mapping->mapping_id)) {
                         $mapping->update(['mapping_id' => (string) $mapping->id]);
@@ -1232,7 +1861,13 @@ class VehicleController extends Controller
                 'from_zone_type' => $fromZoneType,
                 'to_zone_type' => $toZoneType,
                 'private_price' => 0,
-                'shared_price' => 0
+                'private_cost_price' => 0,
+                'private_profit_type' => 'percentage',
+                'private_profit_amount' => 0,
+                'shared_price' => 0,
+                'shared_cost_price' => 0,
+                'shared_profit_type' => 'percentage',
+                'shared_profit_amount' => 0,
             ]);
             if (empty($mapping->mapping_id)) {
                 $mapping->update(['mapping_id' => (string) $mapping->id]);
@@ -1330,7 +1965,13 @@ class VehicleController extends Controller
             'success' => true,
             'mapping_id' => $mapping->mapping_id,
             'private_price' => $mapping->private_price,
-            'shared_price' => $mapping->shared_price
+            'private_cost_price' => $mapping->private_cost_price ?? $mapping->private_price,
+            'private_profit_type' => $mapping->private_profit_type ?? 'percentage',
+            'private_profit_amount' => $mapping->private_profit_amount ?? 0,
+            'shared_price' => $mapping->shared_price,
+            'shared_cost_price' => $mapping->shared_cost_price ?? $mapping->shared_price,
+            'shared_profit_type' => $mapping->shared_profit_type ?? 'percentage',
+            'shared_profit_amount' => $mapping->shared_profit_amount ?? 0,
         ]);
     }
 

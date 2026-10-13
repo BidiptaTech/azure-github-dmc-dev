@@ -76,6 +76,7 @@ use App\Http\Controllers\DayLevelController;
 use App\Http\Controllers\ExternalApiReceiveController;
 use App\Http\Controllers\SmartNotificationController;
 use App\Http\Controllers\AiConfigController;
+use App\Http\Controllers\DmcFuncAppController;
 
 
 // Removed conflicting mobileapp routes - these should be in routes/mobileapp.php
@@ -109,6 +110,12 @@ Route::get('/clear', function () {
             Route::get('/guide-languages/{guide_language}/edit', [GuideLanguagesController::class, 'edit'])->name('guide-languages.edit');
             Route::put('/guide-languages/{guide_language}', [GuideLanguagesController::class, 'update'])->name('guide-languages.update');
             Route::delete('/guide-languages/{guide_language}', [GuideLanguagesController::class, 'destroy'])->name('guide-languages.destroy');
+
+            Route::get('/dmc-func-app', [DmcFuncAppController::class, 'index'])->name('dmc-func-app.index');
+            Route::post('/dmc-func-app', [DmcFuncAppController::class, 'store'])->name('dmc-func-app.store');
+            Route::get('/dmc-func-app/{dmc_func_app}/edit', [DmcFuncAppController::class, 'edit'])->name('dmc-func-app.edit');
+            Route::put('/dmc-func-app/{dmc_func_app}', [DmcFuncAppController::class, 'update'])->name('dmc-func-app.update');
+            Route::delete('/dmc-func-app/{dmc_func_app}', [DmcFuncAppController::class, 'destroy'])->name('dmc-func-app.destroy');
 
             Route::get('/ai-key-words', [AiConfigController::class, 'index'])->name('ai-key-words.index');
             Route::post('/ai-key-words', [AiConfigController::class, 'store'])->name('ai-key-words.store');
@@ -538,10 +545,11 @@ Route::get('/clear', function () {
         Route::post('/package-booking/{booking_id}/process-refund', [PackageController::class, 'processRefund'])->name('package.process-refund');
 
         Route::resource('zones', ZoneController::class);
+        Route::get('/zones/{id}/check-delete', [ZoneController::class, 'checkDelete'])->name('zones.check-delete');
         
         // Default Value Routes (DMC Product Configuration)
-        Route::resource('default-values', DefaultValueController::class);
         Route::get('/default-values/get-services', [DefaultValueController::class, 'getServices'])->name('default-values.get-services');
+        Route::resource('default-values', DefaultValueController::class);
         
         // Tax Management Routes (DMC Only)
         Route::get('/tax', [TaxController::class, 'index'])->name('tax.index');
@@ -601,9 +609,11 @@ Route::get('/clear', function () {
         Route::post('users/update-price-hide', [UserController::class, 'updatePriceHide'])->name('users.update.price-hide');
         Route::post('users/update-zone-on', [UserController::class, 'updateZone'])->name('update.zoneon');
         Route::post('users/update-active', [UserController::class, 'updateActive'])->name('users.update.active');
+        Route::post('users/update-thirdparty-enabled', [UserController::class, 'updateThirdPartyEnabled'])->name('users.update.thirdparty-enabled');
         Route::post('users/update-auto-cancel', [UserController::class, 'updateAutoCancel'])->name('update.autocancel');
         Route::post('users/update-guide-pax', [UserController::class, 'updateGuidePax'])->name('update.guidepax');
         Route::post('users/update-ai-response', [UserController::class, 'updateAiResponse'])->name('update.airesponse');
+        Route::post('users/update-ai-response-type', [UserController::class, 'updateAiResponseType'])->name('update.airesponsetype');
         Route::post('users/update-email', [UserController::class, 'updateEmail'])->name('users.update.email');
         Route::post('users/update-booking-type', [UserController::class, 'updateBookingType'])->name('users.update.booking-type');
         
@@ -611,7 +621,6 @@ Route::get('/clear', function () {
         Route::get('/get-cities-name-country', [UserController::class, 'getCitiesByCountry'])->name('get.cities.by.country');
         Route::get('/get-country-code', [UserController::class, 'getCountryCode'])->name('get.country.code');
         Route::get('/get-currency-by-country', [UserController::class, 'getCurrencyByCountry'])->name('get.currency.by.country');
-
         Route::get('/get-no-of-rooms', [HotelController::class, 'getNoOfRooms'])->name('get-no-of-rooms');
         Route::get('/get-rooms-by-dmc', [HotelController::class, 'getRoomsByDmc']);
         Route::get('/api/get-dmc-cities/{dmcId}', [DriverController::class, 'getDmcCities'])->name('get.dmc.cities');
@@ -712,6 +721,8 @@ Route::get('/clear', function () {
 
         // In web.php routes
         Route::post('/vehicle/map-zones', [VehicleController::class, 'mapZones'])->name('vehicle.map_zones');
+        Route::get('/vehicle/{vehicle}/zone-mappings/export', [VehicleController::class, 'exportZoneMappings'])->name('vehicle.zone_mappings.export');
+        Route::post('/vehicle/zone-mappings/import', [VehicleController::class, 'importZoneMappings'])->name('vehicle.zone_mappings.import');
 
         Route::post('/vehicle/check-mapping-exists', [VehicleController::class, 'checkMappingExists'])->name('vehicle.check_mapping_exists');
         Route::post('/vehicle/add-mapping', [VehicleController::class, 'addMappingAjax'])->name('vehicle.add_mapping');
@@ -1139,6 +1150,7 @@ Route::post('/hotel-booking/upload-restaurant-files', [HotelBookingController::c
         Route::get('/agents/import', [AgentController::class, 'importView'])->name('agents.import');
         Route::post('/agents/import', [AgentController::class, 'import'])->name('agents.import.upload');
         Route::get('/agents/import/template', [AgentController::class, 'downloadTemplate'])->name('agents.import.template');
+        Route::post('/agents/quick-store', [AgentController::class, 'quickStore'])->name('agents.quick-store');
         
         // Agent Resource and other routes
         Route::resource('agents', AgentController::class);
@@ -1160,6 +1172,7 @@ Route::post('/hotel-booking/upload-restaurant-files', [HotelBookingController::c
         Route::patch('/agencies/{id}/toggle-status', [AgencyController::class, 'toggleStatus'])->name('agencies.toggleStatus');
 
         Route::get('/search-agents', [App\Http\Controllers\AgentController::class, 'searchAgents'])->name('search-agents');
+        Route::get('/users/master-dmc/{masterDmcId}/team', [UserController::class, 'masterDmcTeam'])->name('users.master-dmc.team');
         Route::resource('users', UserController::class);
         Route::get('/get-countries/{masterDmcId}', [UserController::class, 'getCountries'])->name('get-countries');
         Route::get('/get-markup/{selectedCountry}', [UserController::class, 'selectedCountry'])->name('get-markup');
@@ -1318,6 +1331,10 @@ Route::get('day-level/day-level-combined.json', [DayLevelController::class, 'com
 
 Route::patch('day-level/{day_level}/inclusion', [DayLevelController::class, 'updateInclusion'])
     ->name('day-level.update-inclusion')
+    ->whereNumber('day_level');
+
+Route::delete('day-level/{day_level}/packages/{package_id}', [DayLevelController::class, 'destroyPackage'])
+    ->name('day-level.destroy-package')
     ->whereNumber('day_level');
 
 // Resource route AFTER

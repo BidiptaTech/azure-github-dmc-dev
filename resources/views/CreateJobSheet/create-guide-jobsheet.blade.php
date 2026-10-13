@@ -424,7 +424,7 @@ $(document).ready(function() {
                                     data-entry-time="${dataItem.entrytime || ''}"
                                     data-entrypickup="${dataItem.entrypickup || ''}"
                                     data-type="${item.type || ''}">
-                                    <option value="">Select Guide</option>
+                                    <option value="">Not Assigned</option>
                                     ${(function() {
                                         let options = '';
                                         if (initialGuides.length) {
@@ -550,7 +550,7 @@ $(document).ready(function() {
                                                 data-entry-time="${dataItem.entrytime || ''}"
                                                 data-entrypickup="${dataItem.entrypickup || ''}"
                                                 data-type="${item.type || ''}">
-                                                <option value="">Select Guide</option>
+                                                <option value="">Not Assigned</option>
                                                 ${(function() {
                                                     let options = '';
                                                     if (response.guides && response.guides.length) {
@@ -750,7 +750,7 @@ $(document).ready(function() {
             
             // Initialize Select2 on guide dropdowns
             $('.guide-select').select2({
-                placeholder: "Select Guide",
+                placeholder: "Not Assigned",
                 allowClear: true,
                 width: '100%',
                 dropdownParent: $('body')
@@ -798,7 +798,7 @@ $(document).ready(function() {
 
         if (!$select.hasClass('select2-hidden-accessible')) {
             $select.select2({
-                placeholder: "Select Guide",
+                placeholder: "Not Assigned",
                 allowClear: true,
                 width: '100%',
                 dropdownParent: $dropdownParent,
@@ -807,8 +807,11 @@ $(document).ready(function() {
         }
         $select.off('select2:close');
         $select.on('select2:close', function() {
-            const selectedText = $select.find('option:selected').text();
-            $cell.find('.assign-guide-text').text(selectedText || 'Not Assigned').toggleClass('empty', !$select.val());
+            const val = $select.val();
+            const selectedText = val
+                ? (($select.find('option:selected').text() || '').trim() || 'Not Assigned')
+                : 'Not Assigned';
+            $cell.find('.assign-guide-text').text(selectedText).toggleClass('empty', !val);
             $edit.removeClass('is-active').hide();
             $view.show();
         });

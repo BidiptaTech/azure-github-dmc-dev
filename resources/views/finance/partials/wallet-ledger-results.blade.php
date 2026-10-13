@@ -43,11 +43,27 @@
     </table>
 </div>
 
+@php
+    $rangeSummary = $ledgerFilteredSummary ?? $ledgerSummary ?? null;
+    $ledgerDateFiltered = ! empty($ledgerFilters['date_from'] ?? null) || ! empty($ledgerFilters['date_to'] ?? null);
+@endphp
 @if($ledger instanceof \Illuminate\Contracts\Pagination\LengthAwarePaginator && $ledger->total() > 0)
     <div class="card-footer bg-transparent d-flex flex-wrap justify-content-between align-items-center gap-2 wallet-ledger-pagination">
         <small class="text-muted wallet-ledger-summary">
             Showing {{ $ledger->firstItem() }}–{{ $ledger->lastItem() }} of {{ number_format($ledger->total()) }} entries
+            @if($rangeSummary)
+                · {{ $ledgerDateFiltered ? 'This date range' : 'Ledger total' }}:
+                credited {{ number_format((float) $rangeSummary['credit'], 2) }},
+                debited {{ number_format((float) $rangeSummary['debit'], 2) }}
+            @endif
         </small>
         {{ $ledger->appends($ledgerQueryParams ?? [])->links('pagination::bootstrap-4') }}
+    </div>
+@elseif($ledgerDateFiltered)
+    <div class="card-footer bg-transparent">
+        <small class="text-muted">
+            This date range: credited {{ number_format((float) ($rangeSummary['credit'] ?? 0), 2) }},
+            debited {{ number_format((float) ($rangeSummary['debit'] ?? 0), 2) }}
+        </small>
     </div>
 @endif

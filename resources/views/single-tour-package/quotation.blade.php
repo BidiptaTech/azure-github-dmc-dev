@@ -98,6 +98,52 @@
             line-height: 1.25;
         }
 
+        .country-box {
+            border: 2px solid #000;
+            margin: 0 0 10px 0;
+            page-break-inside: avoid;
+        }
+
+        .country-box-title {
+            border-bottom: 1px solid #000;
+            padding: 7px 8px;
+            font-weight: bold;
+            text-align: center;
+            background: #eef2ff;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.04em;
+        }
+
+        .country-box-inner {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .country-box-inner td {
+            width: 50%;
+            vertical-align: top;
+            padding: 8px;
+            border: none;
+        }
+
+        .country-box-inner td + td {
+            border-left: 1px solid #000;
+        }
+
+        .country-col-label {
+            font-weight: bold;
+            margin: 0 0 6px 0;
+            text-transform: uppercase;
+            font-size: 11px;
+        }
+
+        .overall-price-box {
+            border: 2px solid #000;
+            margin: 12px 0 0 0;
+        }
+
         .money-line {
             margin: 6px 0 4px 0;
         }
@@ -119,7 +165,7 @@
         .api-footnote {
             margin-top: 10px;
             font-size: 9.5px;
-            color: #000;
+            color: #5c3317;
         }
 
         .quotation-information {
@@ -178,9 +224,14 @@
         // Pro form: hotel single column uses double rate (both columns show the same hotel price).
         $isProTour = (int)($tour->is_pro ?? 0) === 1;
 
-        // Very basic rooming heuristic: if >= 2 adults, show DBL
-        $occupancyKey = $adults >= 2 ? 'double' : 'single';
-        $roomingText = $adults >= 2 ? '01 DBL TWIN' : '01 SGL';
+        $hotelDisplayOccupancy = \App\Helpers\CommonHelper::resolveQuotationHotelDisplayOccupancy(
+            $orders ?? collect(),
+            is_array($hotelOptions ?? null) ? $hotelOptions : null,
+            $adults
+        );
+        $occupancyKey = $hotelDisplayOccupancy['occupancy_key'];
+        $roomingText = $hotelDisplayOccupancy['rooming_text'];
+        $displayOccupancyKey = $occupancyKey;
 
         $baseCurrency = strtoupper($baseCurrency ?? ($tour->currency ?? 'SGD'));
         $selectedCurrency = strtoupper($selectedCurrency ?? $baseCurrency);
@@ -192,8 +243,15 @@
 
         $formatAmount = function ($amount) use ($exchangeRate) {
             if (!is_numeric($amount)) return '0';
-            $converted = ceil(((float)$amount) * $exchangeRate);
-            return (string)(int)$converted;
+            $converted = ((float)$amount) * $exchangeRate;
+            $abs = abs($converted);
+            if ($abs == 0.0) return '0';
+            // Normal amounts keep the existing whole-number look.
+            if ($abs >= 1) return (string)(int)ceil($converted);
+            // Small conversions (e.g. tiny base amount -> high-value currency) keep visible precision.
+            if ($abs >= 0.01) return number_format($converted, 2);
+            if ($abs >= 0.0001) return number_format($converted, 4);
+            return number_format($converted, 6);
         };
 
         $formatMoney = function ($amount) use ($currencyLabel, $formatAmount) {
@@ -247,13 +305,210 @@
             ? max(0, $tripleSharingTotal - $otherSingleTotal)
             : 0;
 
+        // Triple occupancy is available when extra-bed pricing exists in tour totals.
+        $tripleOccupancyAvailable = $hotelOnlyTripleTotal > 0;
+
+        // Show only the hotel price cell that matches booked room occupancy (others stay blank).
+        $formatOccupancyHotelCells = function ($single, $double, $triple, $tripleAvailable, callable $moneyFormatter) use ($displayOccupancyKey) {
+            $blank = '';
+            $singleCell = $blank;
+            $doubleCell = $blank;
+            $tripleCell = $blank;
+
+            if ($displayOccupancyKey === 'single' && (float) $single > 0) {
+                $singleCell = $moneyFormatter($single);
+            } elseif ($displayOccupancyKey === 'double' && (float) $double > 0) {
+                $doubleCell = $moneyFormatter($double);
+            } elseif ($displayOccupancyKey === 'triple' && $tripleAvailable && (float) $triple > 0) {
+                $tripleCell = $moneyFormatter($triple);
+            }
+
+            return [$singleCell, $doubleCell, $tripleCell];
+        };
+
+        // Sum sell totals from each active order (same rules as negotiation gross).
+        $extractQuotationOrderAmount = function ($order) use ($isProTour) {
+            $data = is_string($order->data ?? null) ? json_decode($order->data, true) : ($order->data ?? null);
+            if (! is_array($data)) {
+                return 0.0;
+            }
+
+            $items = isset($data[0]) ? $data : [$data];
+            $orderType = (string) ($order->type ?? '');
+            $total = 0.0;
+
+            foreach ($items as $item) {
+                if (! is_array($item)) {
+                    continue;
+                }
+
+                $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+                $transferPrice = 0.0;
+                if ($orderType !== 'hotel' && isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
+                    if ($isProTour && isset($item['transfer_options']['totalPrice'])) {
+                        $transferPrice = (float) $item['transfer_options']['totalPrice'];
+                    } else {
+                        $transferPrice = (float) $item['transfer_options']['cost'];
+                    }
+                }
+
+                $guidePrice = 0.0;
+                if (isset($item['guide_options']) && is_array($item['guide_options'])) {
+                    $gv = $item['guide_options']['total_price']
+                        ?? $item['guide_options']['cost']
+                        ?? $item['guide_options']['Cost']
+                        ?? $item['guide_options']['sell']
+                        ?? $item['guide_options']['Sell']
+                        ?? 0;
+                    if ($gv > 0) {
+                        $guidePrice = (float) $gv;
+                    }
+                }
+
+                $total += $itemPrice + $transferPrice + $guidePrice;
+            }
+
+            return $total;
+        };
+
+        $resolveQuotationOrderLabel = function ($order) {
+            $typeLabel = \Illuminate\Support\Str::headline(str_replace('_', ' ', (string) ($order->type ?? 'Order')));
+            $bookingId = $order->booking_id ?? '';
+            $data = is_string($order->data ?? null) ? json_decode($order->data, true) : ($order->data ?? null);
+            $item = is_array($data) ? (isset($data[0]) && is_array($data[0]) ? $data[0] : $data) : [];
+            $name = trim((string) (
+                $item['hotelDetails']['hotel_name']
+                ?? $item['hotelname']
+                ?? $item['AttractionName']
+                ?? $item['attractionName']
+                ?? $item['restaurantName']
+                ?? $item['restaurant_name']
+                ?? ''
+            ));
+
+            $label = $typeLabel;
+            if ($name !== '') {
+                $label .= ' — ' . $name;
+            }
+            if ($bookingId !== '') {
+                $label .= ' (#' . $bookingId . ')';
+            }
+
+            return $label;
+        };
+
+        $quotationOrderRows = [];
+        $overallQuotationTotal = 0.0;
+        $overallQuotationConvertedOk = true;
+
+        foreach (($orders ?? collect()) as $order) {
+            if ((int) ($order->status ?? 0) !== 1) {
+                continue;
+            }
+
+            $amount = $extractQuotationOrderAmount($order);
+            if ($amount <= 0) {
+                continue;
+            }
+
+            $orderCurrency = strtoupper(trim((string) ($order->currency ?? $baseCurrency)));
+            if ($orderCurrency === '') {
+                $orderCurrency = strtoupper((string) $baseCurrency);
+            }
+
+            $convertedAmount = \App\Helpers\CurrencyHelper::convertAmount($amount, $orderCurrency, $selectedCurrency);
+            if ($convertedAmount === null) {
+                if ($orderCurrency === $selectedCurrency) {
+                    $convertedAmount = $amount;
+                } else {
+                    $overallQuotationConvertedOk = false;
+                    $convertedAmount = $amount;
+                }
+            }
+
+            $quotationOrderRows[] = [
+                'label' => $resolveQuotationOrderLabel($order),
+                'amount' => $amount,
+                'currency' => $orderCurrency,
+                'converted_amount' => (float) $convertedAmount,
+            ];
+
+            if ($overallQuotationConvertedOk) {
+                $overallQuotationTotal += (float) $convertedAmount;
+            }
+        }
+
+        if (! $overallQuotationConvertedOk) {
+            $overallQuotationTotal = array_sum(array_column($quotationOrderRows, 'amount'));
+        } else {
+            $overallQuotationTotal = ceil($overallQuotationTotal);
+        }
+
+        // Other-services totals from actual order amounts (not per-pax sharing rates).
+        $otherOrderTotalByBucketKey = [];
+        $overallOtherServicesOrderTotal = 0.0;
+        $overallOtherServicesOrdersConvertedOk = true;
+
+        foreach ($countryQuotationGroups ?? [] as $group) {
+            if (! is_array($group)) {
+                continue;
+            }
+
+            $bucketKey = (string) ($group['key'] ?? '');
+            $otherAmt = (float) ($group['other_total'] ?? 0);
+            if ($bucketKey !== '') {
+                $otherOrderTotalByBucketKey[$bucketKey] = $otherAmt;
+            }
+
+            $groupCurrency = strtoupper(trim((string) ($group['currency'] ?? $baseCurrency)));
+            if ($groupCurrency === '') {
+                $groupCurrency = strtoupper((string) $baseCurrency);
+            }
+
+            $convertedOther = \App\Helpers\CurrencyHelper::convertAmount($otherAmt, $groupCurrency, $selectedCurrency);
+            if ($convertedOther === null) {
+                if ($groupCurrency === $selectedCurrency) {
+                    $overallOtherServicesOrderTotal += $otherAmt;
+                } else {
+                    $overallOtherServicesOrdersConvertedOk = false;
+                }
+            } else {
+                $overallOtherServicesOrderTotal += (float) $convertedOther;
+            }
+        }
+
+        if ($overallOtherServicesOrdersConvertedOk) {
+            $overallOtherServicesOrderTotal = ceil($overallOtherServicesOrderTotal);
+        } else {
+            $overallOtherServicesOrderTotal = array_sum($otherOrderTotalByBucketKey);
+        }
+        $otherServicesDisplayPerPax = $otherTotalForOccupancy;
+
         // Build booked inclusions list from servicesByType (derived from orders for this tour)
         // We intentionally only show the categories requested by the user.
         $bookedAttractionCards = []; // full cards (transfer / guide details for PDF)
         $bookedRestaurantCards = [];
-        $bookedArrivals = []; // "Arrival: ..." => true
-        $bookedDepartures = []; // "Departure: ..." => true
-        $bookedLocalTransfers = []; // "Local Transfer: ..." => true
+        $bookedArrivals = []; // [['text' => ..., 'country' => ...], ...]
+        $bookedDepartures = [];
+        $bookedLocalTransfers = [];
+
+        $cardCountry = function ($card) {
+            $country = trim((string)($card['country'] ?? ''));
+            return $country !== '' ? $country : 'Other';
+        };
+
+        $cardCurrency = function ($card) use ($baseCurrency) {
+            $currency = strtoupper(trim((string)($card['currency'] ?? '')));
+            return $currency !== '' ? $currency : strtoupper((string)$baseCurrency);
+        };
+
+        $countryBucketKey = function ($country, $currency) {
+            $country = trim((string)$country);
+            if ($country === '') $country = 'Other';
+            $currency = strtoupper(trim((string)$currency));
+            if ($currency === '') $currency = 'SGD';
+            return mb_strtolower($country) . '|' . $currency;
+        };
 
         if (!empty($servicesByType) && is_array($servicesByType)) {
             foreach ($servicesByType as $type => $cards) {
@@ -307,10 +562,14 @@
 
                         $portName = !empty($pickup) ? $pickup : '';
                         if (!empty($portName)) {
-                            $text = 'Arrival: ' . $portName;
+                            $text = $portName;
                             if (!empty($entryTime)) $text .= ' (' . $entryTime . ')';
                             if (!empty($transferType)) $text .= ' - ' . $transferType;
-                            $bookedArrivals[$text] = true;
+                            $bookedArrivals[] = [
+                                'text' => $text,
+                                'country' => $cardCountry($card),
+                                'currency' => $cardCurrency($card),
+                            ];
                         }
                     }
                 }
@@ -339,10 +598,14 @@
 
                         $portName = !empty($dropoff) ? $dropoff : '';
                         if (!empty($portName)) {
-                            $text = 'Departure: ' . $portName;
+                            $text = $portName;
                             if (!empty($exitTime)) $text .= ' (' . $exitTime . ')';
                             if (!empty($transferType)) $text .= ' - ' . $transferType;
-                            $bookedDepartures[$text] = true;
+                            $bookedDepartures[] = [
+                                'text' => $text,
+                                'country' => $cardCountry($card),
+                                'currency' => $cardCurrency($card),
+                            ];
                         }
                     }
                 }
@@ -363,9 +626,13 @@
                         $vehicleTypeSeater = !empty($vehicleTypeSeater) ? (string)$vehicleTypeSeater : '';
 
                         if (!empty($transferType)) {
-                            $text = 'Local Transfer: ' . $transferType;
+                            $text = $transferType;
                             if (!empty($vehicleTypeSeater)) $text .= ' - ' . $vehicleTypeSeater;
-                            $bookedLocalTransfers[$text] = true;
+                            $bookedLocalTransfers[] = [
+                                'text' => $text,
+                                'country' => $cardCountry($card),
+                                'currency' => $cardCurrency($card),
+                            ];
                         }
                     }
                 }
@@ -432,6 +699,114 @@
             }
             $bookedRestaurantCards = $filtered;
         }
+
+        // Prefer tour destination order when segregating countries on the PDF.
+        $preferredCountryOrder = [];
+        $destinationRaw = (string)($tour->destination ?? '');
+        if ($destinationRaw !== '') {
+            foreach (preg_split('/\s*,\s*/', $destinationRaw) as $part) {
+                $part = trim((string) preg_replace('/\s*\([^)]*\)\s*/', '', $part));
+                $part = trim((string) preg_replace('/\[[^\]]*\]/', '', $part));
+                if ($part !== '') {
+                    $preferredCountryOrder[mb_strtolower($part)] = $part;
+                }
+            }
+        }
+
+        $sortCountryKeys = function (array $keys, array $meta) use ($preferredCountryOrder) {
+            usort($keys, function ($a, $b) use ($preferredCountryOrder, $meta) {
+                $aCountry = $meta[$a]['country'] ?? $a;
+                $bCountry = $meta[$b]['country'] ?? $b;
+                $aKey = mb_strtolower($aCountry);
+                $bKey = mb_strtolower($bCountry);
+                $aPos = array_key_exists($aKey, $preferredCountryOrder) ? array_search($aKey, array_keys($preferredCountryOrder), true) : PHP_INT_MAX;
+                $bPos = array_key_exists($bKey, $preferredCountryOrder) ? array_search($bKey, array_keys($preferredCountryOrder), true) : PHP_INT_MAX;
+                if ($aCountry === 'Other') $aPos = PHP_INT_MAX - 1;
+                if ($bCountry === 'Other') $bPos = PHP_INT_MAX - 1;
+                if ($aPos === $bPos) {
+                    return strcasecmp(
+                        $aCountry . ' ' . ($meta[$a]['currency'] ?? ''),
+                        $bCountry . ' ' . ($meta[$b]['currency'] ?? '')
+                    );
+                }
+                return $aPos <=> $bPos;
+            });
+            return $keys;
+        };
+
+        // Hotels grouped by country + currency (from orders)
+        $hotelsByCountry = [];
+        $countryMeta = [];
+        $seenHotelKeys = [];
+        if (!empty($hotelOptions) && is_array($hotelOptions)) {
+            foreach ($hotelOptions as $h) {
+                if (!is_array($h)) continue;
+                $hotelName = $h['hotel_name'] ?? 'Hotel';
+                $hotelNameLower = strtolower(trim((string)$hotelName));
+                $roomCategoryName = $h['room_categories'][0]['name'] ?? ($h['hotel_category'] ?? 'Room');
+                $roomCatLower = strtolower(trim((string)$roomCategoryName));
+                $dedupKey = $hotelNameLower . '||' . $roomCatLower;
+                if (isset($seenHotelKeys[$dedupKey])) continue;
+                $seenHotelKeys[$dedupKey] = true;
+
+                $country = trim((string)($h['country'] ?? ''));
+                if ($country === '') $country = 'Other';
+                $currency = strtoupper(trim((string)($h['currency'] ?? $baseCurrency)));
+                if ($currency === '') $currency = strtoupper((string)$baseCurrency);
+                $bucketKey = $countryBucketKey($country, $currency);
+                $countryMeta[$bucketKey] = ['country' => $country, 'currency' => $currency];
+                $hotelsByCountry[$bucketKey][] = [
+                    'hotel_name' => $hotelName,
+                    'room_category' => $roomCategoryName,
+                ];
+            }
+        }
+
+        // Other services grouped by country + currency
+        $otherByCountry = [];
+        $pushOther = function ($country, $currency, $kind, $value) use (&$otherByCountry, &$countryMeta, $countryBucketKey) {
+            $bucketKey = $countryBucketKey($country, $currency);
+            $countryMeta[$bucketKey] = [
+                'country' => trim((string)$country) !== '' ? trim((string)$country) : 'Other',
+                'currency' => strtoupper(trim((string)$currency)),
+            ];
+            $otherByCountry[$bucketKey][$kind][] = $value;
+        };
+
+        foreach ($bookedAttractionCards as $card) {
+            $pushOther($cardCountry($card), $cardCurrency($card), 'attractions', $card);
+        }
+        foreach ($bookedRestaurantCards as $card) {
+            $pushOther($cardCountry($card), $cardCurrency($card), 'restaurants', $card);
+        }
+        foreach ($bookedArrivals as $row) {
+            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'arrivals', $row['text']);
+        }
+        foreach ($bookedDepartures as $row) {
+            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'departures', $row['text']);
+        }
+        foreach ($bookedLocalTransfers as $row) {
+            $pushOther($row['country'] ?? 'Other', $row['currency'] ?? $baseCurrency, 'local_transfers', $row['text']);
+        }
+
+        // One box per country+currency (hotels + other services together).
+        $allCountryKeys = $sortCountryKeys(
+            array_values(array_unique(array_merge(array_keys($hotelsByCountry), array_keys($otherByCountry)))),
+            $countryMeta
+        );
+
+        $formatNativeMoney = function ($amount, $currency) {
+            $currency = strtoupper(trim((string)$currency));
+            if ($currency === '') $currency = 'SGD';
+            $label = $currency === 'INR' ? 'INR' : $currency;
+            $num = is_numeric($amount) ? (float)$amount : 0.0;
+            if (abs($num) >= 1) {
+                $formatted = number_format($num, 0, '.', ',');
+            } else {
+                $formatted = number_format($num, 2, '.', ',');
+            }
+            return $label . ' ' . $formatted;
+        };
     @endphp
 
     <div class="page">
@@ -454,6 +829,22 @@
             $tourDmcCompanyCode = $tourDmcUser?->company_code ?? null;
             $tourDmcCompanyCode = is_string($tourDmcCompanyCode) ? trim($tourDmcCompanyCode) : '';
             $tourDmcCompanyCode = $tourDmcCompanyCode !== '' ? $tourDmcCompanyCode : null;
+
+            // thirdparty_enabled=yes → show all country services + prices
+            // thirdparty_enabled=no  → DMC country full; other countries date-only (no services/prices)
+            $thirdPartyEnabled = strtolower((string) ($tourDmcUser?->thirdparty_enabled ?? 'no')) === 'yes';
+            $dmcOperatingCountry = $tourDmcUser
+                ? \App\Helpers\CommonHelper::resolveUserOperatingCountry($tourDmcUser)
+                : null;
+            $dmcCountryNorm = $dmcOperatingCountry !== null
+                ? mb_strtolower(trim((string) $dmcOperatingCountry))
+                : '';
+            $isPricedCountry = function ($countryName) use ($thirdPartyEnabled, $dmcCountryNorm) {
+                if ($thirdPartyEnabled || $dmcCountryNorm === '') {
+                    return true;
+                }
+                return mb_strtolower(trim((string) $countryName)) === $dmcCountryNorm;
+            };
 
             $createByUser = null;
             if (!empty($tour->created_by)) {
@@ -502,258 +893,496 @@
                 </td>
             </tr>
         </table>
-        
 
-        <table class="quotation-main-table">
-            <tbody>
-            {{-- Row 1: section titles (aligned side by side) --}}
-            <tr class="quotation-band-titles">
-                <td class="quotation-col">
-                    <div class="panel-title">Hotel cost for entire package</div>
-                </td>
-                <td class="quotation-col">
-                    <div class="panel-title">Other services cost for entire package</div>
-                </td>
-            </tr>
-            {{-- Row 2: inclusions only — row height = tallest column --}}
-            <tr class="quotation-band-body">
-                <td class="quotation-col">
-                    <div class="money-line">
-                        <div class="inclusion"><span class="bold">Date:</span> {{ $inclusionDateRange }}</div>
-                    </div>
-                    <div class="section-label">Inclusions:</div>
+
+        
+        @if(!empty($allCountryKeys))
+            @foreach($allCountryKeys as $bucketKey)
+                @php
+                    $countryName = $countryMeta[$bucketKey]['country'] ?? $bucketKey;
+                    $countryCurrency = $countryMeta[$bucketKey]['currency'] ?? strtoupper((string)$baseCurrency);
+                    $showCountryPricing = $isPricedCountry($countryName);
+                    $countryHotels = $showCountryPricing ? ($hotelsByCountry[$bucketKey] ?? []) : [];
+                    $bucket = $showCountryPricing ? ($otherByCountry[$bucketKey] ?? []) : [];
+                    $countryAttractions = $bucket['attractions'] ?? [];
+                    $countryRestaurants = $bucket['restaurants'] ?? [];
+                    $countryArrivals = $bucket['arrivals'] ?? [];
+                    $countryDepartures = $bucket['departures'] ?? [];
+                    $countryLocalTransfers = $bucket['local_transfers'] ?? [];
+                    $hasOther = !empty($countryAttractions) || !empty($countryRestaurants) || !empty($countryArrivals) || !empty($countryDepartures) || !empty($countryLocalTransfers);
+                @endphp
+                <div class="country-box">
+                    <div class="country-box-title">{{ $countryName }} ({{ $countryCurrency }})</div>
+                    @if(!$showCountryPricing)
+                        <div style="padding: 8px;">
+                            <div class="inclusion"><span class="bold">Date:</span> {{ $inclusionDateRange }}</div>
+                        </div>
+                    @else
+                    <table class="country-box-inner">
+                        <tr>
+                            <td>
+                                <div class="money-line">
+                                    <div class="inclusion"><span class="bold">Date:</span> {{ $inclusionDateRange }}</div>
+                                </div>
+                                <div class="country-col-label">Hotels</div>
+                                @if(!empty($countryHotels))
+                                    <ul class="inclusion-list">
+                                        @foreach($countryHotels as $h)
+                                            <li class="inclusion">
+                                                {{ strtoupper($h['hotel_name']) }}-{{ strtoupper($h['room_category']) }}
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                @else
+                                    <div class="inclusion">No hotels booked</div>
+                                @endif
+                            </td>
+                            <td>
+                                <div class="money-line">
+                                    <div class="inclusion"><span class="bold">Date:</span> {{ $inclusionDateRange }}</div>
+                                </div>
+                                <div class="country-col-label">Other Services</div>
+                                @if($hasOther)
+                                    <ul class="inclusion-list">
+                                        @foreach($countryAttractions as $attrCard)
+                                            @php
+                                                $attrTitle = $attrCard['title'] ?? '';
+                                                $ad = $attrCard['attraction'] ?? null;
+                                                $tr = is_array($ad) ? ($ad['transfer'] ?? null) : null;
+                                                $gd = is_array($ad) ? ($ad['guide'] ?? null) : null;
+                                            @endphp
+                                            <li class="inclusion">
+                                                <span class="bold">Attraction:</span> {{ $attrTitle }}
+                                                @if(is_array($ad))
+                                                    @if(is_array($tr) && (!empty($tr['vehicle_name']) || !empty($tr['type']) || !empty($tr['pickup_location_name']) || (isset($tr['cost']) && is_numeric($tr['cost']) && (float)$tr['cost'] > 0)))
+                                                        @php
+                                                            $vehBits = array_filter([
+                                                                $tr['vehicle_name'] ?? null,
+                                                                isset($tr['vehicle_type'], $tr['seating_capacity']) && $tr['vehicle_type'] && $tr['seating_capacity']
+                                                                    ? $tr['vehicle_type'] . ' / ' . $tr['seating_capacity'] . ' seats'
+                                                                    : ($tr['vehicle_type'] ?? null),
+                                                            ]);
+                                                            $vehLine = implode(' — ', $vehBits);
+                                                            $transferMeta = array_filter([
+                                                                $tr['type'] ?? null,
+                                                                $tr['way'] ?? null,
+                                                            ]);
+                                                        @endphp
+                                                        <div class="inclusion" style="margin: 2px 0 0 14px; line-height: 1.25;">
+                                                            <span class="bold">Transfer / vehicle:</span>
+                                                            @if(!empty($transferMeta))
+                                                                {{ implode(' · ', $transferMeta) }}
+                                                                @if($vehLine !== '') — @endif
+                                                            @endif
+                                                            {{ $vehLine }}
+                                                            @if(!empty($tr['pickup_location_name']) || !empty($tr['pickup_time']))
+                                                                <br>
+                                                                @if(!empty($tr['pickup_location_name']))
+                                                                    <span class="bold">Pickup:</span> {{ $tr['pickup_location_name'] }}
+                                                                @endif
+                                                                @if(!empty($tr['pickup_time']))
+                                                                    @if(!empty($tr['pickup_location_name'])) — @endif
+                                                                    <span class="bold">Time:</span> {{ $tr['pickup_time'] }}
+                                                                @endif
+                                                            @endif
+                                                        </div>
+                                                    @endif
+                                                    @if(is_array($gd) && (
+                                                        !empty($gd['guide_name']) ||
+                                                        !empty($gd['language']) ||
+                                                        !empty($gd['pickup_time']) ||
+                                                        !empty($gd['package_hours']) ||
+                                                        (isset($gd['hours']) && $gd['hours'] !== '' && $gd['hours'] !== null) ||
+                                                        (isset($gd['base_price']) && is_numeric($gd['base_price']) && (float)$gd['base_price'] > 0) ||
+                                                        (isset($gd['surcharge']) && is_numeric($gd['surcharge']) && (float)$gd['surcharge'] > 0) ||
+                                                        (isset($gd['total_price']) && is_numeric($gd['total_price']) && (float)$gd['total_price'] > 0)
+                                                    ))
+                                                        @php
+                                                            $guideHours = $gd['package_hours'] ?? $gd['hours'] ?? null;
+                                                        @endphp
+                                                        <div class="inclusion" style="margin: 2px 0 0 14px; line-height: 1.25;">
+                                                            <span class="bold">Guide:</span>
+                                                            @if(!empty($gd['guide_name']))
+                                                                {{ $gd['guide_name'] }}
+                                                            @endif
+                                                            @if(!empty($gd['language']))
+                                                                @if(!empty($gd['guide_name'])) · @endif
+                                                                {{ $gd['language'] }}
+                                                            @endif
+                                                            @if(!empty($gd['pickup_time']))
+                                                                <br><span class="bold">Pickup time:</span> {{ $gd['pickup_time'] }}
+                                                            @endif
+                                                            @if($guideHours !== null && $guideHours !== '')
+                                                                <br><span class="bold">Duration:</span> {{ $guideHours }} hrs
+                                                            @endif
+                                                        </div>
+                                                    @endif
+                                                @endif
+                                            </li>
+                                        @endforeach
+
+                                        @foreach($countryRestaurants as $restCard)
+                                            @php
+                                                $restTitle = $restCard['title'] ?? '';
+                                                $rs = $restCard['restaurant'] ?? null;
+                                                $mealPlan = is_array($rs) ? ($rs['meal_plan'] ?? null) : null;
+                                                $tr = is_array($rs) ? ($rs['transfer'] ?? null) : null;
+                                            @endphp
+                                            <li class="inclusion">
+                                                <span class="bold">Restaurant:</span> {{ $restTitle }}@if(!empty($mealPlan)) — {{ $mealPlan }}@endif
+                                                @if(is_array($rs))
+                                                    @if(is_array($tr) && (!empty($tr['vehicle_name']) || !empty($tr['type']) || !empty($tr['pickup_location_name']) || !empty($tr['pickup_time'])))
+                                                        @php
+                                                            $vehBits = array_filter([
+                                                                $tr['vehicle_name'] ?? null,
+                                                                isset($tr['vehicle_type'], $tr['seating_capacity']) && $tr['vehicle_type'] && $tr['seating_capacity']
+                                                                    ? $tr['vehicle_type'] . ' / ' . $tr['seating_capacity'] . ' seats'
+                                                                    : ($tr['vehicle_type'] ?? null),
+                                                            ]);
+                                                            $vehLine = implode(' — ', $vehBits);
+                                                            $transferMeta = array_filter([
+                                                                $tr['type'] ?? null,
+                                                                $tr['way'] ?? null,
+                                                            ]);
+                                                        @endphp
+                                                        <div class="inclusion" style="margin: 2px 0 0 14px; line-height: 1.25;">
+                                                            <span class="bold">Transfer / vehicle:</span>
+                                                            @if(!empty($transferMeta))
+                                                                {{ implode(' · ', $transferMeta) }}
+                                                                @if($vehLine !== '') — @endif
+                                                            @endif
+                                                            {{ $vehLine }}
+                                                            @if(!empty($tr['pickup_location_name']) || !empty($tr['pickup_time']))
+                                                                <br>
+                                                                @if(!empty($tr['pickup_location_name']))
+                                                                    <span class="bold">Pickup:</span> {{ $tr['pickup_location_name'] }}
+                                                                @endif
+                                                                @if(!empty($tr['pickup_time']))
+                                                                    @if(!empty($tr['pickup_location_name'])) — @endif
+                                                                    <span class="bold">Time:</span> {{ $tr['pickup_time'] }}
+                                                                @endif
+                                                            @endif
+                                                        </div>
+                                                    @endif
+                                                @endif
+                                            </li>
+                                        @endforeach
+
+                                        @foreach($countryArrivals as $ar)
+                                            <li class="inclusion"><span class="bold">Arrival:</span> {{ $ar }}</li>
+                                        @endforeach
+                                        @foreach($countryDepartures as $dp)
+                                            <li class="inclusion"><span class="bold">Departure:</span> {{ $dp }}</li>
+                                        @endforeach
+                                        @foreach($countryLocalTransfers as $lt)
+                                            <li class="inclusion"><span class="bold">Local Transfer:</span> {{ $lt }}</li>
+                                        @endforeach
+                                    </ul>
+                                @else
+                                    <div class="inclusion">No other services booked</div>
+                                @endif
+                            </td>
+                        </tr>
+                    </table>
+                    @endif
+                </div>
+            @endforeach
+        @else
+            <div class="country-box">
+                <div class="country-box-title">Services</div>
+                <div style="padding: 8px;">No hotel or other services booked</div>
+            </div>
+        @endif
+
+        {{-- Country-wise Single / Double / Triple (same CommonHelper calculation, native currency) --}}
+        @php
+            $countrySharingRows = is_array($tourPrices['country_sharing'] ?? null)
+                ? $tourPrices['country_sharing']
+                : [];
+            // Hide non-DMC country price blocks when thirdparty_enabled is off
+            if (!$thirdPartyEnabled && $dmcCountryNorm !== '') {
+                $countrySharingRows = array_values(array_filter($countrySharingRows, function ($share) use ($isPricedCountry) {
+                    return $isPricedCountry($share['country'] ?? '');
+                }));
+            }
+        @endphp
+        @if(!empty($countrySharingRows))
+        <div class="overall-price-box">
+            <div class="panel-title" style="margin: 0; border: none; border-bottom: 1px solid #000;">Package Price by Country</div>
+                @foreach($countrySharingRows as $share)
                     @php
-                        $hotelPriceLookup = [];
-                        foreach ($tourPrices['hotel_price_options'] ?? [] as $hp) {
-                            $k = strtolower(trim((string)($hp['hotel_name'] ?? '')));
-                            if ($k !== '') {
-                                $hotelPriceLookup[$k] = $hp;
-                            }
+                        $shareCountry = $share['country'] ?? 'Other';
+                        $shareCurrency = strtoupper((string)($share['currency'] ?? $baseCurrency));
+                        $shareHotelSingle = (float)($share['hotel_single'] ?? 0);
+                        $shareHotelDouble = (float)($share['hotel_double'] ?? 0);
+                        $shareHotelTriple = (float)($share['hotel_triple'] ?? 0);
+                        $shareKey = (string)($share['key'] ?? (mb_strtolower($shareCountry) . '|' . $shareCurrency));
+                        $shareOther = (float)($otherOrderTotalByBucketKey[$shareKey] ?? 0);
+                        if ($isProTour) {
+                            $shareHotelSingle = $shareHotelDouble > 0 ? $shareHotelDouble : $shareHotelSingle;
                         }
+                        $shareTripleAvailable = $shareHotelTriple > 0;
+                        [$shareCellSingle, $shareCellDouble, $shareCellTriple] = $formatOccupancyHotelCells(
+                            $shareHotelSingle,
+                            $shareHotelDouble,
+                            $shareHotelTriple,
+                            $shareTripleAvailable,
+                            fn ($amount) => $formatNativeMoney($amount, $shareCurrency)
+                        );
                     @endphp
-                    @if(!empty($hotelOptions) && is_array($hotelOptions))
-                        @php $seenHotelKeys = []; @endphp
-                        <ul class="inclusion-list">
-                            @foreach($hotelOptions as $h)
-                                @php
-                                    $hotelName        = $h['hotel_name'] ?? 'Hotel';
-                                    $hotelNameLower   = strtolower(trim((string)$hotelName));
-                                    $roomCategoryName = $h['room_categories'][0]['name'] ?? ($h['hotel_category'] ?? 'Room');
-                                    $roomCatLower     = strtolower(trim((string)$roomCategoryName));
-                                    $dedupKey         = $hotelNameLower . '||' . $roomCatLower;
-                                    if (isset($seenHotelKeys[$dedupKey])) continue;
-                                    $seenHotelKeys[$dedupKey] = true;
-                                    $priceRow    = $hotelPriceLookup[$hotelNameLower] ?? null;
-                                    $hotelSingle = (float)($priceRow['single'] ?? $h['first_total']['single'] ?? 0);
-                                    $hotelDouble = (float)($priceRow['double'] ?? $h['first_total']['double'] ?? 0);
-                                    $hotelTriple = (float)($priceRow['triple'] ?? $h['first_total']['triple'] ?? 0);
-                                @endphp
-                                <li class="inclusion">
-                                    {{ strtoupper($hotelName) }}-{{ strtoupper($roomCategoryName) }}
-                                </li>
-                            @endforeach
-                        </ul>
-                    @else
-                        <div class="inclusion">No hotel options available</div>
-                    @endif
-                </td>
-                <td class="quotation-col">
-                    <div class="money-line">
-                        <div class="inclusion"><span class="bold">Date:</span> {{ $inclusionDateRange }}</div>
+                    <div style="border-top: 1px solid #000;">
+                        <div class="country-box-title" style="border-bottom: 1px solid #000;">{{ $shareCountry }} ({{ $shareCurrency }})</div>
+                        <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                            <tr>
+                                <td style="width: 50%; vertical-align: top; padding: 8px; border-right: 1px solid #000;">
+                                    <div class="country-col-label">Hotel cost</div>
+                                    <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
+                                        <thead>
+                                            <tr>
+                                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Single</th>
+                                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Double</th>
+                                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Triple</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $shareCellSingle }}</td>
+                                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $shareCellDouble }}</td>
+                                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $shareCellTriple }}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </td>
+                                <td style="width: 50%; vertical-align: top; padding: 8px;">
+                                    <div class="country-col-label">Other services cost</div>
+                                    <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
+                                        <thead>
+                                            <tr>
+                                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center;">Total Price</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatNativeMoney($shareOther, $shareCurrency) }}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
                     </div>
-                    <div class="section-label">Inclusions:</div>
-                    @php $hasAnyOtherInclusions = (!empty($bookedAttractionCards) || !empty($bookedRestaurantCards) || !empty($bookedArrivals) || !empty($bookedDepartures) || !empty($bookedLocalTransfers)); @endphp
-                    @if($hasAnyOtherInclusions)
-                        <ul class="inclusion-list">
-                            @if(!empty($bookedAttractionCards))
-                                @foreach($bookedAttractionCards as $attrCard)
-                                    @php
-                                        $attrTitle = $attrCard['title'] ?? '';
-                                        $ad = $attrCard['attraction'] ?? null;
-                                        $tr = is_array($ad) ? ($ad['transfer'] ?? null) : null;
-                                        $gd = is_array($ad) ? ($ad['guide'] ?? null) : null;
-                                    @endphp
-                                    <li class="inclusion">
-                                        <span class="bold">Attraction:</span> {{ $attrTitle }}
-                                        @if(is_array($ad))
-                                            @if(is_array($tr) && (!empty($tr['vehicle_name']) || !empty($tr['type']) || !empty($tr['pickup_location_name']) || (isset($tr['cost']) && is_numeric($tr['cost']) && (float)$tr['cost'] > 0)))
-                                                @php
-                                                    $vehBits = array_filter([
-                                                        $tr['vehicle_name'] ?? null,
-                                                        isset($tr['vehicle_type'], $tr['seating_capacity']) && $tr['vehicle_type'] && $tr['seating_capacity']
-                                                            ? $tr['vehicle_type'] . ' / ' . $tr['seating_capacity'] . ' seats'
-                                                            : ($tr['vehicle_type'] ?? null),
-                                                    ]);
-                                                    $vehLine = implode(' — ', $vehBits);
-                                                    $transferMeta = array_filter([
-                                                        $tr['type'] ?? null,
-                                                        $tr['way'] ?? null,
-                                                    ]);
-                                                @endphp
-                                                <div class="inclusion" style="margin: 2px 0 0 14px; line-height: 1.25;">
-                                                    <span class="bold">Transfer / vehicle:</span>
-                                                    @if(!empty($transferMeta))
-                                                        {{ implode(' · ', $transferMeta) }}
-                                                        @if($vehLine !== '') — @endif
-                                                    @endif
-                                                    {{ $vehLine }}
-                                                    @if(!empty($tr['pickup_location_name']) || !empty($tr['pickup_time']))
-                                                        <br>
-                                                        @if(!empty($tr['pickup_location_name']))
-                                                            <span class="bold">Pickup:</span> {{ $tr['pickup_location_name'] }}
-                                                        @endif
-                                                        @if(!empty($tr['pickup_time']))
-                                                            @if(!empty($tr['pickup_location_name'])) — @endif
-                                                            <span class="bold">Time:</span> {{ $tr['pickup_time'] }}
-                                                        @endif
-                                                    @endif
-                                                    
-                                                </div>
-                                            @endif
-                                            @if(is_array($gd) && (
-                                                !empty($gd['guide_name']) ||
-                                                !empty($gd['language']) ||
-                                                !empty($gd['pickup_time']) ||
-                                                !empty($gd['package_hours']) ||
-                                                (isset($gd['hours']) && $gd['hours'] !== '' && $gd['hours'] !== null) ||
-                                                (isset($gd['base_price']) && is_numeric($gd['base_price']) && (float)$gd['base_price'] > 0) ||
-                                                (isset($gd['surcharge']) && is_numeric($gd['surcharge']) && (float)$gd['surcharge'] > 0) ||
-                                                (isset($gd['total_price']) && is_numeric($gd['total_price']) && (float)$gd['total_price'] > 0)
-                                            ))
-                                                @php
-                                                    $guideHours = $gd['package_hours'] ?? $gd['hours'] ?? null;
-                                                    $guideShowBase = isset($gd['base_price']) && is_numeric($gd['base_price']) && (float)$gd['base_price'] > 0;
-                                                    $guideShowSur = isset($gd['surcharge']) && is_numeric($gd['surcharge']) && (float)$gd['surcharge'] > 0;
-                                                    $guideShowTot = isset($gd['total_price']) && is_numeric($gd['total_price']) && (float)$gd['total_price'] > 0;
-                                                @endphp
-                                                <div class="inclusion" style="margin: 2px 0 0 14px; line-height: 1.25;">
-                                                    <span class="bold">Guide:</span>
-                                                    @if(!empty($gd['guide_name']))
-                                                        {{ $gd['guide_name'] }}
-                                                    @endif
-                                                    @if(!empty($gd['language']))
-                                                        @if(!empty($gd['guide_name'])) · @endif
-                                                        {{ $gd['language'] }}
-                                                    @endif
-                                                    @if(!empty($gd['pickup_time']))
-                                                        <br><span class="bold">Pickup time:</span> {{ $gd['pickup_time'] }}
-                                                    @endif
-                                                    @if($guideHours !== null && $guideHours !== '')
-                                                        <br><span class="bold">Duration:</span> {{ $guideHours }} hrs
-                                                    @endif
-                                                    
-                                                </div>
-                                            @endif
-                                        @endif
-                                    </li>
-                                @endforeach
-                            @endif
-                            @if(!empty($bookedRestaurantCards))
-                                @foreach($bookedRestaurantCards as $restCard)
-                                    @php
-                                        $restTitle = $restCard['title'] ?? '';
-                                        $rs = $restCard['restaurant'] ?? null;
-                                        $mealPlan = is_array($rs) ? ($rs['meal_plan'] ?? null) : null;
-                                        $tr = is_array($rs) ? ($rs['transfer'] ?? null) : null;
-                                    @endphp
-                                    <li class="inclusion">
-                                        <span class="bold">Restaurant:</span> {{ $restTitle }}@if(!empty($mealPlan)) — {{ $mealPlan }}@endif
-                                        @if(is_array($rs))
-                                            @if(is_array($tr) && (!empty($tr['vehicle_name']) || !empty($tr['type']) || !empty($tr['pickup_location_name']) || !empty($tr['pickup_time'])))
-                                                @php
-                                                    $vehBits = array_filter([
-                                                        $tr['vehicle_name'] ?? null,
-                                                        isset($tr['vehicle_type'], $tr['seating_capacity']) && $tr['vehicle_type'] && $tr['seating_capacity']
-                                                            ? $tr['vehicle_type'] . ' / ' . $tr['seating_capacity'] . ' seats'
-                                                            : ($tr['vehicle_type'] ?? null),
-                                                    ]);
-                                                    $vehLine = implode(' — ', $vehBits);
-                                                    $transferMeta = array_filter([
-                                                        $tr['type'] ?? null,
-                                                        $tr['way'] ?? null,
-                                                    ]);
-                                                @endphp
-                                                <div class="inclusion" style="margin: 2px 0 0 14px; line-height: 1.25;">
-                                                    <span class="bold">Transfer / vehicle:</span>
-                                                    @if(!empty($transferMeta))
-                                                        {{ implode(' · ', $transferMeta) }}
-                                                        @if($vehLine !== '') — @endif
-                                                    @endif
-                                                    {{ $vehLine }}
-                                                    @if(!empty($tr['pickup_location_name']) || !empty($tr['pickup_time']))
-                                                        <br>
-                                                        @if(!empty($tr['pickup_location_name']))
-                                                            <span class="bold">Pickup:</span> {{ $tr['pickup_location_name'] }}
-                                                        @endif
-                                                        @if(!empty($tr['pickup_time']))
-                                                            @if(!empty($tr['pickup_location_name'])) — @endif
-                                                            <span class="bold">Time:</span> {{ $tr['pickup_time'] }}
-                                                        @endif
-                                                    @endif
-                                                </div>
-                                            @endif
-                                        @endif
-                                    </li>
-                                @endforeach
-                            @endif
-                            @if(!empty($bookedArrivals))
-                                @foreach(array_keys($bookedArrivals) as $ar)
-                                    <li class="inclusion"><span class="bold">Arrival:</span> {{ $ar }}</li>
-                                @endforeach
-                            @endif
-                            @if(!empty($bookedDepartures))
-                                @foreach(array_keys($bookedDepartures) as $dp)
-                                    <li class="inclusion"><span class="bold">Departure:</span> {{ $dp }}</li>
-                                @endforeach
-                            @endif
-                            @if(!empty($bookedLocalTransfers))
-                                @foreach(array_keys($bookedLocalTransfers) as $lt)
-                                    <li class="inclusion"><span class="bold">Local Transfer:</span> {{ $lt }}</li>
-                                @endforeach
-                            @endif
-                        </ul>
-                    @else
-                        <div class="inclusion">No other services booked</div>
-                    @endif
-                </td>
-            </tr>
-            {{-- Row 3: pricing only — same row ⇒ same horizontal alignment in all PDF engines --}}
-            <tr class="quotation-band-pricing">
-                <td class="quotation-col">
-                    <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
-                        <thead>
+                @endforeach
+        </div>
+        @endif
+
+        {{-- Overall package price in selected/display currency (country amounts converted & summed) --}}
+        @php
+            $overallHotelSingle = 0.0;
+            $overallHotelDouble = 0.0;
+            $overallHotelTriple = 0.0;
+            $overallOther = 0.0;
+            $overallConvertedOk = false;
+
+            if (!empty($countrySharingRows)) {
+                $overallConvertedOk = true;
+                foreach ($countrySharingRows as $share) {
+                    $fromCurrency = strtoupper((string)($share['currency'] ?? $baseCurrency));
+                    $hSingle = (float)($share['hotel_single'] ?? 0);
+                    $hDouble = (float)($share['hotel_double'] ?? 0);
+                    $hTriple = (float)($share['hotel_triple'] ?? 0);
+                    $oOther = (float)($share['other_services_single'] ?? ($share['other_services_double'] ?? 0));
+                    if ($isProTour) {
+                        $hSingle = $hDouble > 0 ? $hDouble : $hSingle;
+                    }
+
+                    $cSingle = \App\Helpers\CurrencyHelper::convertAmount($hSingle, $fromCurrency, $selectedCurrency);
+                    $cDouble = \App\Helpers\CurrencyHelper::convertAmount($hDouble, $fromCurrency, $selectedCurrency);
+                    $cTriple = \App\Helpers\CurrencyHelper::convertAmount($hTriple, $fromCurrency, $selectedCurrency);
+                    $cOther  = \App\Helpers\CurrencyHelper::convertAmount($oOther, $fromCurrency, $selectedCurrency);
+
+                    if ($cSingle === null || $cDouble === null || $cOther === null) {
+                        $overallConvertedOk = false;
+                        break;
+                    }
+
+                    $overallHotelSingle += (float)$cSingle;
+                    $overallHotelDouble += (float)$cDouble;
+                    $overallHotelTriple += ($cTriple !== null) ? (float)$cTriple : 0.0;
+                    $overallOther += (float)$cOther;
+                }
+            }
+
+            $overallDisplayCurrency = $selectedCurrency;
+            $overallDisplayLabel = $currencyLabel;
+
+            if (!$overallConvertedOk) {
+                // Fallback: sum filtered country rows in one currency when possible
+                // (avoids mixing in non-DMC totals when thirdparty_enabled is off)
+                if (!empty($countrySharingRows)) {
+                    $fallbackCurrency = null;
+                    $sameCurrency = true;
+                    $fbHotelSingle = 0.0;
+                    $fbHotelDouble = 0.0;
+                    $fbHotelTriple = 0.0;
+                    $fbOther = 0.0;
+                    foreach ($countrySharingRows as $share) {
+                        $fromCurrency = strtoupper((string)($share['currency'] ?? $baseCurrency));
+                        if ($fallbackCurrency === null) {
+                            $fallbackCurrency = $fromCurrency;
+                        } elseif ($fallbackCurrency !== $fromCurrency) {
+                            $sameCurrency = false;
+                            break;
+                        }
+                        $hSingle = (float)($share['hotel_single'] ?? 0);
+                        $hDouble = (float)($share['hotel_double'] ?? 0);
+                        $hTriple = (float)($share['hotel_triple'] ?? 0);
+                        $oOther = (float)($share['other_services_single'] ?? ($share['other_services_double'] ?? 0));
+                        if ($isProTour) {
+                            $hSingle = $hDouble > 0 ? $hDouble : $hSingle;
+                        }
+                        $fbHotelSingle += $hSingle;
+                        $fbHotelDouble += $hDouble;
+                        $fbHotelTriple += $hTriple;
+                        $fbOther += $oOther;
+                    }
+                    if ($sameCurrency && $fallbackCurrency) {
+                        $overallConvertedOk = true;
+                        $overallDisplayCurrency = $fallbackCurrency;
+                        $overallDisplayLabel = $fallbackCurrency === 'INR' ? 'INR' : $fallbackCurrency;
+                        $overallHotelSingle = ceil($fbHotelSingle);
+                        $overallHotelDouble = ceil($fbHotelDouble);
+                        $overallHotelTriple = $fbHotelTriple > 0 ? ceil($fbHotelTriple) : 0;
+                        $overallOther = ceil($fbOther);
+                    } else {
+                        $overallHotelSingle = null;
+                        $overallHotelDouble = null;
+                        $overallHotelTriple = null;
+                        $overallOther = null;
+                    }
+                } else {
+                    $overallHotelSingle = null;
+                    $overallHotelDouble = null;
+                    $overallHotelTriple = null;
+                    $overallOther = null;
+                }
+            } else {
+                $overallHotelSingle = ceil($overallHotelSingle);
+                $overallHotelDouble = ceil($overallHotelDouble);
+                $overallHotelTriple = $overallHotelTriple > 0 ? ceil($overallHotelTriple) : 0;
+                $overallOther = ceil($overallOther);
+            }
+
+            $overallTripleAvailable = $overallConvertedOk
+                ? ($overallHotelTriple > 0)
+                : ($hotelOnlyTripleTotal > 0);
+            $overallHotelSingleDisplay = $overallConvertedOk ? $overallHotelSingle : $hotelOnlySingleTotal;
+            $overallHotelDoubleDisplay = $overallConvertedOk ? $overallHotelDouble : $hotelOnlyDoubleTotal;
+            $overallHotelTripleDisplay = $overallConvertedOk ? $overallHotelTriple : $hotelOnlyTripleTotal;
+
+            $hotelPerPaxFromOrders = \App\Helpers\CommonHelper::resolveHotelQuotationPerPaxFromOrders(
+                $orders ?? collect(),
+                $tour,
+                $selectedCurrency
+            );
+            if ($hotelPerPaxFromOrders && ($hotelPerPaxFromOrders['per_pax'] ?? 0) > 0) {
+                $orderHotelPerPax = (float) $hotelPerPaxFromOrders['per_pax'];
+                $overallHotelSingleDisplay = $orderHotelPerPax;
+                $overallHotelDoubleDisplay = $orderHotelPerPax;
+                $overallHotelTripleDisplay = $orderHotelPerPax;
+            }
+
+            $overallHotelMoneyFormatter = $overallConvertedOk
+                ? fn ($amount) => $formatNativeMoney($amount, $overallDisplayCurrency) . ' /pax'
+                : fn ($amount) => $formatMoney($amount) . ' /pax';
+            [$overallCellSingle, $overallCellDouble, $overallCellTriple] = $formatOccupancyHotelCells(
+                $overallHotelSingleDisplay,
+                $overallHotelDoubleDisplay,
+                $overallHotelTripleDisplay,
+                $overallTripleAvailable,
+                $overallHotelMoneyFormatter
+            );
+        @endphp
+        <div class="overall-price-box" style="margin-top: 10px;">
+            <div class="panel-title" style="margin: 0; border: none; border-bottom: 1px solid #000;">Overall Package Price ({{ $overallDisplayLabel }})</div>
+            <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                <tr>
+                    <td style="width: 50%; vertical-align: top; padding: 8px; border-right: 1px solid #000;">
+                        <div class="country-col-label">Hotel cost for entire package</div>
+                        <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
+                            <thead>
+                                <tr>
+                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Single</th>
+                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Double</th>
+                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Triple</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $overallCellSingle }}</td>
+                                    <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $overallCellDouble }}</td>
+                                    <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $overallCellTriple }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </td>
+                    <td style="width: 50%; vertical-align: top; padding: 8px;">
+                        <div class="country-col-label">Other services cost for entire package</div>
+                        <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
+                            <thead>
+                                <tr>
+                                    <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center;">Total Price</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">
+                                        {{ $formatMoney($otherServicesDisplayPerPax) }} /pax
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        @if(!empty($quotationOrderRows))
+            <div class="overall-price-box" style="margin-top: 10px;">
+                <div class="panel-title" style="margin: 0; border: none; border-bottom: 1px solid #000;">Overall Quotation Price ({{ $currencyLabel }})</div>
+                <table style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                    <thead>
+                        <tr>
+                            <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: left; width: 70%;">Order</th>
+                            <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 30%;">Total Price</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($quotationOrderRows as $orderRow)
                             <tr>
-                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Single</th>
-                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Double</th>
-                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center; width: 33.33%;">Triple</th>
+                                <td style="border: 1px solid #000; padding: 6px; vertical-align: top;">{{ $orderRow['label'] }}</td>
+                                <td style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold;">
+                                    @if($overallQuotationConvertedOk)
+                                        {{ $formatMoney($orderRow['converted_amount']) }}
+                                    @else
+                                        {{ $formatNativeMoney($orderRow['amount'], $orderRow['currency']) }}
+                                    @endif
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($hotelOnlySingleTotal) }}</td>
-                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($hotelOnlyDoubleTotal) }}</td>
-                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($hotelOnlyTripleTotal) }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </td>
-                <td class="quotation-col">
-                    <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
-                        <thead>
-                            <tr>
-                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center;">Price (per pax)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($otherTotalForOccupancy) }}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </td>
-            </tr>
-            </tbody>
-        </table>
+                        @endforeach
+                        <tr>
+                            <td style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold;">Overall Quotation Price</td>
+                            <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">
+                                @if($overallQuotationConvertedOk)
+                                    {{ $formatMoney($overallQuotationTotal) }}
+                                @else
+                                    {{ $formatNativeMoney($overallQuotationTotal, $selectedCurrency) }}
+                                @endif
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        @endif
 
         
 
@@ -810,6 +1439,14 @@
                                 if ($isProTour) {
                                     $suppSingle = $suppDouble > 0 ? $suppDouble : $suppSingle;
                                 }
+                                $suppTripleAvailable = $suppTriple > 0;
+                                [$suppCellSingle, $suppCellDouble, $suppCellTriple] = $formatOccupancyHotelCells(
+                                    $suppSingle,
+                                    $suppDouble,
+                                    $suppTriple,
+                                    $suppTripleAvailable,
+                                    fn ($amount) => $formatMoney($amount)
+                                );
                             @endphp
                             <tr>
                                 <td style="border: 1px solid #000; padding: 6px; vertical-align: top;">
@@ -818,9 +1455,9 @@
                                         <span class="subtle"> ({{ $niceDate }})</span>
                                     @endif
                                 </td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ $formatMoney($suppSingle) }}</td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ $formatMoney($suppDouble) }}</td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ $suppTriple > 0 ? $formatMoney($suppTriple) : '—' }}</td>
+                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ $suppCellSingle }}</td>
+                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ $suppCellDouble }}</td>
+                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">{{ $suppCellTriple }}</td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -878,6 +1515,10 @@
                 {!! $quotationInformationHtml !!}
             </div>
         @endif
+
+        <div class="api-footnote">
+            <strong>Note:</strong> Please note that currency conversion is based on market rate and is subject to change at the time of payment.
+        </div>
 
     </div>
 </body>

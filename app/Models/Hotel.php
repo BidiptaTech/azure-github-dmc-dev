@@ -133,6 +133,30 @@ class Hotel extends Model
     }
 
     /**
+     * Zone IDs to try for pricing: DMC-specific first, then any other assigned zones.
+     * (Some hotels share pricing zones across DMCs / master mappings.)
+     */
+    public function getZoneCandidatesForDmc($dmcId): array
+    {
+        $ids = [];
+        $preferred = $this->getZoneForDmc($dmcId);
+        if ($preferred !== null && $preferred !== '') {
+            $ids[] = (string) $preferred;
+        }
+        foreach ($this->zone_assignments ?? [] as $assignment) {
+            $zid = $assignment['zone_id'] ?? null;
+            if ($zid === null || $zid === '') {
+                continue;
+            }
+            $zid = (string) $zid;
+            if (!in_array($zid, $ids, true)) {
+                $ids[] = $zid;
+            }
+        }
+        return $ids;
+    }
+
+    /**
      * Set zone assignment for a specific DMC
      */
     public function setZoneForDmc($dmcId, $zoneId = null)

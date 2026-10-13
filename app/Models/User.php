@@ -56,6 +56,8 @@ class User extends Authenticatable
         'is_active' => 'boolean',
         'markup_price_attraction' => 'decimal:2',
         'markup_price_flight' => 'decimal:2',
+        'thirdparty' => 'string',
+        'thirdparty_enabled' => 'string',
     ];
 
     /**

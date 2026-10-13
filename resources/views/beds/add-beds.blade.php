@@ -12,7 +12,7 @@
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>
             </h5>
-            <form action="{{ route('beds.store') }}" method="POST" enctype="multipart/form-data" class="card-body">
+            <form action="{{ route('beds.store') }}" method="POST" enctype="multipart/form-data" class="card-body js-submit-loader-form" data-loader-message="Saving...">
                 @csrf
                 <fieldset class="p-3 border rounded shadow-sm">
                     <div class="row">
@@ -126,7 +126,13 @@
                     <!-- Submit Button -->
                     <div class="row mt-4">
                         <div class="col-md-12 text-center">
-                            <button type="submit" class="btn btn-primary">Save And Add More</button>
+                            <button type="submit" class="btn btn-primary js-submit-loader-btn">
+                                <span class="js-submit-loader-btn-text">Save And Add More</span>
+                                <span class="js-submit-loader-btn-loading d-none">
+                                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                    Saving...
+                                </span>
+                            </button>
                         </div>
                     </div>
                 </fieldset>
@@ -257,6 +263,7 @@
     </div>
 </div>
 <!-- End of the Bed Types Listing Section -->
+<x-form-submit-loader message="Saving..." />
 @endsection
 
 @section('scripts')

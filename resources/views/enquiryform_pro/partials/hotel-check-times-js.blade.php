@@ -12,12 +12,86 @@
         return `${match[1].padStart(2, '0')}:${match[2]}`;
     };
 
+    w.enquiryProTimeToMinutes = function (timeVal) {
+        const normalized = w.enquiryProNormalizeHotelTime(timeVal, '00:00');
+        const parts = normalized.split(':');
+        return (parseInt(parts[0], 10) || 0) * 60 + (parseInt(parts[1], 10) || 0);
+    };
+
+    w.enquiryProExtractDateAndTime = function (dateTimeVal) {
+        if (dateTimeVal === null || dateTimeVal === undefined || dateTimeVal === '') {
+            return { date: '', time: null };
+        }
+        const s = String(dateTimeVal).trim().replace(' ', 'T');
+        const datePart = s.split('T')[0];
+        let time = null;
+        if (s.includes('T')) {
+            const match = s.split('T')[1].match(/(\d{1,2}):(\d{2})/);
+            if (match) time = `${match[1].padStart(2, '0')}:${match[2]}`;
+        }
+        return { date: datePart, time: time };
+    };
+
     w.enquiryProGetHotelCheckTimes = function (hotelData) {
         const data = hotelData || {};
         return {
             checkIn: w.enquiryProNormalizeHotelTime(data.check_in_time, DEFAULT_CHECK_IN_TIME),
             checkOut: w.enquiryProNormalizeHotelTime(data.check_out_time, DEFAULT_CHECK_OUT_TIME)
         };
+    };
+
+    /**
+     * Late checkout: selected checkout time is after hotel table check_out_time.
+     * Example: hotel CO 12:00, user selects 12:01 → true (bill +1 night).
+     */
+    w.enquiryProIsLateCheckout = function (checkOutVal, hotelData) {
+        const extracted = w.enquiryProExtractDateAndTime(checkOutVal);
+        if (!extracted.time) return false;
+        const hotelCheckout = w.enquiryProGetHotelCheckTimes(hotelData).checkOut;
+        return w.enquiryProTimeToMinutes(extracted.time) > w.enquiryProTimeToMinutes(hotelCheckout);
+    };
+
+    /**
+     * Nights = calendar days (checkout date − check-in date)
+     * + 1 when selected checkout time is after hotel standard check_out_time.
+     */
+    w.enquiryProCalculateHotelNights = function (checkInVal, checkOutVal, hotelData) {
+        const ci = w.enquiryProExtractDateAndTime(checkInVal);
+        const co = w.enquiryProExtractDateAndTime(checkOutVal);
+        if (!ci.date || !co.date) return 0;
+
+        const inDate = new Date(ci.date + 'T12:00:00');
+        const outDate = new Date(co.date + 'T12:00:00');
+        if (isNaN(inDate.getTime()) || isNaN(outDate.getTime())) return 0;
+
+        let nights = Math.round((outDate - inDate) / (1000 * 60 * 60 * 24));
+        if (nights < 0) return 0;
+
+        if (w.enquiryProIsLateCheckout(checkOutVal, hotelData)) {
+            nights += 1;
+        }
+
+        return Math.max(0, nights);
+    };
+
+    /** Billable night dates (one date per billed night), including checkout date on late CO. */
+    w.enquiryProGetBillableStayDateStrings = function (checkInVal, checkOutVal, hotelData) {
+        const nights = w.enquiryProCalculateHotelNights(checkInVal, checkOutVal, hotelData);
+        const ci = w.enquiryProExtractDateAndTime(checkInVal);
+        if (!ci.date || nights <= 0) return [];
+
+        const dates = [];
+        const cursor = new Date(ci.date + 'T12:00:00');
+        if (isNaN(cursor.getTime())) return [];
+
+        for (let i = 0; i < nights; i++) {
+            const y = cursor.getFullYear();
+            const m = String(cursor.getMonth() + 1).padStart(2, '0');
+            const d = String(cursor.getDate()).padStart(2, '0');
+            dates.push(`${y}-${m}-${d}`);
+            cursor.setDate(cursor.getDate() + 1);
+        }
+        return dates;
     };
 
     w.enquiryProApplyDateWithHotelTime = function (datePart, timeHHmm) {

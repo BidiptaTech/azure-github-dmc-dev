@@ -62,6 +62,19 @@
                 Tour ID: {{ $tour->display_id ?? $tour->tour_id }} &mdash;
                 Destination: {{ $tour->destination ?? $tour->tour_destination ?? 'N/A' }}
             </p>
+            @php
+                $previewTourCountries = \App\Helpers\CommonHelper::parseTourDestinationCountries(
+                    (string) ($tour->destination ?? $tour->tour_destination ?? '')
+                );
+                $isPreviewMultiCountry = count($previewTourCountries) > 1;
+            @endphp
+            @if($isPreviewMultiCountry)
+                <p class="text-muted small mb-0 mt-1">
+                    Multi-country itinerary:
+                    {{ implode(' → ', $previewTourCountries) }}
+                    (PDF groups services by country, earliest service first)
+                </p>
+            @endif
         </div>
         <div class="col-md-6 text-md-end mt-2 mt-md-0">
             <div class="invoice-preview-actions d-flex flex-wrap align-items-center justify-content-md-end gap-2 gap-md-3">
@@ -134,9 +147,14 @@
                             <option value="">Select Country</option>
                             @foreach($countries ?? [] as $country)
                                 @php
-                                    $tourCountry = (string) ($tour->destination ?? $tour->tour_destination ?? '');
+                                    $tourCountryList = \App\Helpers\CommonHelper::parseTourDestinationCountries(
+                                        (string) ($tour->destination ?? $tour->tour_destination ?? '')
+                                    );
+                                    $preferredCountry = $tourCountryList[0] ?? '';
+                                    $isSelected = $preferredCountry !== ''
+                                        && strcasecmp($preferredCountry, (string) $country->name) === 0;
                                 @endphp
-                                <option value="{{ $country->name }}" {{ $tourCountry === (string) $country->name ? 'selected' : '' }}>
+                                <option value="{{ $country->name }}" {{ $isSelected ? 'selected' : '' }}>
                                     {{ $country->name }}
                                 </option>
                             @endforeach

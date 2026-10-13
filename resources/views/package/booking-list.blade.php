@@ -638,7 +638,7 @@
                                 
                                 // Get price info
                                 $totalPrice = $bookingDetails['total_price'] ?? 0;
-                                $currency = $bookingDetails['currency'] ?? 'SGD';
+                                $currency = ($currencies[$booking->dmc_id] ?? null) ?: ($bookingDetails['currency'] ?? 'SGD');
                                 $personsForList = $totalPax;
                                 $daysForList = $duration ?: 1;
                                 $bookingTaxesForList = is_array($booking->taxes) ? $booking->taxes : (is_string($booking->taxes) ? json_decode($booking->taxes, true) : []);
@@ -1275,7 +1275,7 @@
         
         // Get price info
         $totalPrice = $bookingDetails['total_price'] ?? 0;
-        $currency = $bookingDetails['currency'] ?? 'SGD';
+        $currency = ($currencies[$booking->dmc_id] ?? null) ?: ($bookingDetails['currency'] ?? 'SGD');
     @endphp
     
     <div class="modal fade" id="viewBookingModal{{ $booking->id }}" tabindex="-1" aria-labelledby="viewBookingModalLabel{{ $booking->id }}" aria-hidden="true">
@@ -1964,7 +1964,7 @@
                                                 <tr>
                                                     <td>{{ \Carbon\Carbon::parse($payment['payment_date'])->format('M d, Y') }}</td>
                                                     <td>{{ isset($payment['created_at']) ? \Carbon\Carbon::parse($payment['created_at'])->format('M d, Y') : 'N/A' }}</td>
-                                                    <td class="text-success fw-bold">${{ number_format($payment['payment_amount'], 2) }}</td>
+                                                    <td class="text-success fw-bold">{{ $currency ?? 'SGD' }} {{ number_format($payment['payment_amount'], 2) }}</td>
                                                     <td>
                                                         <span class="badge bg-info">{{ $payment['payment_type'] }}</span>
                                                     </td>
@@ -2024,7 +2024,7 @@
                                         <div class="card bg-primary text-white">
                                             <div class="card-body text-center">
                                                 <h6 class="card-title">Total Amount</h6>
-                                                <h4 class="mb-0">${{ number_format($totalAmount, 2) }}</h4>
+                                                <h4 class="mb-0">{{ $currency ?? 'SGD' }} {{ number_format($totalAmount, 2) }}</h4>
                                             </div>
                                         </div>
                                     </div>
@@ -2032,7 +2032,7 @@
                                         <div class="card bg-success text-white">
                                             <div class="card-body text-center">
                                                 <h6 class="card-title">Paid Amount</h6>
-                                                <h4 class="mb-0">${{ number_format($paidAmount, 2) }}</h4>
+                                                <h4 class="mb-0">{{ $currency ?? 'SGD' }} {{ number_format($paidAmount, 2) }}</h4>
                                             </div>
                                         </div>
                                     </div>
@@ -2040,7 +2040,7 @@
                                         <div class="card bg-warning text-white">
                                             <div class="card-body text-center">
                                                 <h6 class="card-title">Remaining Amount</h6>
-                                                <h4 class="mb-0">${{ number_format($remainingAmount, 2) }}</h4>
+                                                <h4 class="mb-0">{{ $currency ?? 'SGD' }} {{ number_format($remainingAmount, 2) }}</h4>
                                             </div>
                                         </div>
                                     </div>

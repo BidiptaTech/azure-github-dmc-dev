@@ -4,6 +4,9 @@
 @section('title', 'Edit Zone')
 
 @section('content')
+@php
+    $preselectedCountry = old('country', $selectedCountry ?? $zoneCountry ?? '');
+@endphp
 <style>
     /* Select2 — same integration as vehicles add-vehicle */
     .select2-container--default .select2-selection--single {
@@ -58,6 +61,63 @@
     select#country.is-invalid + .select2-container .select2-selection--single {
         border-color: #dc3545 !important;
     }
+
+    /* Readonly country/city (match zone type look) */
+    select#country:disabled + .select2-container .select2-selection--single,
+    select#city:disabled + .select2-container .select2-selection--single {
+        background-color: #f5f5f9 !important;
+        cursor: not-allowed !important;
+        opacity: 0.85;
+    }
+    select#country:disabled + .select2-container,
+    select#city:disabled + .select2-container {
+        pointer-events: none;
+    }
+
+    .zone-type-options {
+        min-height: 50px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0.15rem;
+        padding-top: 0.1rem;
+    }
+
+    .zone-type-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.75rem 1rem;
+    }
+
+    .zone-type-options .form-check {
+        margin-bottom: 0;
+        min-height: auto;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    .zone-type-options .form-check-input {
+        width: 0.85rem;
+        height: 0.85rem;
+        margin-top: 0;
+        margin-right: 0;
+        flex-shrink: 0;
+        pointer-events: none;
+    }
+
+    .zone-type-options .form-check-label {
+        font-size: 0.78rem;
+        line-height: 1.1;
+        color: #697a8d;
+        margin-bottom: 0;
+        cursor: default;
+    }
+
+    .zone-type-options.readonly {
+        opacity: 0.85;
+    }
 </style>
 <link href="https://cdn.jsdelivr.net/npm/summernote@0.9.0/dist/summernote.min.css" rel="stylesheet">
 <div class="container-xxl flex-grow-1 container-p-y">
@@ -87,42 +147,79 @@
                             </div>
                             
                             <div class="col-md-3">
-                                <label for="zone_type" class="form-label">Zone Type <span class="text-danger">*</span></label>
-                                <select class="form-select @error('zone_type') is-invalid @enderror" id="zone_type" name="zone_type" required>
-                                    <option value="">-- Select Zone Type --</option>
-                                    <option value="Hotel" {{ old('zone_type', $zone->zone_type) == 'Hotel' ? 'selected' : '' }}>Hotel</option>
-                                    <option value="Attraction" {{ old('zone_type', $zone->zone_type) == 'Attraction' ? 'selected' : '' }}>Attraction</option>
-                                    <option value="Restaurant" {{ old('zone_type', $zone->zone_type) == 'Restaurant' ? 'selected' : '' }}>Restaurant</option>
-                                </select>
+                                <label class="form-label">Zone Type <span class="text-danger">*</span></label>
+                                @php($currentZoneType = old('zone_type', $zone->zone_type))
+                                <input type="hidden" name="zone_type" value="{{ $currentZoneType }}">
+                                <div class="zone-type-options readonly" title="Zone type cannot be changed">
+                                    <div class="zone-type-row">
+                                        <div class="form-check">
+                                            <input
+                                                class="form-check-input"
+                                                type="checkbox"
+                                                id="zone_type_hotel"
+                                                value="Hotel"
+                                                {{ $currentZoneType == 'Hotel' ? 'checked' : '' }}
+                                                disabled
+                                            >
+                                            <label class="form-check-label" for="zone_type_hotel">Hotel</label>
+                                        </div>
+
+                                        <div class="form-check">
+                                            <input
+                                                class="form-check-input"
+                                                type="checkbox"
+                                                id="zone_type_attraction"
+                                                value="Attraction"
+                                                {{ $currentZoneType == 'Attraction' ? 'checked' : '' }}
+                                                disabled
+                                            >
+                                            <label class="form-check-label" for="zone_type_attraction">Attraction</label>
+                                        </div>
+                                    </div>
+
+                                    <div class="zone-type-row">
+                                        <div class="form-check">
+                                            <input
+                                                class="form-check-input"
+                                                type="checkbox"
+                                                id="zone_type_restaurant"
+                                                value="Restaurant"
+                                                {{ $currentZoneType == 'Restaurant' ? 'checked' : '' }}
+                                                disabled
+                                            >
+                                            <label class="form-check-label" for="zone_type_restaurant">Restaurant</label>
+                                        </div>
+                                    </div>
+                                </div>
                                 @error('zone_type')
-                                    <div class="invalid-feedback">{{ $message }}</div>
+                                    <div class="invalid-feedback d-block">{{ $message }}</div>
                                 @enderror
                             </div>
 
-                            @if(!empty($isAdmin))
                             <div class="col-md-3">
                                 <label for="country" class="form-label">Country <span class="text-danger">*</span></label>
-                                <select class="form-select @error('country') is-invalid @enderror" id="country" name="country" required>
-                                    <option value=""></option>
-                                    @foreach($countries as $country)
-                                        <option value="{{ $country->name }}" {{ old('country', $zoneCountry) === $country->name ? 'selected' : '' }}>{{ $country->name }}</option>
+                                <input type="hidden" name="country" value="{{ $preselectedCountry }}">
+                                <select class="form-select @error('country') is-invalid @enderror" id="country" disabled title="Country cannot be changed">
+                                    @if(($countries ?? collect())->count() !== 1)
+                                        <option value="">Select Country</option>
+                                    @endif
+                                    @foreach(($countries ?? collect()) as $country)
+                                        <option value="{{ $country->name }}" {{ ($preselectedCountry ?? '') === $country->name ? 'selected' : '' }}>{{ $country->name }}</option>
                                     @endforeach
                                 </select>
                                 @error('country')
                                     <div class="invalid-feedback d-block">{{ $message }}</div>
                                 @enderror
                             </div>
-                            @endif
 
                             <div class="col-md-3">
                                 <label for="city" class="form-label">City <span class="text-danger">*</span></label>
-                                <select class="form-select @error('city') is-invalid @enderror" id="city" name="city" required>
-                                    <option value=""></option>
-                                    @if(empty($isAdmin))
-                                        @foreach($city as $c)
-                                            <option value="{{ $c->city_id }}" {{ (string) old('city', $zone->city) === (string) $c->city_id ? 'selected' : '' }}>{{ $c->name }}</option>
-                                        @endforeach
-                                    @endif
+                                <input type="hidden" name="city" value="{{ old('city', $zone->city) }}">
+                                <select class="form-select @error('city') is-invalid @enderror" id="city" disabled title="City cannot be changed">
+                                    <option value="">{{ !empty($preselectedCountry) ? 'Select City' : 'Select Country First' }}</option>
+                                    @foreach(($city ?? collect()) as $c)
+                                        <option value="{{ $c->city_id }}" {{ (string) old('city', $zone->city) === (string) $c->city_id ? 'selected' : '' }}>{{ $c->name }}</option>
+                                    @endforeach
                                 </select>
                                 @error('city')
                                     <div class="invalid-feedback d-block">{{ $message }}</div>
@@ -186,76 +283,20 @@
             placeholder: 'Enter your content here...',
         });
 
-        const isAdminZoneEdit = @json(!empty($isAdmin));
-        const selectedCityId = @json(old('city', $zone->city));
-        const selectedCountry = @json(old('country', $zoneCountry ?? ''));
+        // Country & city are readonly on edit — display only (values submit via hidden inputs)
+        $('#country').select2({
+            placeholder: 'Country',
+            allowClear: false,
+            width: '100%',
+            disabled: true
+        });
 
-        function initCitySelect2(placeholder) {
-            if ($('#city').hasClass('select2-hidden-accessible')) {
-                $('#city').select2('destroy');
-            }
-            $('#city').select2({
-                placeholder: placeholder || 'Search and Select a City',
-                allowClear: true,
-                width: '100%'
-            });
-        }
-
-        function loadCitiesByCountry(countryName, cityId) {
-            if (!countryName) {
-                $('#city').html('<option value=""></option>');
-                initCitySelect2('Select country first');
-                return;
-            }
-
-            $('#city').html('<option value="">Loading cities...</option>');
-            initCitySelect2('Loading cities...');
-
-            $.ajax({
-                url: "{{ route('get.cities.by.country') }}",
-                type: 'GET',
-                data: { country: countryName },
-                dataType: 'json',
-                success: function(response) {
-                    const cities = response.cities || [];
-                    let options = '<option value=""></option>';
-                    if (cities.length === 0) {
-                        options += '<option value="" disabled>No cities found</option>';
-                    } else {
-                        cities.forEach(function(city) {
-                            const selected = cityId && String(cityId) === String(city.city_id) ? ' selected' : '';
-                            options += '<option value="' + city.city_id + '"' + selected + '>' + city.name + '</option>';
-                        });
-                    }
-                    $('#city').html(options);
-                    initCitySelect2('Search and Select a City');
-                },
-                error: function() {
-                    $('#city').html('<option value="">Error loading cities</option>');
-                    initCitySelect2('Error loading cities');
-                }
-            });
-        }
-
-        if (isAdminZoneEdit) {
-            $('#country').select2({
-                placeholder: 'Search and Select Country',
-                allowClear: true,
-                width: '100%'
-            });
-
-            initCitySelect2('Select country first');
-
-            $('#country').on('change', function() {
-                loadCitiesByCountry($(this).val(), null);
-            });
-
-            if (selectedCountry) {
-                loadCitiesByCountry(selectedCountry, selectedCityId);
-            }
-        } else {
-            initCitySelect2('Search and Select a City');
-        }
+        $('#city').select2({
+            placeholder: 'City',
+            allowClear: false,
+            width: '100%',
+            disabled: true
+        });
     });
 </script>
 @endsection

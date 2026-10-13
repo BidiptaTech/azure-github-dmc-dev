@@ -85,6 +85,8 @@
                 'ledgerFilters' => $ledgerFilters,
                 'ledgerQueryParams' => $ledgerQueryParams,
                 'showReferenceColumn' => $showReferenceColumn,
+                'ledgerSummary' => $ledgerSummary ?? null,
+                'ledgerFilteredSummary' => $ledgerFilteredSummary ?? null,
             ])
         </div>
     </div>
@@ -246,9 +248,15 @@
                     bindPagination();
                 }
 
-                document.addEventListener('DOMContentLoaded', function () {
+                function bootWalletLedgerCards() {
                     document.querySelectorAll('.wallet-ledger-card').forEach(initWalletLedgerCard);
-                });
+                }
+
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', bootWalletLedgerCards);
+                } else {
+                    bootWalletLedgerCards();
+                }
             })();
         </script>
     @endpush

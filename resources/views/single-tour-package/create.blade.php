@@ -70,6 +70,50 @@
         .pac-item-selected {
             background-color: #e3f2fd;
         }
+
+        /* City-aware Places suggestions (selected City dropdown respected) */
+        .gmaps-city-suggestions {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: calc(100% + 2px);
+            z-index: 10050;
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            max-height: 260px;
+            overflow-y: auto;
+            display: none;
+        }
+        .gmaps-city-suggestions.is-open {
+            display: block;
+        }
+        .gmaps-city-suggestion-item {
+            padding: 8px 12px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            font-size: 0.875rem;
+            line-height: 1.35;
+        }
+        .gmaps-city-suggestion-item:last-child {
+            border-bottom: none;
+        }
+        .gmaps-city-suggestion-item:hover,
+        .gmaps-city-suggestion-item.is-active {
+            background-color: #e3f2fd;
+        }
+        .gmaps-city-suggestion-item .main-text {
+            font-weight: 600;
+            color: #212529;
+        }
+        .gmaps-city-suggestion-item .secondary-text {
+            color: #6c757d;
+            font-size: 0.8rem;
+        }
+        body.gmaps-city-suggest-open .pac-container {
+            display: none !important;
+        }
         
         .location-input {
             position: relative;
@@ -325,6 +369,12 @@
 
         .city-toggle input:checked + label {
             color: #fff;
+        }
+
+        .city-toggle.is-thirdparty-disabled {
+            opacity: 0.65;
+            pointer-events: none;
+            cursor: not-allowed;
         }
 
         /* Guest Selector Modal Button Hover Effects */
@@ -649,6 +699,29 @@
             background: rgba(13, 110, 253, 0.16);
             border-color: rgba(13, 110, 253, 0.55) !important;
         }
+
+        .add-agency-contact-wrap {
+            background: #e8f7ff !important;
+            border-bottom: 1px solid #b8e8ff !important;
+        }
+
+        .add-agency-contact-wrap .add-agency-contact-btn {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: #ffffff !important;
+            background: #18C1FF !important;
+            border: 1px solid #18C1FF !important;
+            border-radius: 8px;
+            box-shadow: none;
+        }
+
+        .add-agency-contact-wrap .add-agency-contact-btn:hover,
+        .add-agency-contact-wrap .add-agency-contact-btn:focus {
+            color: #ffffff !important;
+            background: #12b0eb !important;
+            border-color: #12b0eb !important;
+            box-shadow: 0 2px 8px rgba(24, 193, 255, 0.35);
+        }
     </style>
     <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
@@ -680,6 +753,65 @@
     <div class="col-lg-{{ $enquiry ? '8' : '12' }}">
         <form id="singleTourPackageForm" method="POST" action="{{ route('single-tour-package.store') }}">
             @csrf
+
+            @php
+                // Hierarchy: DMC -> Sales Head -> Sales Manager -> Assistant Manager (created_by chain)
+                $currentUser = auth()->user();
+                $currentUserId = $currentUser->userId;
+                $currentUserRole = $currentUser->role_id;
+                $createdBy = null;
+                $dmcUser = null;
+                $isPointToPoint = false;
+
+                // Use same DMC resolution as controller (CommonHelper) - single source of truth for rooms, hotels, etc.
+                $finalDmcId = \App\Helpers\CommonHelper::getDmcId($currentUser);
+
+                // Determine created_by and DMC user for zone_on (point-to-point) and form fields
+                $salesHeadRoleIds = [33, 34, 35, 36, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138];
+                $salesManagerRoleIds = [37, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 139];
+                $assistantManagerRoleIds = [38, 81, 84, 87, 90, 93, 96, 99, 102, 105, 108, 111, 114, 117, 120, 123, 124, 125, 126, 127, 140];
+
+                if ($currentUserRole == 11) {
+                    $createdBy = $currentUserId;
+                    $dmcUser = $currentUser;
+                } elseif (in_array($currentUserRole, $salesHeadRoleIds)) {
+                    $createdBy = $currentUser->created_by;
+                    $dmcUser = $createdBy ? \App\Models\User::where('userId', $createdBy)->first() : null;
+                } elseif (in_array($currentUserRole, $salesManagerRoleIds)) {
+                    $createdBy = $currentUser->created_by;
+                    $salesHead = $createdBy ? \App\Models\User::where('userId', $createdBy)->first() : null;
+                    $dmcUser = $salesHead ? \App\Models\User::where('userId', $salesHead->created_by)->first() : null;
+                } elseif (in_array($currentUserRole, $assistantManagerRoleIds)) {
+                    $createdBy = $currentUser->created_by;
+                    $sm = $createdBy ? \App\Models\User::where('userId', $createdBy)->first() : null;
+                    $salesHead = $sm ? \App\Models\User::where('userId', $sm->created_by)->first() : null;
+                    $dmcUser = $salesHead ? \App\Models\User::where('userId', $salesHead->created_by)->first() : null;
+                }
+
+                if ($finalDmcId === null && $dmcUser) {
+                    $finalDmcId = $dmcUser->userId;
+                }
+                if ($finalDmcId === null) {
+                    $finalDmcId = $currentUser->created_by;
+                }
+
+                if ($dmcUser && isset($dmcUser->zone_on) && $dmcUser->zone_on == 0) {
+                    $isPointToPoint = true;
+                }
+
+                if (!$dmcUser && $finalDmcId) {
+                    $dmcUser = \App\Models\User::where('userId', $finalDmcId)->first();
+                }
+
+                $isThirdPartyDmc = strtolower(trim((string) (optional($dmcUser)->thirdparty ?? 'no'))) === 'yes';
+
+                $dmcCurrency = strtoupper(trim((string) (
+                    optional($dmcUser)->currency
+                    ?? auth()->user()->currency
+                    ?? \App\Helpers\CommonHelper::getDmcCurrencyByCountry()
+                    ?? 'SGD'
+                ))) ?: 'SGD';
+            @endphp
             
             <!-- Main Form Card - All in One Row -->
             <div class="row mb-4">
@@ -711,16 +843,22 @@
                                             <span class="slider"></span>
                                         </div>
                                     </div>
-                                    <div class="ms-3" style="min-width: 230px;">
-                                        <div class="city-toggle">
+                                    <div class="ms-3 d-flex align-items-center flex-wrap gap-2" style="min-width: 230px;">
+                                        <div class="city-toggle{{ !empty($isThirdPartyDmc) ? ' is-thirdparty-disabled' : '' }}" @if(!empty($isThirdPartyDmc)) title="Multi City cannot be accessed for 3rd party DMC." @endif>
                                             <input type="radio" name="city_mode" id="city_mode_single" value="single" checked>
                                             <label for="city_mode_single">Single City</label>
 
-                                            <input type="radio" name="city_mode" id="city_mode_multi" value="multi">
+                                            <input type="radio" name="city_mode" id="city_mode_multi" value="multi" @if(!empty($isThirdPartyDmc)) disabled @endif>
                                             <label for="city_mode_multi">Multi City</label>
 
                                             <span class="slider"></span>
                                         </div>
+                                        @if(!empty($isThirdPartyDmc))
+                                            <div class="d-flex align-items-center px-2 py-1" style="background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.35); border-radius: 8px; color: #fff; font-size: 0.72rem; line-height: 1.25; max-width: 220px;">
+                                                <i class="ri-information-line me-1" style="font-size: 0.9rem;"></i>
+                                                <span>Multi City cannot be accessed for 3rd party DMC.</span>
+                                            </div>
+                                        @endif
                                     </div>
                                 </div>
                             </div>
@@ -808,7 +946,7 @@
                                 <div class="row g-2">
                                     <div class="col-md-6">
                                         <label for="multi_cities" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.78rem;">
-                                            <i class="ri-map-pin-add-line me-1"></i>Select Cities (Master List)
+                                            <i class="ri-map-pin-add-line me-1"></i>Select 
                                         </label>
                                         <select id="multi_cities" class="form-select form-select-sm" multiple style="min-height: 34px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.82rem;"></select>
                                         <small class="text-muted" style="font-size:0.72rem;">Pick cities you will use, then add one <strong>city plan</strong> per stay.</small>
@@ -1071,21 +1209,24 @@
                 <div class="accordion-item border-0">
                     <div class="card shadow-sm border-0">
                         <div class="card-header text-dark d-flex justify-content-between align-items-center" role="button" data-bs-toggle="collapse" data-bs-target="#hotelAccommodationsSection" aria-expanded="false" aria-controls="hotelAccommodationsSection" style="cursor: pointer; background: #e9ecef; border: 1px solid #dee2e6; padding: 0.875rem 1.25rem;">
-                            <div class="d-flex align-items-center">
+                            <div class="d-flex align-items-center flex-grow-1">
                                 <div style="width: 35px; height: 35px; background: rgba(108, 117, 125, 0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 10px;">
                                     <i class="ri-hotel-line" style="color: #6c757d; font-size: 1rem;"></i>
                                 </div>
-                                <div>
+                                <div class="flex-grow-1">
                                     <h6 class="mb-0 fw-semibold text-dark" style="color: #212529 !important; font-size: 0.85rem;">
                                         Hotel Accommodations
-                                        <span id="hotelHeaderSummary" class="fw-normal" style="font-size: 0.8rem; margin-left: 6px;"></span>
                                     </h6>
-                                    <small class="text-muted" style="color: #6c757d !important; font-size: 0.75rem;">Manage hotel bookings and room configurations</small>
+                                    <div id="hotelHeaderDetails" class="text-muted" style="color: #6c757d !important; font-size: 0.75rem; line-height: 1.4;"></div>
+                                    <span id="tourDates" class="d-none"></span>
+                                    <span id="hotelNights" class="d-none"></span>
                                 </div>
                             </div>
-                            <div class="d-flex align-items-center">
-                                <span class="badge me-2" style="background: rgba(108, 117, 125, 0.15); color: #495057; border-radius: 4px; font-size: 0.7rem; padding: 0.25rem 0.5rem;" id="tourDates"></span>
-                                <span class="badge me-2" style="background: rgba(108, 117, 125, 0.15); color: #495057; border-radius: 4px; font-size: 0.7rem; padding: 0.25rem 0.5rem;" id="hotelNights"></span>
+                            <div class="d-flex align-items-center ms-3">
+                                <div class="text-end me-3">
+                                    <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="hotelTotalPrice">{{ $dmcCurrency }} 0.00</div>
+                                    <small class="text-muted" style="font-size: 0.7rem;">Total Price</small>
+                                </div>
                                 <i class="ri-arrow-down-s-line ms-2" style="color: #6c757d !important; font-size: 0.9rem;"></i>
                             </div>
                         </div>
@@ -1133,7 +1274,7 @@
                                         <option value="">Bed Type</option>
                                     </select>
                                     <div id="bedPriceDisplay" class="text-success small mt-1" style="display: none; font-size: 0.75rem;flex-wrap: nowrap;">
-                                        Price: <span class="fw-bold">$0.00</span>
+                                        Price: <span class="fw-bold">0.00</span>
                                     </div>
                                 </div>
                             </div>
@@ -1168,7 +1309,8 @@
                                         <i class="ri-money-dollar-circle-line me-1"></i>Price
                                     </label>
                                     <div class="input-group" style="max-width: 180px; flex-wrap: nowrap;">
-                                        <span class="input-group-text" style="background-color: #f8f9fa; font-size: 0.75rem; height: 36px; border: 1px solid #dee2e6; border-right: none; border-radius: 6px 0 0 6px; padding: 0.375rem 0.5rem;">SGD</span>
+                                        <span class="input-group-text tour-currency-prefix" style="background-color: #f8f9fa; font-size: 0.75rem; height: 36px; border: 1px solid #dee2e6; border-right: none; border-radius: 6px 0 0 6px; padding: 0.375rem 0.5rem;">{{ $dmcCurrency }}</span>
+
                                         <input type="text" class="form-control" id="roomPriceDisplay" value="0.00" style="height: 36px; border-radius: 0 6px 6px 0; border: 1px solid #dee2e6; border-left: none; background-color: #f8f9fa; color: #198754; font-size: 0.8rem; font-weight: 500; text-align: right; padding: 0.375rem 0.5rem;"> 
                                     </div>
                                 </div>
@@ -1191,15 +1333,22 @@
                             <div id="hotelChildPricingSection" class="row g-2 mb-3" style="display: none;">
                                 <div id="hotelChildWithBedWrap" class="col-md-6" style="display: none;">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="chkChildWithBed">
+                                        <input class="form-check-input" type="checkbox" id="chkChildWithBed" disabled
+                                            onchange="if(typeof updateRoomPriceDisplay==='function') updateRoomPriceDisplay(true);">
                                         <label class="form-check-label" for="chkChildWithBed">Child with Bed <small class="text-muted" id="childWithBedPriceLabel"></small></label>
                                     </div>
                                 </div>
                                 <div id="hotelChildWithoutBedWrap" class="col-md-6" style="display: none;">
                                     <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="chkChildWithoutBed">
+                                        <input class="form-check-input" type="checkbox" id="chkChildWithoutBed" disabled
+                                            onchange="if(typeof updateRoomPriceDisplay==='function') updateRoomPriceDisplay(true);">
                                         <label class="form-check-label" for="chkChildWithoutBed">Child without Bed <small class="text-muted" id="childWithoutBedPriceLabel"></small></label>
                                     </div>
+                                </div>
+                                <div class="col-12">
+                                    <small id="hotelChildPricingGuestHint" class="text-muted" style="display: none; font-size: 0.75rem;">
+                                        <i class="ri-information-line me-1"></i>Please add child first (select children or infants in Guests).
+                                    </small>
                                 </div>
                             </div>
                             
@@ -1293,26 +1442,20 @@
                                         <button type="button" class="btn add-btn" id="addHotelBtn" onclick="addHotel()" disabled style="height: 36px; border-radius: 6px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; color: #ffffff; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
                                             <i class="ri-add-line me-1"></i> Add
                                         </button>
+
+                                        <button type="button" class="btn btn-outline-secondary" id="clearHotelFormBtn" onclick="clearHotelForm()" title="Reset hotel form fields" style="height: 36px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; padding: 0.375rem 1rem; white-space: nowrap;">
+                                            <i class="ri-eraser-line me-1"></i>Clear
+                                        </button>
                                     </div>
                                 </div>
                                 
                                 
-                                <div id="nightSelectionSummary">
-                            <div class="alert" style="background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 6px; padding: 0.625rem 0.875rem; margin: 0;">
-                                        <i class="ri-information-line me-2" style="color: #667eea;"></i>
-                                        <small style="color: #495057; font-size: 0.8rem;">No nights selected. Click on the nights above to select hotel stay.</small>
-                                    </div>
-                                </div>
+                                <div id="nightSelectionSummary"></div>
                             </div>
                             </div><!-- /offlineHotelPanel -->
 
                             <!-- Selected Hotels Display -->
-                            <div id="selectedHotels">
-                                <div class="alert alert-info d-flex align-items-center">
-                                    <i class="ri-information-line me-2"></i>
-                                    <span>No hotels selected yet. Choose your hotels above.</span>
-                                </div>
-                            </div>
+                            <div id="selectedHotels"></div>
 
                             <!-- Hotel Summary -->
                             <div class="row mt-3">
@@ -1354,7 +1497,7 @@
                                                     <small class="text-white-50">Total cost for all selected services</small>
                                                 </div>
                                                 <div class="text-end">
-                                                    <div class="h4 mb-0" id="packageTotalPrice">$0.00</div>
+                                                    <div class="h4 mb-0" id="packageTotalPrice">{{ $dmcCurrency }} 0.00</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -1401,58 +1544,13 @@
             <input type="hidden" id="attractionBookings" name="attraction_bookings" value="[]">
             <input type="hidden" id="portBookings" name="port_bookings" value="[]">
             
-            @php
-                // Hierarchy: DMC -> Sales Head -> Sales Manager -> Assistant Manager (created_by chain)
-                $currentUser = auth()->user();
-                $currentUserId = $currentUser->userId;
-                $currentUserRole = $currentUser->role_id;
-                $createdBy = null;
-                $dmcUser = null;
-                $isPointToPoint = false;
-
-                // Use same DMC resolution as controller (CommonHelper) - single source of truth for rooms, hotels, etc.
-                $finalDmcId = \App\Helpers\CommonHelper::getDmcId($currentUser);
-
-                // Determine created_by and DMC user for zone_on (point-to-point) and form fields
-                $salesHeadRoleIds = [33, 34, 35, 36, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138];
-                $salesManagerRoleIds = [37, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 139];
-                $assistantManagerRoleIds = [38, 81, 84, 87, 90, 93, 96, 99, 102, 105, 108, 111, 114, 117, 120, 123, 124, 125, 126, 127, 140];
-
-                if ($currentUserRole == 11) {
-                    $createdBy = $currentUserId;
-                    $dmcUser = $currentUser;
-                } elseif (in_array($currentUserRole, $salesHeadRoleIds)) {
-                    $createdBy = $currentUser->created_by;
-                    $dmcUser = $createdBy ? \App\Models\User::where('userId', $createdBy)->first() : null;
-                } elseif (in_array($currentUserRole, $salesManagerRoleIds)) {
-                    $createdBy = $currentUser->created_by;
-                    $salesHead = $createdBy ? \App\Models\User::where('userId', $createdBy)->first() : null;
-                    $dmcUser = $salesHead ? \App\Models\User::where('userId', $salesHead->created_by)->first() : null;
-                } elseif (in_array($currentUserRole, $assistantManagerRoleIds)) {
-                    $createdBy = $currentUser->created_by;
-                    $sm = $createdBy ? \App\Models\User::where('userId', $createdBy)->first() : null;
-                    $salesHead = $sm ? \App\Models\User::where('userId', $sm->created_by)->first() : null;
-                    $dmcUser = $salesHead ? \App\Models\User::where('userId', $salesHead->created_by)->first() : null;
-                }
-
-                if ($finalDmcId === null && $dmcUser) {
-                    $finalDmcId = $dmcUser->userId;
-                }
-                if ($finalDmcId === null) {
-                    $finalDmcId = $currentUser->created_by;
-                }
-
-                if ($dmcUser && isset($dmcUser->zone_on) && $dmcUser->zone_on == 0) {
-                    $isPointToPoint = true;
-                }
-            @endphp
-            
             <!-- DMC Information -->
             <input type="hidden" id="dmc_id" name="dmc_id" value="{{ $finalDmcId }}">
             <input type="hidden" id="current_user_id" name="current_user_id" value="{{ $currentUserId }}">
             <input type="hidden" id="current_user_role" name="current_user_role" value="{{ $currentUserRole }}">
             <input type="hidden" id="created_by" name="created_by" value="{{ $createdBy }}">
             <input type="hidden" id="is_point_to_point" name="is_point_to_point" value="{{ $isPointToPoint ? 1 : 0 }}">
+            <input type="hidden" id="tour_package_currency" value="{{ $dmcCurrency }}">
             
             <!-- JSON Data Fields for Service Orders -->
             <input type="hidden" id="hotel_data" name="hotel_data" value="">
@@ -1505,7 +1603,7 @@
                                     <div class="col-md-2">
                                         <label class="form-label mb-1" style="font-size: 0.8rem;">Country Code</label>
                                         @php
-                                            $country_cod = App\Models\Country::where('is_active', 1)->get();
+                                            $country_cod = App\Models\Country::get();
                                             $singapore = $country_cod->firstWhere('name', 'Singapore');
                                             $defaultCountryCode = $singapore ? $singapore->country_code : ($country_cod->first()->country_code ?? '');
                                         @endphp
@@ -1624,7 +1722,7 @@
                                                 style="height: 48px; border-radius: 8px 0 0 8px; font-size: 0.95rem;"
                                             >
                                             <span class="input-group-text fw-semibold" style="height: 48px; border-radius: 0 8px 8px 0; font-size: 0.85rem; background:#f8f9fa; color:#495057;">
-                                                {{ strtoupper(Auth::user()->currency ?? 'SGD') }}
+                                                {{ $dmcCurrency }}
                                             </span>
                                         </div>
                                     </div>
@@ -1650,6 +1748,81 @@
                     
                     // DMC User data for zone handling
                     const UserDmc = @json($dmcUser);
+                    window.IS_THIRD_PARTY_DMC = @json(!empty($isThirdPartyDmc));
+
+                    window.TOUR_PACKAGE_CURRENCY = @json($dmcCurrency);
+                    window.getTourCurrency = function () {
+                        const el = document.getElementById('tour_package_currency');
+                        return (el && el.value) ? el.value : (window.TOUR_PACKAGE_CURRENCY || 'SGD');
+                    };
+                    window.formatTourPrice = function (amount) {
+                        return window.getTourCurrency() + ' ' + Number(amount || 0).toFixed(2);
+                    };
+                    window.formatTourPriceParen = function (amount) {
+                        return '(' + window.getTourCurrency() + ' ' + Number(amount || 0).toFixed(2) + ')';
+                    };
+
+                    /** City + country for the stay currently being edited (multi-city plan or single city). */
+                    window.getActiveServiceGeo = function () {
+                        const geo = { city: '', country: '' };
+                        const fromOption = function (opt, fallbackValue) {
+                            const out = { city: '', country: '' };
+                            if (!opt) {
+                                out.city = String(fallbackValue || '').trim();
+                                return out;
+                            }
+                            out.city = String(opt.getAttribute('data-city-name') || '').trim()
+                                || String(opt.textContent || '').split('(')[0].trim()
+                                || String(fallbackValue || '').trim();
+                            out.country = String(opt.getAttribute('data-country') || '').trim();
+                            if (!out.country) {
+                                const m = String(opt.textContent || '').match(/\(([^)]+)\)\s*$/);
+                                if (m && m[1]) out.country = String(m[1]).trim();
+                            }
+                            return out;
+                        };
+                        try {
+                            const modeEl = document.querySelector('input[name="city_mode"]:checked');
+                            const isMulti = modeEl && modeEl.value === 'multi';
+                            if (isMulti) {
+                                const bundle = document.getElementById('segmentServicesBundle');
+                                const seg = bundle ? bundle.closest('.segment') : null;
+                                const sel = seg ? seg.querySelector('.city-select') : null;
+                                if (sel && sel.selectedIndex >= 0) {
+                                    const parsed = fromOption(sel.options[sel.selectedIndex], sel.value);
+                                    if (parsed.city || parsed.country) return parsed;
+                                }
+                            }
+
+                            const sc = document.getElementById('single_city');
+                            if (sc && String(sc.value || '').trim()) {
+                                let parsed = fromOption(sc.selectedIndex >= 0 ? sc.options[sc.selectedIndex] : null, sc.value);
+                                try {
+                                    if (typeof $ !== 'undefined' && $(sc).data('select2')) {
+                                        const d = $(sc).select2('data');
+                                        if (d && d[0]) {
+                                            if (!parsed.city && d[0].text) parsed.city = String(d[0].text).split('(')[0].trim();
+                                            if (!parsed.country && d[0].country) parsed.country = String(d[0].country).trim();
+                                        }
+                                    }
+                                } catch (e) { /* ignore */ }
+                                if (parsed.city || parsed.country) {
+                                    geo.city = parsed.city;
+                                    geo.country = parsed.country;
+                                }
+                            }
+                            if (!geo.country) {
+                                geo.country = String(document.getElementById('user_country')?.value || '').trim();
+                            }
+                        } catch (e) { /* ignore */ }
+                        return geo;
+                    };
+                    window.getActiveServiceCity = function () {
+                        return String((window.getActiveServiceGeo() || {}).city || '').trim();
+                    };
+                    window.getActiveServiceCountry = function () {
+                        return String((window.getActiveServiceGeo() || {}).country || '').trim();
+                    };
 
                     // ==============================
                     // Additional Guests Management
@@ -1809,6 +1982,22 @@
                         }
                         if (childrenInput) {
                             childrenInput.addEventListener('change', updateGuestLimitInfo);
+                            childrenInput.addEventListener('change', function () {
+                                if (typeof window.updateHotelChildCheckboxEnabledState === 'function') {
+                                    window.updateHotelChildCheckboxEnabledState();
+                                }
+                            });
+                        }
+                        const infantsInputGuest = document.getElementById('infants');
+                        if (infantsInputGuest) {
+                            infantsInputGuest.addEventListener('change', function () {
+                                if (typeof window.updateHotelChildCheckboxEnabledState === 'function') {
+                                    window.updateHotelChildCheckboxEnabledState();
+                                }
+                            });
+                        }
+                        if (typeof window.updateHotelChildCheckboxEnabledState === 'function') {
+                            window.updateHotelChildCheckboxEnabledState();
                         }
                     });
                     
@@ -1855,7 +2044,7 @@
                             helperTotal += (parseFloat(opts.helperMeals.lunch) || 0);
                             helperTotal += (parseFloat(opts.helperMeals.dinner) || 0);
                             const helperMealCost = helperTotal * rooms;
-                            console.log(`HELPER Meal cost: Plan: ${mealPlan}, Rooms: ${rooms}, Total: $${helperMealCost}`);
+                            console.log(`HELPER Meal cost: Plan: ${mealPlan}, Rooms: ${rooms}, Total: ${getTourCurrency()} ${helperMealCost}`);
                             return helperMealCost;
                         }
 
@@ -1883,6 +2072,267 @@
                         }
                         
                         return totalMealCost;
+                    };
+
+                    window.getHotelMealTypeTotal = function(hotel, mealType) {
+                        if (!hotel) return 0;
+                        const persons = parseInt(hotel.selectedPersons, 10) || 1;
+                        const nights = parseInt(hotel.totalNights, 10) || 1;
+                        const rooms = parseInt(hotel.numberOfRooms, 10) || 1;
+                        const plan = (hotel.mealPlan || '').toLowerCase();
+
+                        if (mealType === 'breakfast') {
+                            if (hotel.supplement_breakfast_included) return 0;
+                            if (!plan.includes('breakfast') && !plan.includes('bf')) return 0;
+                        } else if (!plan.includes(mealType)) {
+                            return 0;
+                        }
+
+                        if (hotel.helperMeals && typeof hotel.helperMeals === 'object') {
+                            return (parseFloat(hotel.helperMeals[mealType]) || 0) * rooms;
+                        }
+
+                        const priceKey = mealType + '_price';
+                        const unit = parseFloat(hotel.mealPrices && hotel.mealPrices[priceKey]) || 0;
+                        return unit * persons * nights * rooms;
+                    };
+
+                    window.formatHotelMealBreakdownLine = function(hotel, mealType) {
+                        if (!hotel) return '';
+                        const cur = typeof getTourCurrency === 'function' ? getTourCurrency() : '';
+                        const persons = parseInt(hotel.selectedPersons, 10) || 1;
+                        const nights = parseInt(hotel.totalNights, 10) || 1;
+                        const rooms = parseInt(hotel.numberOfRooms, 10) || 1;
+                        const plan = (hotel.mealPlan || '').toLowerCase();
+
+                        if (mealType === 'breakfast' && hotel.supplement_breakfast_included) {
+                            return 'Included (supplement)';
+                        }
+                        if (mealType === 'breakfast' && !plan.includes('breakfast') && !plan.includes('bf')) return '';
+                        if (mealType !== 'breakfast' && !plan.includes(mealType)) return '';
+
+                        const total = window.getHotelMealTypeTotal(hotel, mealType);
+
+                        if (hotel.helperMeals && typeof hotel.helperMeals === 'object') {
+                            const perRoom = parseFloat(hotel.helperMeals[mealType]) || 0;
+                            if (perRoom <= 0 && total <= 0) {
+                                return `${cur} 0.00`;
+                            }
+                            const divisor = persons * nights;
+                            const perPersonNight = divisor > 0 ? (perRoom / divisor) : 0;
+                            let line = `${cur} ${perPersonNight.toFixed(2)}/person/night × ${persons} person(s) × ${nights} night(s)`;
+                            if (rooms > 1) {
+                                line += ` × ${rooms} room(s)`;
+                            }
+                            line += ` = ${cur} ${total.toFixed(2)} (rate-based)`;
+                            return line;
+                        }
+
+                        const priceKey = mealType + '_price';
+                        const unit = parseFloat(hotel.mealPrices && hotel.mealPrices[priceKey]) || 0;
+                        return `${cur} ${unit.toFixed(2)} × ${persons} person(s) × ${nights} night(s) × ${rooms} room(s) = ${cur} ${total.toFixed(2)}`;
+                    };
+
+                    window.formatHotelMealCostSummaryHtml = function(hotel) {
+                        if (!hotel || typeof window.calculateCorrectMealCosts !== 'function') {
+                            return '';
+                        }
+                        const cur = typeof getTourCurrency === 'function' ? getTourCurrency() : '';
+                        const parts = [];
+                        ['breakfast', 'lunch', 'dinner'].forEach(function(meal) {
+                            const amt = window.getHotelMealTypeTotal(hotel, meal);
+                            if (amt > 0) {
+                                const label = meal.charAt(0).toUpperCase() + meal.slice(1);
+                                parts.push(`${label} ${cur} ${amt.toFixed(2)}`);
+                            } else if (meal === 'breakfast' && hotel.supplement_breakfast_included) {
+                                parts.push('Breakfast included (supplement)');
+                            }
+                        });
+                        const total = window.calculateCorrectMealCosts(
+                            hotel.mealPlan,
+                            hotel.totalNights,
+                            hotel.selectedPersons || 1,
+                            0,
+                            hotel.mealPrices,
+                            hotel.numberOfRooms,
+                            { supplementBreakfastIncluded: !!hotel.supplement_breakfast_included, helperMeals: hotel.helperMeals || null }
+                        );
+                        if (!parts.length) {
+                            return `${cur} ${Number(total).toFixed(2)}`;
+                        }
+                        return parts.join(' + ') + ` = ${cur} ${Number(total).toFixed(2)}`;
+                    };
+
+                    window.formatHotelCostSummaryRowHtml = function(label, amount, detail) {
+                        const cur = typeof getTourCurrency === 'function' ? getTourCurrency() : '';
+                        let amountHtml;
+                        if (typeof amount === 'string') {
+                            amountHtml = amount;
+                        } else {
+                            const amt = Number(amount) || 0;
+                            amountHtml = `${cur} ${amt.toFixed(2)}`;
+                        }
+                        return `
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between" style="color: rgba(255, 255, 255, 0.9);">
+                                    <span>${label}:</span>
+                                    <span style="font-weight: 500; color: #ffffff !important;">${amountHtml}</span>
+                                </div>
+                                ${detail ? `<div style="font-size: 0.72rem; text-align: right; color: rgba(255,255,255,0.88); line-height: 1.35;">${detail}</div>` : ''}
+                            </div>
+                        `;
+                    };
+
+                    window.formatHotelRoomCostSummaryDetail = function(hotel) {
+                        if (!hotel) return '';
+                        const cur = typeof getTourCurrency === 'function' ? getTourCurrency() : '';
+                        const rooms = parseInt(hotel.numberOfRooms, 10) || 1;
+                        const roomAmt = (parseFloat(hotel.price) || 0) * rooms;
+
+                        let breakdown = '';
+                        if (hotel.weekdayNights || hotel.weekendNights) {
+                            let weekdayPrice = 0;
+                            let weekendPrice = 0;
+                            if (hotel.priceBreakdown && hotel.priceBreakdown.length > 0) {
+                                const weekdayNight = hotel.priceBreakdown.find(function(n) { return !n.isWeekend; });
+                                const weekendNight = hotel.priceBreakdown.find(function(n) { return n.isWeekend; });
+                                weekdayPrice = weekdayNight ? weekdayNight.price : 0;
+                                weekendPrice = weekendNight ? weekendNight.price : 0;
+                            }
+                            if (hotel.weekdayNights && weekdayPrice > 0) {
+                                breakdown += `${hotel.weekdayNights} weekday @ ${cur} ${weekdayPrice.toFixed(2)}/night`;
+                            }
+                            if (hotel.weekdayNights && hotel.weekendNights && weekdayPrice > 0 && weekendPrice > 0) {
+                                breakdown += ' + ';
+                            }
+                            if (hotel.weekendNights && weekendPrice > 0) {
+                                breakdown += `${hotel.weekendNights} weekend @ ${cur} ${weekendPrice.toFixed(2)}/night`;
+                            }
+                            if (breakdown) {
+                                breakdown += ` × ${rooms} room(s) = ${cur} ${roomAmt.toFixed(2)}`;
+                            }
+                        }
+                        if (!breakdown) {
+                            breakdown = `${cur} ${((parseFloat(hotel.pricePerNight) || 0)).toFixed(2)}/night avg × ${hotel.totalNights || 1} night(s) × ${rooms} room(s) = ${cur} ${roomAmt.toFixed(2)}`;
+                        }
+                        return breakdown;
+                    };
+
+                    window.computeHotelBookingGrandTotal = function(hotel, cwbChildren, cnbChildren) {
+                        const maxOcc = parseInt(hotel.maxOccupancy, 10) || 0;
+                        let extraBedCost = parseFloat(hotel.extraBedCost) || 0;
+                        if (extraBedCost <= 0 && hotel.extraBedPrice > 0 && (hotel.selectedPersons || 1) > maxOcc) {
+                            extraBedCost = hotel.extraBedPrice * ((hotel.selectedPersons || 1) - maxOcc) * (hotel.numberOfRooms || 1) * (hotel.totalNights || 1);
+                        }
+                        let roomAndExtraCost;
+                        if (hotel.roomPriceManuallyEdited && parseFloat(hotel.customRoomPrice) > 0) {
+                            roomAndExtraCost = parseFloat(hotel.customRoomPrice);
+                            extraBedCost = 0;
+                        } else {
+                            const combined = parseFloat(hotel.combinedRoomTotal);
+                            roomAndExtraCost = (Number.isFinite(combined) && combined > 0)
+                                ? combined
+                                : ((parseFloat(hotel.price) || 0) * (parseInt(hotel.numberOfRooms) || 1)) + extraBedCost;
+                            if (Number.isFinite(combined) && combined > 0) {
+                                extraBedCost = 0;
+                            }
+                        }
+                        let mealCost = 0;
+                        if (typeof window.calculateCorrectMealCosts === 'function') {
+                            mealCost = window.calculateCorrectMealCosts(
+                                hotel.mealPlan,
+                                hotel.totalNights,
+                                hotel.selectedPersons || 1,
+                                0,
+                                hotel.mealPrices,
+                                hotel.numberOfRooms,
+                                { supplementBreakfastIncluded: !!hotel.supplement_breakfast_included, helperMeals: hotel.helperMeals || null }
+                            );
+                        }
+                        const cwbCost = (hotel.childWithBedEnabled && (parseFloat(hotel.childWithBedPrice) || 0) > 0)
+                            ? (parseFloat(hotel.childWithBedPrice) || 0) * (cwbChildren || 0) * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)
+                            : 0;
+                        const cnbCost = (hotel.childWithoutBedEnabled && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0)
+                            ? (parseFloat(hotel.childWithoutBedPrice) || 0) * (cnbChildren || 0) * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)
+                            : 0;
+                        return roomAndExtraCost + mealCost + cwbCost + cnbCost;
+                    };
+
+                    window.renderHotelCostSummaryBreakdownHtml = function(hotel, cwbChildren, cnbChildren) {
+                        if (!hotel) return '';
+                        const cur = typeof getTourCurrency === 'function' ? getTourCurrency() : '';
+                        let html = '';
+
+                        if (hotel.roomPriceManuallyEdited && parseFloat(hotel.customRoomPrice) > 0) {
+                            html += window.formatHotelCostSummaryRowHtml(
+                                'Room Cost',
+                                parseFloat(hotel.customRoomPrice),
+                                `Custom / Get Price room total = ${cur} ${parseFloat(hotel.customRoomPrice).toFixed(2)}`
+                            );
+                        } else {
+                            const roomAmt = (parseFloat(hotel.price) || 0) * (parseInt(hotel.numberOfRooms) || 1);
+                            html += window.formatHotelCostSummaryRowHtml('Room Cost', roomAmt, window.formatHotelRoomCostSummaryDetail(hotel));
+
+                            const maxOcc = parseInt(hotel.maxOccupancy, 10) || 0;
+                            let extraBedCost = parseFloat(hotel.extraBedCost) || 0;
+                            if (extraBedCost <= 0 && hotel.extraBedPrice > 0 && (hotel.selectedPersons || 1) > maxOcc) {
+                                extraBedCost = hotel.extraBedPrice * ((hotel.selectedPersons || 1) - maxOcc) * (hotel.numberOfRooms || 1) * (hotel.totalNights || 1);
+                            }
+                            if (extraBedCost > 0 && (hotel.selectedPersons || 1) > maxOcc) {
+                                const extraPersons = (hotel.selectedPersons || 1) - maxOcc;
+                                html += window.formatHotelCostSummaryRowHtml(
+                                    'Extra Bed Cost',
+                                    extraBedCost,
+                                    `${cur} ${parseFloat(hotel.extraBedPrice).toFixed(2)} × ${extraPersons} extra person(s) × ${hotel.numberOfRooms} room(s) × ${hotel.totalNights} night(s) = ${cur} ${extraBedCost.toFixed(2)}`
+                                );
+                            }
+                        }
+
+                        if (hotel.mealPlan && !hotel.mealPlan.includes('only')) {
+                            ['breakfast', 'lunch', 'dinner'].forEach(function(meal) {
+                                const label = meal.charAt(0).toUpperCase() + meal.slice(1);
+                                if (meal === 'breakfast' && hotel.supplement_breakfast_included) {
+                                    html += window.formatHotelCostSummaryRowHtml('Breakfast (Meal)', 'Included', 'Supplement breakfast included');
+                                    return;
+                                }
+                                const amt = window.getHotelMealTypeTotal(hotel, meal);
+                                if (amt > 0) {
+                                    html += window.formatHotelCostSummaryRowHtml(
+                                        label + ' (Meal)',
+                                        amt,
+                                        window.formatHotelMealBreakdownLine(hotel, meal)
+                                    );
+                                }
+                            });
+                        }
+
+                        if ((hotel.childWithBedEnabled || false) && (parseFloat(hotel.childWithBedPrice) || 0) > 0) {
+                            const unit = parseFloat(hotel.childWithBedPrice) || 0;
+                            const rooms = parseInt(hotel.numberOfRooms, 10) || 1;
+                            const nights = parseInt(hotel.totalNights, 10) || 1;
+                            const count = parseInt(cwbChildren, 10) || 0;
+                            const total = unit * count * rooms * nights;
+                            html += window.formatHotelCostSummaryRowHtml(
+                                'Child with Bed',
+                                total,
+                                `${cur} ${unit.toFixed(2)} × ${count} child(ren) × ${rooms} room(s) × ${nights} night(s) = ${cur} ${total.toFixed(2)}`
+                            );
+                        }
+
+                        if ((hotel.childWithoutBedEnabled || false) && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0) {
+                            const unit = parseFloat(hotel.childWithoutBedPrice) || 0;
+                            const rooms = parseInt(hotel.numberOfRooms, 10) || 1;
+                            const nights = parseInt(hotel.totalNights, 10) || 1;
+                            const count = parseInt(cnbChildren, 10) || 0;
+                            const total = unit * count * rooms * nights;
+                            html += window.formatHotelCostSummaryRowHtml(
+                                'Child without Bed',
+                                total,
+                                `${cur} ${unit.toFixed(2)} × ${count} child(ren) × ${rooms} room(s) × ${nights} night(s) = ${cur} ${total.toFixed(2)}`
+                            );
+                        }
+
+                        return html;
                     };
                     
                     // Function to fetch ports by country
@@ -2242,7 +2692,7 @@
                                 const breakfastPrice = parseFloat(mealPrices.breakfast_price) || 0;
                                 if (breakfastPrice > 0) {
                                     totalMealCost += breakfastPrice * totalGuests * numNights;
-                                    console.log(`Breakfast: $${breakfastPrice} × ${totalGuests} guests × ${numNights} nights = $${breakfastPrice * totalGuests * numNights}`);
+                                    console.log(`Breakfast: ${getTourCurrency()} ${breakfastPrice} × ${totalGuests} guests × ${numNights} nights = ${getTourCurrency()} ${breakfastPrice * totalGuests * numNights}`);
                                 }
                             }
                             
@@ -2250,7 +2700,7 @@
                                 const lunchPrice = parseFloat(mealPrices.lunch_price) || 0;
                                 if (lunchPrice > 0) {
                                     totalMealCost += lunchPrice * totalGuests * numNights;
-                                    console.log(`Lunch: $${lunchPrice} × ${totalGuests} guests × ${numNights} nights = $${lunchPrice * totalGuests * numNights}`);
+                                    console.log(`Lunch: ${getTourCurrency()} ${lunchPrice} × ${totalGuests} guests × ${numNights} nights = ${getTourCurrency()} ${lunchPrice * totalGuests * numNights}`);
                                 }
                             }
                             
@@ -2258,7 +2708,7 @@
                                 const dinnerPrice = parseFloat(mealPrices.dinner_price) || 0;
                                 if (dinnerPrice > 0) {
                                     totalMealCost += dinnerPrice * totalGuests * numNights;
-                                    console.log(`Dinner: $${dinnerPrice} × ${totalGuests} guests × ${numNights} nights = $${dinnerPrice * totalGuests * numNights}`);
+                                    console.log(`Dinner: ${getTourCurrency()} ${dinnerPrice} × ${totalGuests} guests × ${numNights} nights = ${getTourCurrency()} ${dinnerPrice * totalGuests * numNights}`);
                                 }
                             }
                         } else {
@@ -2267,7 +2717,7 @@
                             return 0;
                         }
                         
-                        console.log(`Meal cost calculation: Plan: ${mealPlan}, Guests: ${totalGuests}, Nights: ${numNights}, Rooms: ${numRooms}, Total Cost: $${totalMealCost}`);
+                        console.log(`Meal cost calculation: Plan: ${mealPlan}, Guests: ${totalGuests}, Nights: ${numNights}, Rooms: ${numRooms}, Total Cost: ${getTourCurrency()} ${totalMealCost}`);
                         return totalMealCost;
                     }
 
@@ -2439,7 +2889,7 @@
                                         dinner_price: parseFloat(matchingRoom.dinner_price) || 0
                                     };
                                     console.log('✅ Fallback meal prices from room data:', fallbackMealPrices);
-                                    showNotification(`Fallback meal prices found: Breakfast: $${fallbackMealPrices.breakfast_price}, Lunch: $${fallbackMealPrices.lunch_price}, Dinner: $${fallbackMealPrices.dinner_price}`, 'success');
+                                    showNotification(`Fallback meal prices found: Breakfast: ${getTourCurrency()} ${fallbackMealPrices.breakfast_price}, Lunch: ${getTourCurrency()} ${fallbackMealPrices.lunch_price}, Dinner: ${getTourCurrency()} ${fallbackMealPrices.dinner_price}`, 'success');
                                     return fallbackMealPrices;
                                 } else {
                                     console.log('❌ No matching room found in global room data for:', selectedRoomType);
@@ -2454,7 +2904,7 @@
                             console.log('Breakfast: $' + mealPrices.breakfast_price);
                             console.log('Lunch: $' + mealPrices.lunch_price);
                             console.log('Dinner: $' + mealPrices.dinner_price);
-                            showNotification(`Meal prices found: Breakfast: $${mealPrices.breakfast_price}, Lunch: $${mealPrices.lunch_price}, Dinner: $${mealPrices.dinner_price}`, 'success');
+                            showNotification(`Meal prices found: Breakfast: ${getTourCurrency()} ${mealPrices.breakfast_price}, Lunch: ${getTourCurrency()} ${mealPrices.lunch_price}, Dinner: ${getTourCurrency()} ${mealPrices.dinner_price}`, 'success');
                         }
                         
                         return mealPrices;
@@ -2481,7 +2931,7 @@
                             helperTotal += (parseFloat(opts.helperMeals.lunch) || 0);
                             helperTotal += (parseFloat(opts.helperMeals.dinner) || 0);
                             const helperMealCost = helperTotal * rooms;
-                            console.log(`HELPER Meal cost: Plan: ${mealPlan}, Rooms: ${rooms}, Total: $${helperMealCost}`);
+                            console.log(`HELPER Meal cost: Plan: ${mealPlan}, Rooms: ${rooms}, Total: ${getTourCurrency()} ${helperMealCost}`);
                             return helperMealCost;
                         }
 
@@ -2491,7 +2941,7 @@
                                 if (breakfastPrice > 0) {
                                     const breakfastCost = breakfastPrice * totalGuests * numNights * numRooms;
                                     totalMealCost += breakfastCost;
-                                    console.log(`CORRECTED Breakfast: $${breakfastPrice} × ${totalGuests} guests × ${numNights} nights × ${numRooms} rooms = $${breakfastCost}`);
+                                    console.log(`CORRECTED Breakfast: ${getTourCurrency()} ${breakfastPrice} × ${totalGuests} guests × ${numNights} nights × ${numRooms} rooms = ${getTourCurrency()} ${breakfastCost}`);
                                 }
                             }
                             
@@ -2500,7 +2950,7 @@
                                 if (lunchPrice > 0) {
                                     const lunchCost = lunchPrice * totalGuests * numNights * numRooms;
                                     totalMealCost += lunchCost;
-                                    console.log(`CORRECTED Lunch: $${lunchPrice} × ${totalGuests} guests × ${numNights} nights × ${numRooms} rooms = $${lunchCost}`);
+                                    console.log(`CORRECTED Lunch: ${getTourCurrency()} ${lunchPrice} × ${totalGuests} guests × ${numNights} nights × ${numRooms} rooms = ${getTourCurrency()} ${lunchCost}`);
                                 }
                             }
                             
@@ -2509,12 +2959,12 @@
                                 if (dinnerPrice > 0) {
                                     const dinnerCost = dinnerPrice * totalGuests * numNights * numRooms;
                                     totalMealCost += dinnerCost;
-                                    console.log(`CORRECTED Dinner: $${dinnerPrice} × ${totalGuests} guests × ${numNights} nights × ${numRooms} rooms = $${dinnerCost}`);
+                                    console.log(`CORRECTED Dinner: ${getTourCurrency()} ${dinnerPrice} × ${totalGuests} guests × ${numNights} nights × ${numRooms} rooms = ${getTourCurrency()} ${dinnerCost}`);
                                 }
                             }
                         }
                         
-                        console.log(`CORRECTED Meal cost: Plan: ${mealPlan}, Guests: ${totalGuests}, Nights: ${numNights}, Rooms: ${numRooms}, Total: $${totalMealCost}`);
+                        console.log(`CORRECTED Meal cost: Plan: ${mealPlan}, Guests: ${totalGuests}, Nights: ${numNights}, Rooms: ${numRooms}, Total: ${getTourCurrency()} ${totalMealCost}`);
                         return totalMealCost;
                     };
 
@@ -2643,6 +3093,8 @@
                                 id: null,
                                 bookingType: 'enquiry',
                                 bookingDate: [checkInDate, checkOutDate], // Selected check-in and check-out dates
+                                city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || (selectedHotelInfo && selectedHotelInfo.city) || hotel.city || '',
+                                country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '') || (selectedHotelInfo && selectedHotelInfo.country) || hotel.country || '',
                                 
                                 // Hotel Details
                                 hotelDetails: selectedHotelInfo ? {
@@ -2650,6 +3102,8 @@
                                     hotel_name: selectedHotelInfo.name,
                                     image: selectedHotelInfo.main_image,
                                     location: selectedHotelInfo.city,
+                                    country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '') || selectedHotelInfo.country || '',
+                                    city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || selectedHotelInfo.city || '',
                                     checkInTime: selectedHotelInfo.check_in_time || "",
                                     checkOutTime: selectedHotelInfo.check_out_time || "",
                                     cancellation_charge: null
@@ -2657,7 +3111,9 @@
                                     hotel_id: hotel.id,
                                     hotel_name: hotel.name,
                                     image: "",
-                                    location: "Location not specified",
+                                    location: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || hotel.city || "Location not specified",
+                                    country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '') || hotel.country || '',
+                                    city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || hotel.city || '',
                                     checkInTime: hotel.check_in_time || "",
                                     checkOutTime: hotel.check_out_time || "",
                                     cancellation_charge: null
@@ -2776,7 +3232,7 @@
                                     if (totalRoomPrice === 0 && hotel.priceBreakdown && hotel.priceBreakdown.length > 0) {
                                         // Sum up the per-night prices
                                         totalRoomPrice = hotel.priceBreakdown.reduce((sum, night) => sum + night.price, 0);
-                                        console.log(`Calculated room price from breakdown: $${totalRoomPrice}`);
+                                        console.log(`Calculated room price from breakdown: ${getTourCurrency()} ${totalRoomPrice}`);
                                     }
                                     
                                     const numRooms = parseInt(hotel.numberOfRooms) || 1;
@@ -2817,7 +3273,7 @@
                                     const cnbCost = (hotel.childWithoutBedEnabled && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0) ? (parseFloat(hotel.childWithoutBedPrice) || 0) * numChildrenForCnb * numRooms * numNights : 0;
                                     
                                     const total = roomAndExtraBedCost + mealCost + cwbCost + cnbCost;
-                                    console.log(`Hotel pricing for ${hotel.name}: Total room price (all nights): $${totalRoomPrice}, Rooms: ${numRooms}, Nights: ${numNights}, Room+extra bed: $${roomAndExtraBedCost}, Meal cost: $${mealCost}, Extra bed (in room line): $${extraBedCost}, Child with bed: $${cwbCost}, Child without bed: $${cnbCost}, Total: $${total}`);
+                                    console.log(`Hotel pricing for ${hotel.name}: Total room price (all nights): ${getTourCurrency()} ${totalRoomPrice}, Rooms: ${numRooms}, Nights: ${numNights}, Room+extra bed: ${getTourCurrency()} ${roomAndExtraBedCost}, Meal cost: ${getTourCurrency()} ${mealCost}, Extra bed (in room line): ${getTourCurrency()} ${extraBedCost}, Child with bed: ${getTourCurrency()} ${cwbCost}, Child without bed: ${getTourCurrency()} ${cnbCost}, Total: ${getTourCurrency()} ${total}`);
                                     
                                     // Log weekday/weekend breakdown if available
                                     if (hotel.weekdayNights || hotel.weekendNights) {
@@ -2863,9 +3319,9 @@
                             console.log('=== FINAL HOTEL PRICING SUMMARY ===');
                             hotelDataArray.forEach((hotel, index) => {
                                 console.log(`Hotel ${index + 1} (${hotel.hotelDetails.hotel_name}):`);
-                                console.log(`  - Calculated totalPrice: $${hotel.totalPrice}`);
-                                if (hotel.child_with_bed) console.log(`  - Child with bed: $${hotel.child_with_bed.total_cost} (${hotel.child_with_bed.children} children @ $${hotel.child_with_bed.price})`);
-                                if (hotel.child_without_bed) console.log(`  - Child without bed: $${hotel.child_without_bed.total_cost} (${hotel.child_without_bed.children} children @ $${hotel.child_without_bed.price})`);
+                                console.log(`  - Calculated totalPrice: ${getTourCurrency()} ${hotel.totalPrice}`);
+                                if (hotel.child_with_bed) console.log(`  - Child with bed: ${getTourCurrency()} ${hotel.child_with_bed.total_cost} (${hotel.child_with_bed.children} children @ ${getTourCurrency()} ${hotel.child_with_bed.price})`);
+                                if (hotel.child_without_bed) console.log(`  - Child without bed: ${getTourCurrency()} ${hotel.child_without_bed.total_cost} (${hotel.child_without_bed.children} children @ ${getTourCurrency()} ${hotel.child_without_bed.price})`);
                                 console.log(`  - Room type: ${hotel.rooms[0].room_type}`);
                                 console.log(`  - Bed type: ${hotel.rooms[0].beds[0].bed_type}`);
                                 console.log(`  - Tour ID: ${hotel.tour_id}`);
@@ -3055,7 +3511,7 @@
                                                     (guestInfo.children * finalChildPrice) + 
                                                     (guestInfo.seniors * finalSeniorPrice);
                                     
-                                    console.log(`Attraction pricing: ${selectedOption.text} - Adult: $${finalAdultPrice} × ${guestInfo.adults}, Child: $${finalChildPrice} × ${guestInfo.children}, Senior: $${finalSeniorPrice} × ${guestInfo.seniors}, Total: $${totalPrice}`);
+                                    console.log(`Attraction pricing: ${selectedOption.text} - Adult: ${getTourCurrency()} ${finalAdultPrice} × ${guestInfo.adults}, Child: ${getTourCurrency()} ${finalChildPrice} × ${guestInfo.children}, Senior: ${getTourCurrency()} ${finalSeniorPrice} × ${guestInfo.seniors}, Total: ${getTourCurrency()} ${totalPrice}`);
                                     
                                     attractionDataArray.push({
                                         // Customer Information (from Customer Information form)
@@ -3071,6 +3527,8 @@
                                         
                                         // Attraction Information
                                         bookingDate: document.getElementById(`day${day}_attraction_${index}_date`)?.value || getTourDateForDay(day),
+                                        city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || document.getElementById(`day${day}_attraction_city_${index}`)?.value || '',
+                                        country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '') || (document.getElementById(`day${day}_attraction_city_${index}`)?.options[document.getElementById(`day${day}_attraction_city_${index}`)?.selectedIndex]?.getAttribute('data-country') || ''),
                                         visitTime: timeSlot || "10:00-00:00",
                                         adultCount: guestInfo.adults || 0,
                                         childCount: guestInfo.children || 0,
@@ -3329,8 +3787,8 @@
                                         bookingDate: guideDate,
                                         dayIndex: parseInt(day),
                                         Tax: "7.00", // Default tax value
-                                        city: "Singapore", // Default city
-                                        country: "Singapore", // Default country
+                                        city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
+                                        country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : ''),
                                         languages: selectedOption.dataset.languages ? JSON.parse(selectedOption.dataset.languages) : [], // Parse languages if available
                                         experience: parseInt(selectedOption.dataset.experience) || 0, // Get experience from dataset
                                         remarks: document.getElementById(`day${day}_guide_${index}_remarks`)?.value || '',
@@ -3460,7 +3918,7 @@
                                     }
                                     
                                     console.log(`Restaurant pricing for day ${day}, index ${index}:`);
-                                    console.log(`- Total Price: $${totalPrice}`);
+                                    console.log(`- Total Price: ${getTourCurrency()} ${totalPrice}`);
                                     console.log(`- Meal ID: ${mealId}`);
                                     console.log(`- Dish Name: ${dishName}`);
                                     console.log(`- Selected Dish: ${selectedDishText}`);
@@ -3510,6 +3968,8 @@
                                         
                                         // Restaurant Information
                                         bookingDate: document.getElementById(`day${day}_restaurant_${index}_date`)?.value || getTourDateForDay(day),
+                                        city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '') || document.getElementById(`day${day}_restaurant_city_${index}`)?.value || '',
+                                        country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '') || (document.getElementById(`day${day}_restaurant_city_${index}`)?.options[document.getElementById(`day${day}_restaurant_city_${index}`)?.selectedIndex]?.getAttribute('data-country') || ''),
                                         visitTime: formatVisitTime(timeSlot),
                                         adultCount: guestInfo.adults || 0,
                                         childCount: guestInfo.children || 0,
@@ -3694,8 +4154,9 @@
                                                 const citySelect = document.getElementById('modal_local_transfer_city');
                                                 const cityOption = citySelect?.options[citySelect?.selectedIndex];
                                                 const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                                const countryFromStay = (typeof window.getActiveServiceCountry === 'function') ? window.getActiveServiceCountry() : '';
                                                 const countryFromField = document.getElementById('user_country')?.value || '';
-                                                const countryValue = countryFromCityOption || countryFromField || '';
+                                                const countryValue = countryFromCityOption || countryFromStay || countryFromField || '';
                                                 return countryValue || pickupZone.dataset.country || "";
                                             })(),
                                             fullName: customerData.fullName,
@@ -3818,8 +4279,9 @@
                                                 const citySelect = document.getElementById('modal_exit_city');
                                                 const cityOption = citySelect?.options[citySelect?.selectedIndex];
                                                 const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                                const countryFromStay = (typeof window.getActiveServiceCountry === 'function') ? window.getActiveServiceCountry() : '';
                                                 const countryFromField = document.getElementById('user_country')?.value || '';
-                                                const countryValue = countryFromCityOption || countryFromField || '';
+                                                const countryValue = countryFromCityOption || countryFromStay || countryFromField || '';
                                                 return countryValue || pickupZone.dataset.country || "";
                                             })(),
                                             fullName: customerData.fullName,
@@ -3960,10 +4422,10 @@
                                             fullName: customerData.fullName,
                                             email: customerData.email,
                                             phone: customerData.phone,
-                                            country: "Singapore",
+                                            country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : ''),
                                             countryCode: customerData.countryCode,
                                             state: customerData.state || null,
-                                            city: "Singapore",
+                                            city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
                                             zip: customerData.zip,
                                             address1: customerData.address1,
                                             address2: customerData.address2 || null,
@@ -4056,10 +4518,10 @@
                                             fullName: customerData.fullName,
                                             email: customerData.email,
                                             phone: customerData.phone,
-                                            country: "Singapore",
+                                            country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : ''),
                                             countryCode: customerData.countryCode,
                                             state: customerData.state || null,
-                                            city: "Singapore",
+                                            city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
                                             zip: customerData.zip,
                                             address1: customerData.address1,
                                             address2: customerData.address2 || null,
@@ -4237,7 +4699,7 @@
                                                 document.getElementById(`day${day}_${section}_tax`)?.value || "0.00")),
                                             Night_Start_Time: nightStartTime || null,
                                             Night_End_Time: nightEndTime || null,
-                                            country: pickupZone.dataset.country || "Singapore",
+                                            country: pickupZone.dataset.country || (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : ''),
                                             fullName: customerData.fullName,
                                             email: customerData.email,
                                             phone: customerData.phone,
@@ -4373,8 +4835,9 @@
                                             // Get country from city select option's data-country attribute, or from user_country field
                                             const cityOption = citySelect?.options[citySelect?.selectedIndex];
                                             const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                            const countryFromStay = (typeof window.getActiveServiceCountry === 'function') ? window.getActiveServiceCountry() : '';
                                             const countryFromField = document.getElementById('user_country')?.value || '';
-                                            const countryValue = countryFromCityOption || countryFromField || '';
+                                            const countryValue = countryFromCityOption || countryFromStay || countryFromField || '';
                                             
                                             const transportData = {
                                                 id: `entry-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -4489,8 +4952,9 @@
                                                     const citySelect = document.getElementById('modal_exit_city');
                                                     const cityOption = citySelect?.options[citySelect?.selectedIndex];
                                                     const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                                    const countryFromStay = (typeof window.getActiveServiceCountry === 'function') ? window.getActiveServiceCountry() : '';
                                                     const countryFromField = document.getElementById('user_country')?.value || '';
-                                                    const countryValue = countryFromCityOption || countryFromField || '';
+                                                    const countryValue = countryFromCityOption || countryFromStay || countryFromField || '';
                                                     return countryValue || pickupZone.dataset.country || "";
                                                 })(),
                                                 fullName: customerData.fullName,
@@ -4652,16 +5116,17 @@
                                                         // Get city from the city select field
                                                         const citySelect = document.getElementById('modal_local_transfer_city');
                                                         const cityValue = citySelect?.value || '';
-                                                        return cityValue || "Singapore";
+                                                        return cityValue || (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '');
                                                     })(),
                                                     country: (() => {
                                                         // Get country from city select option's data-country attribute, or from user_country field
                                                         const citySelect = document.getElementById('modal_local_transfer_city');
                                                         const cityOption = citySelect?.options[citySelect?.selectedIndex];
                                                         const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                                        const countryFromStay = (typeof window.getActiveServiceCountry === 'function') ? window.getActiveServiceCountry() : '';
                                                         const countryFromField = document.getElementById('user_country')?.value || '';
-                                                        const countryValue = countryFromCityOption || countryFromField || '';
-                                                        return countryValue || "Singapore";
+                                                        const countryValue = countryFromCityOption || countryFromStay || countryFromField || '';
+                                                        return countryValue || (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '');
                                                     })(),
                                                                     bookingType: "enquiry",
                                                                     vehicleIndex: vehicleIndex, // Add index to identify which vehicle this is
@@ -4818,15 +5283,16 @@
                                                         // Get city from the exit city select field
                                                         const citySelect = document.getElementById('modal_exit_city');
                                                         const cityValue = citySelect?.value || '';
-                                                        return cityValue || "";
+                                                        return cityValue || (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : '');
                                                     })(),
                                                     country: (() => {
                                                         // Get country from exit city select option's data-country attribute, or from user_country field
                                                         const citySelect = document.getElementById('modal_exit_city');
                                                         const cityOption = citySelect?.options[citySelect?.selectedIndex];
                                                         const countryFromCityOption = cityOption?.getAttribute('data-country') || '';
+                                                        const countryFromStay = (typeof window.getActiveServiceCountry === 'function') ? window.getActiveServiceCountry() : '';
                                                         const countryFromField = document.getElementById('user_country')?.value || '';
-                                                        const countryValue = countryFromCityOption || countryFromField || '';
+                                                        const countryValue = countryFromCityOption || countryFromStay || countryFromField || '';
                                                         return countryValue || "";
                                                     })(),
                                                     userInfo: {
@@ -5142,7 +5608,7 @@
                         
                         // Log details of each transport
                         transportDataArray.forEach((transport, index) => {
-                            console.log(`Transport ${index + 1}: ${transport.vehicles_name} - $${transport.totalPrice}`);
+                            console.log(`Transport ${index + 1}: ${transport.vehicles_name} - ${getTourCurrency()} ${transport.totalPrice}`);
                         });
                         
                         // Update package total price display
@@ -5235,7 +5701,7 @@
                                     if (hotel.totalPrice && !isNaN(parseFloat(hotel.totalPrice))) {
                                         const hotelPrice = parseFloat(hotel.totalPrice);
                                         totalPrice += hotelPrice;
-                                        console.log(`Hotel ${index + 1} (${hotel.hotel_name || 'Unknown'}): $${hotelPrice} added to total`);
+                                        console.log(`Hotel ${index + 1} (${hotel.hotel_name || 'Unknown'}): ${getTourCurrency()} ${hotelPrice} added to total`);
                                     } else {
                                         console.warn(`Hotel ${index + 1} (${hotel.hotel_name || 'Unknown'}): Invalid or missing totalPrice:`, hotel.totalPrice);
                                     }
@@ -5323,7 +5789,7 @@
                         const totalPrice = calculateTotalPackagePrice();
                         const totalPriceElement = document.getElementById('packageTotalPrice');
                         if (totalPriceElement) {
-                            totalPriceElement.textContent = `$${totalPrice}`;
+                            totalPriceElement.textContent = `${getTourCurrency()} ${totalPrice}`;
                             console.log('Package total price display updated:', totalPrice);
                         }
                         
@@ -5350,7 +5816,7 @@
                                         breakdownHTML += `
                                             <div class="d-flex justify-content-between align-items-center mb-2">
                                                 <span><i class="ri-hotel-bed-line me-2"></i>Hotel ${index + 1}: ${hotel.hotel_name || 'Hotel'}</span>
-                                                <span class="badge bg-primary">$${price.toFixed(2)}</span>
+                                                <span class="badge bg-primary">${getTourCurrency()} ${price.toFixed(2)}</span>
                                             </div>
                                             <small class="text-muted ms-4">${roomInfo}</small>
                                         `;
@@ -5371,7 +5837,7 @@
                                         breakdownHTML += `
                                             <div class="d-flex justify-content-between align-items-center mb-2">
                                                 <span><i class="ri-camera-3-line me-2"></i>Attraction ${index + 1}: ${attraction.AttractionName || 'Attraction'}</span>
-                                                <span class="badge bg-info">$${price.toFixed(2)}</span>
+                                                <span class="badge bg-info">${getTourCurrency()} ${price.toFixed(2)}</span>
                                             </div>
                                             <small class="text-muted ms-4">${ticketInfo}</small>
                                         `;
@@ -5392,7 +5858,7 @@
                                         breakdownHTML += `
                                             <div class="d-flex justify-content-between align-items-center mb-2">
                                                 <span><i class="ri-restaurant-2-line me-2"></i>Restaurant ${index + 1}: ${restaurant.restaurantName || 'Restaurant'}</span>
-                                                <span class="badge bg-warning text-dark">$${price.toFixed(2)}</span>
+                                                <span class="badge bg-warning text-dark">${getTourCurrency()} ${price.toFixed(2)}</span>
                                             </div>
                                             <small class="text-muted ms-4">${mealInfo}</small>
                                         `;
@@ -5411,7 +5877,7 @@
                                         breakdownHTML += `
                                             <div class="d-flex justify-content-between align-items-center mb-2">
                                                 <span><i class="ri-map-pin-user-line me-2"></i>Guide ${index + 1}: ${guide.guide_name || 'Guide'}</span>
-                                                <span class="badge bg-success">$${price.toFixed(2)}</span>
+                                                <span class="badge bg-success">${getTourCurrency()} ${price.toFixed(2)}</span>
                                             </div>
                                         `;
                                     }
@@ -5429,7 +5895,7 @@
                                         breakdownHTML += `
                                             <div class="d-flex justify-content-between align-items-center mb-2">
                                                 <span><i class="ri-car-line me-2"></i>Transport ${index + 1}: ${transport.vehicles_name || 'Transport'}</span>
-                                                <span class="badge bg-secondary">$${price.toFixed(2)}</span>
+                                                <span class="badge bg-secondary">${getTourCurrency()} ${price.toFixed(2)}</span>
                                             </div>
                                         `;
                                     }
@@ -5447,7 +5913,7 @@
                                         breakdownHTML += `
                                             <div class="d-flex justify-content-between align-items-center mb-2">
                                                 <span><i class="ri-map-pin-line me-2"></i>Entry Port ${index + 1}: ${entryPort.vehicles_name || 'Entry Transport'}</span>
-                                                <span class="badge bg-info">$${price.toFixed(2)}</span>
+                                                <span class="badge bg-info">${getTourCurrency()} ${price.toFixed(2)}</span>
                                             </div>
                                         `;
                                     }
@@ -5465,7 +5931,7 @@
                                         breakdownHTML += `
                                             <div class="d-flex justify-content-between align-items-center mb-2">
                                                 <span><i class="ri-map-pin-line me-2"></i>Exit Port ${index + 1}: ${exitPort.vehicles_name || 'Exit Transport'}</span>
-                                                <span class="badge bg-info">$${price.toFixed(2)}</span>
+                                                <span class="badge bg-info">${getTourCurrency()} ${price.toFixed(2)}</span>
                                             </div>
                                         `;
                                     }
@@ -5478,7 +5944,7 @@
                                     <hr class="my-3">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <span class="fw-bold"><i class="ri-money-dollar-circle-line me-2"></i>Total Package Price:</span>
-                                        <span class="h5 text-success mb-0">$${totalCalculated.toFixed(2)}</span>
+                                        <span class="h5 text-success mb-0">${getTourCurrency()} ${totalCalculated.toFixed(2)}</span>
                                     </div>
                                 `;
                             } else {
@@ -5545,7 +6011,10 @@
                             return null;
                         };
                         let tourId = resolveTourId();
-                        const cityMode = (document.querySelector('input[name="city_mode"]:checked') || {}).value || 'single';
+                        let cityMode = (document.querySelector('input[name="city_mode"]:checked') || {}).value || 'single';
+                        if (window.IS_THIRD_PARTY_DMC) {
+                            cityMode = 'single';
+                        }
                         const isMultiCity = (cityMode === 'multi');
                         const enquiry = @json($enquiry);
                         const csrfToken = document.querySelector('input[name="_token"]').value;
@@ -5699,6 +6168,15 @@
                             fd.append('entry_port_data', payload.entry_port_data || '');
                             fd.append('exit_port_data', payload.exit_port_data || '');
                             fd.append('total_price', payload.total_price || 0);
+                            if (payload.country) {
+                                fd.append('country', payload.country);
+                            }
+                            if (payload.city) {
+                                fd.append('city', payload.city);
+                            }
+                            if (payload.currency) {
+                                fd.append('currency', payload.currency);
+                            }
                             const resp = await fetch(storeOrdersUrl, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }, body: fd });
                             if (!resp.ok) { const txt = await resp.text(); throw new Error('HTTP ' + resp.status + ': ' + txt); }
                             return await resp.json();
@@ -5773,7 +6251,14 @@
                                 const hasAny = !!(st.hotelDataField || st.attractionDataField || st.restaurantDataField ||
                                                 st.guideDataField || st.transportDataField || st.entryPortDataField || st.exitPortDataField);
 
-                                segmentInfos.push({ key, cityId, cityLabel, segCountry, stayFrom, stayTo, st, hasAny });
+                                const segCurrency = (st.segmentCurrency
+                                    || (segCountry && typeof window.getCurrencyForCountryName === 'function'
+                                        ? window.getCurrencyForCountryName(segCountry)
+                                        : '')
+                                    || (typeof getTourCurrency === 'function' ? getTourCurrency() : '')
+                                    || '').toString().trim().toUpperCase();
+
+                                segmentInfos.push({ key, cityId, cityLabel, segCountry, segCurrency, stayFrom, stayTo, st, hasAny });
 
                                 // Build CSV for the single Tour record
                                 if (cityLabel) {
@@ -5880,7 +6365,10 @@
                                         transport_data: forceServicesToSegmentStartDate(seg.st.transportDataField || '', seg.stayFrom),
                                         entry_port_data: forceServicesToSegmentStartDate(seg.st.entryPortDataField || '', seg.stayFrom),
                                         exit_port_data: forceServicesToSegmentStartDate(seg.st.exitPortDataField || '', seg.stayFrom),
-                                        total_price: 0
+                                        total_price: 0,
+                                        country: seg.segCountry || '',
+                                        city: String(seg.cityLabel || '').replace(/\s*\([^)]*\)\s*$/, '').trim(),
+                                        currency: seg.segCurrency || ''
                                     });
 
                                     if (!result || !result.success) {
@@ -6027,6 +6515,37 @@
                         }
 
                         try {
+                            const singleOrderCountry = (typeof country !== 'undefined' && country)
+                                ? country
+                                : (document.getElementById('user_country')?.value || '');
+                            const singleOrderCurrency = (typeof getTourCurrency === 'function')
+                                ? getTourCurrency()
+                                : (document.getElementById('tour_package_currency')?.value || '');
+                            let singleOrderCity = (typeof cityName !== 'undefined' && cityName) ? cityName : '';
+                            if (!singleOrderCity) {
+                                const cityEl = document.getElementById('single_city');
+                                if (cityEl) {
+                                    try {
+                                        if (typeof $ !== 'undefined' && $(cityEl).length && $(cityEl).data('select2')) {
+                                            const d2 = $(cityEl).select2('data');
+                                            if (d2 && d2.length && d2[0] && d2[0].text) {
+                                                singleOrderCity = String(d2[0].text).replace(/\s*\([^)]*\)\s*$/, '').trim();
+                                            }
+                                        }
+                                    } catch (eCity) { /* ignore */ }
+                                    if (!singleOrderCity) {
+                                        const v = String(cityEl.value || '').trim();
+                                        if (v && !/^\d+$/.test(v)) {
+                                            singleOrderCity = v.replace(/\s*\([^)]*\)\s*$/, '').trim();
+                                        } else if (cityEl.selectedIndex >= 0) {
+                                            const opt = cityEl.options[cityEl.selectedIndex];
+                                            const t = opt ? String(opt.textContent || '').trim() : '';
+                                            if (t) singleOrderCity = t.replace(/\s*\([^)]*\)\s*$/, '').trim();
+                                        }
+                                    }
+                                }
+                            }
+
                             const result = await postServiceOrders({
                                 tour_id: tourId,
                                 hotel_data: hotelData,
@@ -6036,7 +6555,10 @@
                                 transport_data: transportData,
                                 entry_port_data: entryPortData,
                                 exit_port_data: exitPortData,
-                                total_price: totalPrice
+                                total_price: totalPrice,
+                                country: singleOrderCountry,
+                                city: singleOrderCity,
+                                currency: singleOrderCurrency
                             });
 
                             if (result.success) {
@@ -6170,7 +6692,7 @@
                             <div class="p-3">
                                 <h6 class="text-warning fw-bold mb-3">
                                     <i class="ri-service-line me-2"></i>Selected Services
-                                </h6>
+                                </h6> 
                                 
                                 @if($hotels->count() > 0)
                                 <div class="service-item mb-3">
@@ -6399,6 +6921,66 @@
         </div>
     </div>
 </div>
+
+<!-- Add Agency Contact Modal -->
+<div class="modal fade" id="addAgencyContactModal" tabindex="-1" aria-labelledby="addAgencyContactModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addAgencyContactModalLabel">
+                    <i class="ri-user-add-line me-1"></i>Add Agency Contact
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="addAgencyContactForm" onsubmit="return false;">
+                <div class="modal-body">
+                    <div id="quickAgencyContactErrors" class="alert alert-danger py-2 px-3 d-none" style="font-size: 0.85rem;"></div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold mb-1">Agency Company</label>
+                        <div class="form-control bg-light" id="quickAgencyContactAgencyName" style="height: 38px; line-height: 24px;"></div>
+                        <input type="hidden" name="agency_id" id="quickAgencyContactAgencyId" value="">
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold mb-1">Salutation <span class="text-danger">*</span></label>
+                            <select class="form-select" name="salutation" required>
+                                <option value="">Select</option>
+                                <option value="Mr">Mr.</option>
+                                <option value="Mrs">Mrs.</option>
+                                <option value="Miss">Miss</option>
+                                <option value="Dear">Dear</option>
+                            </select>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label fw-semibold mb-1">Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="name" placeholder="Contact name" required>
+                        </div>
+                    </div>
+                    <div class="row g-2 mt-1">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold mb-1">Email <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control" name="email" placeholder="Email address" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold mb-1">Phone <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="phone" placeholder="Phone number" required>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <label class="form-label fw-semibold mb-1">Designation <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="designation" placeholder="e.g. Sales Manager" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveQuickAgencyContactBtn" onclick="saveQuickAgencyContact()">
+                        <i class="ri-save-line me-1"></i>Save Contact
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 @endsection
 
 @section('scripts')
@@ -6412,7 +6994,143 @@
     <!-- Select2 JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
     <!-- Select2 Initialization Script -->
+    @php
+        $countryCurrencyMap = $countries
+            ->filter(fn ($c) => !empty($c->name) && !empty($c->currency))
+            ->mapWithKeys(fn ($c) => [$c->name => strtoupper(trim((string) $c->currency))]);
+    @endphp
     <script>
+        window.TOUR_PACKAGE_CURRENCY = @json($dmcCurrency);
+        window.COUNTRY_CURRENCY_MAP = @json($countryCurrencyMap);
+        window.getTourCurrency = function () {
+            const el = document.getElementById('tour_package_currency');
+            return (el && el.value) ? el.value : (window.TOUR_PACKAGE_CURRENCY || 'SGD');
+        };
+        window.getCurrencyForCountryName = function (countryName) {
+            const name = String(countryName || '').trim();
+            if (!name) {
+                return window.getTourCurrency();
+            }
+            const map = window.COUNTRY_CURRENCY_MAP || {};
+            if (map[name]) {
+                return map[name];
+            }
+            const lower = name.toLowerCase();
+            for (const key of Object.keys(map)) {
+                if (String(key).toLowerCase() === lower) {
+                    return map[key];
+                }
+            }
+            return window.TOUR_PACKAGE_CURRENCY || 'SGD';
+        };
+        window.setTourPackageCurrency = function (code, options) {
+            options = options || {};
+            const cur = String(code || '').trim().toUpperCase() || 'SGD';
+            window.TOUR_PACKAGE_CURRENCY = cur;
+            const hidden = document.getElementById('tour_package_currency');
+            if (hidden) {
+                hidden.value = cur;
+            }
+            const bundle = document.getElementById('segmentServicesBundle');
+            if (bundle) {
+                bundle.querySelectorAll('.tour-currency-prefix').forEach(function (span) {
+                    span.textContent = cur;
+                });
+                bundle.querySelectorAll('.input-group-text').forEach(function (span) {
+                    const t = String(span.textContent || '').trim();
+                    if (/^[A-Z]{2,4}$/.test(t)) {
+                        span.textContent = cur;
+                    }
+                });
+            }
+            if (options.refresh !== false && typeof window.refreshTourCurrencyDisplayInBundle === 'function') {
+                window.refreshTourCurrencyDisplayInBundle();
+            }
+        };
+        window.refreshTourCurrencyDisplayInBundle = function () {
+            const root = document.getElementById('segmentServicesBundle');
+            if (!root) {
+                return;
+            }
+            const cur = window.getTourCurrency();
+            const reformat = function (el) {
+                if (!el || el.tagName === 'INPUT' || !el.textContent) {
+                    return;
+                }
+                const raw = String(el.textContent).trim();
+                const m = raw.match(/(-?\d[\d,]*\.?\d*)/);
+                if (!m) {
+                    if (/0\.00/.test(raw)) {
+                        el.textContent = cur + ' 0.00';
+                    }
+                    return;
+                }
+                const num = parseFloat(m[1].replace(/,/g, ''));
+                if (isNaN(num)) {
+                    return;
+                }
+                el.textContent = cur + ' ' + num.toFixed(2);
+            };
+            root.querySelectorAll('[id$="TotalPrice"]').forEach(reformat);
+            root.querySelectorAll('span[id$="_total_price_display"], div[id$="_arrival_total_price"], div[id$="_departure_total_price"], div[id$="_other_transport_total_price"]').forEach(reformat);
+            if (typeof displaySelectedHotels === 'function') {
+                displaySelectedHotels();
+            }
+            if (typeof updatePackageTotalPriceDisplay === 'function') {
+                updatePackageTotalPriceDisplay();
+            }
+            let td = 1;
+            const r = window.multiSegmentStayRange;
+            if (r && r.start && r.end && typeof moment !== 'undefined') {
+                const diff = moment(r.end).diff(moment(r.start), 'days') + 1;
+                if (diff > 0) {
+                    td = diff;
+                }
+            }
+            for (let d = 1; d <= td; d++) {
+                if (typeof window.updateArrivalHeader === 'function') {
+                    window.updateArrivalHeader(d);
+                }
+                if (typeof window.updateDepartureHeader === 'function') {
+                    window.updateDepartureHeader(d);
+                }
+                if (typeof window.updateOtherTransportHeader === 'function') {
+                    window.updateOtherTransportHeader(d);
+                }
+                if (typeof window.updateAttractionSectionSummary === 'function') {
+                    window.updateAttractionSectionSummary(d);
+                }
+                if (typeof window.updateGuideSectionSummary === 'function') {
+                    window.updateGuideSectionSummary(d);
+                }
+                if (typeof window.updateRestaurantSectionSummary === 'function') {
+                    window.updateRestaurantSectionSummary(d);
+                }
+            }
+        };
+        window.applyTourCurrencyForSegment = function ($segment) {
+            if (typeof $ === 'undefined' || !$segment || !$segment.length) {
+                return;
+            }
+            const $opt = $segment.find('.city-select option:selected');
+            const country = String($opt.attr('data-country') || '').trim();
+            if (country) {
+                window.setTourPackageCurrency(window.getCurrencyForCountryName(country), { refresh: false });
+                return;
+            }
+            const key = String($segment.data('index'));
+            const st = (window.__segmentServiceState && key) ? window.__segmentServiceState[key] : null;
+            if (st && st.segmentCurrency) {
+                window.setTourPackageCurrency(st.segmentCurrency, { refresh: false });
+            }
+        };
+        window.formatTourPrice = function (amount) {
+            return window.getTourCurrency() + ' ' + Number(amount || 0).toFixed(2);
+        };
+        window.formatTourPriceParen = function (amount) {
+            return '(' + window.getTourCurrency() + ' ' + Number(amount || 0).toFixed(2) + ')';
+        };
+
         // Global function to reinitialize Select2 on a specific element
         window.reinitializeSelect2 = function(elementId, placeholder) {
             const $element = $('#' + elementId);
@@ -6455,7 +7173,7 @@
             return p;
         };
 
-        // Service city dropdowns (single-city mode: default from main tour city; stays editable)
+        // Service city dropdowns (single-city mode: locked to main tour city; multi-city: editable per segment)
         window.SERVICE_CITY_SELECTORS = [
             '#hotelCitySelect',
             '#modal_local_transfer_city',
@@ -6477,9 +7195,71 @@
                     const $dd = $(this);
                     if (!$dd.length) return;
                     $dd.prop('disabled', ro);
-                    // If Select2 is attached, it will reflect disabled state automatically.
                 });
             });
+        };
+
+        window.refreshServiceCitySelect2 = function ($dd, placeholder, readonly) {
+            if (!$dd || !$dd.length) return;
+            try {
+                if ($dd.hasClass('select2-hidden-accessible')) {
+                    $dd.select2('destroy');
+                }
+            } catch (e) { /* ignore */ }
+            $dd.select2({
+                placeholder: placeholder || 'Select city...',
+                allowClear: !readonly,
+                width: '100%'
+            });
+            $dd.prop('disabled', !!readonly);
+        };
+
+        /** Single-city: service city fields show only the main tour city and cannot be changed. */
+        window.applySingleCityLockToServiceDropdowns = function (cityMeta) {
+            if (typeof window.isSingleCityMode !== 'function' || !window.isSingleCityMode()) {
+                return;
+            }
+            const meta = cityMeta || (typeof window.getSingleCityMeta === 'function' ? window.getSingleCityMeta() : {});
+            const cityName = (meta.text || window.getSingleCityName() || meta.value || '').trim();
+            if (!cityName) {
+                return;
+            }
+            const cityValue = cityName;
+            const cityId = meta.id ? String(meta.id) : '';
+
+            window.SERVICE_CITY_SELECTORS.forEach(function (sel) {
+                $(sel).each(function () {
+                    const $dd = $(this);
+                    if (!$dd.length) return;
+
+                    const prevVal = String($dd.val() || '');
+                    const idAttr = cityId ? ' data-id="' + cityId.replace(/"/g, '&quot;') + '"' : '';
+                    $dd.html(
+                        '<option value="' + cityValue.replace(/"/g, '&quot;') + '"' + idAttr + ' selected>' +
+                        cityName.replace(/</g, '&lt;') + '</option>'
+                    );
+                    $dd.val(cityValue);
+                    $dd.prop('disabled', true);
+                    window.refreshServiceCitySelect2($dd, cityName, true);
+
+                    if (prevVal !== cityValue) {
+                        $dd.trigger('change');
+                    }
+                });
+            });
+            window.setServiceCityReadonly(true);
+        };
+
+        /** Multi-city: restore editable service city lists from country. */
+        window.releaseServiceCityDropdownsForMultiCity = function () {
+            if (typeof window.isSingleCityMode === 'function' && window.isSingleCityMode()) {
+                return;
+            }
+            window.setServiceCityReadonly(false);
+            const country = $('#user_country').val();
+            if (country && typeof window.populateAllCityDropdowns === 'function') {
+                window.populateAllCityDropdowns(country);
+            }
         };
 
         window.getSingleCityName = function () {
@@ -6526,6 +7306,12 @@
         };
 
         window.syncAllServiceCities = function (cityName) {
+            if (typeof window.isSingleCityMode === 'function' && window.isSingleCityMode()) {
+                if (typeof window.applySingleCityLockToServiceDropdowns === 'function') {
+                    window.applySingleCityLockToServiceDropdowns();
+                }
+                return;
+            }
             if (!cityName || !String(cityName).trim()) return;
 
             const needle = String(cityName).trim();
@@ -6577,7 +7363,11 @@
                     });
 
                     if (matchedVal === null) {
-                        $dd.append($('<option></option>').attr('value', needle).text(needle));
+                        const geo = (typeof window.getActiveServiceGeo === 'function') ? window.getActiveServiceGeo() : {};
+                        const $opt = $('<option></option>').attr('value', needle).text(needle);
+                        if (geo.country) $opt.attr('data-country', geo.country);
+                        if (geo.city) $opt.attr('data-city-name', geo.city);
+                        $dd.append($opt);
                         matchedVal = needle;
                     }
 
@@ -6610,15 +7400,17 @@
             }
         };
 
-        // Single-city mode: default tour city onto service city fields only (editable; never lock/disabled).
+        // Single-city mode: lock all service city fields to the main tour city (top selector only is editable).
         window.syncSingleCityToAllServices = function () {
             if (!window.isSingleCityMode()) {
                 return;
             }
-            const city = window.getSingleCityName();
+            const meta = typeof window.getSingleCityMeta === 'function' ? window.getSingleCityMeta() : {};
+            const city = meta.text || window.getSingleCityName() || meta.value;
             if (city) {
-                window.syncAllServiceCities(city);
+                window.applySingleCityLockToServiceDropdowns(meta);
             } else {
+                window.setServiceCityReadonly(false);
                 window.SERVICE_CITY_SELECTORS.forEach(function (sel) {
                     $(sel).each(function () {
                         $(this).val('').trigger('change');
@@ -6668,6 +7460,12 @@
 
             $('#single_city').on('change select2:select select2:clear', function () {
                 window.syncSingleCityToAllServices();
+            });
+            $('#single_city').on('select2:select', function (e) {
+                const country = e.params && e.params.data && e.params.data.country;
+                if (country && typeof window.setTourPackageCurrency === 'function') {
+                    window.setTourPackageCurrency(window.getCurrencyForCountryName(country));
+                }
             });
 
             // Master cities (Multi City mode)
@@ -6740,7 +7538,11 @@
                 master.forEach(function (id) {
                     const label = labelById[id] || id;
                     const cityName = String(label).split('(')[0].trim();
-                    const ctry = countryById[id] || '';
+                    let ctry = countryById[id] || '';
+                    if (!ctry) {
+                        const m = String(label).match(/\(([^)]+)\)\s*$/);
+                        if (m && m[1]) ctry = String(m[1]).trim();
+                    }
                     html += `<option value="${id}" data-city-name="${escAttr(cityName)}" data-country="${escAttr(ctry)}">${label}</option>`;
                 });
 
@@ -6777,6 +7579,13 @@
                 $clone.find('[id]').removeAttr('id');
                 $clone.find('label[for]').removeAttr('for');
 
+                // Show native selected values instead of empty Select2 chrome in the snapshot.
+                $clone.find('.select2-container').remove();
+                $clone.find('select.select2-hidden-accessible')
+                    .removeClass('select2-hidden-accessible')
+                    .removeAttr('data-select2-id')
+                    .css({ width: '100%', display: 'block' });
+
                 // Make it read-only (visual snapshot).
                 $clone.find('input, select, textarea, button').prop('disabled', true);
                 $clone.addClass('segment-services-frozen');
@@ -6790,6 +7599,26 @@
                 );
 
                 $segment.find('.segment-services').append($clone);
+
+                const key = String($segment.data('index') || '');
+                if (key) {
+                    if (!window.__segmentFrozenHtmlByIdx) window.__segmentFrozenHtmlByIdx = {};
+                    window.__segmentFrozenHtmlByIdx[key] = $clone.prop('outerHTML');
+                }
+            }
+
+            function restoreFrozenSnapshotsIfMissing() {
+                $('#segmentsWrapper .segment').each(function () {
+                    const $s = $(this);
+                    if ($s.find('.segment-services-frozen').length) return;
+                    const key = String($s.data('index') || '');
+                    const html = key && window.__segmentFrozenHtmlByIdx ? window.__segmentFrozenHtmlByIdx[key] : '';
+                    if (!html) return;
+                    $s.find('.segment-services').append(html);
+                    $s.find('.segment-body-collapse').addClass('show');
+                    $s.find('.segment-services-banner').removeClass('d-none');
+                    $s.find('.segment-header').removeClass('d-none');
+                });
             }
 
             /** Badges next to Hotel Accommodations: segment stay (e.g. 01 Mar – 05 Mar, 2026), not full tour. */
@@ -6800,6 +7629,7 @@
                 const y = e.format('YYYY');
                 $('#tourDates').text(s.format('DD MMM') + ' – ' + e.format('DD MMM') + ', ' + y);
                 $('#hotelNights').text(e.diff(s, 'days') + ' nights · this stay');
+                if (typeof window.renderHotelAccordionHeader === 'function') window.renderHotelAccordionHeader();
             }
 
             /** After city plan is set: fill hotel/port/attraction/guide/restaurant/transport city selects; retry for async DOM. */
@@ -6819,12 +7649,12 @@
                 if (!$hint.length || !$bundle.length) return;
 
                 if (!multi) {
-                    if (typeof window.setServiceCityReadonly === 'function') {
-                        window.setServiceCityReadonly(false);
-                    }
                     clearMultiSegmentStayContext();
                     $bundle.removeClass('d-none');
                     $hint.addClass('d-none');
+                    if (typeof window.syncSingleCityToAllServices === 'function') {
+                        window.syncSingleCityToAllServices();
+                    }
                     if (typeof window.generateNightSelection === 'function') {
                         window.generateNightSelection();
                     }
@@ -6841,7 +7671,9 @@
                     $bundle.removeClass('d-none');
                     $hint.addClass('d-none');
                 } else {
-                    if (typeof window.setServiceCityReadonly === 'function') {
+                    if (typeof window.releaseServiceCityDropdownsForMultiCity === 'function') {
+                        window.releaseServiceCityDropdownsForMultiCity();
+                    } else if (typeof window.setServiceCityReadonly === 'function') {
                         window.setServiceCityReadonly(false);
                     }
                     clearMultiSegmentStayContext();
@@ -6855,6 +7687,7 @@
                         if (ms.isValid() && me.isValid()) {
                             $('#tourDates').text(ms.format('DD MMM') + ' – ' + me.format('DD MMM') + ', ' + me.format('YYYY'));
                             $('#hotelNights').text(me.diff(ms, 'days') + ' nights · full tour');
+                            if (typeof window.renderHotelAccordionHeader === 'function') window.renderHotelAccordionHeader();
                         }
                     }
                     const tdc = document.getElementById('transportDayCount');
@@ -6875,14 +7708,24 @@
             }
 
             function setCityMode(mode) {
+                if (window.IS_THIRD_PARTY_DMC) {
+                    mode = 'single';
+                    $('#city_mode_single').prop('checked', true);
+                    $('#city_mode_multi').prop('checked', false).prop('disabled', true);
+                    $('.city-toggle').addClass('is-thirdparty-disabled');
+                }
                 const isMulti = mode === 'multi';
                 $('#multiCityControls').toggleClass('d-none', !isMulti);
-
-                // Single-city inputs shown/hidden
                 $('#single_city').closest('.col-md-6, .col-md-2, .col-12').toggleClass('d-none', isMulti);
-
-                // main travel_dates MUST stay visible in both modes (main range constraint)
-                // so do nothing here; segments validate against #start_date/#end_date.
+                $('#travel_dates').closest('.col-md-3, .col-12, .col-sm-4').removeClass('d-none');
+                if (!isMulti) {
+                    ensureServicesBundleAtHome();
+                    if (typeof window.syncSingleCityToAllServices === 'function') {
+                        window.syncSingleCityToAllServices();
+                    }
+                } else if (typeof window.releaseServiceCityDropdownsForMultiCity === 'function') {
+                    window.releaseServiceCityDropdownsForMultiCity();
+                }
                 refreshGlobalServicesVisibility();
             }
 
@@ -6973,7 +7816,114 @@
                 } catch (e) { /* ignore */ }
             }
 
+            function ensureServicesBundleAtHome() {
+                $('.segment-services-frozen').remove();
+                const $bundle = $('#segmentServicesBundle');
+                const $home = $('#servicesAccordionHome');
+                if ($bundle.length && $home.length) {
+                    $home.after($bundle);
+                    $bundle.removeClass('d-none').show();
+                }
+            }
+
+            /** Move the live services bundle home without deleting other city plans' frozen snapshots. */
+            function detachLiveServicesBundleKeepSnapshots() {
+                const $bundle = $('#segmentServicesBundle');
+                const $home = $('#servicesAccordionHome');
+                if ($bundle.length && $home.length) {
+                    $home.after($bundle);
+                }
+            }
+
+            function deleteSegmentStoredState(rmKey) {
+                if (!rmKey) return;
+                if (window.__segmentServiceState) delete window.__segmentServiceState[rmKey];
+                if (window.__segmentServiceMeta) delete window.__segmentServiceMeta[rmKey];
+                if (window.__segmentLastValidRange) delete window.__segmentLastValidRange[rmKey];
+                if (window.__segmentBundleDomByIdx) delete window.__segmentBundleDomByIdx[rmKey];
+                if (window.__segmentFrozenHtmlByIdx) delete window.__segmentFrozenHtmlByIdx[rmKey];
+            }
+
+            function findNextCompleteCityPlan($except) {
+                let $found = $();
+                $('#segmentsWrapper .segment').each(function () {
+                    const $s = $(this);
+                    if ($except && $except.length && $s.is($except)) return;
+                    const city = $s.find('.city-select').val();
+                    const start = $s.find('.start-date').val();
+                    const end = $s.find('.end-date').val();
+                    if (city && start && end) {
+                        $found = $s;
+                        return false;
+                    }
+                });
+                return $found;
+            }
+
+            function refreshAllOnCityModeSwitch() {
+                ensureServicesBundleAtHome();
+
+                if (typeof window.clearAllSelectedServices === 'function') {
+                    window.clearAllSelectedServices();
+                }
+
+                try {
+                    if (typeof selectedHotels !== 'undefined') selectedHotels = [];
+                    if (typeof selectedAttractions !== 'undefined') selectedAttractions = [];
+                    if (typeof selectedRestaurants !== 'undefined') selectedRestaurants = [];
+                    if (typeof selectedGuides !== 'undefined') selectedGuides = [];
+                    if (typeof hotelData !== 'undefined') hotelData = [];
+                    if (typeof lastSelectedHotelId !== 'undefined') lastSelectedHotelId = null;
+                    const sd = document.getElementById('start_date')?.value || '';
+                    const ed = document.getElementById('end_date')?.value || '';
+                    if (sd && ed && typeof moment !== 'undefined') {
+                        if (typeof tourStartDate !== 'undefined') tourStartDate = sd;
+                        if (typeof tourEndDate !== 'undefined') tourEndDate = ed;
+                        if (typeof tourNights !== 'undefined') tourNights = moment(ed).diff(moment(sd), 'days');
+                    }
+                } catch (e) { /* ignore */ }
+
+                ['hotel_data', 'attraction_data', 'restaurant_data', 'guide_data', 'transport_data', 'entry_port_data', 'exit_port_data'].forEach(function (id) {
+                    const el = document.getElementById(id);
+                    if (el) el.value = '';
+                });
+                ['hotelBookings', 'guideBookings', 'vehicleBookings', 'attractionBookings', 'portBookings'].forEach(function (id) {
+                    const el = document.getElementById(id);
+                    if (el) el.value = '[]';
+                });
+
+                const selectedHotelsEl = document.getElementById('selectedHotels');
+                if (selectedHotelsEl) selectedHotelsEl.innerHTML = '';
+                const ns = document.getElementById('nightSelection');
+                if (ns) ns.innerHTML = '';
+                const tdEl = document.getElementById('tourDates');
+                const hnEl = document.getElementById('hotelNights');
+                if (tdEl) tdEl.textContent = '';
+                if (hnEl) hnEl.textContent = '0 Nights Selected';
+
+                if (typeof window.resetServicesBundleFormControls === 'function') {
+                    window.resetServicesBundleFormControls();
+                }
+                if (typeof window.renderHotelAccordionHeader === 'function') {
+                    window.renderHotelAccordionHeader();
+                }
+                if (typeof displaySelectedHotels === 'function') {
+                    displaySelectedHotels();
+                }
+                if (typeof updateBookingsSummary === 'function') {
+                    updateBookingsSummary();
+                }
+                if (typeof updatePackageTotalPriceDisplay === 'function') {
+                    updatePackageTotalPriceDisplay();
+                }
+                if (typeof generateDailyServices === 'function') {
+                    generateDailyServices();
+                }
+            }
+
             function clearCityModeUIState() {
+                ensureServicesBundleAtHome();
+
                 if ($('#multi_cities').length) {
                     $('#multi_cities').val(null).trigger('change');
                 }
@@ -6983,35 +7933,84 @@
                 if (window.__segmentBundleDomByIdx) window.__segmentBundleDomByIdx = {};
                 if (window.__segmentServiceState) window.__segmentServiceState = {};
                 if (window.__segmentServiceMeta) window.__segmentServiceMeta = {};
+                if (window.__segmentLastValidRange) window.__segmentLastValidRange = {};
+                if (window.__segmentFrozenHtmlByIdx) window.__segmentFrozenHtmlByIdx = {};
 
                 clearMultiSegmentStayContext();
-
-                const $bundle = $('#segmentServicesBundle');
-                const $home = $('#servicesAccordionHome');
-                if ($bundle.length && $home.length) {
-                    $home.after($bundle);
-                }
-
+                ensureServicesBundleAtHome();
                 $('.service-grid').empty();
             }
 
-            function resetTourPackageCityMode(mode) {
-                // Full reset of Tour Package Configuration when switching city mode
-                clearTourPackageHeaderFields();
-                clearCityModeUIState();
+            /** Multi-city: remove all city plans when main tour dates change (keep master city list). */
+            function clearMultiCityPlansOnTourDateChange() {
+                const mode = String($('input[name="city_mode"]:checked').val() || 'single');
+                if (mode !== 'multi') return false;
 
-                if (mode === 'multi') {
-                    // Switching to multi: clear single-city selection
-                    if ($('#single_city').length) {
-                        $('#single_city').val(null).trigger('change');
-                    }
-                } else {
+                const hadPlans = $('#segmentsWrapper .segment').length > 0;
+                if (!hadPlans && !Object.keys(window.__segmentServiceState || {}).length) {
+                    applySegmentDateLimits();
                     refreshGlobalServicesVisibility();
+                    return false;
+                }
+
+                ensureServicesBundleAtHome();
+                $('#segmentsWrapper').empty();
+                segmentIndex = 0;
+
+                if (window.__segmentBundleDomByIdx) window.__segmentBundleDomByIdx = {};
+                if (window.__segmentServiceState) window.__segmentServiceState = {};
+                if (window.__segmentServiceMeta) window.__segmentServiceMeta = {};
+                if (window.__segmentLastValidRange) window.__segmentLastValidRange = {};
+                if (window.__segmentFrozenHtmlByIdx) window.__segmentFrozenHtmlByIdx = {};
+
+                clearMultiSegmentStayContext();
+                ensureServicesBundleAtHome();
+                $('.service-grid').empty();
+
+                // City-plan services are invalid after tour date change — clear live selections too.
+                if (typeof window.clearAllSelectedServices === 'function') {
+                    window.clearAllSelectedServices();
+                }
+
+                applySegmentDateLimits();
+                refreshGlobalServicesVisibility();
+                if (typeof window.updateAddCityPlanButtonState === 'function') {
+                    window.updateAddCityPlanButtonState();
+                }
+                return true;
+            }
+            window.clearMultiCityPlansOnTourDateChange = clearMultiCityPlansOnTourDateChange;
+
+            function resetTourPackageCityMode(mode) {
+                if ($('#single_city').length) {
+                    $('#single_city').val(null).trigger('change');
+                }
+                if ($('#multi_cities').length) {
+                    $('#multi_cities').val(null).trigger('change');
+                }
+
+                clearCityModeUIState();
+                refreshAllOnCityModeSwitch();
+                refreshGlobalServicesVisibility();
+
+                if (typeof window.generateNightSelection === 'function') {
+                    window.generateNightSelection();
+                }
+                if (typeof window.updateNightDisplay === 'function') {
+                    window.updateNightDisplay();
+                }
+                if (typeof window.updateAddCityPlanButtonState === 'function') {
+                    window.updateAddCityPlanButtonState();
                 }
             }
 
             $(document).on('change', 'input[name="city_mode"]', function () {
-                const mode = $(this).val();
+                let mode = $(this).val();
+                if (window.IS_THIRD_PARTY_DMC) {
+                    $('#city_mode_single').prop('checked', true);
+                    $('#city_mode_multi').prop('checked', false).prop('disabled', true);
+                    mode = 'single';
+                }
                 resetTourPackageCityMode(mode);
                 setCityMode(mode);
                 window.syncSingleCityToAllServices();
@@ -7071,6 +8070,10 @@
             });
 
             $('#addCityPlan').on('click', function () {
+                if (window.IS_THIRD_PARTY_DMC) {
+                    alert('This is a 3rd party DMC. Multi City cannot be accessed.');
+                    return;
+                }
                 const master = getMasterCities();
                 if (!master.length) {
                     alert('Please select cities in the master list first.');
@@ -7141,9 +8144,9 @@
                     </div>
                 </div>`;
 
-                $('#segmentsWrapper').append(segmentHTML);
+                $('#segmentsWrapper').prepend(segmentHTML);
 
-                const $newCitySelect = $('#segmentsWrapper .segment:last .city-select');
+                const $newCitySelect = $('#segmentsWrapper .segment:first .city-select');
                 rebuildSegmentCityOptions($newCitySelect);
 
                 // Disable dates outside main tour range
@@ -7153,16 +8156,31 @@
             $(document).on('click', '.removeSegment', function () {
                 const $seg = $(this).closest('.segment');
                 const rmKey = $seg.length ? String($seg.data('index')) : '';
-                if (rmKey && window.__segmentServiceState && window.__segmentServiceState[rmKey]) {
-                    delete window.__segmentServiceState[rmKey];
-                }
-                const $bundle = $('#segmentServicesBundle');
-                if ($bundle.length && $seg.find('#segmentServicesBundle').length) {
-                    $('#servicesAccordionHome').after($bundle);
+                const hadLiveBundle = $seg.find('#segmentServicesBundle').length > 0;
+
+                deleteSegmentStoredState(rmKey);
+
+                if (hadLiveBundle) {
+                    // Keep other city plans' frozen snapshots. Do not re-open the previous
+                    // plan as live — that rebuilds daily services and drops attractions,
+                    // guides, restaurants and transport (hotels survive via JS arrays).
+                    detachLiveServicesBundleKeepSnapshots();
                     clearMultiSegmentStayContext();
+                    if (typeof window.clearAllSelectedServices === 'function') {
+                        window.clearAllSelectedServices();
+                    }
+                    if (typeof window.resetServicesBundleFormControls === 'function') {
+                        window.resetServicesBundleFormControls();
+                    }
                 }
+
                 $seg.remove();
+                restoreFrozenSnapshotsIfMissing();
                 refreshGlobalServicesVisibility();
+
+                if (typeof window.scheduleTourSubmitButtonUpdate === 'function') {
+                    window.scheduleTourSubmitButtonUpdate();
+                }
             });
 
             // When master list changes, update all segment dropdown options
@@ -7346,6 +8364,10 @@
                         $svcHost.append($bundle);
                         $bundle.removeClass('d-none');
 
+                        if (typeof window.applyTourCurrencyForSegment === 'function') {
+                            window.applyTourCurrencyForSegment($segment);
+                        }
+
                         if (typeof window.restoreMultiSegmentServiceState === 'function') {
                             window.restoreMultiSegmentServiceState($segment);
                         }
@@ -7463,10 +8485,17 @@
                 });
             });
 
-            // Re-apply date limits whenever main tour dates change
+            // Re-apply date limits whenever main tour dates change (city plans cleared in applyDateChanges after confirm)
             $('#travel_dates').on('apply.daterangepicker', function () {
                 applySegmentDateLimits();
                 refreshGlobalServicesVisibility();
+            });
+
+            // Clearing tour dates also removes multi-city plans
+            $('#travel_dates').on('cancel.daterangepicker', function () {
+                if (typeof window.clearMultiCityPlansOnTourDateChange === 'function') {
+                    window.clearMultiCityPlansOnTourDateChange();
+                }
             });
             
             // Store previous country value for Select2
@@ -7522,6 +8551,274 @@
                 }, 100);
             }
             
+            // Agency / Agent select helpers
+            window.agentSelectHasRealOptions = function () {
+                const agentSelect = document.getElementById('agent_id');
+                if (!agentSelect) return false;
+                return Array.from(agentSelect.options).some(function (opt) {
+                    return String(opt.value || '').trim() !== '';
+                });
+            };
+
+            window.isAgentSelectLocked = function () {
+                const agentSelect = document.getElementById('agent_id');
+                return !!(agentSelect && agentSelect.hasAttribute('disabled'));
+            };
+
+            window.renderAgentSelectAddContactButton = function () {
+                if (window.isAgentSelectLocked()) return;
+                const agencyId = jQuery('#agency_id').val();
+                if (!agencyId) return;
+
+                const $agent = jQuery('#agent_id');
+                const select2 = $agent.data('select2');
+                if (!select2 || !select2.$dropdown) return;
+
+                const $dropdown = select2.$dropdown;
+                const $results = $dropdown.find('.select2-results');
+                $results.find('.add-agency-contact-wrap').remove();
+
+                const $wrap = jQuery('<div class="add-agency-contact-wrap border-bottom p-2"></div>');
+                const $btn = jQuery('<button type="button" class="btn btn-sm w-100 add-agency-contact-btn"><i class="ri-user-add-line me-1"></i>Add Agency Contact</button>');
+                $wrap.css({ background: '#e8f7ff', borderBottom: '1px solid #b8e8ff' });
+                $btn.css({
+                    color: '#ffffff',
+                    background: '#18C1FF',
+                    border: '1px solid #566f79',
+                    borderRadius: '8px',
+                    fontWeight: '600',
+                    fontSize: '0.82rem'
+                });
+                $btn.on('mousedown', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    jQuery('#agent_id').select2('close');
+                    setTimeout(function () {
+                        window.openAddAgencyContactModal();
+                    }, 0);
+                });
+                $wrap.append($btn);
+                $results.prepend($wrap);
+            };
+
+            window.bindAgentSelectAddContactUi = function () {
+                const $agent = jQuery('#agent_id');
+                $agent.off('select2:open.agentAdd select2:results:message.agentAdd select2:results:all.agentAdd')
+                    .on('select2:open.agentAdd select2:results:message.agentAdd select2:results:all.agentAdd', function () {
+                        setTimeout(window.renderAgentSelectAddContactButton, 0);
+                    });
+            };
+
+            window.initAgentSelect2 = function () {
+                const $agentSelect = jQuery('#agent_id');
+                if (!$agentSelect.length) return;
+
+                if ($agentSelect.hasClass('select2-hidden-accessible')) {
+                    $agentSelect.select2('destroy');
+                }
+
+                $agentSelect.select2({
+                    placeholder: "Choose agency contact...",
+                    allowClear: true,
+                    width: '100%',
+                    language: {
+                        noResults: function () {
+                            return '';
+                        }
+                    },
+                    escapeMarkup: function (markup) {
+                        return markup;
+                    }
+                });
+
+                window.bindAgentSelectAddContactUi();
+            };
+
+            window.openAddAgencyContactModal = function () {
+                if (window.isAgentSelectLocked()) return;
+
+                const agencyId = jQuery('#agency_id').val();
+                if (!agencyId) {
+                    alert('Please select an agency company first.');
+                    return;
+                }
+
+                const agencyName = jQuery('#agency_id option:selected').text() || '';
+                const form = document.getElementById('addAgencyContactForm');
+                const errorsEl = document.getElementById('quickAgencyContactErrors');
+                if (form) form.reset();
+                if (errorsEl) {
+                    errorsEl.innerHTML = '';
+                    errorsEl.classList.add('d-none');
+                }
+
+                const agencyIdInput = document.getElementById('quickAgencyContactAgencyId');
+                const agencyNameEl = document.getElementById('quickAgencyContactAgencyName');
+                if (agencyIdInput) agencyIdInput.value = agencyId;
+                if (agencyNameEl) agencyNameEl.textContent = agencyName;
+
+                const modalEl = document.getElementById('addAgencyContactModal');
+                if (!modalEl) {
+                    console.error('Add Agency Contact modal not found in DOM.');
+                    alert('Unable to open add contact form. Please refresh the page and try again.');
+                    return;
+                }
+                bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            };
+
+            window.loadAgentsByAgencyId = function (agencyId, selectedAgentId) {
+                const agentSelect = document.getElementById('agent_id');
+                const $agentSelect = jQuery('#agent_id');
+                const isAgentDisabled = window.isAgentSelectLocked();
+
+                if (!agentSelect) return Promise.resolve();
+
+                agentSelect.innerHTML = '<option value="">Loading agency contacts...</option>';
+                $agentSelect.val(null).trigger('change');
+                $agentSelect.prop('disabled', true);
+
+                return fetch(`{{ url(route('fetch-agents-by-agency')) }}?agency_id=${encodeURIComponent(agencyId)}`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    }
+                })
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    agentSelect.innerHTML = '<option value="">Choose agency contact...</option>';
+
+                    if (data.success && data.agents && data.agents.length > 0) {
+                        data.agents.forEach(function (agent) {
+                            const option = document.createElement('option');
+                            option.value = agent.agent_id;
+                            option.textContent = agent.name;
+                            agentSelect.appendChild(option);
+                        });
+                    }
+
+                    window.initAgentSelect2();
+
+                    if (!isAgentDisabled) {
+                        $agentSelect.prop('disabled', false);
+                    } else {
+                        $agentSelect.prop('disabled', true);
+                    }
+
+                    if (selectedAgentId) {
+                        $agentSelect.val(String(selectedAgentId)).trigger('change');
+                    }
+                })
+                .catch(function (error) {
+                    console.error('Error fetching agents:', error);
+                    agentSelect.innerHTML = '<option value="">Error loading agency contacts</option>';
+                    window.initAgentSelect2();
+                    if (!isAgentDisabled) {
+                        $agentSelect.prop('disabled', false);
+                    } else {
+                        $agentSelect.prop('disabled', true);
+                    }
+                    alert('Error loading agency contacts. Please try again.');
+                });
+            };
+
+            window.saveQuickAgencyContact = function () {
+                const form = document.getElementById('addAgencyContactForm');
+                const errorsEl = document.getElementById('quickAgencyContactErrors');
+                const saveBtn = document.getElementById('saveQuickAgencyContactBtn');
+                if (!form) return;
+
+                if (errorsEl) errorsEl.innerHTML = '';
+
+                const formData = new FormData(form);
+                const agencyId = formData.get('agency_id');
+                if (!agencyId) {
+                    alert('Please select an agency company first.');
+                    return;
+                }
+
+                if (saveBtn) {
+                    saveBtn.disabled = true;
+                    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving...';
+                }
+
+                fetch(`{{ route('agents.quick-store') }}`, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
+                    body: formData
+                })
+                .then(function (response) {
+                    return response.json().then(function (data) {
+                        return { ok: response.ok, data: data };
+                    });
+                })
+                .then(function (result) {
+                    if (!result.ok || !result.data.success) {
+                        let html = '';
+                        const errors = (result.data && result.data.errors) ? result.data.errors : null;
+                        if (errors) {
+                            Object.keys(errors).forEach(function (key) {
+                                (errors[key] || []).forEach(function (msg) {
+                                    html += '<div>' + msg + '</div>';
+                                });
+                            });
+                        } else {
+                            html = '<div>' + ((result.data && result.data.message) ? result.data.message : 'Failed to add agency contact.') + '</div>';
+                        }
+                        if (errorsEl) {
+                            errorsEl.innerHTML = html;
+                            errorsEl.classList.remove('d-none');
+                        }
+                        return;
+                    }
+
+                    const modalEl = document.getElementById('addAgencyContactModal');
+                    if (modalEl) {
+                        const modal = bootstrap.Modal.getInstance(modalEl);
+                        if (modal) modal.hide();
+                    }
+
+                    const newAgentId = result.data.agent ? result.data.agent.agent_id : null;
+                    return window.loadAgentsByAgencyId(agencyId, newAgentId).then(function () {
+                        if (typeof showNotification === 'function') {
+                            showNotification(result.data.message || 'Agency contact added successfully.', 'success');
+                        }
+                    });
+                })
+                .catch(function (error) {
+                    console.error('Error saving agency contact:', error);
+                    if (errorsEl) {
+                        errorsEl.innerHTML = '<div>Failed to add agency contact. Please try again.</div>';
+                        errorsEl.classList.remove('d-none');
+                    }
+                })
+                .finally(function () {
+                    if (saveBtn) {
+                        saveBtn.disabled = false;
+                        saveBtn.innerHTML = '<i class="ri-save-line me-1"></i>Save Contact';
+                    }
+                });
+            };
+
+            jQuery(document).off('mousedown.agentAdd', '.add-agency-contact-btn').on('mousedown.agentAdd', '.add-agency-contact-btn', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                jQuery('#agent_id').select2('close');
+                setTimeout(function () {
+                    window.openAddAgencyContactModal();
+                }, 0);
+            });
+
+            jQuery(document).off('input.agentAdd', '.select2-container--open .select2-search__field').on('input.agentAdd', '.select2-container--open .select2-search__field', function () {
+                if (jQuery(this).closest('.select2-container').prev('#agent_id').length) {
+                    setTimeout(window.renderAgentSelectAddContactButton, 0);
+                }
+            });
+
             // Agency Select
             $('#agency_id').select2({
                 placeholder: "Choose agency...",
@@ -7530,11 +8827,7 @@
             });
             
             // Agent Select
-            $('#agent_id').select2({
-                placeholder: "Choose agent...",
-                allowClear: true,
-                width: '100%'
-            });
+            window.initAgentSelect2();
             
             // Accordion arrow icon rotation
             $('#servicesAccordion').on('show.bs.collapse', function (e) {
@@ -7580,6 +8873,17 @@
             });
             $(document).on('hide.bs.collapse', '#servicesAccordion .collapse, #servicesAccordionInner .collapse', function (e) {
                 $(e.target).prev('.card-header').find('i[class*="ri-arrow"]').removeClass('ri-arrow-up-s-line').addClass('ri-arrow-down-s-line');
+            });
+
+            // Keep the newly opened accordion header in view after other sections close.
+            $(document).on('shown.bs.collapse', '#servicesAccordion .collapse, #servicesAccordionInner .collapse', function (e) {
+                var header = $(e.target).prev('.card-header')[0];
+                if (!header) return;
+                requestAnimationFrame(function () {
+                    var scrollOffset = 20;
+                    var top = header.getBoundingClientRect().top + window.scrollY - scrollOffset;
+                    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+                });
             });
 
             // Hotel City Select
@@ -7735,6 +9039,24 @@
                 });
             };
             
+            // Render bundle options with bundle icon in attraction dropdowns
+            window.formatAttractionOption = function(option) {
+                if (!option.id || !option.element) {
+                    return option.text;
+                }
+                if (option.element.dataset && option.element.dataset.isBundle === '1') {
+                    const $wrapper = $('<span></span>');
+                    $wrapper.append($('<img>', {
+                        src: '{{ asset('assets/images/bundle-attraction-icon.png') }}',
+                        alt: 'Bundle',
+                        css: { width: '18px', height: '18px', 'margin-right': '6px', 'vertical-align': '-4px' }
+                    }));
+                    $wrapper.append(document.createTextNode(option.text));
+                    return $wrapper;
+                }
+                return option.text;
+            };
+            
             function initializeDynamicSelect2() {
                 // Attraction city selects
                 $('.attraction-city-select:not(.select2-hidden-accessible)').each(function() {
@@ -7750,7 +9072,9 @@
                     $(this).select2({
                         placeholder: "Select city first",
                         allowClear: true,
-                        width: '100%'
+                        width: '100%',
+                        templateResult: window.formatAttractionOption,
+                        templateSelection: window.formatAttractionOption
                     });
                 });
                 
@@ -9075,14 +10399,18 @@
 
             // Update all service guest fields to match main guest values
             updateAllServiceGuestFields(male, female, children, infants);
-            
+
+            if (typeof window.updateHotelChildCheckboxEnabledState === 'function') {
+                window.updateHotelChildCheckboxEnabledState();
+            }
+
             // Reset hotel section
             resetHotelSection();
-            
+
             // Close modal
             const modal = bootstrap.Modal.getInstance(document.getElementById('mainGuestSelectorModal'));
             modal.hide();
-            
+
             console.log('applyMainGuestSelection completed successfully');
         };
         
@@ -9841,6 +11169,31 @@
         }
 
         // Function to clear all selected services when country changes
+        window.resetServicesBundleFormControls = function () {
+            const root = document.getElementById('segmentServicesBundle');
+            if (!root) return;
+            root.querySelectorAll('input:not([type="file"]), select, textarea').forEach(function (el) {
+                if (!el || el.id === 'start_date' || el.id === 'end_date') return;
+                if (el.type === 'checkbox' || el.type === 'radio') {
+                    el.checked = false;
+                } else {
+                    el.value = '';
+                }
+            });
+            root.querySelectorAll('[id$="_total_price"]').forEach(function (el) {
+                if (el.tagName === 'INPUT') el.value = '0';
+            });
+            root.querySelectorAll('[id$="_TotalPrice"], [id$="_total_price_display"]').forEach(function (el) {
+                if (el.tagName === 'SPAN' || el.tagName === 'DIV') {
+                    el.textContent = (typeof getTourCurrency === 'function' ? getTourCurrency() : 'SGD') + ' 0.00';
+                }
+            });
+            const hotelHeader = document.getElementById('hotelHeaderDetails');
+            if (hotelHeader) hotelHeader.innerHTML = '';
+            const hotelTotal = document.getElementById('hotelTotalPrice');
+            if (hotelTotal) hotelTotal.textContent = (typeof getTourCurrency === 'function' ? getTourCurrency() : 'SGD') + ' 0.00';
+        };
+
         window.clearAllSelectedServices = function() {
             console.log('🔄 Clearing all selected services due to country change...');
             
@@ -10030,7 +11383,12 @@
                     guideDataField: document.getElementById('guide_data') ? document.getElementById('guide_data').value : '',
                     transportDataField: document.getElementById('transport_data') ? document.getElementById('transport_data').value : '',
                     entryPortDataField: document.getElementById('entry_port_data') ? document.getElementById('entry_port_data').value : '',
-                    exitPortDataField: document.getElementById('exit_port_data') ? document.getElementById('exit_port_data').value : ''
+                    exitPortDataField: document.getElementById('exit_port_data') ? document.getElementById('exit_port_data').value : '',
+                    segmentCurrency: (typeof getTourCurrency === 'function' ? getTourCurrency() : (window.TOUR_PACKAGE_CURRENCY || 'SGD')),
+                    segmentCountry: (function () {
+                        const $opt = $segment.find('.city-select option:selected');
+                        return String($opt.attr('data-country') || '').trim();
+                    })()
                 };
             } catch (e) {
                 console.warn('saveMultiSegmentServiceState failed', e);
@@ -10042,6 +11400,9 @@
             const key = String($segment.data('index'));
             if (!key || key === 'undefined') return;
             if (!window.__segmentServiceState) window.__segmentServiceState = {};
+            if (typeof window.applyTourCurrencyForSegment === 'function') {
+                window.applyTourCurrencyForSegment($segment);
+            }
             const st = window.__segmentServiceState[key];
 
             const applyBundleFormState = function (bundleFormState) {
@@ -10147,7 +11508,7 @@
                         el.value = '0';
                     });
                     root.querySelectorAll('span[id$="_total_price_display"]').forEach(function (el) {
-                        el.textContent = 'SGD 0.00';
+                        el.textContent = getTourCurrency() + ' 0.00';
                     });
 
                     // Reset common header display spans for transport sections.
@@ -10155,13 +11516,13 @@
                         el.textContent = 'No vehicle selected';
                     });
                     root.querySelectorAll('div[id$="_other_transport_total_price"]').forEach(function (el) {
-                        el.textContent = 'SGD 0.00';
+                        el.textContent = getTourCurrency() + ' 0.00';
                     });
                     root.querySelectorAll('span[id$="_arrival_vehicle_name"], span[id$="_departure_vehicle_name"]').forEach(function (el) {
                         el.textContent = 'No vehicle selected';
                     });
                     root.querySelectorAll('div[id$="_arrival_total_price"], div[id$="_departure_total_price"]').forEach(function (el) {
-                        el.textContent = 'SGD 0.00';
+                        el.textContent = getTourCurrency() + ' 0.00';
                     });
 
                     // Clear day-scoped section header summaries/prices (ids are day${day}_* after template fix).
@@ -10169,8 +11530,12 @@
                         el.textContent = '';
                     });
                     root.querySelectorAll('[id$="_guideTotalPrice"], [id$="_attractionTotalPrice"], [id$="_restaurantTotalPrice"]').forEach(function (el) {
-                        el.textContent = 'SGD 0.00';
+                        el.textContent = getTourCurrency() + ' 0.00';
                     });
+                    const hotelTotalPriceReset = document.getElementById('hotelTotalPrice');
+                    if (hotelTotalPriceReset) hotelTotalPriceReset.textContent = getTourCurrency() + ' 0.00';
+                    const hotelHeaderDetailsReset = document.getElementById('hotelHeaderDetails');
+                    if (hotelHeaderDetailsReset) hotelHeaderDetailsReset.innerHTML = '';
                 })();
 
                 if (typeof displaySelectedHotels === 'function') {
@@ -10197,6 +11562,9 @@
                         }
                     } catch (e) {}
                 }, 0);
+                if (typeof window.refreshTourCurrencyDisplayInBundle === 'function') {
+                    window.refreshTourCurrencyDisplayInBundle();
+                }
                 return;
             }
 
@@ -10252,6 +11620,10 @@
                 setTimeout(function () { applyBundleFormState(st.bundleFormState); }, 350);
                 setTimeout(function () { applyBundleFormState(st.bundleFormState); }, 900);
             }
+            if (typeof window.refreshTourCurrencyDisplayInBundle === 'function') {
+                setTimeout(function () { window.refreshTourCurrencyDisplayInBundle(); }, 0);
+                setTimeout(function () { window.refreshTourCurrencyDisplayInBundle(); }, 400);
+            }
         };
 
         // Store the previous country value to detect changes
@@ -10270,6 +11642,9 @@
             }
             
             if (selectedCountry) {
+                if (typeof window.setTourPackageCurrency === 'function') {
+                    window.setTourPackageCurrency(window.getCurrencyForCountryName(selectedCountry));
+                }
                 // Get country ID from selected option
                 const countrySelect = document.getElementById('user_country');
                 const selectedOption = countrySelect.options[countrySelect.selectedIndex];
@@ -10580,6 +11955,27 @@
                             console.log(`Loaded ${data.attractions.length} attractions for ${cityName}`);
                         } else {
                             attractionSelect.innerHTML += '<option disabled>No attractions found in this city</option>';
+                        }
+                        
+                        // Append packaged attraction bundles (shown with bundle icon)
+                        if (data.bundles && data.bundles.length > 0) {
+                            data.bundles.forEach(bundle => {
+                                const option = document.createElement('option');
+                                option.value = 'bundle_' + bundle.package_attraction_id;
+                                option.textContent = bundle.name;
+                                option.dataset.city = cityName;
+                                option.dataset.isBundle = '1';
+                                option.dataset.vehicleIncluded = bundle.vehicle_included ? '1' : '0';
+                                option.dataset.guideIncluded = bundle.guide_included ? '1' : '0';
+                                option.dataset.adultPrice = bundle.adult_price || 0;
+                                option.dataset.childPrice = bundle.child_price || 0;
+                                option.dataset.seniorPrice = bundle.senior_adult_price || 0;
+                                option.dataset.timeSlots = '[]';
+                                option.dataset.openTime = '';
+                                option.dataset.closeTime = '';
+                                attractionSelect.appendChild(option);
+                            });
+                            console.log(`Loaded ${data.bundles.length} attraction bundles for ${cityName}`);
                         }
                         
                         attractionSelect.disabled = false;
@@ -11228,7 +12624,7 @@
                 if (pkg.price > 0) {
                     const option = document.createElement('option');
                     option.value = pkg.hours;
-                    option.textContent = `${pkg.label} - $${pkg.price.toFixed(2)}`;
+                    option.textContent = `${pkg.label} - ${getTourCurrency()} ${pkg.price.toFixed(2)}`;
                     option.dataset.hours = pkg.hours;
                     option.dataset.price = pkg.price;
                     option.dataset.basePrice = pkg.price;
@@ -11346,17 +12742,17 @@
                 let guideHtml = `
                     <div class="small">
                         <div class="mb-2"><strong>${selectedGuide.text}</strong></div>
-                        <div class="mb-1">Package: $${totalPackagePrice.toFixed(2)}</div>
+                        <div class="mb-1">Package: ${getTourCurrency()} ${totalPackagePrice.toFixed(2)}</div>
                         <div class="mb-1">Duration: ${hours} hours</div>
                 `;
                 
                 if (surcharge > 0) {
-                    guideHtml += `<div class="mb-1 text-warning">Night Surcharge: $${surcharge.toFixed(2)}</div>`;
+                    guideHtml += `<div class="mb-1 text-warning">Night Surcharge: ${getTourCurrency()} ${surcharge.toFixed(2)}</div>`;
                 }
                 
                 guideHtml += `
                         <hr class="my-2">
-                        <div class="fw-bold text-primary">Total: $${(totalPackagePrice + surcharge).toFixed(2)}</div>
+                        <div class="fw-bold text-primary">Total: ${getTourCurrency()} ${(totalPackagePrice + surcharge).toFixed(2)}</div>
                     </div>
                 `;
                 
@@ -11549,7 +12945,7 @@
                     // Mark this as temporary vehicle base price (not AJAX)
                     costField.removeAttribute('data-ajax-base-price');
                     costField.removeAttribute('data-ajax-final-price');
-                    console.log(`⚠️ Prepopulated transport cost for day ${day}, index ${index}: $${totalCost.toFixed(2)} (TEMPORARY vehicle base price - will be replaced by AJAX when pickup location is selected)`);
+                    console.log(`⚠️ Prepopulated transport cost for day ${day}, index ${index}: ${getTourCurrency()} ${totalCost.toFixed(2)} (TEMPORARY vehicle base price - will be replaced by AJAX when pickup location is selected)`);
                 }
             } else {
                 // Clear cost if no vehicle selected
@@ -11708,7 +13104,7 @@
                         costField.value = finalPrice.toFixed(2);
                         costField.setAttribute('data-ajax-final-price', finalPrice.toFixed(2));
                         costField.setAttribute('data-ajax-transfer-way', transferWay.value);
-                        console.log(`Way changed, recalculated from stored AJAX base price: $${finalPrice.toFixed(2)} (base: $${basePrice.toFixed(2)}, way: ${transferWay.value})`);
+                        console.log(`Way changed, recalculated from stored AJAX base price: ${getTourCurrency()} ${finalPrice.toFixed(2)} (base: ${getTourCurrency()} ${basePrice.toFixed(2)}, way: ${transferWay.value})`);
                         updateAttractionTransportPricing(day, index);
                         return;
                     }
@@ -11904,7 +13300,7 @@
                         costField.removeAttribute('data-pricing-fetch-failed');
                         costField.removeAttribute('data-pricing-error-message');
                         costField.removeAttribute('data-failed-pickup-location-id');
-                        console.log(`✅ Transfer pricing set from AJAX: $${finalPrice.toFixed(2)} (${transferType}, ${transferWay}, base: $${basePrice.toFixed(2)})`);
+                        console.log(`✅ Transfer pricing set from AJAX: ${getTourCurrency()} ${finalPrice.toFixed(2)} (${transferType}, ${transferWay}, base: ${getTourCurrency()} ${basePrice.toFixed(2)})`);
                     }
                     
                     // Update transport pricing display
@@ -12114,7 +13510,7 @@
                         costField.value = finalPrice.toFixed(2);
                         costField.setAttribute('data-ajax-final-price', finalPrice.toFixed(2));
                         costField.setAttribute('data-ajax-transfer-way', transferWay.value);
-                        console.log(`Restaurant way changed, recalculated from stored AJAX base price: $${finalPrice.toFixed(2)} (base: $${basePrice.toFixed(2)}, way: ${transferWay.value})`);
+                        console.log(`Restaurant way changed, recalculated from stored AJAX base price: ${getTourCurrency()} ${finalPrice.toFixed(2)} (base: ${getTourCurrency()} ${basePrice.toFixed(2)}, way: ${transferWay.value})`);
                         updateRestaurantTransportPricing(day, index);
                         return;
                     }
@@ -12311,7 +13707,7 @@
                         costField.removeAttribute('data-pricing-fetch-failed');
                         costField.removeAttribute('data-pricing-error-message');
                         costField.removeAttribute('data-failed-pickup-location-id');
-                        console.log(`✅ Restaurant transfer pricing set from AJAX: $${finalPrice.toFixed(2)} (${transferType}, ${transferWay}, base: $${basePrice.toFixed(2)})`);
+                        console.log(`✅ Restaurant transfer pricing set from AJAX: ${getTourCurrency()} ${finalPrice.toFixed(2)} (${transferType}, ${transferWay}, base: ${getTourCurrency()} ${basePrice.toFixed(2)})`);
                     }
                     
                     // Update transport pricing display
@@ -12410,8 +13806,8 @@
                         <div><strong>Way:</strong> ${way || 'N/A'}</div>
                         <div><strong>Vehicle:</strong> ${vehicleName}</div>
                         ${isAjaxPrice ? '<div class="text-info"><small><i class="ri-checkbox-circle-line me-1"></i>Zone-based pricing</small></div>' : ''}
-                        ${type === 'Shared' && guestCount > 1 ? `<div class="mt-1"><small>Base Cost: $${baseCost.toFixed(2)} × ${guestCount} pax</small></div>` : ''}
-                        <div class="mt-2"><strong class="text-success">$${cost.toFixed(2)}${priceSource}</strong></div>
+                        ${type === 'Shared' && guestCount > 1 ? `<div class="mt-1"><small>Base Cost: ${getTourCurrency()} ${baseCost.toFixed(2)} × ${guestCount} pax</small></div>` : ''}
+                        <div class="mt-2"><strong class="text-success">${getTourCurrency()} ${cost.toFixed(2)}${priceSource}</strong></div>
                     </div>
                 `;
                 transportPricingContent.innerHTML = transportHtml;
@@ -12475,7 +13871,7 @@
             
             // Calculate and display total
             const grandTotal = restaurantTotal + transportTotal;
-            totalDisplay.textContent = grandTotal.toFixed(2);
+            totalDisplay.textContent = formatTourPrice(grandTotal);
 
             // Also refresh restaurant header summary (all restaurants)
             if (typeof window.updateRestaurantSectionSummary === 'function') {
@@ -12494,7 +13890,7 @@
                 const items = container.querySelectorAll('.restaurant-item');
                 if (!items.length) {
                     headerSpan.textContent = '';
-                    if (restaurantTotalPriceEl) restaurantTotalPriceEl.textContent = 'SGD 0.00';
+                    if (restaurantTotalPriceEl) restaurantTotalPriceEl.textContent = getTourCurrency() + ' 0.00';
                     return;
                 }
 
@@ -12523,7 +13919,7 @@
 
                 if (!names.length) {
                     headerSpan.textContent = '';
-                    if (restaurantTotalPriceEl) restaurantTotalPriceEl.textContent = 'SGD 0.00';
+                    if (restaurantTotalPriceEl) restaurantTotalPriceEl.textContent = getTourCurrency() + ' 0.00';
                     return;
                 }
 
@@ -12550,7 +13946,7 @@
                 
                 // Update right side price display
                 if (restaurantTotalPriceEl) {
-                    restaurantTotalPriceEl.textContent = `SGD ${formattedTotal}`;
+                    restaurantTotalPriceEl.textContent = getTourCurrency() + ' ' + formattedTotal;
                 }
             } catch (e) {
                 console.error('Error updating restaurant section summary:', e);
@@ -12690,6 +14086,21 @@
         window.loadRestaurantsForCity = function(day, cityName, index) {
             const restaurantSelect = document.getElementById(`day${day}_restaurant_${index}`);
             const cityMessage = document.getElementById(`day${day}_restaurant_city_message_${index}`);
+            if (!restaurantSelect) return;
+
+            function refreshRestaurantSelect2(placeholder, disabled) {
+                restaurantSelect.disabled = !!disabled;
+                if (typeof jQuery !== 'undefined') {
+                    const $r = jQuery(restaurantSelect);
+                    if ($r.hasClass('select2-hidden-accessible')) {
+                        try { $r.select2('destroy'); } catch (e) { /* ignore */ }
+                    }
+                    if (typeof window.reinitializeSelect2 === 'function' && restaurantSelect.id) {
+                        window.reinitializeSelect2(restaurantSelect.id, placeholder || 'Search Restaurant');
+                    }
+                    $r.prop('disabled', !!disabled);
+                }
+            }
             
             function prependMultiRestaurantOptions(selectEl) {
                 const list = window.multiRestaurants || [];
@@ -12708,7 +14119,8 @@
             if (cityName) {
                 restaurantSelect.disabled = false;
                 restaurantSelect.innerHTML = '<option value="">Loading restaurants...</option>';
-                cityMessage.style.display = 'none';
+                if (cityMessage) cityMessage.style.display = 'none';
+                refreshRestaurantSelect2('Loading restaurants...', false);
                 
                 const currentDmcId = '{{ $finalDmcId }}';
                 
@@ -12723,7 +14135,7 @@
                                 option.value = restaurant.restaurant_id;
                                 option.textContent = restaurant.name;
                                 option.dataset.city = restaurant.city;
-                                option.dataset.mealTypes = JSON.stringify(restaurant.meal_types || []);
+                                option.dataset.mealTypes = JSON.stringify(normalizeRestaurantMealTypes(restaurant.meal_types || []));
                                 restaurantSelect.appendChild(option);
                             });
                         } else {
@@ -12733,6 +14145,7 @@
                         }
                         
                         restaurantSelect.disabled = false;
+                        refreshRestaurantSelect2('Search Restaurant', false);
                         
                         const transferRequired = document.getElementById(`day${day}_restaurant_${index}_transfer_required`);
                         if (transferRequired && transferRequired.value === 'Yes') {
@@ -12746,12 +14159,12 @@
                         prependMultiRestaurantOptions(restaurantSelect);
                         restaurantSelect.innerHTML += '<option disabled>Error loading restaurants</option>';
                         restaurantSelect.disabled = false;
+                        refreshRestaurantSelect2('Search Restaurant', false);
                     });
             } else {
-                restaurantSelect.disabled = false;
-                restaurantSelect.innerHTML = '<option value="">Search Restaurant</option>';
-                prependMultiRestaurantOptions(restaurantSelect);
-                cityMessage.style.display = 'block';
+                restaurantSelect.innerHTML = '<option value="">Select city first</option>';
+                if (cityMessage) cityMessage.style.display = 'block';
+                refreshRestaurantSelect2('Select city first', true);
             }
         }
         
@@ -13413,18 +14826,29 @@
 
             // Wait for all dependencies to load
         $(document).ready(function() {
-            // Date Range Picker Initialization - only if not locked
             const travelDatesField = $('#travel_dates');
-            if (travelDatesField.attr('data-locked') !== 'true') {
-                travelDatesField.daterangepicker({
+
+            window.reinitializeTravelDatePicker = function () {
+                const $field = $('#travel_dates');
+                if (!$field.length || $field.attr('data-locked') === 'true') return;
+                try {
+                    const drp = $field.data('daterangepicker');
+                    if (drp && typeof drp.remove === 'function') drp.remove();
+                } catch (e) { /* ignore */ }
+                $field.daterangepicker({
                     opens: 'left',
                     autoUpdateInput: false,
-                    minDate: moment(),
-                    locale: {
-                        format: 'MMM DD, YYYY',
-                        cancelLabel: 'Clear'
+                    minDate: moment().add(1, 'days'),
+                    locale: { format: 'MMM DD, YYYY', cancelLabel: 'Clear' }
+                });
+                $field.off('show.daterangepicker.travelFix').on('show.daterangepicker.travelFix', function (ev, picker) {
+                    if (picker && picker.container) {
+                        picker.container.css('z-index', 10050);
                     }
                 });
+            };
+            if (travelDatesField.length && travelDatesField.attr('data-locked') !== 'true') {
+                window.reinitializeTravelDatePicker();
             }
 
             // Function to check which services will be removed (without actually removing them)
@@ -13578,6 +15002,11 @@
                 if (typeof window.updateAddCityPlanButtonState === 'function') {
                     window.updateAddCityPlanButtonState();
                 }
+
+                // Multi-city: tour date change invalidates stay plans — remove all city plans
+                if (typeof window.clearMultiCityPlansOnTourDateChange === 'function') {
+                    window.clearMultiCityPlansOnTourDateChange();
+                }
                 
                 // Update global variables
                 tourStartDate = newStartDate;
@@ -13587,6 +15016,7 @@
                 // Update the hotel section date display
                 document.getElementById('tourDates').textContent = picker.startDate.format('MMM DD') + ' - ' + picker.endDate.format('MMM DD, YYYY');
                 document.getElementById('hotelNights').textContent = tourNights + ' Nights Selected';
+                if (typeof window.renderHotelAccordionHeader === 'function') window.renderHotelAccordionHeader();
                 
                 // Generate night selection buttons FIRST (before validation)
                 generateNightSelection();
@@ -13616,6 +15046,10 @@
                     if (!datesChanged) {
                         return;
                     }
+
+                    const isMultiCityMode = ($('input[name="city_mode"]:checked').val() === 'multi');
+                    const multiCityPlanCount = isMultiCityMode ? $('#segmentsWrapper .segment').length : 0;
+                    const hasMultiCityPlans = multiCityPlanCount > 0;
                     
                     // Check if there are any selected services
                     const hasServices = (selectedHotels && selectedHotels.length > 0) ||
@@ -13623,7 +15057,7 @@
                                     (selectedRestaurants && selectedRestaurants.length > 0) ||
                                     (selectedGuides && selectedGuides.length > 0);
                     
-                    if (hasServices) {
+                    if (hasServices || hasMultiCityPlans) {
                         // Check which services will be removed or updated
                         const serviceChanges = checkServicesToRemove(newStartDate, newEndDate);
                         const servicesToRemove = serviceChanges.toRemove;
@@ -13636,10 +15070,15 @@
                         
                         const totalToUpdate = servicesToUpdate.hotels.length;
                         
-                        // Show alert if services will be removed or updated
-                        if (totalToRemove > 0 || totalToUpdate > 0) {
+                        // Show alert if services will be removed/updated, or multi-city plans will be cleared
+                        if (totalToRemove > 0 || totalToUpdate > 0 || hasMultiCityPlans) {
                             // Build alert message
-                            let message = '⚠️ WARNING: Changing travel dates will affect the following services:\n\n';
+                            let message = '⚠️ WARNING: Changing travel dates will affect the following:\n\n';
+
+                            if (hasMultiCityPlans) {
+                                message += `🗺️ City plans to be REMOVED (${multiCityPlanCount}):\n`;
+                                message += '   All multi-city stay plans will be cleared. You will need to add them again.\n\n';
+                            }
                             
                             // Show hotels that will be updated
                             if (servicesToUpdate.hotels.length > 0) {
@@ -13686,7 +15125,11 @@
                             
                             message += `\nNew Date Range: ${picker.startDate.format('MMM DD, YYYY')} - ${picker.endDate.format('MMM DD, YYYY')}\n\n`;
                             
-                            if (totalToRemove > 0 && totalToUpdate > 0) {
+                            if (hasMultiCityPlans && (totalToRemove > 0 || totalToUpdate > 0)) {
+                                message += 'Do you want to proceed? City plans will be removed, and services may be updated or removed.';
+                            } else if (hasMultiCityPlans) {
+                                message += 'Do you want to proceed? All city plans will be permanently removed.';
+                            } else if (totalToRemove > 0 && totalToUpdate > 0) {
                                 message += 'Do you want to proceed? Hotels within range will be updated, and services outside range will be permanently removed.';
                             } else if (totalToUpdate > 0) {
                                 message += 'Do you want to proceed? Hotel dates will be updated to match the new date range.';
@@ -13764,8 +15207,7 @@
                 if (document.getElementById('hotelNights')) {
                     document.getElementById('hotelNights').textContent = tourNights + ' Nights Selected';
                 }
-                
-                // Generate night selection buttons for enquiry data
+                if (typeof window.renderHotelAccordionHeader === 'function') window.renderHotelAccordionHeader();
                 generateNightSelection();
                 updateNightDisplay();
                 @endif
@@ -14032,12 +15474,7 @@
                 summaryHTML += '</div>';
                 document.getElementById('nightSelectionSummary').innerHTML = summaryHTML;
             } else {
-                document.getElementById('nightSelectionSummary').innerHTML = `
-                    <div class="alert" style="background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 6px; padding: 0.625rem 0.875rem; margin: 0;">
-                        <i class="ri-information-line me-2" style="color: #667eea;"></i>
-                        <small style="color: #495057; font-size: 0.8rem;">No nights selected. Click on the nights above to select hotel stay.</small>
-                    </div>
-                `;
+                document.getElementById('nightSelectionSummary').innerHTML = '';
             }
         }
 
@@ -14369,9 +15806,21 @@
             
             if (!hotelId) {
                 // Clear dropdowns if no hotel selected
-                if (roomTypeSelect) roomTypeSelect.innerHTML = '<option value="">Select hotel first</option>';
-                if (bedTypeSelect) bedTypeSelect.innerHTML = '<option value="">Select hotel first</option>';
-                if (mealPlanSelect) mealPlanSelect.innerHTML = '<option value="">Select hotel first</option>';
+                if (roomTypeSelect) {
+                    roomTypeSelect.disabled = false;
+                    roomTypeSelect.innerHTML = '<option value="">Select hotel first</option>';
+                    if (typeof jQuery !== 'undefined') jQuery(roomTypeSelect).prop('disabled', false);
+                }
+                if (bedTypeSelect) {
+                    bedTypeSelect.disabled = false;
+                    bedTypeSelect.innerHTML = '<option value="">Select hotel first</option>';
+                    if (typeof jQuery !== 'undefined') jQuery(bedTypeSelect).prop('disabled', false);
+                }
+                if (mealPlanSelect) {
+                    mealPlanSelect.disabled = false;
+                    mealPlanSelect.innerHTML = '<option value="">Select hotel first</option>';
+                    if (typeof jQuery !== 'undefined') jQuery(mealPlanSelect).prop('disabled', false);
+                }
                 return;
             }
             
@@ -14383,6 +15832,20 @@
             }
             
             console.log('Selected hotel data:', selectedHotel);
+
+            // Always re-enable dependent selects (Clear Form may have left them disabled)
+            if (roomTypeSelect) {
+                roomTypeSelect.disabled = false;
+                if (typeof jQuery !== 'undefined') jQuery(roomTypeSelect).prop('disabled', false);
+            }
+            if (bedTypeSelect) {
+                bedTypeSelect.disabled = false;
+                if (typeof jQuery !== 'undefined') jQuery(bedTypeSelect).prop('disabled', false);
+            }
+            if (mealPlanSelect) {
+                mealPlanSelect.disabled = false;
+                if (typeof jQuery !== 'undefined') jQuery(mealPlanSelect).prop('disabled', false);
+            }
             
             // Get current user's DMC ID for room filtering
             const currentDmcId = '{{ $finalDmcId }}';
@@ -14563,18 +16026,18 @@
                                     if (isSingleOccupancy) {
                                         if (isWeekend) {
                                             price = parseFloat(sampleRoom.weekend_price) || 0;
-                                            priceText = ` - Weekend: $${price}`;
+                                            priceText = ` - Weekend: ${getTourCurrency()} ${price}`;
                                         } else {
                                             price = parseFloat(sampleRoom.weekday_price) || 0;
-                                            priceText = ` - Weekday: $${price}`;
+                                            priceText = ` - Weekday: ${getTourCurrency()} ${price}`;
                                         }
                                     } else {
                                         if (isWeekend) {
                                             price = parseFloat(sampleRoom.double_weekend_price) || 0;
-                                            priceText = ` - Double Weekend: $${price}`;
+                                            priceText = ` - Double Weekend: ${getTourCurrency()} ${price}`;
                                         } else {
                                             price = parseFloat(sampleRoom.double_weekday_price) || 0;
-                                            priceText = ` - Double Weekday: $${price}`;
+                                            priceText = ` - Double Weekday: ${getTourCurrency()} ${price}`;
                                         }
                                     }
                                     
@@ -14602,8 +16065,8 @@
                                     option.dataset.childWithoutBed = sampleRoom.child_without_bed || 0;
                                     roomTypeSelect.appendChild(option);
                                     
-                                    console.log(`Added room type option: ${roomType} with price $${price} (${isSingleOccupancy ? 'Single' : 'Double'} ${isWeekend ? 'Weekend' : 'Weekday'})`);
-                                    console.log(`Meal prices: Breakfast: $${sampleRoom.breakfast_price || 0}, Lunch: $${sampleRoom.lunch_price || 0}, Dinner: $${sampleRoom.dinner_price || 0}`);
+                                    console.log(`Added room type option: ${roomType} with price ${getTourCurrency()} ${price} (${isSingleOccupancy ? 'Single' : 'Double'} ${isWeekend ? 'Weekend' : 'Weekday'})`);
+                                    console.log(`Meal prices: Breakfast: ${getTourCurrency()} ${sampleRoom.breakfast_price || 0}, Lunch: ${getTourCurrency()} ${sampleRoom.lunch_price || 0}, Dinner: ${getTourCurrency()} ${sampleRoom.dinner_price || 0}`);
                                     console.log(`Sample room data for ${roomType}:`, sampleRoom);
                                     console.log(`Dataset stored for ${roomType}:`, {
                                         breakfastPrice: option.dataset.breakfastPrice,
@@ -14651,7 +16114,19 @@
                         }
                         if (childrenInput) {
                             childrenInput.addEventListener('change', function() {
+                                if (typeof window.updateHotelChildCheckboxEnabledState === 'function') {
+                                    window.updateHotelChildCheckboxEnabledState();
+                                }
                                 updateRoomPriceDisplay(true); // Force update when children count changes
+                            });
+                        }
+                        const infantsInputForHotel = document.getElementById('infants');
+                        if (infantsInputForHotel) {
+                            infantsInputForHotel.addEventListener('change', function() {
+                                if (typeof window.updateHotelChildCheckboxEnabledState === 'function') {
+                                    window.updateHotelChildCheckboxEnabledState();
+                                }
+                                updateRoomPriceDisplay(true);
                             });
                         }
                         
@@ -14788,6 +16263,71 @@
             }
         };
         
+        // True when main guest selection includes at least one child or infant
+        window.tourHasChildOrInfantGuests = function () {
+            const children = parseInt(document.getElementById('children')?.value || 0, 10) || 0;
+            const infants = parseInt(document.getElementById('infants')?.value || 0, 10) || 0;
+            return (children + infants) > 0;
+        };
+
+        window.updateHotelChildCheckboxEnabledState = function () {
+            const allow = window.tourHasChildOrInfantGuests();
+            const chkCwb = document.getElementById('chkChildWithBed');
+            const chkCnb = document.getElementById('chkChildWithoutBed');
+            const hint = document.getElementById('hotelChildPricingGuestHint');
+            const section = document.getElementById('hotelChildPricingSection');
+            const msg = 'Please add child first';
+
+            [chkCwb, chkCnb].forEach(function (chk) {
+                if (!chk) return;
+                chk.disabled = !allow;
+                if (!allow) {
+                    chk.checked = false;
+                    chk.title = msg;
+                } else {
+                    chk.removeAttribute('title');
+                }
+            });
+
+            const cwbWrap = document.getElementById('hotelChildWithBedWrap');
+            const cnbWrap = document.getElementById('hotelChildWithoutBedWrap');
+            [cwbWrap, cnbWrap].forEach(function (wrap) {
+                if (!wrap) return;
+                wrap.style.opacity = allow ? '1' : '0.65';
+                wrap.dataset.childPricingLocked = allow ? '0' : '1';
+            });
+
+            const sectionVisible = section && section.style.display !== 'none';
+            const hasChildPriceOption =
+                (cwbWrap && cwbWrap.style.display !== 'none') ||
+                (cnbWrap && cnbWrap.style.display !== 'none');
+            if (hint) {
+                hint.style.display = (sectionVisible && hasChildPriceOption && !allow) ? 'block' : 'none';
+            }
+
+            if (!allow && typeof updateRoomPriceDisplay === 'function') {
+                updateRoomPriceDisplay(true);
+            }
+        };
+
+        if (!window._hotelChildPricingClickBound) {
+            window._hotelChildPricingClickBound = true;
+            document.addEventListener('click', function (e) {
+                const wrap = e.target.closest('#hotelChildWithBedWrap, #hotelChildWithoutBedWrap');
+                if (!wrap || wrap.dataset.childPricingLocked !== '1') return;
+                const chk = wrap.querySelector('input[type="checkbox"]');
+                if (!chk || !chk.disabled) return;
+                e.preventDefault();
+                e.stopPropagation();
+                const message = 'Please add child first';
+                if (typeof showToastr === 'function') {
+                    showToastr('info', message);
+                } else {
+                    alert(message);
+                }
+            }, true);
+        }
+
         // Show/hide child pricing checkboxes based on room having child_with_bed and child_without_bed prices
         window.updateHotelChildPricingVisibility = function(roomType) {
             const section = document.getElementById('hotelChildPricingSection');
@@ -14822,8 +16362,11 @@
             section.style.display = (cwbPrice > 0 || cnbPrice > 0) ? 'flex' : 'none';
             if (chkCwb) chkCwb.checked = false;
             if (chkCnb) chkCnb.checked = false;
-            if (cwbLabel) cwbLabel.textContent = cwbPrice > 0 ? '($' + cwbPrice.toFixed(2) + ')' : '';
-            if (cnbLabel) cnbLabel.textContent = cnbPrice > 0 ? '($' + cnbPrice.toFixed(2) + ')' : '';
+            if (cwbLabel) cwbLabel.textContent = cwbPrice > 0 ? formatTourPriceParen(cwbPrice) : '';
+            if (cnbLabel) cnbLabel.textContent = cnbPrice > 0 ? formatTourPriceParen(cnbPrice) : '';
+            if (typeof window.updateHotelChildCheckboxEnabledState === 'function') {
+                window.updateHotelChildCheckboxEnabledState();
+            }
         };
 
         // Update bed types for selected room type
@@ -14913,7 +16456,7 @@
                                 if (bed.extra_bed) {
                                     bedTypeText += ` + Extra Bed`;
                                     if (bed.extra_bed_price) {
-                                        bedTypeText += ` ($${bed.extra_bed_price})`;
+                                        bedTypeText += ` (${getTourCurrency()} ${bed.extra_bed_price})`;
                                     }
                                 }
                                 
@@ -14921,7 +16464,7 @@
                                 if (bed.baby_cot) {
                                     bedTypeText += ` + Baby Cot`;
                                     if (bed.baby_cot_price) {
-                                        bedTypeText += ` ($${bed.baby_cot_price})`;
+                                        bedTypeText += ` (${getTourCurrency()} ${bed.baby_cot_price})`;
                                     }
                                 }
                                 console.log('Bed type in beds table===:', bed.room_type);
@@ -15119,13 +16662,13 @@
                 let totalPrice = 0;
                 
                 if (extraBedPrice > 0) {
-                    priceText += `Extra Bed: $${extraBedPrice.toFixed(2)}`;
+                    priceText += `Extra Bed: ${getTourCurrency()} ${extraBedPrice.toFixed(2)}`;
                     totalPrice += extraBedPrice;
                 }
                 
                 if (babyCotPrice > 0) {
                     if (priceText) priceText += ' | ';
-                    priceText += `Baby Cot: $${babyCotPrice.toFixed(2)}`;
+                    priceText += `Baby Cot: ${getTourCurrency()} ${babyCotPrice.toFixed(2)}`;
                     totalPrice += babyCotPrice;
                 }
                 
@@ -15480,26 +17023,26 @@
             costSummary.innerHTML = `
                 <div class="cost-item">
                     <span>Base Room Price:</span>
-                    <span>$${baseRoomPrice.toFixed(2)}</span>
+                    <span>${getTourCurrency()} ${baseRoomPrice.toFixed(2)}</span>
                 </div>
                 <div class="cost-item">
                     <span>Meal Plan (${numPersons} guest${numPersons > 1 ? 's' : ''}):</span>
-                    <span>$${totalMealCost.toFixed(2)}</span>
+                    <span>${getTourCurrency()} ${totalMealCost.toFixed(2)}</span>
                 </div>
                 ${extraBedCost > 0 ? `
                     <div class="cost-item">
                         <span>Extra Bed Cost:</span>
-                        <span>$${extraBedCost.toFixed(2)}</span>
+                        <span>${getTourCurrency()} ${extraBedCost.toFixed(2)}</span>
                     </div>
                 ` : ''}
                 <hr class="my-1">
                 <div class="cost-item fw-bold">
                     <span>Total per Room:</span>
-                    <span>$${totalCost.toFixed(2)}</span>
+                    <span>${getTourCurrency()} ${totalCost.toFixed(2)}</span>
                 </div>
             `;
             
-            console.log(`Room cost calculation: Base Room: $${baseRoomPrice}, Meal (${numPersons} guests): $${totalMealCost}, Total per Room: $${totalCost}`);
+            console.log(`Room cost calculation: Base Room: ${getTourCurrency()} ${baseRoomPrice}, Meal (${numPersons} guests): ${getTourCurrency()} ${totalMealCost}, Total per Room: ${getTourCurrency()} ${totalCost}`);
         }
 
         // Calculate meal cost per person
@@ -15870,8 +17413,76 @@
             ].join('|');
         };
 
+        window.validateHotelAccommodationForm = function (options) {
+            options = options || {};
+            const missing = [];
+
+            const cityEl = document.getElementById('hotelCitySelect');
+            const hotelEl = document.getElementById('hotelSelect');
+            const roomEl = document.getElementById('roomTypeSelect');
+            const bedEl = document.getElementById('bedTypeSelect');
+            const mealEl = document.getElementById('mealPlanSelect');
+            const personsEl = document.getElementById('selectedPersons');
+            const roomsEl = document.getElementById('numberOfRooms');
+
+            if (!cityEl || !String(cityEl.value || '').trim()) {
+                missing.push('City');
+            }
+            if (!hotelEl || !String(hotelEl.value || '').trim()) {
+                missing.push('Hotel');
+            }
+            if (!roomEl || !String(roomEl.value || '').trim()) {
+                missing.push('Room Type');
+            }
+            if (!bedEl || !String(bedEl.value || '').trim()) {
+                missing.push('Bed Type');
+            }
+
+            const persons = parseInt(personsEl ? personsEl.value : '0', 10);
+            if (!personsEl || !Number.isFinite(persons) || persons < 1) {
+                missing.push('Number of Persons');
+            }
+
+            if (!mealEl || !String(mealEl.value || '').trim()) {
+                missing.push('Meal Plan');
+            }
+
+            const rooms = parseInt(roomsEl ? roomsEl.value : '0', 10);
+            if (!roomsEl || !Number.isFinite(rooms) || rooms < 1) {
+                missing.push('Number of Rooms');
+            }
+
+            const selectedNights = document.querySelectorAll('.night-btn.active');
+            if (!selectedNights.length) {
+                missing.push('Hotel Nights');
+            }
+
+            if (options.requireTravelDates && !tourStartDate) {
+                missing.push('Travel Dates');
+            }
+
+            if (options.requireGuests) {
+                const adults = parseInt(document.getElementById('adults')?.value, 10) || 0;
+                const children = parseInt(document.getElementById('children')?.value, 10) || 0;
+                if (adults + children === 0) {
+                    missing.push('Guests (PAX)');
+                }
+            }
+
+            if (missing.length) {
+                alert('Please complete the following required field(s) before continuing:\n\n• ' + missing.join('\n• '));
+                return false;
+            }
+
+            return true;
+        };
+
         // Get Price via HotelPriceHelper (AJAX)
         window.getHotelPrice = function() {
+            if (!window.validateHotelAccommodationForm({ requireTravelDates: true })) {
+                return;
+            }
+
             const hotelSelect = document.getElementById('hotelSelect');
             const roomTypeSelect = document.getElementById('roomTypeSelect');
             const bedTypeSelect = document.getElementById('bedTypeSelect');
@@ -15880,10 +17491,6 @@
             const getPriceBtn = document.getElementById('getPriceBtn');
 
             const hotelUniqueId = hotelSelect ? hotelSelect.value : '';
-            if (!hotelUniqueId) {
-                showNotification('Please select a hotel first.', 'warning');
-                return;
-            }
 
             // room_id from the selected room type option (data-room-id), fallback to value
             let roomId = roomTypeSelect ? roomTypeSelect.value : '';
@@ -15892,10 +17499,6 @@
                 if (roomOpt && roomOpt.dataset && roomOpt.dataset.roomId) {
                     roomId = roomOpt.dataset.roomId;
                 }
-            }
-            if (!roomId) {
-                showNotification('Please select a room type first.', 'warning');
-                return;
             }
 
             // bed_id from the selected bed type option (data-bed-id)
@@ -15919,13 +17522,9 @@
 
             // Build the list of date strings from the selected nights.
             const selectedNights = document.querySelectorAll('.night-btn.active');
-            if (selectedNights.length === 0) {
-                showNotification('Please select at least one night.', 'warning');
-                return;
-            }
             const planStart = getHotelNightPlanStart();
             if (!planStart) {
-                showNotification('Unable to determine the stay start date.', 'warning');
+                alert('Unable to determine the stay start date. Please check travel dates.');
                 return;
             }
             const dates = Array.from(selectedNights)
@@ -15984,7 +17583,7 @@
                     );
                     console.log('Hotel price result:', data);
                     showNotification(
-                        `Price calculated: SGD ${Number(data.grand_total).toFixed(2)} ` +
+                        `Price calculated: ${getTourCurrency()} ${Number(data.grand_total).toFixed(2)} ` +
                         `(Room: ${Number(data.room_total).toFixed(2)}, Meals: ${Number(data.meal_total).toFixed(2)}, ${data.nights} night(s))`,
                         'success'
                     );
@@ -16005,19 +17604,7 @@
 
             // Add Hotel Function
         window.addHotel = function() {
-            // Check if travel dates are set
-            if (!tourStartDate) {
-                alert('Please add travel dates first before adding hotels.');
-                return;
-            }
-            
-            // Check if guests (pax) are added
-            const adults = parseInt(document.getElementById('adults').value) || 0;
-            const children = parseInt(document.getElementById('children').value) || 0;
-            const totalGuests = adults + children;
-            
-            if (totalGuests === 0) {
-                alert('Please add guests (PAX) first before adding hotels.');
+            if (!window.validateHotelAccommodationForm({ requireTravelDates: true, requireGuests: true })) {
                 return;
             }
             
@@ -16034,16 +17621,7 @@
             }
             console.log(`Number of rooms from user input: ${numberOfRooms} rooms`);
             
-            if (!hotelSelect.value) {
-                showNotification('Please select a hotel first.', 'warning');
-                return;
-            }
-            
             const selectedNights = document.querySelectorAll('.night-btn.active');
-            if (selectedNights.length === 0) {
-                showNotification('Please select at least one night for this hotel.', 'warning');
-                return;
-            }
             
             // Get selected night numbers and dates
             const nightNumbers = Array.from(selectedNights).map(btn => parseInt(btn.dataset.night));
@@ -16107,16 +17685,16 @@
                     
                     console.log(`=== PRICE BREAKDOWN FOR ${roomType} ===`);
                     console.log(`Total nights: ${nightNumbers.length}`);
-                    console.log(`Weekday nights: ${weekdayNights} @ $${weekdayPrice} each`);
-                    console.log(`Weekend nights: ${weekendNights} @ $${weekendPrice} each`);
-                    console.log(`Total room price: $${totalRoomPrice}`);
+                    console.log(`Weekday nights: ${weekdayNights} @ ${getTourCurrency()} ${weekdayPrice} each`);
+                    console.log(`Weekend nights: ${weekendNights} @ ${getTourCurrency()} ${weekendPrice} each`);
+                    console.log(`Total room price: ${getTourCurrency()} ${totalRoomPrice}`);
                     console.log('Per-night breakdown:', priceBreakdown);
                 }
             }
             
             // Validate that we have a valid price
             if (totalRoomPrice <= 0) {
-                showNotification('Warning: Room price is $0.00. Please check room type selection.', 'warning');
+                showNotification('Warning: Room price is ' + formatTourPrice(0) + '. Please check room type selection.', 'warning');
                 console.warn('Room price is 0 or invalid:', totalRoomPrice);
             }
             
@@ -16275,7 +17853,12 @@
                         breakfast: Number(window.lastHotelPriceResult.breakfast_total) || 0,
                         lunch: Number(window.lastHotelPriceResult.lunch_total) || 0,
                         dinner: Number(window.lastHotelPriceResult.dinner_total) || 0,
-                        total: Number(window.lastHotelPriceResult.meal_total) || 0
+                        total: Number(window.lastHotelPriceResult.meal_total) || 0,
+                        breakdown: Array.isArray(window.lastHotelPriceResult.breakdown)
+                            ? window.lastHotelPriceResult.breakdown
+                            : [],
+                        pax: Number(window.lastHotelPriceResult.pax) || hpPax,
+                        nights: Number(window.lastHotelPriceResult.nights) || nightNumbers.length
                     };
                 }
             } catch (e) { console.warn('helperMeals signature check failed:', e); }
@@ -16455,7 +18038,7 @@
                 bedPriceDisplay.style.display = 'none';
                 const priceSpan = bedPriceDisplay.querySelector('span');
                 if (priceSpan) {
-                    priceSpan.textContent = '$0.00';
+                    priceSpan.textContent = formatTourPrice(0);
                 }
             }
             
@@ -16559,16 +18142,115 @@
         };
 
             // Display selected hotels
+        window.renderHotelAccordionHeader = function () {
+            const detailsEl = document.getElementById('hotelHeaderDetails');
+            const hotelTotalPriceEl = document.getElementById('hotelTotalPrice');
+            if (!detailsEl) return;
+
+            detailsEl.innerHTML = '';
+
+            const formatHotelLine = function (h) {
+                const parts = [h.name || 'Hotel'];
+                if (h.checkInDate && h.checkOutDate) {
+                    let yearSuffix = '';
+                    try {
+                        const sd = document.getElementById('start_date');
+                        if (sd && sd.value && typeof moment !== 'undefined') {
+                            yearSuffix = ', ' + moment(sd.value).format('YYYY');
+                        } else if (typeof tourStartDate !== 'undefined' && tourStartDate && typeof moment !== 'undefined') {
+                            yearSuffix = ', ' + moment(tourStartDate).format('YYYY');
+                        }
+                    } catch (e) { /* ignore */ }
+                    parts.push(h.checkInDate + ' - ' + h.checkOutDate + yearSuffix);
+                }
+                const roomBits = [];
+                if (h.roomType) roomBits.push(h.roomType);
+                if (h.bedType) roomBits.push(h.bedType);
+                const numRooms = parseInt(h.numberOfRooms, 10) || 1;
+                roomBits.push(numRooms + ' room' + (numRooms === 1 ? '' : 's'));
+                if (roomBits.length) parts.push(roomBits.join(' · '));
+                return parts.join(' · ');
+            };
+
+            if (!selectedHotels || selectedHotels.length === 0) {
+                const tourDatesEl = document.getElementById('tourDates');
+                const hotelNightsEl = document.getElementById('hotelNights');
+                const tourText = ((tourDatesEl && tourDatesEl.textContent) || '').trim();
+                const nightsText = ((hotelNightsEl && hotelNightsEl.textContent) || '').trim();
+                const fallback = [tourText, nightsText].filter(Boolean).join(' · ');
+                if (fallback) {
+                    const line = document.createElement('div');
+                    line.className = 'hotel-header-line';
+                    line.textContent = fallback;
+                    detailsEl.appendChild(line);
+                }
+                if (hotelTotalPriceEl) hotelTotalPriceEl.textContent = getTourCurrency() + ' 0.00';
+                return;
+            }
+
+            selectedHotels.forEach(function (h) {
+                const line = document.createElement('div');
+                line.className = 'hotel-header-line';
+                line.textContent = formatHotelLine(h);
+                detailsEl.appendChild(line);
+            });
+
+            const totalPrice = selectedHotels.reduce((sum, h) => {
+                const maxOcc = parseInt(h.maxOccupancy) || 0;
+                let extraBedCost = parseFloat(h.extraBedCost) || 0;
+                if (extraBedCost <= 0 && h.extraBedPrice > 0 && (h.selectedPersons || 1) > maxOcc) {
+                    extraBedCost = h.extraBedPrice * ((h.selectedPersons || 1) - maxOcc) * (h.numberOfRooms || 1) * (h.totalNights || 1);
+                }
+                let roomAndExtraCost;
+                if (h.roomPriceManuallyEdited && parseFloat(h.customRoomPrice) > 0) {
+                    roomAndExtraCost = parseFloat(h.customRoomPrice);
+                } else {
+                    const combined = parseFloat(h.combinedRoomTotal);
+                    roomAndExtraCost = (Number.isFinite(combined) && combined > 0)
+                        ? combined
+                        : ((parseFloat(h.price) || 0) * (parseInt(h.numberOfRooms) || 1)) + extraBedCost;
+                }
+                let mealCost = 0;
+                if (typeof window.calculateCorrectMealCosts === 'function') {
+                    mealCost = window.calculateCorrectMealCosts(h.mealPlan, h.totalNights || 1, h.selectedPersons || 1, 0, h.mealPrices, h.numberOfRooms || 1, { supplementBreakfastIncluded: !!h.supplement_breakfast_included, helperMeals: h.helperMeals || null });
+                } else {
+                    const totalGuests = h.selectedPersons || 1;
+                    if (h.mealPrices && typeof h.mealPrices === 'object') {
+                        if (h.mealPlan && (h.mealPlan.includes('breakfast') || h.mealPlan.includes('bf'))) {
+                            mealCost += (parseFloat(h.mealPrices.breakfast_price) || 0) * totalGuests * (h.totalNights || 1) * (h.numberOfRooms || 1);
+                        }
+                        if (h.mealPlan && h.mealPlan.includes('lunch')) {
+                            mealCost += (parseFloat(h.mealPrices.lunch_price) || 0) * totalGuests * (h.totalNights || 1) * (h.numberOfRooms || 1);
+                        }
+                        if (h.mealPlan && h.mealPlan.includes('dinner')) {
+                            mealCost += (parseFloat(h.mealPrices.dinner_price) || 0) * totalGuests * (h.totalNights || 1) * (h.numberOfRooms || 1);
+                        }
+                    }
+                }
+                const headerChildren = parseInt(document.getElementById('children') && document.getElementById('children').value) || 0;
+                const hNumChildren = headerChildren || (parseInt(h.children) || 0);
+                const hCwbChildren = (h.childWithBedEnabled && (parseFloat(h.childWithBedPrice) || 0) > 0) ? Math.max(hNumChildren, 1) : hNumChildren;
+                const hCnbChildren = (h.childWithoutBedEnabled && (parseFloat(h.childWithoutBedPrice) || 0) > 0) ? Math.max(hNumChildren, 1) : hNumChildren;
+                const cwbCost = (h.childWithBedEnabled && (parseFloat(h.childWithBedPrice) || 0) > 0) ? (parseFloat(h.childWithBedPrice) || 0) * hCwbChildren * (parseInt(h.numberOfRooms) || 1) * (parseInt(h.totalNights) || 1) : 0;
+                const cnbCost = (h.childWithoutBedEnabled && (parseFloat(h.childWithoutBedPrice) || 0) > 0) ? (parseFloat(h.childWithoutBedPrice) || 0) * hCnbChildren * (parseInt(h.numberOfRooms) || 1) * (parseInt(h.totalNights) || 1) : 0;
+                return sum + roomAndExtraCost + mealCost + cwbCost + cnbCost;
+            }, 0);
+
+            const formattedPrice = totalPrice.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+
+            if (hotelTotalPriceEl) {
+                hotelTotalPriceEl.textContent = getTourCurrency() + ' ' + formattedPrice;
+            }
+        };
+
         function displaySelectedHotels() {
             const container = document.getElementById('selectedHotels');
             
             if (selectedHotels.length === 0) {
-                container.innerHTML = `
-                    <div class="alert d-flex align-items-center" style="background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 6px; padding: 0.625rem 0.875rem; margin: 0;">
-                        <i class="ri-information-line me-2" style="color: #667eea;"></i>
-                        <span style="color: #495057; font-size: 0.85rem;">No hotels selected yet. Choose your hotels above.</span>
-                    </div>
-                `;
+                container.innerHTML = '';
             } else {
                 let hotelsHtml = '';
                 const currentChildren = parseInt(document.getElementById('children') && document.getElementById('children').value) || 0;
@@ -16625,21 +18307,27 @@
                                                 ${hotel.mealPrices ? `
                                                     <div style="font-size: 0.8rem;">
                                                         ${hotel.mealPlan.includes('breakfast') || hotel.mealPlan.includes('bf') ? `
-                                                            <div class="d-flex justify-content-between mb-1">
-                                                                <span style="color: #495057;">Breakfast:</span>
-                                                                <span style="color: #212529; font-weight: 500;">${hotel.supplement_breakfast_included ? 'Included (supplement)' : (hotel.helperMeals ? `$${((hotel.helperMeals.breakfast || 0) * (hotel.numberOfRooms || 1)).toFixed(2)} (rate-based)` : `$${hotel.mealPrices.breakfast_price || 0} × ${hotel.selectedPersons || 1} persons × ${hotel.totalNights} nights × ${hotel.numberOfRooms} rooms = $${(hotel.mealPrices.breakfast_price || 0) * (hotel.selectedPersons || 1) * hotel.totalNights * hotel.numberOfRooms}`)}</span>
+                                                            <div class="mb-2">
+                                                                <div class="d-flex justify-content-between mb-1">
+                                                                    <span style="color: #495057;">Breakfast:</span>
+                                                                    <span style="color: #212529; font-weight: 500; text-align: right; max-width: 72%;">${window.formatHotelMealBreakdownLine(hotel, 'breakfast')}</span>
+                                                                </div>
                                                             </div>
                                                         ` : ''}
                                                         ${hotel.mealPlan.includes('lunch') ? `
-                                                            <div class="d-flex justify-content-between mb-1">
-                                                                <span style="color: #495057;">Lunch:</span>
-                                                                <span style="color: #212529; font-weight: 500;">${hotel.helperMeals ? `$${((hotel.helperMeals.lunch || 0) * (hotel.numberOfRooms || 1)).toFixed(2)} (rate-based)` : `$${hotel.mealPrices.lunch_price || 0} × ${hotel.selectedPersons || 1} persons × ${hotel.totalNights} nights × ${hotel.numberOfRooms} rooms = $${(hotel.mealPrices.lunch_price || 0) * (hotel.selectedPersons || 1) * hotel.totalNights * hotel.numberOfRooms}`}</span>
+                                                            <div class="mb-2">
+                                                                <div class="d-flex justify-content-between mb-1">
+                                                                    <span style="color: #495057;">Lunch:</span>
+                                                                    <span style="color: #212529; font-weight: 500; text-align: right; max-width: 72%;">${window.formatHotelMealBreakdownLine(hotel, 'lunch')}</span>
+                                                                </div>
                                                             </div>
                                                         ` : ''}
                                                         ${hotel.mealPlan.includes('dinner') ? `
-                                                            <div class="d-flex justify-content-between mb-1">
-                                                                <span style="color: #495057;">Dinner:</span>
-                                                                <span style="color: #212529; font-weight: 500;">${hotel.helperMeals ? `$${((hotel.helperMeals.dinner || 0) * (hotel.numberOfRooms || 1)).toFixed(2)} (rate-based)` : `$${hotel.mealPrices.dinner_price || 0} × ${hotel.selectedPersons || 1} persons × ${hotel.totalNights} nights × ${hotel.numberOfRooms} rooms = $${(hotel.mealPrices.dinner_price || 0) * (hotel.selectedPersons || 1) * hotel.totalNights * hotel.numberOfRooms}`}</span>
+                                                            <div class="mb-2">
+                                                                <div class="d-flex justify-content-between mb-1">
+                                                                    <span style="color: #495057;">Dinner:</span>
+                                                                    <span style="color: #212529; font-weight: 500; text-align: right; max-width: 72%;">${window.formatHotelMealBreakdownLine(hotel, 'dinner')}</span>
+                                                                </div>
                                                             </div>
                                                         ` : ''}
                                                     </div>
@@ -16653,132 +18341,11 @@
                                                 <i class="ri-calculator-line me-1"></i>Cost Summary:
                                             </small>
                                             <div style="font-size: 0.8rem;">
-                                                <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
-                                                    <span>Room Cost:</span>
-                                                    <span style="font-weight: 500; color: #ffffff !important;">
-                                                        ${hotel.weekdayNights || hotel.weekendNights ? (() => {
-                                                            // Calculate actual weekday and weekend prices from breakdown
-                                                            let weekdayPrice = 0;
-                                                            let weekendPrice = 0;
-                                                            
-                                                            if (hotel.priceBreakdown && hotel.priceBreakdown.length > 0) {
-                                                                // Get actual prices from breakdown
-                                                                const weekdayNight = hotel.priceBreakdown.find(n => !n.isWeekend);
-                                                                const weekendNight = hotel.priceBreakdown.find(n => n.isWeekend);
-                                                                weekdayPrice = weekdayNight ? weekdayNight.price : 0;
-                                                                weekendPrice = weekendNight ? weekendNight.price : 0;
-                                                            }
-                                                            
-                                                            let breakdown = '';
-                                                            if (hotel.weekdayNights && weekdayPrice > 0) {
-                                                                breakdown += `${hotel.weekdayNights} weekday @ $${weekdayPrice.toFixed(2)}/night`;
-                                                            }
-                                                            if (hotel.weekdayNights && hotel.weekendNights && weekdayPrice > 0 && weekendPrice > 0) {
-                                                                breakdown += ' + ';
-                                                            }
-                                                            if (hotel.weekendNights && weekendPrice > 0) {
-                                                                breakdown += `${hotel.weekendNights} weekend @ $${weekendPrice.toFixed(2)}/night`;
-                                                            }
-                                                            if (breakdown) {
-                                                                breakdown += ` × ${hotel.numberOfRooms} room(s) = `;
-                                                            }
-                                                            return breakdown;
-                                                        })() : ''}
-                                                        $${(hotel.price || 0) * hotel.numberOfRooms}
-                                                    </span>
-                                                </div>
-                                                ${hotel.roomPriceManuallyEdited && hotel.customRoomPrice ? `
-                                                    <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
-                                                        <span>Custom Room Cost:</span>
-                                                        <span style="font-weight: 500; color: #ffffff !important;">$${parseFloat(hotel.customRoomPrice).toFixed(2)}</span>
-                                                    </div>
-                                                ` : ''}
-                                                ${hotel.mealPlan && !hotel.mealPlan.includes('only') ? `
-                                                    <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
-                                                        <span>Meal Cost:</span>
-                                                        <span style="font-weight: 500; color: #ffffff !important;">$${(() => {
-                                                            if (typeof window.calculateCorrectMealCosts === 'function') {
-                                                                return window.calculateCorrectMealCosts(hotel.mealPlan, hotel.totalNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, hotel.numberOfRooms, { supplementBreakfastIncluded: !!hotel.supplement_breakfast_included, helperMeals: hotel.helperMeals || null });
-                                                            }
-                                                            // Fallback calculation if function not available
-                                                            let mealCost = 0;
-                                                            const totalGuests = hotel.selectedPersons || 1;
-                                                            if (hotel.mealPrices && typeof hotel.mealPrices === 'object') {
-                                                                if (hotel.mealPlan.includes('breakfast') || hotel.mealPlan.includes('bf')) {
-                                                                    mealCost += (parseFloat(hotel.mealPrices.breakfast_price) || 0) * totalGuests * hotel.totalNights * hotel.numberOfRooms;
-                                                                }
-                                                                if (hotel.mealPlan.includes('lunch')) {
-                                                                    mealCost += (parseFloat(hotel.mealPrices.lunch_price) || 0) * totalGuests * hotel.totalNights * hotel.numberOfRooms;
-                                                                }
-                                                                if (hotel.mealPlan.includes('dinner')) {
-                                                                    mealCost += (parseFloat(hotel.mealPrices.dinner_price) || 0) * totalGuests * hotel.totalNights * hotel.numberOfRooms;
-                                                                }
-                                                            }
-                                                            return mealCost;
-                                                        })()}</span>
-                                                    </div>
-                                                ` : ''}
-                                                ${hotel.extraBedPrice && hotel.extraBedPrice > 0 && hotel.selectedPersons > hotel.maxOccupancy && !hotel.roomPriceManuallyEdited ? `
-                                                    <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
-                                                        <span>Extra Bed Cost:</span>
-                                                        <span style="font-weight: 500; color: #ffffff !important;">$${(parseFloat(hotel.extraBedCost) || (hotel.extraBedPrice * (hotel.selectedPersons - hotel.maxOccupancy) * hotel.numberOfRooms * hotel.totalNights)).toFixed(2)}</span>
-                                                    </div>
-                                                ` : ''}
-                                                ${(hotel.childWithBedEnabled || false) && (parseFloat(hotel.childWithBedPrice) || 0) > 0 ? `
-                                                    <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
-                                                        <span>Child with Bed:</span>
-                                                        <span style="font-weight: 500; color: #ffffff !important;">$${((parseFloat(hotel.childWithBedPrice) || 0) * cwbChildren * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)).toFixed(2)}</span>
-                                                    </div>
-                                                ` : ''}
-                                                ${(hotel.childWithoutBedEnabled || false) && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0 ? `
-                                                    <div class="d-flex justify-content-between mb-1" style="color: rgba(255, 255, 255, 0.9);">
-                                                        <span>Child without Bed:</span>
-                                                        <span style="font-weight: 500; color: #ffffff !important;">$${((parseFloat(hotel.childWithoutBedPrice) || 0) * cnbChildren * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1)).toFixed(2)}</span>
-                                                    </div>
-                                                ` : ''}
+                                                ${window.renderHotelCostSummaryBreakdownHtml(hotel, cwbChildren, cnbChildren)}
                                                 <hr class="my-2" style="border-color: rgba(255, 255, 255, 0.3);">
                                                 <div class="d-flex justify-content-between" style="font-weight: 700; font-size: 0.9rem; color: #ffffff !important;">
                                                     <span>Total:</span>
-                                                    <span>$${(() => {
-                                                        const maxOcc = parseInt(hotel.maxOccupancy) || 0;
-                                                        let extraBedCost = parseFloat(hotel.extraBedCost) || 0;
-                                                        if (extraBedCost <= 0 && hotel.extraBedPrice > 0 && (hotel.selectedPersons || 1) > maxOcc) {
-                                                            extraBedCost = hotel.extraBedPrice * ((hotel.selectedPersons || 1) - maxOcc) * hotel.numberOfRooms * hotel.totalNights;
-                                                        }
-                                                        let roomAndExtraCost;
-                                                        if (hotel.roomPriceManuallyEdited && parseFloat(hotel.customRoomPrice) > 0) {
-                                                            roomAndExtraCost = parseFloat(hotel.customRoomPrice);
-                                                            extraBedCost = 0;
-                                                        } else {
-                                                            const combined = parseFloat(hotel.combinedRoomTotal);
-                                                            roomAndExtraCost = (Number.isFinite(combined) && combined > 0)
-                                                                ? combined
-                                                                : ((hotel.price || 0) * hotel.numberOfRooms) + extraBedCost;
-                                                            if (Number.isFinite(combined) && combined > 0) {
-                                                                extraBedCost = 0;
-                                                            }
-                                                        }
-                                                        let mealCost = 0;
-                                                        if (typeof window.calculateCorrectMealCosts === 'function') {
-                                                            mealCost = window.calculateCorrectMealCosts(hotel.mealPlan, hotel.totalNights, hotel.selectedPersons || 1, 0, hotel.mealPrices, hotel.numberOfRooms, { supplementBreakfastIncluded: !!hotel.supplement_breakfast_included, helperMeals: hotel.helperMeals || null });
-                                                        } else {
-                                                            const totalGuests = hotel.selectedPersons || 1;
-                                                            if (hotel.mealPrices && typeof hotel.mealPrices === 'object') {
-                                                                if (!hotel.supplement_breakfast_included && hotel.mealPlan && (hotel.mealPlan.includes('breakfast') || hotel.mealPlan.includes('bf'))) {
-                                                                    mealCost += (parseFloat(hotel.mealPrices.breakfast_price) || 0) * totalGuests * hotel.totalNights * hotel.numberOfRooms;
-                                                                }
-                                                                if (hotel.mealPlan && hotel.mealPlan.includes('lunch')) {
-                                                                    mealCost += (parseFloat(hotel.mealPrices.lunch_price) || 0) * totalGuests * hotel.totalNights * hotel.numberOfRooms;
-                                                                }
-                                                                if (hotel.mealPlan && hotel.mealPlan.includes('dinner')) {
-                                                                    mealCost += (parseFloat(hotel.mealPrices.dinner_price) || 0) * totalGuests * hotel.totalNights * hotel.numberOfRooms;
-                                                                }
-                                                            }
-                                                        }
-                                                        const cwbCost = (hotel.childWithBedEnabled && (parseFloat(hotel.childWithBedPrice) || 0) > 0) ? (parseFloat(hotel.childWithBedPrice) || 0) * cwbChildren * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1) : 0;
-                                                        const cnbCost = (hotel.childWithoutBedEnabled && (parseFloat(hotel.childWithoutBedPrice) || 0) > 0) ? (parseFloat(hotel.childWithoutBedPrice) || 0) * cnbChildren * (parseInt(hotel.numberOfRooms) || 1) * (parseInt(hotel.totalNights) || 1) : 0;
-                                                        return (roomAndExtraCost + mealCost + cwbCost + cnbCost).toFixed(2);
-                                                    })()}</span>
+                                                    <span>${getTourCurrency()} ${window.computeHotelBookingGrandTotal(hotel, cwbChildren, cnbChildren).toFixed(2)}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -16827,73 +18394,9 @@
                 totalNightsEl.textContent = totalNights + ' Nights';
             }
             
-            // Update hotel accordion header summary (first hotel name + total price)
-            const headerSummaryEl = document.getElementById('hotelHeaderSummary');
-            if (headerSummaryEl) {
-                if (selectedHotels.length === 0) {
-                    headerSummaryEl.textContent = '';
-                } else {
-                    // Build a concise list of hotel names
-                    let hotelNames = '';
-                    if (selectedHotels.length === 1) {
-                        hotelNames = selectedHotels[0].name;
-                    } else if (selectedHotels.length === 2) {
-                        hotelNames = `${selectedHotels[0].name} & ${selectedHotels[1].name}`;
-                    } else if (selectedHotels.length === 3) {
-                        hotelNames = `${selectedHotels[0].name}, ${selectedHotels[1].name} & ${selectedHotels[2].name}`;
-                    } else {
-                        const remaining = selectedHotels.length - 2;
-                        hotelNames = `${selectedHotels[0].name}, ${selectedHotels[1].name} + ${remaining} more`;
-                    }
-                    
-                    const totalPrice = selectedHotels.reduce((sum, h) => {
-                        const maxOcc = parseInt(h.maxOccupancy) || 0;
-                        let extraBedCost = parseFloat(h.extraBedCost) || 0;
-                        if (extraBedCost <= 0 && h.extraBedPrice > 0 && (h.selectedPersons || 1) > maxOcc) {
-                            extraBedCost = h.extraBedPrice * ((h.selectedPersons || 1) - maxOcc) * (h.numberOfRooms || 1) * (h.totalNights || 1);
-                        }
-                        let roomAndExtraCost;
-                        if (h.roomPriceManuallyEdited && parseFloat(h.customRoomPrice) > 0) {
-                            roomAndExtraCost = parseFloat(h.customRoomPrice);
-                        } else {
-                            const combined = parseFloat(h.combinedRoomTotal);
-                            roomAndExtraCost = (Number.isFinite(combined) && combined > 0)
-                                ? combined
-                                : ((parseFloat(h.price) || 0) * (parseInt(h.numberOfRooms) || 1)) + extraBedCost;
-                        }
-                        let mealCost = 0;
-                        if (typeof window.calculateCorrectMealCosts === 'function') {
-                            mealCost = window.calculateCorrectMealCosts(h.mealPlan, h.totalNights || 1, h.selectedPersons || 1, 0, h.mealPrices, h.numberOfRooms || 1, { supplementBreakfastIncluded: !!h.supplement_breakfast_included, helperMeals: h.helperMeals || null });
-                        } else {
-                            const totalGuests = h.selectedPersons || 1;
-                            if (h.mealPrices && typeof h.mealPrices === 'object') {
-                                if (h.mealPlan && (h.mealPlan.includes('breakfast') || h.mealPlan.includes('bf'))) {
-                                    mealCost += (parseFloat(h.mealPrices.breakfast_price) || 0) * totalGuests * (h.totalNights || 1) * (h.numberOfRooms || 1);
-                                }
-                                if (h.mealPlan && h.mealPlan.includes('lunch')) {
-                                    mealCost += (parseFloat(h.mealPrices.lunch_price) || 0) * totalGuests * (h.totalNights || 1) * (h.numberOfRooms || 1);
-                                }
-                                if (h.mealPlan && h.mealPlan.includes('dinner')) {
-                                    mealCost += (parseFloat(h.mealPrices.dinner_price) || 0) * totalGuests * (h.totalNights || 1) * (h.numberOfRooms || 1);
-                                }
-                            }
-                        }
-                        const headerChildren = parseInt(document.getElementById('children') && document.getElementById('children').value) || 0;
-                        const hNumChildren = headerChildren || (parseInt(h.children) || 0);
-                        const hCwbChildren = (h.childWithBedEnabled && (parseFloat(h.childWithBedPrice) || 0) > 0) ? Math.max(hNumChildren, 1) : hNumChildren;
-                        const hCnbChildren = (h.childWithoutBedEnabled && (parseFloat(h.childWithoutBedPrice) || 0) > 0) ? Math.max(hNumChildren, 1) : hNumChildren;
-                        const cwbCost = (h.childWithBedEnabled && (parseFloat(h.childWithBedPrice) || 0) > 0) ? (parseFloat(h.childWithBedPrice) || 0) * hCwbChildren * (parseInt(h.numberOfRooms) || 1) * (parseInt(h.totalNights) || 1) : 0;
-                        const cnbCost = (h.childWithoutBedEnabled && (parseFloat(h.childWithoutBedPrice) || 0) > 0) ? (parseFloat(h.childWithoutBedPrice) || 0) * hCnbChildren * (parseInt(h.numberOfRooms) || 1) * (parseInt(h.totalNights) || 1) : 0;
-                        return sum + roomAndExtraCost + mealCost + cwbCost + cnbCost;
-                    }, 0);
-                    
-                    const formattedPrice = totalPrice.toLocaleString('en-US', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                    });
-                    
-                    headerSummaryEl.textContent = `– ${hotelNames} • SGD ${formattedPrice}`;
-                }
+            // Update hotel accordion header (one line per hotel: name · dates · room)
+            if (typeof window.renderHotelAccordionHeader === 'function') {
+                window.renderHotelAccordionHeader();
             }
             try { window.scheduleTourSubmitButtonUpdate && window.scheduleTourSubmitButtonUpdate(); } catch (e) { /* ignore */ }
         }
@@ -16907,7 +18410,12 @@
 
             // Generate daily services based on tour dates
         function generateDailyServices() {
-            const container = document.getElementById('dailyServicesContainer');
+            const liveBundle = document.getElementById('segmentServicesBundle');
+            const container = (liveBundle && liveBundle.querySelector('#dailyServicesContainer'))
+                || document.getElementById('dailyServicesContainer');
+            if (!container || container.closest('.segment-services-frozen')) {
+                return;
+            }
 
             const useSeg = window.multiSegmentStayRange && window.multiSegmentStayRange.start && window.multiSegmentStayRange.end &&
                 typeof $ !== 'undefined' &&
@@ -16933,6 +18441,7 @@
             
             let servicesHTML = '';
             window.multiRestaurants = @json($multiRestaurants ?? []);
+            const tourCurrencyLabel = @json($dmcCurrency);
             
             // Only show Day 1 and last day with exit port (if more than 1 day)
             const daysToShow = totalDays > 1 ? [1, totalDays] : [1];
@@ -16965,7 +18474,7 @@
                                     </div>
                                     <div class="d-flex align-items-center ms-3">
                                         <div class="text-end me-3">
-                                            <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_arrival_total_price">SGD 0.00</div>
+                                            <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_arrival_total_price">${getTourCurrency()} 0.00</div>
                                             <small class="text-muted" style="font-size: 0.7rem;">Total Price</small>
                                         </div>
                                         <i class="ri-arrow-down-s-line transition-transform" style="color: #3b82f6; font-size: 0.9rem;"></i>
@@ -16997,10 +18506,9 @@
                                                     <i class="ri-building-line me-1 text-primary"></i>City
                                                 </label>
                                                 <div class="position-relative">
-                                                    <select class="form-select shadow-sm" style="height: 42px; font-size: 0.735rem; padding-left: 45px; border: 1px solid #e5e7eb;" id="modal_local_transfer_city" name="city" onchange="loadPortsForCity(this.value)">
+                                                    <select class="form-select shadow-sm" style="height: 42px; font-size: 0.735rem; border: 1px solid #e5e7eb;" id="modal_local_transfer_city" name="city" onchange="loadPortsForCity(this.value)">
                                                         <option value="">Select city...</option>
                                                     </select>
-                                                    <i class="ri-map-pin-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                                 </div>
                                             </div>
                                             <div class="col-12 col-md-3">
@@ -17128,6 +18636,24 @@
                                                     </div>
                                                     <input type="hidden" name="day${day}_entry_0_passengers" id="day${day}_entry_0_passengers" value="1">
                                                 </div>
+                                                    <!-- Custom Price after Children -->
+                                                    <div class="col-12 entry-port-custom-price-field" id="day${day}_entry_0_price_field" style="display: none;">
+                                                        <div class="alert alert-warning mb-0">
+                                                            <div class="form-group mb-0">
+                                                                <label class="form-label fw-semibold mb-2">
+                                                                    <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
+                                                                </label>
+                                                                <div class="input-group">
+                                                                    <span class="input-group-text tour-currency-prefix">${typeof getTourCurrency === 'function' ? getTourCurrency() : @json($dmcCurrency)}</span>
+                                                                    <input type="number" class="form-control" id="day${day}_entry_0_custom_price" name="day${day}_entry_0_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateEntryPortCustomPricing(${day}, 'entry_0')" onchange="updateEntryPortCustomPricing(${day}, 'entry_0')">
+                                                                    <span class="input-group-text">.00</span>
+                                                                </div>
+                                                                <small class="form-text text-muted mt-1">
+                                                                    <i class="ri-information-line me-1"></i>Enter the custom price for this entry port service
+                                                                </small>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                     <!-- Remarks full width (col-md-12) -->
                                                     <div class="col-md-12 mt-2">
                                                         <div class="form-check mb-2">
@@ -17163,9 +18689,14 @@
                                                                     <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Vehicle pricing details for entry port service</small>
                                                                 </div>
                                                             </div>
+                                                            <div class="d-flex align-items-center gap-2">
+                                                            <button type="button" class="btn btn-sm text-white" onclick="clearEntryPortForm(${day}, 0)" title="Clear arrival transport form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                                <i class="ri-close-circle-line me-1"></i>Clear
+                                                            </button>
                                                             <button type="button" class="btn btn-sm text-white" onclick="forceUpdateEntryPortPricing(${day}, 0)" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                                 <i class="ri-refresh-line"></i>
                                                             </button>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -17202,7 +18733,7 @@
                                                                                 </div>
                                                                                 Total Price
                                                                             </h6>
-                                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_entry_0_total_price_display">$0.00</span>
+                                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_entry_0_total_price_display">${getTourCurrency()} 0.00</span>
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -17211,25 +18742,6 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                            
-                                            <!-- Custom Price Field for Entry Port (Zone = 0) -->
-                                            <div class="col-12 mt-3 entry-port-custom-price-field" id="day${day}_entry_0_price_field" style="display: none;">
-                                                <div class="alert alert-warning">
-                                                    <div class="form-group mb-0">
-                                                        <label class="form-label fw-semibold mb-2">
-                                                            <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
-                                                        </label>
-                                                        <div class="input-group">
-                                                            <span class="input-group-text">SGD</span>
-                                                            <input type="number" class="form-control" id="day${day}_entry_0_custom_price" name="day${day}_entry_0_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateEntryPortCustomPricing(${day}, 'entry_0')" onchange="updateEntryPortCustomPricing(${day}, 'entry_0')">
-                                                            <span class="input-group-text">.00</span>
-                                                        </div>
-                                                        <small class="form-text text-muted mt-1">
-                                                            <i class="ri-information-line me-1"></i>Enter the custom price for this entry port service
-                                                        </small>
-                                                        </div>
-                                                    </div>
-                                                </div>
                                                 
                                                 <!-- Hidden fields for entry port pricing -->
                                             <div class="col-12">
@@ -17278,7 +18790,7 @@
                                     </div>
                                     <div class="d-flex align-items-center ms-3">
                                         <div class="text-end me-3">
-                                            <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_departure_total_price">SGD 0.00</div>
+                                            <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_departure_total_price">${tourCurrencyLabel} 0.00</div>
                                             <small class="text-muted" style="font-size: 0.7rem;">Total Price</small>
                                         </div>
                                         <i class="ri-arrow-down-s-line transition-transform" style="color: #3b82f6; font-size: 0.9rem;"></i>
@@ -17313,10 +18825,9 @@
                                                     <i class="ri-building-line me-1 text-primary"></i>City
                                                 </label>
                                                 <div class="position-relative">
-                                                    <select class="form-select shadow-sm" id="modal_exit_city" name="city" style="height: 42px; font-size: 0.735rem; padding-left: 45px; border: 1px solid #e5e7eb;" onchange="loadExitPortsForCity(this.value)">
+                                                    <select class="form-select shadow-sm" id="modal_exit_city" name="city" style="height: 42px; font-size: 0.735rem; border: 1px solid #e5e7eb;" onchange="loadExitPortsForCity(this.value)">
                                                         <option value="">Select city...</option>
                                                     </select>
-                                                    <i class="ri-map-pin-fill position-absolute text-primary" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                                 </div>
                                             </div>
                                             <div class="col-12 col-md-3">
@@ -17447,6 +18958,24 @@
                                                     </div>
                                                     <input type="hidden" name="day${day}_exit_0_passengers" id="day${day}_exit_0_passengers" value="1">
                                                 </div>
+                                                    <!-- Custom Price after Children -->
+                                                    <div class="col-12 exit-port-custom-price-field" id="day${day}_exit_0_price_field" style="display: none;">
+                                                        <div class="alert alert-warning mb-0">
+                                                            <div class="form-group mb-0">
+                                                                <label class="form-label fw-semibold mb-2">
+                                                                    <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
+                                                                </label>
+                                                                <div class="input-group">
+                                                                    <span class="input-group-text tour-currency-prefix">${typeof getTourCurrency === 'function' ? getTourCurrency() : @json($dmcCurrency)}</span>
+                                                                    <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" id="day${day}_exit_0_custom_price" name="day${day}_exit_0_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateExitPortCustomPricing(${day}, 'exit_0')" onchange="updateExitPortCustomPricing(${day}, 'exit_0')">
+                                                                    <span class="input-group-text">.00</span>
+                                                                </div>
+                                                                <small class="form-text text-muted mt-1">
+                                                                    <i class="ri-information-line me-1"></i>Enter the custom price for this exit port service
+                                                                </small>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                     <!-- Remarks full width (col-md-12) -->
                                                     <div class="col-md-12 mt-2">
                                                         <div class="form-check mb-2">
@@ -17482,9 +19011,14 @@
                                                                     <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Vehicle pricing by adult / child / infant</small>
                                                                 </div>
                                                             </div>
+                                                            <div class="d-flex align-items-center gap-2">
+                                                            <button type="button" class="btn btn-sm text-white" onclick="clearExitPortForm(${day}, 0)" title="Clear departure transport form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                                <i class="ri-close-circle-line me-1"></i>Clear
+                                                            </button>
                                                             <button type="button" class="btn btn-sm text-white" onclick="forceUpdateExitPortPricing(${day}, 0)" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                                 <i class="ri-refresh-line"></i>
                                                             </button>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -17521,30 +19055,11 @@
                                                                                 </div>
                                                                                 Total Price
                                                                             </h6>
-                                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_exit_0_total_price_display">SGD 0.00</span>
+                                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_exit_0_total_price_display">${tourCurrencyLabel} 0.00</span>
                                                                         </div>
                                                                     </div>
                                                                 </div>
                                                             </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                
-                                                <!-- Custom Price Field for Exit Port (Zone = 0) -->
-                                                <div class="col-12 mt-3 exit-port-custom-price-field" id="day${day}_exit_0_price_field" style="display: none;">
-                                                    <div class="alert alert-warning">
-                                                        <div class="form-group mb-0">
-                                                            <label class="form-label fw-semibold mb-2">
-                                                                <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
-                                                            </label>
-                                                            <div class="input-group">
-                                                                <span class="input-group-text">SGD</span>
-                                                                <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" id="day${day}_exit_0_custom_price" name="day${day}_exit_0_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateExitPortCustomPricing(${day}, 'exit_0')" onchange="updateExitPortCustomPricing(${day}, 'exit_0')">
-                                                                <span class="input-group-text">.00</span>
-                                                            </div>
-                                                            <small class="form-text text-muted mt-1">
-                                                                <i class="ri-information-line me-1"></i>Enter the custom price for this exit port service
-                                                            </small>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -17605,7 +19120,7 @@
                                     </div>
                                     <div class="d-flex align-items-center ms-3">
                                         <div class="text-end me-3">
-                                            <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_attractionTotalPrice">SGD 0.00</div>
+                                            <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_attractionTotalPrice">${getTourCurrency()} 0.00</div>
                                             <small class="text-muted" style="font-size: 0.7rem;">Total Price</small>
                                         </div>
                                         <i class="ri-arrow-down-s-line transition-transform" style="color: #a855f7; font-size: 0.9rem;"></i>
@@ -17928,9 +19443,14 @@
                                                             <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Select an attraction and configure guests to see pricing</small>
                                                         </div>
                                                     </div>
+                                                    <div class="d-flex align-items-center gap-2">
+                                                    <button type="button" class="btn btn-sm text-white" onclick="clearAttractionForm(${day}, 1)" title="Clear this attraction form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                        <i class="ri-close-circle-line me-1"></i>Clear
+                                                    </button>
                                                     <button type="button" class="btn btn-sm text-white" onclick="forceUpdateAttractionPricing(${day}, 1)" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                         <i class="ri-refresh-line"></i>
                                                     </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                             <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -18012,6 +19532,14 @@
                                                         <textarea class="form-control" name="day${day}_attraction_1_remarks" id="day${day}_attraction_1_remarks" rows="2" placeholder="Optional notes for this attraction service..." style="font-size: 0.8rem; border-radius: 6px; border: 1px solid #dee2e6;"></textarea>
                                                     </div>
                                                 </div>
+
+                                                <div class="row mt-3">
+                                                    <div class="col-12 d-flex justify-content-end">
+                                                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearAttractionForm(${day}, 1)" title="Reset attraction fields" style="border-radius: 8px; font-weight: 500;">
+                                                            <i class="ri-eraser-line me-1"></i>Clear Form
+                                                        </button>
+                                                    </div>
+                                                </div>
                                                 
                                                 <!-- Total Price Row -->
                                                 <div class="row mt-3" id="day${day}_attraction_1_total_price_row" style="display: none;">
@@ -18025,7 +19553,7 @@
                                                                         </div>
                                                                         Total Price
                                                                     </h6>
-                                                                    <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_attraction_1_total_price_display">$0.00</span>
+                                                                    <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_attraction_1_total_price_display">${getTourCurrency()} 0.00</span>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -18068,7 +19596,7 @@
                                     </div>
                                     <div class="d-flex align-items-center ms-3">
                                         <div class="text-end me-3">
-                                            <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_guideTotalPrice">SGD 0.00</div>
+                                            <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_guideTotalPrice">${getTourCurrency()} 0.00</div>
                                             <small class="text-muted" style="font-size: 0.7rem;">Total Price</small>
                                         </div>
                                         <i class="ri-arrow-down-s-line transition-transform" style="color: #10b981; font-size: 0.9rem;"></i>
@@ -18271,9 +19799,14 @@
                                                                     <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Selected Guide: <span id="day${day}_guide_1_guide_name" style="font-weight: 600;">Guide Name</span></small>
                                                                 </div>
                                                             </div>
+                                                            <div class="d-flex align-items-center gap-2">
+                                                            <button type="button" class="btn btn-sm text-white" onclick="clearGuideForm(${day}, 1)" title="Clear this guide form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                                <i class="ri-close-circle-line me-1"></i>Clear
+                                                            </button>
                                                             <button type="button" class="btn btn-sm text-white" onclick="forceUpdateGuidePricing(${day}, 1)" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                                 <i class="ri-refresh-line"></i>
                                                             </button>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -18287,7 +19820,7 @@
                                                                                 <i class="ri-price-tag-3-line" style="color: #667eea; margin-right: 5px;"></i>
                                                                                 Package Price:
                                                                             </span>
-                                                                            <span class="fw-semibold" style="color: #495057;" id="day${day}_guide_1_package_price_display">$0.00</span>
+                                                                            <span class="fw-semibold" style="color: #495057;" id="day${day}_guide_1_package_price_display">${getTourCurrency()} 0.00</span>
                                                                         </div>
                                                                         
                                                                         <div class="d-flex align-items-center justify-content-between mb-3" style="font-size: 0.85rem;">
@@ -18303,7 +19836,7 @@
                                                                                 <i class="ri-moon-line" style="color: #ff9800; margin-right: 5px;"></i>
                                                                                 Night Surcharge:
                                                                             </span>
-                                                                            <span class="fw-semibold" style="color: #ff9800;" id="day${day}_guide_1_surcharge_display">$0.00</span>
+                                                                            <span class="fw-semibold" style="color: #ff9800;" id="day${day}_guide_1_surcharge_display">${getTourCurrency()} 0.00</span>
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -18322,7 +19855,7 @@
                                                                                 </div>
                                                                                 Total Price
                                                                             </h6>
-                                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_guide_1_total_price_display">$0.00</span>
+                                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_guide_1_total_price_display">${getTourCurrency()} 0.00</span>
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -18373,7 +19906,7 @@
                                     </div>
                                     <div class="d-flex align-items-center ms-3">
                                         <div class="text-end me-3">
-                                            <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_restaurantTotalPrice">SGD 0.00</div>
+                                            <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_restaurantTotalPrice">${getTourCurrency()} 0.00</div>
                                             <small class="text-muted" style="font-size: 0.7rem;">Total Price</small>
                                         </div>
                                         <i class="ri-arrow-down-s-line transition-transform" style="color: #f59e0b; font-size: 0.9rem;"></i>
@@ -18605,9 +20138,14 @@
                                                                             <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Selected Restaurant: <span id="day${day}_restaurant_1_restaurant_name" style="font-weight: 600;">Restaurant Name</span></small>
                                                                         </div>
                                                                     </div>
+                                                                    <div class="d-flex align-items-center gap-2">
+                                                                    <button type="button" class="btn btn-sm text-white" onclick="clearRestaurantForm(${day}, 1)" title="Clear this restaurant form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                                        <i class="ri-close-circle-line me-1"></i>Clear
+                                                                    </button>
                                                                     <button type="button" class="btn btn-sm text-white" onclick="forceUpdateRestaurantPricing(${day}, 1)" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                                         <i class="ri-refresh-line"></i>
                                                                     </button>
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                             <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -18664,7 +20202,7 @@
                                                                                         </div>
                                                                                         Total Price
                                                                                     </h6>
-                                                                                    <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;">$<span id="day${day}_restaurant_1_total_display">0.00</span></span>
+                                                                                    <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_restaurant_1_total_display">${getTourCurrency()} 0.00</span>
                                                                                 </div>
                                                                             </div>
                                                                         </div>
@@ -18704,7 +20242,7 @@
                                     </div>
                                     <div class="d-flex align-items-center ms-3">
                                         <div class="text-end me-3">
-                                            <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_other_transport_total_price">SGD 0.00</div>
+                                            <div class="fw-semibold text-dark" style="font-size: 0.85rem;" id="day${day}_other_transport_total_price">${tourCurrencyLabel} 0.00</div>
                                             <small class="text-muted" style="font-size: 0.7rem;">Total Price</small>
                                         </div>
                                         <i class="ri-arrow-down-s-line transition-transform" style="color: #14b8a6; font-size: 0.9rem;"></i>
@@ -18721,10 +20259,10 @@
                                             <label class="form-label fw-semibold">
                                                 <i class="ri-building-line me-1"></i>City
                                             </label>
-                                            <select class="form-select transport-city-select" name="day${day}_transport_city_0" id="day${day}_transport_city_0" onchange="loadTransportZonesForCity(${day}, this.value, 0)">
+                                            <select class="form-select transport-city-select" name="day${day}_transport_city_0" id="day${day}_transport_city_0" onchange="loadTransportZonesForCity(${day}, this.value, 0); if (typeof window.refreshAutocompleteCityBounds === 'function') { window.refreshAutocompleteCityBounds(this); }">
                                                 <option value="">Select City</option>
                                             </select>
-                                            <small class="text-danger" style="display: none;" id="day${day}_transport_city_message_1">Please select a city first.</small>
+                                            <small class="text-danger" style="display: none;" id="day${day}_transport_city_message_0">Please select a city first.</small>
                                         </div>
                                     </div>
                                     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -18760,10 +20298,9 @@
                                                     <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
                                                 </label>
                                                 <div class="position-relative">
-                                                    <select class="form-select pickup-zone-select border-2" style="height: 42px; font-size: 0.735rem;" name="day${day}_transport_pickup_zone_id" style="padding-left: 45px;" onchange="handlePickupZoneChange(${day}, 'transport')" disabled>
+                                                    <select class="form-select pickup-zone-select border-2" style="height: 42px; font-size: 0.735rem;" name="day${day}_transport_pickup_zone_id" onchange="handlePickupZoneChange(${day}, 'transport')" disabled>
                                                         <option value="">Select city first</option>
                                                     </select>
-                                                    <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                                 </div>
                                             </div>
                                         </div>
@@ -18773,10 +20310,9 @@
                                                     <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
                                                 </label>
                                                 <div class="position-relative">
-                                                    <select class="form-select dropoff-zone-select border-2" style="height: 42px; font-size: 0.735rem;" name="day${day}_transport_dropoff_zone_id" disabled style="padding-left: 45px; padding-right: 45px;">
+                                                    <select class="form-select dropoff-zone-select border-2" style="height: 42px; font-size: 0.735rem;" name="day${day}_transport_dropoff_zone_id" disabled>
                                                         <option value="">Select city and pickup location first</option>
                                         </select>
-                                        <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                     </div>
                                             </div>
                                         </div>
@@ -19084,9 +20620,14 @@
                                                                     <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Vehicle pricing by adult / child / infant</small>
                                                                 </div>
                                                             </div>
+                                                            <div class="d-flex align-items-center gap-2">
+                                                            <button type="button" class="btn btn-sm text-white" onclick="clearTransportForm(${day})" title="Clear this transport form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                                <i class="ri-close-circle-line me-1"></i>Clear
+                                                            </button>
                                                             <button type="button" class="btn btn-sm text-white" onclick="forceUpdateTransportPricing(${day})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                                 <i class="ri-refresh-line"></i>
                                                             </button>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -19123,7 +20664,7 @@
                                                                                 </div>
                                                                                 Total Price
                                                                             </h6>
-                                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_transport_total_price_display">SGD 0.00</span>
+                                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_transport_total_price_display">${tourCurrencyLabel} 0.00</span>
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -19168,6 +20709,23 @@
             }
             
             container.innerHTML = servicesHTML;
+
+            // Ensure transport section headers use DMC currency (not stale/hardcoded prefix)
+            daysToShow.forEach(function (d) {
+                ['_departure_total_price', '_other_transport_total_price', '_arrival_total_price'].forEach(function (suffix) {
+                    const el = document.getElementById('day' + d + suffix);
+                    if (!el) return;
+                    const amountMatch = (el.textContent || '').trim().match(/[\d,.]+$/);
+                    const amount = amountMatch ? amountMatch[0] : '0.00';
+                    el.textContent = (typeof getTourCurrency === 'function' ? getTourCurrency() : tourCurrencyLabel) + ' ' + amount;
+                });
+                if (typeof window.updateDepartureHeader === 'function') {
+                    window.updateDepartureHeader(d);
+                }
+                if (typeof window.updateOtherTransportHeader === 'function') {
+                    window.updateOtherTransportHeader(d);
+                }
+            });
             
             // After HTML is rendered, populate entry and exit port fields for each day
             let day = 1;
@@ -19427,6 +20985,52 @@
             // Get attraction select element and selected option
             const attractionSelect = document.getElementById('day' + day + '_attraction_' + index);
             const selectedOption = attractionSelect.options[attractionSelect.selectedIndex];
+            
+            // Packaged attraction bundle: auto-check vehicle/guide and use bundle pricing
+            const isBundle = selectedOption.dataset.isBundle === '1';
+            if (isBundle) {
+                // Auto-set Transfer Required if bundle includes a vehicle
+                const transferRequiredSelect = document.getElementById(`day${day}_attraction_${index}_transfer_required`);
+                if (transferRequiredSelect && selectedOption.dataset.vehicleIncluded === '1') {
+                    transferRequiredSelect.value = 'Yes';
+                    if (typeof window.toggleAttractionTransferFields === 'function') {
+                        window.toggleAttractionTransferFields(day, index);
+                    }
+                }
+                
+                // Auto-set Guide Required if bundle includes a guide
+                const guideRequiredSelect = document.getElementById(`day${day}_attraction_${index}_guide_required`);
+                if (guideRequiredSelect && selectedOption.dataset.guideIncluded === '1') {
+                    guideRequiredSelect.value = 'Yes';
+                    if (typeof window.toggleAttractionGuideFields === 'function') {
+                        window.toggleAttractionGuideFields(day, index);
+                    }
+                }
+                
+                // Bundles have no operating hours; offer a full-day slot
+                const bundleTimeSlotSelect = document.getElementById(`day${day}_attraction_${index}_time`);
+                if (bundleTimeSlotSelect) {
+                    bundleTimeSlotSelect.innerHTML = '<option value="">Select Time Slot</option><option value="Full Day">Full Day</option>';
+                }
+                
+                // Bundles have no tickets; use the bundle prices as a single ticket option
+                const bundleTicketSelect = document.getElementById(`day${day}_attraction_${index}_ticket`);
+                if (bundleTicketSelect) {
+                    bundleTicketSelect.innerHTML = '<option value="">Select Ticket</option>';
+                    const bundleTicketOption = document.createElement('option');
+                    bundleTicketOption.value = selectedOption.value;
+                    bundleTicketOption.textContent = selectedOption.text + ' (Bundle)';
+                    bundleTicketOption.dataset.adultPrice = selectedOption.dataset.adultPrice || 0;
+                    bundleTicketOption.dataset.childPrice = selectedOption.dataset.childPrice || 0;
+                    bundleTicketOption.dataset.seniorPrice = selectedOption.dataset.seniorPrice || 0;
+                    bundleTicketOption.selected = true;
+                    bundleTicketSelect.appendChild(bundleTicketOption);
+                }
+                
+                updateAttractionPricing(day, index);
+                try { window.scheduleTourSubmitButtonUpdate && window.scheduleTourSubmitButtonUpdate(); } catch (e) { /* ignore */ }
+                return;
+            }
             
             // Get open_time and close_time from the selected attraction option
             const openTime = selectedOption.dataset.openTime;
@@ -19691,11 +21295,11 @@
                         <div class="small">
                             <div class="mb-2"><strong>${selectedTicket.text}</strong></div>
                             <div class="mb-1"><strong>Calculation:</strong></div>
-                            <div class="mb-1">Adult: $${adultPrice.toFixed(2)} × ${guestInfo.adults} = $${(adultPrice * guestInfo.adults).toFixed(2)}</div>
-                            <div class="mb-1">Child: $${childPrice.toFixed(2)} × ${guestInfo.children} = $${(childPrice * guestInfo.children).toFixed(2)}</div>
-                            <div class="mb-2">Senior: $${seniorPrice.toFixed(2)} × ${guestInfo.seniors} = $${(seniorPrice * guestInfo.seniors).toFixed(2)}</div>
+                            <div class="mb-1">Adult: ${getTourCurrency()} ${adultPrice.toFixed(2)} × ${guestInfo.adults} = ${getTourCurrency()} ${(adultPrice * guestInfo.adults).toFixed(2)}</div>
+                            <div class="mb-1">Child: ${getTourCurrency()} ${childPrice.toFixed(2)} × ${guestInfo.children} = ${getTourCurrency()} ${(childPrice * guestInfo.children).toFixed(2)}</div>
+                            <div class="mb-2">Senior: ${getTourCurrency()} ${seniorPrice.toFixed(2)} × ${guestInfo.seniors} = ${getTourCurrency()} ${(seniorPrice * guestInfo.seniors).toFixed(2)}</div>
                             <hr class="my-2">
-                            <div class="fw-bold text-info">Total: $${totalPrice.toFixed(2)}</div>
+                            <div class="fw-bold text-info">Total: ${getTourCurrency()} ${totalPrice.toFixed(2)}</div>
                         </div>
                     `;
                 } else {
@@ -19716,7 +21320,7 @@
             // Update total price
             updateAttractionTotalPrice(day, index);
             
-            console.log(`Ticket pricing updated for day ${day}, index ${index}: Total: $${totalPrice}`);
+            console.log(`Ticket pricing updated for day ${day}, index ${index}: Total: ${getTourCurrency()} ${totalPrice}`);
         }
         
         // Function to update total price (attraction + guide + transport)
@@ -19725,7 +21329,7 @@
             let ticketPrice = 0;
             const ticketPricingContent = document.getElementById(`day${day}_attraction_${index}_ticket_pricing_content`);
             if (ticketPricingContent) {
-                const ticketTotalMatch = ticketPricingContent.textContent.match(/Total:\s*\$([\d.]+)/);
+                const ticketTotalMatch = ticketPricingContent.textContent.match(/Total:\s*(?:[A-Z]{2,4}\s+)?([\d,.]+)/);
                 if (ticketTotalMatch) {
                     ticketPrice = parseFloat(ticketTotalMatch[1]) || 0;
                 }
@@ -19771,7 +21375,7 @@
             const totalPriceRow = document.getElementById(`day${day}_attraction_${index}_total_price_row`);
             
             if (totalPriceDisplay) {
-                totalPriceDisplay.textContent = `$${totalPrice.toFixed(2)}`;
+                totalPriceDisplay.textContent = formatTourPrice(totalPrice);
             }
             
             if (totalPriceRow && totalPrice > 0) {
@@ -19780,7 +21384,7 @@
                 totalPriceRow.style.display = 'none';
             }
             
-            console.log(`Total price updated for day ${day}, index ${index}: Ticket: $${ticketPrice}, Guide: $${guidePrice}, Transport: $${transportPrice}, Total: $${totalPrice}`);
+            console.log(`Total price updated for day ${day}, index ${index}: Ticket: ${getTourCurrency()} ${ticketPrice}, Guide: ${getTourCurrency()} ${guidePrice}, Transport: ${getTourCurrency()} ${transportPrice}, Total: ${getTourCurrency()} ${totalPrice}`);
 
             // After updating this attraction row, refresh header + section totals
             if (typeof updateAttractionSectionSummary === 'function') {
@@ -19798,14 +21402,14 @@
                 const container = document.getElementById(`day${day}_attractions_container`);
                 if (!container) {
                     if (headerSpan) headerSpan.textContent = '';
-                    if (attractionTotalPriceEl) attractionTotalPriceEl.textContent = 'SGD 0.00';
+                    if (attractionTotalPriceEl) attractionTotalPriceEl.textContent = getTourCurrency() + ' 0.00';
                     return;
                 }
 
                 const items = container.querySelectorAll('.attraction-item');
                 if (!items.length) {
                     if (headerSpan) headerSpan.textContent = '';
-                    if (attractionTotalPriceEl) attractionTotalPriceEl.textContent = 'SGD 0.00';
+                    if (attractionTotalPriceEl) attractionTotalPriceEl.textContent = getTourCurrency() + ' 0.00';
                     return;
                 }
 
@@ -19837,7 +21441,7 @@
 
                 if (!names.length) {
                     headerSpan.textContent = '';
-                    if (attractionTotalPriceEl) attractionTotalPriceEl.textContent = 'SGD 0.00';
+                    if (attractionTotalPriceEl) attractionTotalPriceEl.textContent = getTourCurrency() + ' 0.00';
                     return;
                 }
 
@@ -19865,7 +21469,7 @@
                 
                 // Update right side price display
                 if (attractionTotalPriceEl) {
-                    attractionTotalPriceEl.textContent = `SGD ${formattedTotal}`;
+                    attractionTotalPriceEl.textContent = getTourCurrency() + ' ' + formattedTotal;
                 }
             } catch (e) {
                 console.error('Error updating attraction section summary:', e);
@@ -19929,9 +21533,9 @@
                         <div class="mb-1"><strong>Way:</strong> ${way || 'N/A'}</div>
                         <div class="mb-1"><strong>Vehicle:</strong> ${vehicleName}</div>
                         ${isAjaxPrice ? '<div class="mb-1 text-info"><small><i class="ri-checkbox-circle-line me-1"></i>Zone-based pricing</small></div>' : ''}
-                        ${type === 'Shared' && guestCount > 1 ? `<div class="mb-1"><small>Base Cost: $${baseCost.toFixed(2)} × ${guestCount} guests</small></div>` : ''}
+                        ${type === 'Shared' && guestCount > 1 ? `<div class="mb-1"><small>Base Cost: ${getTourCurrency()} ${baseCost.toFixed(2)} × ${guestCount} guests</small></div>` : ''}
                         <hr class="my-2">
-                        <div class="fw-bold text-success">Total: $${cost.toFixed(2)}${priceSource}</div>
+                        <div class="fw-bold text-success">Total: ${getTourCurrency()} ${cost.toFixed(2)}${priceSource}</div>
                     </div>
                 `;
                 transportPricingContent.innerHTML = transportHtml;
@@ -20326,9 +21930,14 @@
                                                 <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Select an attraction and configure guests to see pricing</small>
                                             </div>
                                         </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                        <button type="button" class="btn btn-sm text-white" onclick="clearAttractionForm(${day}, ${newIndex})" title="Clear this attraction form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                            <i class="ri-close-circle-line me-1"></i>Clear
+                                        </button>
                                         <button type="button" class="btn btn-sm text-white" onclick="forceUpdateAttractionPricing(${day}, ${newIndex})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                             <i class="ri-refresh-line"></i>
                                         </button>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -20404,7 +22013,7 @@
                                                             </div>
                                                             Total Price
                                                         </h6>
-                                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_attraction_${newIndex}_total_price_display">$0.00</span>
+                                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_attraction_${newIndex}_total_price_display">${getTourCurrency()} 0.00</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -20427,6 +22036,14 @@
                                                 <i class="ri-chat-quote-line me-1"></i>Remarks
                                             </label>
                                             <textarea class="form-control" name="day${day}_attraction_${newIndex}_remarks" id="day${day}_attraction_${newIndex}_remarks" rows="2" placeholder="Optional notes for this attraction service..." style="font-size: 0.8rem; border-radius: 6px; border: 1px solid #dee2e6;"></textarea>
+                                        </div>
+                                    </div>
+
+                                    <div class="row mt-3">
+                                        <div class="col-12 d-flex justify-content-end">
+                                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="clearAttractionForm(${day}, ${newIndex})" title="Reset attraction fields" style="border-radius: 8px; font-weight: 500;">
+                                                <i class="ri-eraser-line me-1"></i>Clear Form
+                                            </button>
                                         </div>
                                     </div>
                                 </div><!-- /offline panel -->
@@ -20514,25 +22131,7 @@
                                     mealTypes = [];
                                 }
                             }
-                            
-                            // Ensure each meal type has required properties
-                            mealTypes = mealTypes.map(mt => {
-                                return {
-                                    type: mt.type || '',
-                                    label: mt.label || mt.type || '',
-                                    open_time: mt.open_time || '',
-                                    close_time: mt.close_time || ''
-                                };
-                            });
-                            
-                            // If no meal types defined, add default ones
-                            if (mealTypes.length === 0) {
-                                mealTypes = [
-                                    { type: 'breakfast', label: 'Breakfast', open_time: '07:00:00', close_time: '10:00:00' },
-                                    { type: 'lunch', label: 'Lunch', open_time: '12:00:00', close_time: '15:00:00' },
-                                    { type: 'dinner', label: 'Dinner', open_time: '18:00:00', close_time: '22:00:00' }
-                                ];
-                            }
+                            mealTypes = normalizeRestaurantMealTypes(mealTypes);
                             
                             option.dataset.mealTypes = JSON.stringify(mealTypes);
                             selectElement.appendChild(option);
@@ -20584,7 +22183,7 @@
             
             // Get meal types from selected restaurant
             const restaurantSelect = document.getElementById('day' + day + '_restaurant_' + index);
-            if (!restaurantSelect) {image.png
+            if (!restaurantSelect) {
                 console.error('Restaurant select not found:', 'day' + day + '_restaurant_' + index);
                 return;
             }
@@ -20601,66 +22200,114 @@
             loadDishesForRestaurant(day, restaurantId, index);
         };
         
+        const DEFAULT_RESTAURANT_MEAL_TIMES = {
+            breakfast: { open: '07:00', close: '10:00' },
+            lunch: { open: '12:00', close: '15:00' },
+            dinner: { open: '18:00', close: '22:00' }
+        };
+
+        function normalizeRestaurantMealTypeKey(type, label) {
+            const key = String(type || label || '').toLowerCase().trim();
+            if (!key || key === 'null' || key === 'undefined') return '';
+            if (key.includes('breakfast') || key === 'bf') return 'breakfast';
+            if (key.includes('lunch')) return 'lunch';
+            if (key.includes('dinner')) return 'dinner';
+            return key;
+        }
+
+        function getMealPeriodFromRestaurantType(type, label) {
+            const map = { breakfast: '1', lunch: '2', dinner: '3' };
+            return map[normalizeRestaurantMealTypeKey(type, label)] || '';
+        }
+
+        function normalizeRestaurantMealTypes(mealTypes) {
+            const normalized = (Array.isArray(mealTypes) ? mealTypes : []).map(function(mt) {
+                const typeKey = normalizeRestaurantMealTypeKey(mt.type, mt.label);
+                const defaults = DEFAULT_RESTAURANT_MEAL_TIMES[typeKey] || {};
+                return {
+                    type: typeKey || (mt.type || mt.label || ''),
+                    label: mt.label || mt.type || typeKey || '',
+                    open_time: (mt.open_time || defaults.open || '').toString().trim(),
+                    close_time: (mt.close_time || defaults.close || '').toString().trim()
+                };
+            }).filter(function(mt) { return mt.type || mt.label; });
+
+            if (normalized.length === 0) {
+                return [
+                    { type: 'breakfast', label: 'Breakfast', open_time: '07:00', close_time: '10:00' },
+                    { type: 'lunch', label: 'Lunch', open_time: '12:00', close_time: '15:00' },
+                    { type: 'dinner', label: 'Dinner', open_time: '18:00', close_time: '22:00' }
+                ];
+            }
+
+            return normalized;
+        }
+
+        function getRestaurantMealOptionTimes(option, mealTypeValue) {
+            if (!option) return { open: '', close: '' };
+            let openTime = (option.dataset.openTime || option.getAttribute('data-open-time') || '').trim();
+            let closeTime = (option.dataset.closeTime || option.getAttribute('data-close-time') || '').trim();
+            if ((!openTime || !closeTime) && mealTypeValue) {
+                const defaults = DEFAULT_RESTAURANT_MEAL_TIMES[normalizeRestaurantMealTypeKey(mealTypeValue, option.textContent)] || {};
+                openTime = openTime || defaults.open || '';
+                closeTime = closeTime || defaults.close || '';
+            }
+            return { open: openTime, close: closeTime };
+        }
+
+        function parseRestaurantTimeRangeString(rangeStr) {
+            if (!rangeStr) return [];
+            return String(rangeStr).trim().split(/\s*-\s*|\s+to\s+/i).map(function(s) { return s.trim(); }).filter(Boolean);
+        }
+
         // Update meal type dropdown with available options and timings
         function updateMealTypeDropdown(day, index, mealTypes) {
             const mealTypeSelect = document.getElementById('day' + day + '_meal_type_' + index);
             if (!mealTypeSelect) return;
-            
-            let optionsHTML = '<option value="">Select Meal Type</option>';
-            
-            mealTypes.forEach(mealType => {
-                const timing = mealType.open_time && mealType.close_time 
-                    ? ` - ${mealType.open_time} to ${mealType.close_time}`
-                    : '';
-                
-                // Map meal type to meal_period number and add icons
-                let mealPeriod = '';
+
+            mealTypeSelect.innerHTML = '<option value="">Select Meal Type</option>';
+            normalizeRestaurantMealTypes(mealTypes).forEach(function(mealType) {
+                const typeKey = normalizeRestaurantMealTypeKey(mealType.type, mealType.label);
+                const mealPeriod = getMealPeriodFromRestaurantType(mealType.type, mealType.label);
+                const times = {
+                    open: mealType.open_time || (DEFAULT_RESTAURANT_MEAL_TIMES[typeKey] || {}).open || '',
+                    close: mealType.close_time || (DEFAULT_RESTAURANT_MEAL_TIMES[typeKey] || {}).close || ''
+                };
+                const timing = times.open && times.close ? ' - ' + times.open + ' to ' + times.close : '';
                 let icon = '';
-                switch(mealType.type.toLowerCase()) {
-                    case 'breakfast':
-                        mealPeriod = '1';
-                        icon = '🌅 ';
-                        break;
-                    case 'lunch':
-                        mealPeriod = '2';
-                        icon = '☀️ ';
-                        break;
-                    case 'dinner':
-                        mealPeriod = '3';
-                        icon = '🌙 ';
-                        break;
-                }
-                
-                optionsHTML += `<option value="${mealType.type}" data-meal-period="${mealPeriod}" data-open-time="${mealType.open_time}" data-close-time="${mealType.close_time}">${icon}${mealType.label}${timing}</option>`;
+                if (typeKey === 'breakfast') icon = '🌅 ';
+                else if (typeKey === 'lunch') icon = '☀️ ';
+                else if (typeKey === 'dinner') icon = '🌙 ';
+
+                const option = document.createElement('option');
+                option.value = typeKey || mealType.type || mealType.label;
+                option.dataset.mealPeriod = mealPeriod;
+                option.dataset.openTime = times.open;
+                option.dataset.closeTime = times.close;
+                option.textContent = icon + (mealType.label || mealType.type || typeKey) + timing;
+                mealTypeSelect.appendChild(option);
             });
-            
-            mealTypeSelect.innerHTML = optionsHTML;
-            
-            // Add event listener for meal type change to filter dishes
-            mealTypeSelect.removeEventListener('change', mealTypeChangeHandler); // Remove existing listener
-            mealTypeSelect.addEventListener('change', mealTypeChangeHandler);
-            
-            function mealTypeChangeHandler() {
+
+            if (mealTypeSelect._restaurantMealTypeHandler) {
+                mealTypeSelect.removeEventListener('change', mealTypeSelect._restaurantMealTypeHandler);
+            }
+            mealTypeSelect._restaurantMealTypeHandler = function mealTypeChangeHandler() {
                 const selectedOption = this.options[this.selectedIndex];
-                const mealPeriod = selectedOption.dataset.mealPeriod;
                 const mealType = this.value;
+                const mealPeriod = (selectedOption && (selectedOption.dataset.mealPeriod || getMealPeriodFromRestaurantType(mealType, selectedOption.textContent))) || getMealPeriodFromRestaurantType(mealType);
                 const dishContainer = document.getElementById('day' + day + '_dish_container_' + index);
-                
-                // Get the dish select element (this should always exist)
-                const dishSelectId = 'day' + day + '_dish_' + index;
-                const dishSelect = document.getElementById(dishSelectId);
-                
+                const dishSelect = document.getElementById('day' + day + '_dish_' + index);
+
                 if (!dishSelect) {
-                    console.error('Dish select element not found with ID:', dishSelectId);
-                    return; // Exit early if dish select doesn't exist
+                    console.error('Dish select element not found with ID:', 'day' + day + '_dish_' + index);
+                    return;
                 }
-                
+
                 console.log('Meal type selected:', mealType, 'day:', day, 'index:', index);
-                
+
                 const restaurantSelect = document.getElementById('day' + day + '_restaurant_' + index);
                 const restaurantId = restaurantSelect ? restaurantSelect.value : null;
-                
-                // Multi Restaurant: dish is always Buffet – keep it and only update time slots / pricing
+
                 if (restaurantId && String(restaurantId).startsWith('multi_restaurant_')) {
                     if (dishSelect) {
                         dishSelect.innerHTML = '<option value="buffet">Buffet</option>';
@@ -20670,14 +22317,15 @@
                     if (dishContainer) dishContainer.style.display = 'block';
                     const range = selectedOption && (selectedOption.dataset.timeRange || selectedOption.getAttribute('data-time-range'));
                     if (mealType && range) {
-                        const part = String(range).split('-').map(s => s.trim());
-                        if (part.length >= 2 && typeof populateTimeSlots === 'function') populateTimeSlots(day, index, part[0], part[1]);
+                        const part = parseRestaurantTimeRangeString(range);
+                        if (part.length >= 2 && typeof populateTimeSlots === 'function') {
+                            populateTimeSlots(day, index, part[0], part[1]);
+                        }
                     }
                     updateRestaurantPricing(day, index);
                     return;
                 }
-                
-                // Clear dish selection when meal type changes (normal restaurant)
+
                 if (dishSelect) {
                     dishSelect.value = '';
                     dishSelect.innerHTML = '<option value="">Select Dish</option>';
@@ -20685,23 +22333,25 @@
                 if (dishContainer) dishContainer.style.display = 'none';
                 if (dishSelect) dishSelect.style.display = 'none';
                 updateRestaurantPricing(day, index);
-                
+
                 if (!mealType || mealType === '') {
+                    const timeSlotSelect = document.getElementById('day' + day + '_time_slot_' + index);
+                    if (timeSlotSelect) timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
                     return;
                 }
-                
+
                 if (restaurantId && restaurantId !== '' && restaurantId !== 'undefined') {
                     if (mealPeriod) {
                         loadDishesForRestaurant(day, restaurantId, index, mealPeriod);
-                        populateTimeSlots(day, index, selectedOption.dataset.openTime, selectedOption.dataset.closeTime);
                     } else {
                         loadDishesForRestaurant(day, restaurantId, index);
                     }
+                    const times = getRestaurantMealOptionTimes(selectedOption, mealType);
+                    populateTimeSlots(day, index, times.open, times.close);
                 } else {
                     console.log('Invalid restaurant ID in meal type change handler:', restaurantId);
-                    // Clear dish and time slot dropdowns (reuse dishSelect variable from above)
                     const timeSlotSelect = document.getElementById('day' + day + '_time_slot_' + index);
-                    
+
                     if (dishSelect) {
                         dishSelect.innerHTML = '<option value="">Select restaurant first</option>';
                         dishSelect.style.display = 'none';
@@ -20709,83 +22359,85 @@
                     if (timeSlotSelect) {
                         timeSlotSelect.innerHTML = '<option value="">Select restaurant first</option>';
                     }
-                    
-                    // Hide dish container if no valid restaurant
-                    if (dishContainer) {
-                        dishContainer.style.display = 'none';
-                    }
-                    
-                    // Update pricing when no valid restaurant
+                    if (dishContainer) dishContainer.style.display = 'none';
                     updateRestaurantPricing(day, index);
                 }
-            }
-            
+            };
+            mealTypeSelect.addEventListener('change', mealTypeSelect._restaurantMealTypeHandler);
+
             console.log('Updated meal type dropdown with', mealTypes.length, 'options');
         }
         
         // Populate time slots with 30-minute intervals
         function populateTimeSlots(day, index, openTime, closeTime) {
             const timeSlotSelect = document.getElementById('day' + day + '_time_slot_' + index);
-            if (!timeSlotSelect || !openTime || !closeTime) return;
-            
+            if (!timeSlotSelect) return;
+
+            openTime = (openTime || '').toString().trim();
+            closeTime = (closeTime || '').toString().trim();
+            if (!openTime || !closeTime || openTime === 'null' || closeTime === 'null' || openTime === 'undefined' || closeTime === 'undefined') {
+                return;
+            }
+
             timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
-            
-            // Parse open and close times
+
             const startTime = parseTime(openTime);
             const endTime = parseTime(closeTime);
-            
-            if (!startTime || !endTime) return;
-            
-            // Generate 30-minute intervals
+            if (!startTime || !endTime) {
+                console.log('Failed to parse restaurant time slots:', openTime, closeTime);
+                return;
+            }
+
             let currentTime = new Date(startTime);
-            
-            while (currentTime <= endTime) {
-                const timeValue = formatTime24(currentTime);
-                const timeDisplay = formatTime12(currentTime);
-                
+            let endDate = new Date(endTime);
+            if (endDate < currentTime) {
+                endDate.setDate(endDate.getDate() + 1);
+            }
+
+            let iterationCount = 0;
+            while (currentTime <= endDate && iterationCount < 100) {
                 const option = document.createElement('option');
-                option.value = timeValue;
-                option.textContent = timeDisplay;
+                option.value = formatTime24(currentTime);
+                option.textContent = formatTime12(currentTime);
                 timeSlotSelect.appendChild(option);
-                
-                // Add 30 minutes
-                currentTime.setMinutes(currentTime.getMinutes() + 30);
+                currentTime = new Date(currentTime.getTime() + 30 * 60 * 1000);
+                iterationCount++;
             }
         }
         
         // Parse time string (handles various formats)
         function parseTime(timeStr) {
             if (!timeStr) return null;
-            
+
             try {
-                console.log('Parsing time string:', timeStr);
-                
-                // Handle "HH:MM AM/PM" format
-                if (timeStr.includes('AM') || timeStr.includes('PM')) {
-                    const today = new Date();
-                    const [time, period] = timeStr.split(' ');
-                    const [hours, minutes] = time.split(':');
-                    let hour = parseInt(hours);
-                    
+                const normalized = String(timeStr).trim();
+                if (!normalized || normalized === 'null' || normalized === 'undefined') return null;
+
+                const periodMatch = normalized.match(/\s*(AM|PM|am|pm)\s*$/);
+                if (periodMatch) {
+                    const period = periodMatch[1].toUpperCase();
+                    const time = normalized.replace(/\s*(AM|PM|am|pm)\s*$/i, '').trim();
+                    const parts = time.split(':');
+                    let hour = parseInt(parts[0], 10);
+                    const minutes = parseInt(parts[1], 10) || 0;
+                    if (Number.isNaN(hour)) return null;
                     if (period === 'PM' && hour !== 12) hour += 12;
                     if (period === 'AM' && hour === 12) hour = 0;
-                    
-                    today.setHours(hour, parseInt(minutes) || 0, 0, 0);
-                    console.log('Parsed 12-hour time:', today);
-                    return today;
-                }
-                
-                // Handle "HH:MM" 24-hour format
-                if (timeStr.includes(':')) {
-                    const [hours, minutes] = timeStr.split(':');
                     const today = new Date();
-                    today.setHours(parseInt(hours), parseInt(minutes) || 0, 0, 0);
-                    console.log('Parsed 24-hour time:', today);
+                    today.setHours(hour, minutes, 0, 0);
                     return today;
                 }
-                
-                // Handle other formats or return null
-                console.log('Unrecognized time format:', timeStr);
+
+                const parts = normalized.split(':');
+                if (parts.length >= 2) {
+                    const hour = parseInt(parts[0], 10);
+                    const minutes = parseInt(parts[1], 10) || 0;
+                    if (Number.isNaN(hour)) return null;
+                    const today = new Date();
+                    today.setHours(hour, minutes, 0, 0);
+                    return today;
+                }
+
                 return null;
             } catch (e) {
                 console.error('Error parsing time:', timeStr, e);
@@ -20842,10 +22494,8 @@
             
             console.log('Guest counts calculated:', {adultCount, childCount});
             
-            if (mealType === 1) { // Buffet
+            if (mealType === 1 || mealType === 2) { // Buffet or Set Menu — both use adult/child prices
                 setupBuffetModal(mealName, adultPrice, childPrice, adultCount, childCount);
-            } else if (mealType === 2) { // Set Menu
-                setupSetMenuModal(mealName, price);
             }
             
             // Store modal data for confirmation
@@ -20902,8 +22552,8 @@
                             <div>
                                 <h6 class="mb-1">${mealName}</h6>
                                 <small class="text-muted">
-                                    Adult: $${adultPrice.toFixed(2)} × ${adultCount} = $${(adultPrice * adultCount).toFixed(2)}
-                                    ${childCount > 0 ? `<br>Child: $${childPrice.toFixed(2)} × ${childCount} = $${(childPrice * childCount).toFixed(2)}` : ''}
+                                    Adult: ${getTourCurrency()} ${adultPrice.toFixed(2)} × ${adultCount} = ${getTourCurrency()} ${(adultPrice * adultCount).toFixed(2)}
+                                    ${childCount > 0 ? `<br>Child: ${getTourCurrency()} ${childPrice.toFixed(2)} × ${childCount} = ${getTourCurrency()} ${(childPrice * childCount).toFixed(2)}` : ''}
                                 </small>
                             </div>
                         </div>
@@ -20923,7 +22573,7 @@
             }
             
             if (modalTotalPrice) {
-                modalTotalPrice.textContent = `$${totalPrice.toFixed(2)}`;
+                modalTotalPrice.textContent = `${getTourCurrency()} ${totalPrice.toFixed(2)}`;
             } else {
                 console.error('Modal total price element not found!');
             }
@@ -20952,7 +22602,7 @@
                 const confirmButton = document.getElementById('confirmDishSelection');
                 
                 if (modalTotalPrice) {
-                    modalTotalPrice.textContent = `$${totalPrice.toFixed(2)}`;
+                    modalTotalPrice.textContent = `${getTourCurrency()} ${totalPrice.toFixed(2)}`;
                 }
                 if (modalGuestInfo) {
                     modalGuestInfo.textContent = `Quantity: ${quantity}`;
@@ -20970,14 +22620,14 @@
                                 <input type="radio" class="form-check-input me-3" checked disabled>
                                 <div>
                                     <h6 class="mb-1">${mealName}</h6>
-                                    <small class="text-muted">$${unitPrice.toFixed(2)}</small>
+                                    <small class="text-muted">${getTourCurrency()} ${unitPrice.toFixed(2)}</small>
                                 </div>
                             </div>
                             <div class="d-flex align-items-center">
                                 <button type="button" class="btn btn-outline-secondary btn-sm" id="decreaseQty">-</button>
                                 <span class="mx-3 fw-bold" id="quantityDisplay">${quantity}</span>
                                 <button type="button" class="btn btn-outline-secondary btn-sm" id="increaseQty">+</button>
-                                <span class="ms-3 text-success fw-bold">= $${(unitPrice * quantity).toFixed(2)}</span>
+                                <span class="ms-3 text-success fw-bold">= ${getTourCurrency()} ${(unitPrice * quantity).toFixed(2)}</span>
                             </div>
                         </div>
                     </div>
@@ -20997,7 +22647,7 @@
                 if (quantity > 0) {
                     quantity--;
                     document.getElementById('quantityDisplay').textContent = quantity;
-                    document.querySelector('.text-success.fw-bold').textContent = `= $${(unitPrice * quantity).toFixed(2)}`;
+                    document.querySelector('.text-success.fw-bold').textContent = `= ${getTourCurrency()} ${(unitPrice * quantity).toFixed(2)}`;
                     window.currentDishSelection.quantity = quantity;
                     updateSetMenuPrice();
                 }
@@ -21006,7 +22656,7 @@
             document.getElementById('increaseQty').addEventListener('click', function() {
                 quantity++;
                 document.getElementById('quantityDisplay').textContent = quantity;
-                document.querySelector('.text-success.fw-bold').textContent = `= $${(unitPrice * quantity).toFixed(2)}`;
+                document.querySelector('.text-success.fw-bold').textContent = `= ${getTourCurrency()} ${(unitPrice * quantity).toFixed(2)}`;
                 window.currentDishSelection.quantity = quantity;
                 updateSetMenuPrice();
             });
@@ -21046,10 +22696,11 @@
             let modalHTML = '';
             let totalPrice = 0;
             
-            if (meal.type == 1) { // Buffet
+            if (meal.type == 1 || meal.type == 2) { // Buffet or Set Menu — both use adult_price and child_price
                 const adultPrice = parseFloat(meal.adult_price) || 0;
                 const childPrice = parseFloat(meal.child_price) || 0;
                 totalPrice = (adultPrice * adultCount) + (childPrice * childCount);
+                const mealTypeLabel = meal.type == 2 ? 'Set Menu' : 'Buffet';
                 
                 modalHTML = `
                     <div class="modal fade" id="tempDishModal" tabindex="-1">
@@ -21066,9 +22717,10 @@
                                                 <input type="radio" class="form-check-input me-3" checked disabled>
                                                 <div>
                                                     <h6 class="mb-1">${meal.name}</h6>
-                                                    <small class="text-muted">
-                                                        Adult: $${adultPrice.toFixed(2)} × ${adultCount} = $${(adultPrice * adultCount).toFixed(2)}
-                                                        ${childCount > 0 ? `<br>Child: $${childPrice.toFixed(2)} × ${childCount} = $${(childPrice * childCount).toFixed(2)}` : ''}
+                                                    <small class="text-muted">${mealTypeLabel}</small>
+                                                    <small class="text-muted d-block">
+                                                        Adult: ${getTourCurrency()} ${adultPrice.toFixed(2)} × ${adultCount} = ${getTourCurrency()} ${(adultPrice * adultCount).toFixed(2)}
+                                                        ${childCount > 0 ? `<br>Child: ${getTourCurrency()} ${childPrice.toFixed(2)} × ${childCount} = ${getTourCurrency()} ${(childPrice * childCount).toFixed(2)}` : ''}
                                                     </small>
                                                 </div>
                                             </div>
@@ -21082,71 +22734,15 @@
                                             </div>
                                         </div>
                                         <div class="col-md-6 text-end">
-                                            <span class="h4 text-success">$${totalPrice.toFixed(2)}</span>
+                                            <span class="h4 text-success">${getTourCurrency()} ${totalPrice.toFixed(2)}</span>
                                             <br>
                                             <small class="text-muted">${adultCount} Adults${childCount > 0 ? `, ${childCount} Children` : ''}</small>
                                         </div>
                                     </div>
                                 </div>
-                                                            <div class="modal-footer">
+                                <div class="modal-footer">
                                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">CANCEL</button>
                                     <button type="button" class="btn btn-success" id="confirmBtn" onclick="confirmDishSelection(${meal.meal_id}, '${meal.display_name}', ${day}, ${index}, ${totalPrice.toFixed(2)})" ${totalPrice > 0 ? '' : 'disabled'}>
-                                        <i class="fas fa-check me-2"></i>CONFIRM SELECTION
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            } else if (meal.type == 2) { // Set Menu
-                const unitPrice = parseFloat(meal.price) || 0;
-                totalPrice = unitPrice;
-                
-                modalHTML = `
-                    <div class="modal fade" id="tempDishModal" tabindex="-1">
-                        <div class="modal-dialog modal-lg">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title">Select ${meal.display_name}</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <div class="card border-light">
-                                        <div class="card-body">
-                                            <div class="d-flex align-items-center justify-content-between">
-                                                <div class="d-flex align-items-center">
-                                                    <input type="radio" class="form-check-input me-3" checked disabled>
-                                                    <div>
-                                                        <h6 class="mb-1">${meal.name}</h6>
-                                                        <small class="text-muted">$${unitPrice.toFixed(2)}</small>
-                                                    </div>
-                                                </div>
-                                                <div class="d-flex align-items-center">
-                                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="updateQuantity(-1)">-</button>
-                                                    <span class="mx-3 fw-bold" id="quantityDisplay">1</span>
-                                                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="updateQuantity(1)">+</button>
-                                                    <span class="ms-3 text-success fw-bold" id="priceDisplay">= $${unitPrice.toFixed(2)}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="row mt-4">
-                                        <div class="col-md-6">
-                                            <div class="d-flex align-items-center">
-                                                <i class="fas fa-shopping-cart text-success me-2"></i>
-                                                <span class="fw-bold">Total Price:</span>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6 text-end">
-                                            <span class="h4 text-success" id="totalPriceDisplay">$${totalPrice.toFixed(2)}</span>
-                                            <br>
-                                            <small class="text-muted" id="quantityInfo">Quantity: 1</small>
-                                        </div>
-                                    </div>
-                                </div>
-                                                            <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">CANCEL</button>
-                                    <button type="button" class="btn btn-success" id="confirmBtn" onclick="confirmDishSelection(${meal.meal_id}, '${meal.display_name}', ${day}, ${index}, ${unitPrice.toFixed(2)})" disabled>
                                         <i class="fas fa-check me-2"></i>CONFIRM SELECTION
                                     </button>
                                 </div>
@@ -21174,8 +22770,8 @@
                 meal: meal,
                 day: day,
                 index: index,
-                quantity: 1,
-                unitPrice: parseFloat(meal.price) || 0
+                adultPrice: parseFloat(meal.adult_price) || 0,
+                childPrice: parseFloat(meal.child_price) || 0
             };
         };
         
@@ -21195,8 +22791,8 @@
             const totalPrice = currentData.unitPrice * currentData.quantity;
             
             if (quantityDisplay) quantityDisplay.textContent = currentData.quantity;
-            if (priceDisplay) priceDisplay.textContent = `= $${totalPrice.toFixed(2)}`;
-            if (totalPriceDisplay) totalPriceDisplay.textContent = `$${totalPrice.toFixed(2)}`;
+            if (priceDisplay) priceDisplay.textContent = `= ${getTourCurrency()} ${totalPrice.toFixed(2)}`;
+            if (totalPriceDisplay) totalPriceDisplay.textContent = `${getTourCurrency()} ${totalPrice.toFixed(2)}`;
             if (quantityInfo) quantityInfo.textContent = `Quantity: ${currentData.quantity}`;
             
             // Enable/disable confirm button based on quantity
@@ -21221,7 +22817,7 @@
             if (dishNameField) dishNameField.value = dishName;
             
             console.log(`Restaurant pricing stored for day ${day}, index ${index}:`);
-            console.log(`- Total Price: $${totalPrice}`);
+            console.log(`- Total Price: ${getTourCurrency()} ${totalPrice}`);
             console.log(`- Meal ID: ${mealId}`);
             console.log(`- Dish Name: ${dishName}`);
             
@@ -21234,7 +22830,7 @@
                         btn.classList.add('selected');
                         // Update button text to show price
                         const icon = btn.innerHTML.split(' ')[0]; // Get the icon (🍽️ or 📋)
-                        btn.innerHTML = `${icon} ${dishName} - $${totalPrice}`;
+                        btn.innerHTML = `${icon} ${dishName} - ${getTourCurrency()} ${totalPrice}`;
                     }
                 });
             }
@@ -21517,7 +23113,7 @@
                     const slotEl = document.getElementById('day' + d + '_time_slot_' + idx);
                     if (!slotEl) return;
                     if (range) {
-                        const part = range.split('-').map(s => s.trim());
+                        const part = parseRestaurantTimeRangeString(range);
                         if (part.length >= 2) populateTimeSlots(d, idx, part[0], part[1]);
                         else slotEl.innerHTML = '<option value="">Select Time Slot</option>';
                     } else {
@@ -21623,19 +23219,19 @@
                     let pricingHTML = '<div class="small"><strong>Buffet</strong></div>';
                     pricingHTML += '<div class="mt-2 border-top pt-2">';
                     pricingHTML += '<div><strong>Rates:</strong></div>';
-                    pricingHTML += `<div class="ms-3">Adult: SGD ${adultPrice.toFixed(2)}</div>`;
-                    pricingHTML += `<div class="ms-3">Child: SGD ${childPrice.toFixed(2)}</div>`;
+                    pricingHTML += `<div class="ms-3">Adult: ${getTourCurrency()} ${adultPrice.toFixed(2)}</div>`;
+                    pricingHTML += `<div class="ms-3">Child: ${getTourCurrency()} ${childPrice.toFixed(2)}</div>`;
                     pricingHTML += '</div>';
                     if (adults > 0 || children > 0) {
                         pricingHTML += '<div class="mt-2 border-top pt-2">';
                         pricingHTML += '<div><strong>Calculation:</strong></div>';
                         if (adults > 0) {
-                            pricingHTML += `<div class="ms-3">${adults} Adults × SGD ${adultPrice.toFixed(2)} = <strong>SGD ${adultTotal.toFixed(2)}</strong></div>`;
+                            pricingHTML += `<div class="ms-3">${adults} Adults × ${getTourCurrency()} ${adultPrice.toFixed(2)} = <strong>${getTourCurrency()} ${adultTotal.toFixed(2)}</strong></div>`;
                         }
                         if (children > 0) {
-                            pricingHTML += `<div class="ms-3">${children} Children × SGD ${childPrice.toFixed(2)} = <strong>SGD ${childTotal.toFixed(2)}</strong></div>`;
+                            pricingHTML += `<div class="ms-3">${children} Children × ${getTourCurrency()} ${childPrice.toFixed(2)} = <strong>${getTourCurrency()} ${childTotal.toFixed(2)}</strong></div>`;
                         }
-                        pricingHTML += `<div class="mt-2"><strong class="text-success">Total: SGD ${total.toFixed(2)}</strong></div>`;
+                        pricingHTML += `<div class="mt-2"><strong class="text-success">Total: ${getTourCurrency()} ${total.toFixed(2)}</strong></div>`;
                         pricingHTML += '</div>';
                     } else {
                         pricingHTML += '<div class="mt-2 text-muted" style="font-size: 0.85rem;"><i class="ri-information-line me-1"></i>Select guests to calculate total price</div>';
@@ -21649,7 +23245,7 @@
                     totalPriceField.value = String(total.toFixed(2));
                 }
                 if (totalDisplay && totalPriceField) {
-                    totalDisplay.textContent = (parseFloat(totalPriceField.value) || 0).toFixed(2);
+                    totalDisplay.textContent = formatTourPrice(parseFloat(totalPriceField.value) || 0);
                 }
                 priceDisplay.style.display = 'block';
                 if (typeof updateRestaurantTotalDisplay === 'function') updateRestaurantTotalDisplay(day, index);
@@ -21683,16 +23279,13 @@
             // Get pricing data from the selected dish option
             let adultPrice = parseFloat(selectedDish.dataset.adultPrice) || 0;
             let childPrice = parseFloat(selectedDish.dataset.childPrice) || 0;
-            let setMenuPrice = parseFloat(selectedDish.dataset.price) || 0; // Price field for set menu
             
             console.log('Dish pricing data:', { 
                 mealType,
                 adultPrice, 
                 childPrice,
-                setMenuPrice,
                 rawAdultPrice: selectedDish.dataset.adultPrice,
                 rawChildPrice: selectedDish.dataset.childPrice,
-                rawPrice: selectedDish.dataset.price,
                 selectedDish: selectedDish
             });
             
@@ -21712,49 +23305,33 @@
             
             let totalPrice = 0;
             let pricingHTML = '';
-            
-            // Check if it's a set menu (type = 2)
-            if (mealType === 2) {
-                // For set menu, use the price field directly
-                totalPrice = setMenuPrice;
-                
-                priceDisplay.style.display = 'block';
-                if (pricingDetailsDisplay) {
-                    pricingHTML = `
-                        <div><strong>Restaurant Selected: ${selectedRestaurant.text}</strong></div>
-                        <div><strong>Dish: ${selectedDish.text}</strong></div>
-                        <div>Set Menu Price: $${setMenuPrice.toFixed(2)}</div>
-                        <div class="mt-2"><strong class="text-success">$${totalPrice.toFixed(2)}</strong></div>
-                    `;
-                    pricingDetailsDisplay.innerHTML = pricingHTML;
-                }
-            } else {
-                // For buffet (type = 1), always show adult_price and child_price
-                // Calculate total only when guests are selected
-                const adultTotal = adults > 0 ? adults * adultPrice : 0;
-                const childTotal = children > 0 ? children * childPrice : 0;
-                totalPrice = adultTotal + childTotal;
-                
-                priceDisplay.style.display = 'block';
-                if (pricingDetailsDisplay) {
-                    pricingHTML = `
-                        <div><strong>Restaurant Selected: ${selectedRestaurant.text}</strong></div>
-                        <div><strong>Dish: ${selectedDish.text}</strong></div>
-                        ${adults > 0 || children > 0 ? `
-                            <div class="mt-2 border-top pt-2">
-                                <div><strong>Calculation:</strong></div>
-                                ${adults > 0 ? `<div class="ms-3">${adults} Adults × $${adultPrice.toFixed(2)} = <strong>$${adultTotal.toFixed(2)}</strong></div>` : ''}
-                                ${children > 0 ? `<div class="ms-3">${children} Children × $${childPrice.toFixed(2)} = <strong>$${childTotal.toFixed(2)}</strong></div>` : ''}
-                                <div class="mt-2"><strong class="text-success">Total: $${totalPrice.toFixed(2)}</strong></div>
-                            </div>
-                        ` : `
-                            <div class="mt-2 text-muted" style="font-size: 0.85rem;">
-                                <i class="ri-information-line me-1"></i>Select guests to calculate total price
-                            </div>
-                        `}
-                    `;
-                    pricingDetailsDisplay.innerHTML = pricingHTML;
-                }
+            const mealTypeLabel = mealType === 2 ? 'Set Menu' : 'Buffet';
+
+            // Buffet and Set Menu both use adult_price × adults + child_price × children
+            const adultTotal = adults > 0 ? adults * adultPrice : 0;
+            const childTotal = children > 0 ? children * childPrice : 0;
+            totalPrice = adultTotal + childTotal;
+
+            priceDisplay.style.display = 'block';
+            if (pricingDetailsDisplay) {
+                pricingHTML = `
+                    <div><strong>Restaurant Selected: ${selectedRestaurant.text}</strong></div>
+                    <div><strong>Dish: ${selectedDish.text}</strong></div>
+                    <div><small class="text-muted">${mealTypeLabel}</small></div>
+                    ${adults > 0 || children > 0 ? `
+                        <div class="mt-2 border-top pt-2">
+                            <div><strong>Calculation:</strong></div>
+                            ${adults > 0 ? `<div class="ms-3">${adults} Adults × ${getTourCurrency()} ${adultPrice.toFixed(2)} = <strong>${getTourCurrency()} ${adultTotal.toFixed(2)}</strong></div>` : ''}
+                            ${children > 0 ? `<div class="ms-3">${children} Children × ${getTourCurrency()} ${childPrice.toFixed(2)} = <strong>${getTourCurrency()} ${childTotal.toFixed(2)}</strong></div>` : ''}
+                            <div class="mt-2"><strong class="text-success">Total: ${getTourCurrency()} ${totalPrice.toFixed(2)}</strong></div>
+                        </div>
+                    ` : `
+                        <div class="mt-2 text-muted" style="font-size: 0.85rem;">
+                            <i class="ri-information-line me-1"></i>Select guests to calculate total price
+                        </div>
+                    `}
+                `;
+                pricingDetailsDisplay.innerHTML = pricingHTML;
             }
             
             // Update hidden total price field
@@ -21766,7 +23343,7 @@
             // Update total display (restaurant + transport)
             updateRestaurantTotalDisplay(day, index);
             
-            console.log(`Restaurant pricing updated for day ${day}, index ${index}: Total: $${totalPrice} (Type: ${mealType === 2 ? 'Set Menu' : 'Buffet'})`);
+            console.log(`Restaurant pricing updated for day ${day}, index ${index}: Total: ${getTourCurrency()} ${totalPrice} (Type: ${mealType === 2 ? 'Set Menu' : 'Buffet'})`);
         }
         
         // Toggle between dish display modes (buttons/dropdown)
@@ -22149,9 +23726,14 @@
                                                 <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Selected Restaurant: <span id="day${day}_restaurant_${newIndex}_restaurant_name" style="font-weight: 600;">Restaurant Name</span></small>
                                             </div>
                                         </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                        <button type="button" class="btn btn-sm text-white" onclick="clearRestaurantForm(${day}, ${newIndex})" title="Clear this restaurant form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                            <i class="ri-close-circle-line me-1"></i>Clear
+                                        </button>
                                         <button type="button" class="btn btn-sm text-white" onclick="forceUpdateRestaurantPricing(${day}, ${newIndex})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                             <i class="ri-refresh-line"></i>
                                         </button>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -22208,7 +23790,7 @@
                                                             </div>
                                                             Total Price
                                                         </h6>
-                                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;">$<span id="day${day}_restaurant_${newIndex}_total_display">0.00</span></span>
+                                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_restaurant_${newIndex}_total_display">${getTourCurrency()} 0.00</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -22382,7 +23964,7 @@
             let optionsHTML = '<option value="">Select Duration Package</option>';
             
             packages.forEach(pkg => {
-                const priceDisplay = pkg.price > 0 ? ` - ${pkg.price.toFixed(2)} SGD` : '';
+                const priceDisplay = pkg.price > 0 ? ` - ${getTourCurrency()} ${pkg.price.toFixed(2)}` : '';
                 optionsHTML += `<option value="${pkg.value}" data-price="${pkg.price}" data-hours="${pkg.hours}" data-base-price="${pkg.basePrice}">${pkg.label}${priceDisplay}</option>`;
             });
             
@@ -22499,10 +24081,10 @@
                 const totalPriceDisplay = document.getElementById(`day${day}_guide_${index}_total_price_display`);
                 const surchargeRow = document.getElementById(`day${day}_guide_${index}_surcharge_row`);
                 
-                if (packagePriceDisplay) packagePriceDisplay.textContent = `$${totalPackagePrice.toFixed(2)}`;
+                if (packagePriceDisplay) packagePriceDisplay.textContent = formatTourPrice(totalPackagePrice);
                 if (hoursDisplay) hoursDisplay.textContent = `${hours} hours`;
-                if (surchargeDisplay) surchargeDisplay.textContent = `$${surcharge.toFixed(2)}`;
-                if (totalPriceDisplay) totalPriceDisplay.textContent = `$${(totalPackagePrice + surcharge).toFixed(2)}`;
+                if (surchargeDisplay) surchargeDisplay.textContent = formatTourPrice(surcharge);
+                if (totalPriceDisplay) totalPriceDisplay.textContent = formatTourPrice(totalPackagePrice + surcharge);
                 
                 // Show/hide surcharge row based on whether there's a surcharge
                 if (surchargeRow) {
@@ -22539,7 +24121,7 @@
                 const items = container.querySelectorAll('.guide-item');
                 if (!items.length) {
                     headerSpan.textContent = '';
-                    if (guideTotalPriceEl) guideTotalPriceEl.textContent = 'SGD 0.00';
+                    if (guideTotalPriceEl) guideTotalPriceEl.textContent = getTourCurrency() + ' 0.00';
                     return;
                 }
 
@@ -22564,7 +24146,7 @@
 
                 if (!names.length) {
                     headerSpan.textContent = '';
-                    if (guideTotalPriceEl) guideTotalPriceEl.textContent = 'SGD 0.00';
+                    if (guideTotalPriceEl) guideTotalPriceEl.textContent = getTourCurrency() + ' 0.00';
                     return;
                 }
 
@@ -22591,7 +24173,7 @@
                 
                 // Update right side price display
                 if (guideTotalPriceEl) {
-                    guideTotalPriceEl.textContent = `SGD ${formattedTotal}`;
+                    guideTotalPriceEl.textContent = getTourCurrency() + ' ' + formattedTotal;
                 }
             } catch (e) {
                 console.error('Error updating guide section summary:', e);
@@ -23053,9 +24635,14 @@
                                                         <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Selected Guide: <span id="day${day}_guide_${newIndex}_guide_name" style="font-weight: 600;">Guide Name</span></small>
                                                     </div>
                                                 </div>
+                                                <div class="d-flex align-items-center gap-2">
+                                                <button type="button" class="btn btn-sm text-white" onclick="clearGuideForm(${day}, ${newIndex})" title="Clear this guide form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                    <i class="ri-close-circle-line me-1"></i>Clear
+                                                </button>
                                                 <button type="button" class="btn btn-sm text-white" onclick="forceUpdateGuidePricing(${day}, ${newIndex})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                     <i class="ri-refresh-line"></i>
                                                 </button>
+                                                </div>
                                             </div>
                                         </div>
                                         <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -23069,7 +24656,7 @@
                                                                     <i class="ri-price-tag-3-line" style="color: #667eea; margin-right: 5px;"></i>
                                                                     Package Price:
                                                                 </span>
-                                                                <span class="fw-semibold" style="color: #495057;" id="day${day}_guide_${newIndex}_package_price_display">$0.00</span>
+                                                                <span class="fw-semibold" style="color: #495057;" id="day${day}_guide_${newIndex}_package_price_display">${getTourCurrency()} 0.00</span>
                                                             </div>
                                                             
                                                             <div class="d-flex align-items-center justify-content-between mb-3" style="font-size: 0.85rem;">
@@ -23085,7 +24672,7 @@
                                                                     <i class="ri-moon-line" style="color: #ff9800; margin-right: 5px;"></i>
                                                                     Night Surcharge:
                                                                 </span>
-                                                                <span class="fw-semibold" style="color: #ff9800;" id="day${day}_guide_${newIndex}_surcharge_display">$0.00</span>
+                                                                <span class="fw-semibold" style="color: #ff9800;" id="day${day}_guide_${newIndex}_surcharge_display">${getTourCurrency()} 0.00</span>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -23104,7 +24691,7 @@
                                                                     </div>
                                                                     Total Price
                                                                 </h6>
-                                                                <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_guide_${newIndex}_total_price_display">$0.00</span>
+                                                                <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_guide_${newIndex}_total_price_display">${getTourCurrency()} 0.00</span>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -23229,7 +24816,7 @@
                                 <label class="form-label fw-semibold">
                                     <i class="ri-building-line me-1"></i>City
                                 </label>
-                                <select class="form-select transport-city-select" name="day${day}_transport_city_${newIndex}" id="day${day}_transport_city_${newIndex}" onchange="loadTransportZonesForCity(${day}, this.value, ${newIndex})">
+                                <select class="form-select transport-city-select" name="day${day}_transport_city_${newIndex}" id="day${day}_transport_city_${newIndex}" onchange="loadTransportZonesForCity(${day}, this.value, ${newIndex}); if (typeof window.refreshAutocompleteCityBounds === 'function') { window.refreshAutocompleteCityBounds(this); }">
                                     <option value="">Select City</option>
                                 </select>
                                 <small class="text-danger" style="display: none;" id="day${day}_transport_city_message_${newIndex}">Please select a city first.</small>
@@ -23268,10 +24855,9 @@
                                         <i class="ri-map-pin-line text-success me-2"></i>Pick Up Location
                                     </label>
                                     <div class="position-relative">
-                                        <select class="form-select pickup-zone-select border-2" name="day${day}_transport_${newIndex}_pickup_zone_id" style="padding-left: 45px;" onchange="handlePickupZoneChangeForAdditionalTransport(${day}, ${newIndex})">
+                                        <select class="form-select pickup-zone-select border-2" name="day${day}_transport_${newIndex}_pickup_zone_id" onchange="handlePickupZoneChangeForAdditionalTransport(${day}, ${newIndex})">
                                             <option value="">Select pickup location</option>
                                         </select>
-                                        <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                     </div>
                                 </div>
                             </div>
@@ -23281,10 +24867,9 @@
                                         <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
                                     </label>
                                     <div class="position-relative">
-                                        <select class="form-select dropoff-zone-select border-2" name="day${day}_transport_${newIndex}_dropoff_zone_id" disabled style="padding-left: 45px; padding-right: 45px;">
+                                        <select class="form-select dropoff-zone-select border-2" name="day${day}_transport_${newIndex}_dropoff_zone_id" disabled>
                                             <option value="">Select pickup location first</option>
                                         </select>
-                                        <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
                                     </div>
                                 </div>
                             </div>
@@ -23332,8 +24917,7 @@
                                                     <i class="ri-map-pin-line text-danger me-2"></i>Drop Off Location
                                                 </label>
                                                 <div class="position-relative location-input">
-                                                    <input type="text" class="form-control border-2 google-maps-autocomplete" name="day${day}_transport_${newIndex}_dropoff_location" id="day${day}_transport_${newIndex}_dropoff_location" placeholder="Search for dropoff location..." style="padding-left: 45px;">
-                                                    <i class="ri-map-pin-fill position-absolute text-danger location-icon"></i>
+                                                    <input type="text" class="form-control border-2 google-maps-autocomplete" name="day${day}_transport_${newIndex}_dropoff_location" id="day${day}_transport_${newIndex}_dropoff_location" placeholder="Search for dropoff location...">
                                                     <input type="hidden" name="day${day}_transport_${newIndex}_dropoff_lat" id="day${day}_transport_${newIndex}_dropoff_lat">
                                                     <input type="hidden" name="day${day}_transport_${newIndex}_dropoff_lng" id="day${day}_transport_${newIndex}_dropoff_lng">
                                                     <input type="hidden" name="day${day}_transport_${newIndex}_dropoff_place_id" id="day${day}_transport_${newIndex}_dropoff_place_id">
@@ -23515,7 +25099,7 @@
                                     <div class="col-md-2 point-to-point-price-field" id="day${day}_transport_${newIndex}_price_field" style="display: none;">
                                         <label class="form-label fw-semibold text-dark mb-1">Custom Price <span class="text-danger">*</span></label>
                                         <div class="input-group" style="height: 42px;">
-                                            <span class="input-group-text d-flex align-items-center" style="height: 42px; font-size: 0.735rem;">SGD</span>
+                                            <span class="input-group-text d-flex align-items-center" style="height: 42px; font-size: 0.735rem;">{{ $dmcCurrency }}</span>
                                             <input type="number" onwheel="event.preventDefault(); return false;" class="form-control" style="height: 42px; font-size: 0.735rem;" id="day${day}_transport_${newIndex}_custom_price" name="day${day}_transport_${newIndex}_custom_price" min="0" step="1" placeholder="Price" oninput="updateCustomPricing(${day}, 'transport_${newIndex}')" onchange="updateCustomPricing(${day}, 'transport_${newIndex}')">
                                         </div>
                                         <small class="form-text text-muted" style="font-size: 0.7rem;">Point-to-point custom price</small>
@@ -23535,9 +25119,14 @@
                                                     <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Select a vehicle and service type to see pricing</small>
                                                 </div>
                                             </div>
+                                            <div class="d-flex align-items-center gap-2">
+                                            <button type="button" class="btn btn-sm text-white" onclick="clearTransportForm(${day}, ${newIndex})" title="Clear this transport form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                <i class="ri-close-circle-line me-1"></i>Clear
+                                            </button>
                                             <button type="button" class="btn btn-sm text-white" onclick="forceUpdateTransportPricing(${day}, ${newIndex})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                 <i class="ri-refresh-line"></i>
                                             </button>
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -23574,7 +25163,7 @@
                                                                 </div>
                                                                 Total Price
                                                             </h6>
-                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_transport_${newIndex}_total_price_display">$0.00</span>
+                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_transport_${newIndex}_total_price_display">${getTourCurrency()} 0.00</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -23607,114 +25196,15 @@
             // Load zones for the new transport using existing zone data
             const newPickupSelect = container.querySelector(`[name="day${day}_transport_${newIndex}_pickup_zone_id"]`);
             const newDropoffSelect = container.querySelector(`[name="day${day}_transport_${newIndex}_dropoff_zone_id"]`);
-            
-                    if (newPickupSelect && window.allLocationsData) {
-                // Populate pickup location select with existing locations data
-                newPickupSelect.innerHTML = '<option value="">Select pickup location</option>';
-                window.allLocationsData.forEach(location => {
-                    const option = document.createElement('option');
-                    option.value = location.id;
-                    
-                    // Enhanced display format with icons for different types
-                    let icon = '';
-                    switch(location.type) {
-                        case 'hotel':
-                            icon = '🏨';
-                            break;
-                        case 'restaurant':
-                            icon = '🍽️';
-                            break;
-                        case 'attraction':
-                            icon = '🎯';
-                            break;
-                        default:
-                            icon = '📍';
-                    }
-                    
-                    option.textContent = `${icon} ${location.name} (${location.type}) - ${location.location}`;
-                    option.dataset.type = location.type;
-                    option.dataset.latitude = location.latitude || '';
-                    option.dataset.longitude = location.longitude || '';
-                    newPickupSelect.appendChild(option);
-                });
-                newPickupSelect.disabled = false;
-                
-                // Prepare dropoff location select for locations initially
-                if (newDropoffSelect) {
-                    newDropoffSelect.innerHTML = '<option value="">Select pickup location first</option>';
-                    newDropoffSelect.disabled = true;
-                }
-            } else if (newPickupSelect && window.allZonesData) {
-                // For dynamic transport, we should use locations data, not zones
-                // If locations data is not available, fetch it from API
-                console.log('Locations data not available, fetching from API for dynamic transport');
-                newPickupSelect.innerHTML = '<option value="">Loading locations...</option>';
-                newPickupSelect.disabled = true;
-                
-                fetch(`{{ route('fetch-zone-assigned-locations') }}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success && data.locations && Array.isArray(data.locations)) {
-                            newPickupSelect.innerHTML = '<option value="">Select pickup location</option>';
-                            
-                            data.locations.forEach(location => {
-                                const option = document.createElement('option');
-                                option.value = location.id;
-                                
-                                // Enhanced display format with icons for different types
-                                let icon = '';
-                                switch(location.type) {
-                                    case 'hotel':
-                                        icon = '🏨';
-                                        break;
-                                    case 'restaurant':
-                                        icon = '🍽️';
-                                        break;
-                                    case 'attraction':
-                                        icon = '🎯';
-                                        break;
-                                    default:
-                                        icon = '📍';
-                                }
-                                
-                                option.textContent = `${icon} ${location.name} (${location.type}) - ${location.location}`;
-                                option.dataset.type = location.type;
-                                option.dataset.latitude = location.latitude || '';
-                                option.dataset.longitude = location.longitude || '';
-                                newPickupSelect.appendChild(option);
-                            });
-                            
-                            newPickupSelect.disabled = false;
-                            console.log('Dynamic transport pickup populated with locations');
-                        } else {
-                            // Fallback to zones only if API fails
-                            console.log('API failed, falling back to zones for dynamic transport');
-                newPickupSelect.innerHTML = '<option value="">Select pickup zone</option>';
-                window.allZonesData.forEach(zone => {
-                    newPickupSelect.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
-                });
-                newPickupSelect.disabled = false;
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error fetching locations for dynamic transport:', error);
-                        // Fallback to zones on error
-                        newPickupSelect.innerHTML = '<option value="">Select pickup zone</option>';
-                    window.allZonesData.forEach(zone => {
-                            newPickupSelect.innerHTML += `<option value="${zone.zone_id}">${zone.zone_name} (${zone.zone_type})</option>`;
-                        });
-                        newPickupSelect.disabled = false;
-                    });
-                
-                // Prepare dropoff location select - don't pre-populate with zones
-                if (newDropoffSelect) {
-                    newDropoffSelect.innerHTML = '<option value="">Select pickup location first</option>';
-                    newDropoffSelect.disabled = true;
-                }
-                
-                console.log(`Zones loaded for new transport section ${newIndex}`);
+
+            // A new transport row has no city yet, so its pickup list stays empty until one is chosen;
+            // once a city is selected the row loads only that city's locations.
+            if (newPickupSelect) {
+                const newRowCitySelect = document.getElementById(`day${day}_transport_city_${newIndex}`);
+                window.loadTransportZonesForCity(day, newRowCitySelect ? newRowCitySelect.value : '', newIndex);
+                console.log(`Pickup locations initialized for new transport section ${newIndex}`);
             } else {
-                console.log('No zones data available for new transport section');
+                console.error(`Dynamic transport pickup select not found for index ${newIndex}`);
             }
             
             // Initialize Google Maps autocomplete for the new transport fields
@@ -23928,7 +25418,7 @@
                 // For local transfer additional transport sections, use location data
                 dropoffZoneSelect.innerHTML = '<option value="">Loading locations...</option>';
                 
-                fetch(`{{ route('fetch-zone-assigned-locations') }}`)
+                fetch(window.zoneAssignedLocationsUrl(window.getTransportRowCity(day, index)))
                     .then(response => response.json())
                     .then(data => {
                         if (data.success && data.locations && Array.isArray(data.locations)) {
@@ -24011,7 +25501,7 @@
                     // Use API for dynamic transport dropoff (same as static transport)
                     dropoffZoneSelect.innerHTML = '<option value="">Loading locations...</option>';
                     
-                    fetch(`{{ route('fetch-zone-assigned-locations') }}`)
+                    fetch(window.zoneAssignedLocationsUrl(window.getTransportRowCity(day, index)))
                         .then(response => response.json())
                         .then(data => {
                             if (data.success && data.locations && Array.isArray(data.locations)) {
@@ -24222,6 +25712,25 @@
                                 </div>
                                 <input type="hidden" name="day${day}_entry_${newIndex}_passengers" id="day${day}_entry_${newIndex}_passengers" value="1">
 
+                                <!-- Custom Price after Children -->
+                                <div class="mt-2 col-12 entry-port-custom-price-field" id="day${day}_entry_${newIndex}_price_field" style="display: none;">
+                                    <div class="alert alert-warning mb-0">
+                                        <div class="form-group mb-0">
+                                            <label class="form-label fw-semibold mb-2">
+                                                <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
+                                            </label>
+                                            <div class="input-group">
+                                                <span class="input-group-text tour-currency-prefix">${typeof getTourCurrency === 'function' ? getTourCurrency() : @json($dmcCurrency)}</span>
+                                                <input type="number" class="form-control" id="day${day}_entry_${newIndex}_custom_price" name="day${day}_entry_${newIndex}_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateEntryPortCustomPricing(${day}, 'entry_${newIndex}')" onchange="updateEntryPortCustomPricing(${day}, 'entry_${newIndex}')">
+                                                <span class="input-group-text">.00</span>
+                                            </div>
+                                            <small class="form-text text-muted mt-1">
+                                                <i class="ri-information-line me-1"></i>Enter the custom price for this entry port service
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <!-- Is Supplement -->
                                 <div class="mt-2 col-12">
                                     <div class="form-check">
@@ -24258,9 +25767,14 @@
                                                     <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Vehicle pricing details for entry port service</small>
                                                 </div>
                                             </div>
+                                            <div class="d-flex align-items-center gap-2">
+                                            <button type="button" class="btn btn-sm text-white" onclick="clearEntryPortForm(${day}, ${newIndex})" title="Clear arrival transport form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                <i class="ri-close-circle-line me-1"></i>Clear
+                                            </button>
                                             <button type="button" class="btn btn-sm text-white" onclick="forceUpdateEntryPortPricing(${day}, ${newIndex})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                 <i class="ri-refresh-line"></i>
                                             </button>
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -24297,30 +25811,12 @@
                                                                 </div>
                                                                 Total Price
                                                             </h6>
-                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_entry_${newIndex}_total_price_display">$0.00</span>
+                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_entry_${newIndex}_total_price_display">${getTourCurrency()} 0.00</span>
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Custom Price Field for Additional Entry Port (Zone = 0) -->
-                            <div class="col-12 mt-2 entry-port-custom-price-field" id="day${day}_entry_${newIndex}_price_field" style="display: none;">
-                                <div class="alert" style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 0.75rem 1rem;">
-                                    <div class="form-group mb-0">
-                                        <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.85rem;">
-                                            <i class="ri-money-dollar-circle-line me-1" style="color: #667eea;"></i>Custom Price <span class="text-danger">*</span>
-                                        </label>
-                                        <div class="input-group" style="max-width: 200px;">
-                                            <span class="input-group-text" style="background: #f8f9fa; font-size: 0.8rem; height: 36px; border: 1px solid #dee2e6; border-right: none; border-radius: 6px 0 0 6px; padding: 0.375rem 0.5rem; width: 45px;">SGD</span>
-                                            <input type="number" class="form-control" id="day${day}_entry_${newIndex}_custom_price" name="day${day}_entry_${newIndex}_custom_price" min="0" step="0.01" placeholder="0.00" oninput="updateEntryPortCustomPricing(${day}, 'entry_${newIndex}')" onchange="updateEntryPortCustomPricing(${day}, 'entry_${newIndex}')" style="height: 36px; border-radius: 0 6px 6px 0; border: 1px solid #dee2e6; border-left: none; background: #f8f9fa; font-size: 0.85rem; width: 155px;">
-                                        </div>
-                                        <small class="form-text text-muted mt-1" style="font-size: 0.75rem;">
-                                            <i class="ri-information-line me-1"></i>Enter the custom price for this entry port service
-                                        </small>
                                     </div>
                                 </div>
                             </div>
@@ -24587,6 +26083,25 @@
                                 </div>
                                 <input type="hidden" name="day${day}_exit_${newIndex}_passengers" id="day${day}_exit_${newIndex}_passengers" value="1">
 
+                                <!-- Custom Price after Children -->
+                                <div class="mt-2 col-12 exit-port-custom-price-field" id="day${day}_exit_${newIndex}_price_field" style="display: none;">
+                                    <div class="alert alert-warning mb-0">
+                                        <div class="form-group mb-0">
+                                            <label class="form-label fw-semibold mb-2">
+                                                <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
+                                            </label>
+                                            <div class="input-group">
+                                                <span class="input-group-text tour-currency-prefix">${typeof getTourCurrency === 'function' ? getTourCurrency() : @json($dmcCurrency)}</span>
+                                                <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" id="day${day}_exit_${newIndex}_custom_price" name="day${day}_exit_${newIndex}_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateExitPortCustomPricing(${day}, 'exit_${newIndex}')" onchange="updateExitPortCustomPricing(${day}, 'exit_${newIndex}')">
+                                                <span class="input-group-text">.00</span>
+                                            </div>
+                                            <small class="form-text text-muted mt-1">
+                                                <i class="ri-information-line me-1"></i>Enter the custom price for this exit port service
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <!-- Is Supplement -->
                                 <div class="mt-2 col-12">
                                     <div class="form-check">
@@ -24623,9 +26138,14 @@
                                                     <small class="text-white-75" style="color: rgba(255, 255, 255, 0.85) !important; font-size: 0.8rem;">Vehicle pricing details for exit port service</small>
                                                 </div>
                                             </div>
+                                            <div class="d-flex align-items-center gap-2">
+                                            <button type="button" class="btn btn-sm text-white" onclick="clearExitPortForm(${day}, ${newIndex})" title="Clear departure transport form" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
+                                                <i class="ri-close-circle-line me-1"></i>Clear
+                                            </button>
                                             <button type="button" class="btn btn-sm text-white" onclick="forceUpdateExitPortPricing(${day}, ${newIndex})" title="Refresh Pricing" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; padding: 0.375rem 0.75rem; transition: all 0.2s;">
                                                 <i class="ri-refresh-line"></i>
                                             </button>
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="card-body" style="background: #ffffff; padding: 1.25rem;">
@@ -24662,30 +26182,11 @@
                                                                 </div>
                                                                 Total Price
                                                             </h6>
-                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_exit_${newIndex}_total_price_display">$0.00</span>
+                                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_exit_${newIndex}_total_price_display">${getTourCurrency()} 0.00</span>
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Custom Price Field for Additional Exit Port (Zone = 0) -->
-                                <div class="col-12 mt-3 exit-port-custom-price-field" id="day${day}_exit_${newIndex}_price_field" style="display: none;">
-                                    <div class="alert alert-warning">
-                                        <div class="form-group mb-0">
-                                            <label class="form-label fw-semibold mb-2">
-                                                <i class="ri-money-dollar-circle-line me-2"></i>Custom Price <span class="text-danger">*</span>
-                                            </label>
-                                            <div class="input-group">
-                                                <span class="input-group-text">SGD</span>
-                                                <input type="number" class="form-control" onwheel="event.preventDefault(); return false;" id="day${day}_exit_${newIndex}_custom_price" name="day${day}_exit_${newIndex}_custom_price" min="0" step="0.01" placeholder="Enter custom price" oninput="updateExitPortCustomPricing(${day}, 'exit_${newIndex}')" onchange="updateExitPortCustomPricing(${day}, 'exit_${newIndex}')">
-                                                <span class="input-group-text">.00</span>
-                                            </div>
-                                            <small class="form-text text-muted mt-1">
-                                                <i class="ri-information-line me-1"></i>Enter the custom price for this exit port service
-                                            </small>
                                         </div>
                                     </div>
                                 </div>
@@ -24809,6 +26310,8 @@
                     const exitPriceField = document.getElementById(`day${day}_exit_${newIndex}_price_field`);
                     if (exitPriceField) {
                         exitPriceField.style.display = 'block';
+                        const priceDisplay = document.getElementById(`day${day}_exit_${newIndex}_price_display`);
+                        if (priceDisplay) priceDisplay.style.display = 'block';
                         console.log(`Showing custom price field for additional exit port (zone=0): day${day}_exit_${newIndex}_price_field`);
                     }
                     
@@ -25380,6 +26883,722 @@
         window.forceUpdateAttractionPricing = function(day, index) {
             console.log(`Force updating pricing for day ${day}, index ${index}`);
             updateAttractionPricing(day, index);
+        };
+
+        // Reset one attraction booking slot (wrong fill → clear and start over)
+        window.clearAttractionForm = function(day, index) {
+            const prefix = `day${day}_attraction`;
+            const citySelect = document.getElementById(`${prefix}_city_${index}`);
+            const attractionSelect = document.getElementById(`${prefix}_${index}`);
+            const timeSelect = document.getElementById(`${prefix}_${index}_time`);
+            const ticketSelect = document.getElementById(`${prefix}_${index}_ticket`);
+            const transferRequired = document.getElementById(`${prefix}_${index}_transfer_required`);
+            const guideRequired = document.getElementById(`${prefix}_${index}_guide_required`);
+            const supplement = document.getElementById(`${prefix}_${index}_is_supplement`);
+            const remarks = document.getElementById(`${prefix}_${index}_remarks`);
+            const cityMessage = document.getElementById(`${prefix}_city_message_${index}`);
+
+            const resetSelect = function(el, html, disabled, placeholder) {
+                if (!el) return;
+                const $el = (typeof jQuery !== 'undefined') ? jQuery(el) : null;
+                if ($el && $el.length && $el.hasClass('select2-hidden-accessible')) {
+                    try { $el.select2('destroy'); } catch (e) { /* ignore */ }
+                }
+                if (typeof html === 'string') el.innerHTML = html;
+                el.value = '';
+                if (typeof disabled === 'boolean') el.disabled = disabled;
+                if (el.id && typeof window.reinitializeSelect2 === 'function') {
+                    window.reinitializeSelect2(el.id, placeholder || 'Select an option');
+                }
+            };
+
+            // Keep city for multi-city segment; clear city for single-city full reset
+            let keepCity = '';
+            const isMulti = !!(document.querySelector('input[name="city_mode"]:checked')?.value === 'multi'
+                || document.querySelector('input[name="city_type"]:checked')?.value === 'multi');
+            if (isMulti && citySelect && citySelect.value) {
+                keepCity = citySelect.value;
+            } else if (citySelect) {
+                resetSelect(citySelect, '<option value="">Select City</option>', false, 'Select City');
+                if (typeof populateCityDropdown === 'function') {
+                    populateCityDropdown(citySelect);
+                }
+            }
+
+            resetSelect(
+                attractionSelect,
+                keepCity ? '<option value="">Select Attraction</option>' : '<option value="">Select city first</option>',
+                !keepCity,
+                keepCity ? 'Select Attraction' : 'Select city first'
+            );
+            resetSelect(timeSelect, '<option value="">Select Time Slot</option>', false, 'Select Time Slot');
+            resetSelect(ticketSelect, '<option value="">Select Ticket</option>', false, 'Select Ticket');
+
+            if (transferRequired) {
+                transferRequired.value = 'No';
+                if (typeof jQuery !== 'undefined' && jQuery(transferRequired).data('select2')) {
+                    jQuery(transferRequired).val('No').trigger('change');
+                }
+            }
+            if (guideRequired) {
+                guideRequired.value = 'No';
+                if (typeof jQuery !== 'undefined' && jQuery(guideRequired).data('select2')) {
+                    jQuery(guideRequired).val('No').trigger('change');
+                }
+            }
+            if (typeof window.toggleAttractionTransferFields === 'function') {
+                window.toggleAttractionTransferFields(day, index);
+            }
+            if (typeof window.toggleAttractionGuideFields === 'function') {
+                window.toggleAttractionGuideFields(day, index);
+            }
+
+            // Extra transfer / guide / price hidden fields
+            [
+                `${prefix}_${index}_transfer_type`,
+                `${prefix}_${index}_transfer_way`,
+                `${prefix}_${index}_transfer_pickup_time`,
+                `${prefix}_${index}_transfer_pickup_time_select`,
+                `${prefix}_${index}_guide_pickup_time`,
+                `${prefix}_${index}_guide_pickup_time_select`,
+                `${prefix}_${index}_description`,
+                `${prefix}_${index}_nri`,
+                `${prefix}_${index}_transport`,
+                `${prefix}_${index}_transport_selection`,
+                `${prefix}_${index}_booking_type`,
+                `${prefix}_${index}_package_type`,
+                `${prefix}_${index}_package_attraction_id`,
+                `${prefix}_${index}_date`,
+                `${prefix}_${index}_adult_price`,
+                `${prefix}_${index}_child_price`,
+                `${prefix}_${index}_senior_price`,
+                `${prefix}_${index}_guide_base_price`,
+                `${prefix}_${index}_guide_hours`,
+                `${prefix}_${index}_guide_surcharge`,
+                `${prefix}_${index}_guide_total_price`,
+                `${prefix}_${index}_transfer_cost`
+            ].forEach(function (id) {
+                const el = document.getElementById(id);
+                if (!el) return;
+                if (el.tagName === 'SELECT') {
+                    el.innerHTML = el.options && el.options.length
+                        ? `<option value="">${(el.options[0].textContent || 'Select').trim()}</option>`
+                        : '<option value=""></option>';
+                    el.value = '';
+                } else {
+                    el.value = (id.endsWith('_price') || id.endsWith('_cost') || id.endsWith('_hours') || id.endsWith('_surcharge') || id.endsWith('_total_price')) ? '0' : '';
+                }
+                if (el.removeAttribute) {
+                    el.removeAttribute('data-ajax-base-price');
+                    el.removeAttribute('data-ajax-final-price');
+                }
+            });
+
+            resetSelect(
+                document.getElementById(`${prefix}_${index}_transfer_vehicle`),
+                '<option value="">Select Vehicle</option>',
+                false,
+                'Select Vehicle'
+            );
+            resetSelect(
+                document.getElementById(`${prefix}_${index}_transfer_pickup_location`),
+                '<option value="">Select Pickup Location</option>',
+                false,
+                'Select Pickup Location'
+            );
+            resetSelect(
+                document.getElementById(`${prefix}_${index}_guide_language`),
+                '<option value="">Select city first</option>',
+                true,
+                'Select city first'
+            );
+            resetSelect(
+                document.getElementById(`${prefix}_${index}_guide`),
+                '<option value="">Select city first</option>',
+                true,
+                'Select city first'
+            );
+            resetSelect(
+                document.getElementById(`${prefix}_${index}_guide_package`),
+                '<option value="">Select Duration</option>',
+                false,
+                'Select Duration'
+            );
+
+            if (supplement) supplement.checked = false;
+            if (remarks) remarks.value = '';
+            if (cityMessage) cityMessage.style.display = 'none';
+
+            // Reset guests display to main tour guests
+            const mainMale = parseInt(document.getElementById('male')?.value) || 0;
+            const mainFemale = parseInt(document.getElementById('female')?.value) || 0;
+            const mainChildren = parseInt(document.getElementById('children')?.value) || 0;
+            const mainInfants = parseInt(document.getElementById('infants')?.value) || 0;
+            const adults = mainMale + mainFemale;
+            const summaryElement = document.getElementById(`${prefix}_${index}_guest_summary`);
+            if (summaryElement) {
+                summaryElement.innerHTML =
+                    `<span class="d-flex align-items-center gap-1">` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${adults} Adults</span></span>` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${mainMale}</span></span>` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${mainFemale}</span></span>` +
+                    `</span>` +
+                    `<span class="d-flex align-items-center gap-1">` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${mainChildren}</span></span>` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${mainInfants}</span></span>` +
+                    `</span>`;
+            }
+            try {
+                if (window.guestData && typeof window.guestData === 'object') {
+                    delete window.guestData[`day${day}_attraction_${index}`];
+                }
+            } catch (e) { /* ignore */ }
+
+            // Pricing UI
+            const pricingColumns = document.getElementById(`${prefix}_${index}_pricing_columns`);
+            if (pricingColumns) pricingColumns.style.display = 'none';
+            const totalPriceRow = document.getElementById(`${prefix}_${index}_total_price_row`);
+            if (totalPriceRow) totalPriceRow.style.display = 'none';
+            const ticketPricing = document.getElementById(`${prefix}_${index}_ticket_pricing_content`);
+            if (ticketPricing) ticketPricing.innerHTML = '<div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">Select ticket to see pricing</div>';
+            const transportPricing = document.getElementById(`${prefix}_${index}_transport_pricing_content`);
+            if (transportPricing) transportPricing.innerHTML = '<div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">No transport selected</div>';
+            const guidePricing = document.getElementById(`${prefix}_${index}_guide_pricing_content`);
+            if (guidePricing) guidePricing.innerHTML = '<div class="text-muted" style="font-size: 0.8rem; color: #6c757d;">No guide selected</div>';
+            const totalPriceDisplay = document.getElementById(`${prefix}_${index}_total_price_display`);
+            if (totalPriceDisplay) {
+                totalPriceDisplay.textContent = (typeof getTourCurrency === 'function' ? getTourCurrency() : 'SGD') + ' 0.00';
+            }
+
+            // Multi-city: restore segment city and reload attractions for it
+            if (keepCity && citySelect) {
+                if (typeof jQuery !== 'undefined' && jQuery(citySelect).data('select2')) {
+                    jQuery(citySelect).val(keepCity).trigger('change');
+                } else {
+                    citySelect.value = keepCity;
+                }
+                if (typeof loadAttractionsForCity === 'function') {
+                    loadAttractionsForCity(day, keepCity, index);
+                }
+            } else if (isMulti && typeof window.getActiveSegmentCityLabelForServices === 'function' && typeof window.syncAllServiceCities === 'function') {
+                const segCity = window.getActiveSegmentCityLabelForServices();
+                if (segCity) {
+                    setTimeout(function () { window.syncAllServiceCities(segCity); }, 50);
+                }
+            }
+
+            if (typeof updateAttractionDataField === 'function') updateAttractionDataField();
+            if (typeof updateAttractionSectionSummary === 'function') updateAttractionSectionSummary(day);
+            try { window.scheduleTourSubmitButtonUpdate && window.scheduleTourSubmitButtonUpdate(); } catch (e2) { /* ignore */ }
+
+            if (typeof showNotification === 'function') {
+                showNotification('Attraction form cleared', 'info');
+            }
+        };
+
+        // Shared helpers for Clear Form buttons across all services
+        window.__serviceClearHelpers = {
+            isMultiCity: function () {
+                return !!(document.querySelector('input[name="city_mode"]:checked')?.value === 'multi'
+                    || document.querySelector('input[name="city_type"]:checked')?.value === 'multi');
+            },
+            resetSelect: function (el, html, disabled, placeholder) {
+                if (!el) return;
+                const $el = (typeof jQuery !== 'undefined') ? jQuery(el) : null;
+                if ($el && $el.length && $el.hasClass('select2-hidden-accessible')) {
+                    try { $el.select2('destroy'); } catch (e) { /* ignore */ }
+                }
+                if (typeof html === 'string') el.innerHTML = html;
+                el.value = '';
+                if (typeof disabled === 'boolean') el.disabled = disabled;
+                if (el.id && typeof window.reinitializeSelect2 === 'function') {
+                    window.reinitializeSelect2(el.id, placeholder || 'Select an option');
+                }
+            },
+            setSelectValue: function (el, value) {
+                if (!el) return;
+                el.value = value;
+                if (typeof jQuery !== 'undefined' && jQuery(el).data('select2')) {
+                    jQuery(el).val(value).trigger('change');
+                } else {
+                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            },
+            resetGuestSummary: function (summaryId) {
+                const summaryElement = document.getElementById(summaryId);
+                if (!summaryElement) return;
+                const mainMale = parseInt(document.getElementById('male')?.value) || 0;
+                const mainFemale = parseInt(document.getElementById('female')?.value) || 0;
+                const mainChildren = parseInt(document.getElementById('children')?.value) || 0;
+                const mainInfants = parseInt(document.getElementById('infants')?.value) || 0;
+                const adults = mainMale + mainFemale;
+                summaryElement.innerHTML =
+                    `<span class="d-flex align-items-center gap-1">` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Adults"><i class="ri-group-line" style="font-size: 0.75rem;"></i><span>${adults} Adults</span></span>` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Male"><i class="ri-men-line" style="font-size: 0.75rem;"></i><span>${mainMale}</span></span>` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #667eea; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem; opacity: 0.8;" title="Female"><i class="ri-women-line" style="font-size: 0.75rem;"></i><span>${mainFemale}</span></span>` +
+                    `</span>` +
+                    `<span class="d-flex align-items-center gap-1">` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #28a745; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Children"><i class="ri-user-smile-line" style="font-size: 0.75rem;"></i><span>${mainChildren}</span></span>` +
+                    `<span class="badge d-flex align-items-center gap-1" style="background: #ffc107; color: #000; border-radius: 4px; font-size: 0.7rem; padding: 0.2rem 0.4rem;" title="Infants"><i class="ri-user-heart-line" style="font-size: 0.75rem;"></i><span>${mainInfants}</span></span>` +
+                    `</span>`;
+            },
+            keepOrClearCity: function (citySelect) {
+                const h = window.__serviceClearHelpers;
+                let keepCity = '';
+                if (h.isMultiCity() && citySelect && citySelect.value) {
+                    keepCity = citySelect.value;
+                } else if (citySelect) {
+                    h.resetSelect(citySelect, '<option value="">Select City</option>', false, 'Select City');
+                    if (typeof populateCityDropdown === 'function') populateCityDropdown(citySelect);
+                }
+                return keepCity;
+            },
+            currency: function () {
+                return (typeof getTourCurrency === 'function' ? getTourCurrency() : 'SGD');
+            }
+        };
+
+        window.clearHotelForm = function () {
+            const h = window.__serviceClearHelpers;
+            const hotelCity = document.getElementById('hotelCitySelect');
+            const hotelSelect = document.getElementById('hotelSelect');
+            const roomType = document.getElementById('roomTypeSelect');
+            const bedType = document.getElementById('bedTypeSelect');
+            const mealPlan = document.getElementById('mealPlanSelect');
+            const remarks = document.getElementById('hotel_remarks');
+            const rooms = document.getElementById('numberOfRooms');
+            const persons = document.getElementById('selectedPersons');
+            const price = document.getElementById('roomPriceDisplay');
+            const addBtn = document.getElementById('addHotelBtn');
+            const childWith = document.getElementById('chkChildWithBed');
+            const childWithout = document.getElementById('chkChildWithoutBed');
+            const suppBreakfast = document.getElementById('hotelSupplementBreakfastIncluded');
+            const isMulti = h.isMultiCity();
+            const keepCity = isMulti && hotelCity ? (hotelCity.value || '') : '';
+
+            // Match the post-"Add Hotel" reset: clear hotel selection, but do NOT disable
+            // room/bed/meal (those stay enabled so picking a hotel can populate them again).
+            // Selected hotel nights are intentionally preserved.
+            try {
+                if (!isMulti && hotelCity) {
+                    if (typeof jQuery !== 'undefined' && jQuery(hotelCity).data('select2')) {
+                        jQuery(hotelCity).val(null).trigger('change');
+                    } else {
+                        hotelCity.value = '';
+                    }
+                }
+
+                if (hotelSelect) {
+                    if (isMulti && keepCity) {
+                        // Keep city + hotel list; only clear the selected hotel
+                        if (typeof jQuery !== 'undefined') {
+                            jQuery(hotelSelect).val(null).trigger('change');
+                            jQuery(hotelSelect).prop('disabled', false);
+                        }
+                        hotelSelect.disabled = false;
+                        hotelSelect.value = '';
+                    } else {
+                        h.resetSelect(
+                            hotelSelect,
+                            '<option value="">Select a city first to load hotels</option>',
+                            true,
+                            'Select a city first to load hotels'
+                        );
+                        if (typeof jQuery !== 'undefined') jQuery(hotelSelect).prop('disabled', true);
+                    }
+                }
+
+                // Room / bed / meal must stay ENABLED (empty until hotel is chosen again)
+                if (roomType) {
+                    if (typeof jQuery !== 'undefined' && jQuery(roomType).hasClass('select2-hidden-accessible')) {
+                        try { jQuery(roomType).select2('destroy'); } catch (e) { /* ignore */ }
+                    }
+                    roomType.disabled = false;
+                    roomType.innerHTML = '<option value="">Select room type</option>';
+                    roomType.value = '';
+                    if (typeof jQuery !== 'undefined') {
+                        jQuery(roomType).prop('disabled', false);
+                        jQuery(roomType).select2({ placeholder: 'Select room type', allowClear: true, width: '100%' });
+                    }
+                }
+                if (bedType) {
+                    if (typeof jQuery !== 'undefined' && jQuery(bedType).hasClass('select2-hidden-accessible')) {
+                        try { jQuery(bedType).select2('destroy'); } catch (e) { /* ignore */ }
+                    }
+                    bedType.disabled = false;
+                    bedType.innerHTML = '<option value="">Select room type first</option>';
+                    bedType.value = '';
+                    if (typeof jQuery !== 'undefined') {
+                        jQuery(bedType).prop('disabled', false);
+                        jQuery(bedType).select2({ placeholder: 'Select room type first', allowClear: true, width: '100%' });
+                    }
+                }
+                if (mealPlan) {
+                    if (typeof jQuery !== 'undefined' && jQuery(mealPlan).hasClass('select2-hidden-accessible')) {
+                        try { jQuery(mealPlan).select2('destroy'); } catch (e) { /* ignore */ }
+                    }
+                    mealPlan.disabled = false;
+                    mealPlan.innerHTML = '<option value="">Select meal plan</option>';
+                    mealPlan.value = '';
+                    if (typeof jQuery !== 'undefined') {
+                        jQuery(mealPlan).prop('disabled', false);
+                        jQuery(mealPlan).select2({ placeholder: 'Select meal plan', allowClear: true, width: '100%' });
+                    }
+                }
+            } catch (err) {
+                console.error('clearHotelForm select reset error:', err);
+            }
+
+            if (remarks) remarks.value = '';
+            if (rooms) rooms.value = '1';
+            if (persons) persons.value = '1';
+            if (price) { price.value = '0.00'; price.dataset.manuallyEdited = 'false'; }
+            if (addBtn) addBtn.disabled = true;
+            // Do not clear selected nights / night summary
+            if (childWith) childWith.checked = false;
+            if (childWithout) childWithout.checked = false;
+            if (suppBreakfast) suppBreakfast.checked = false;
+            window.selectedBedInfo = null;
+            const personSelector = document.getElementById('personSelector');
+            if (personSelector) personSelector.innerHTML = '<div class="text-muted small">Select bed type first</div>';
+            const bedPriceDisplay = document.getElementById('bedPriceDisplay');
+            if (bedPriceDisplay) bedPriceDisplay.style.display = 'none';
+            const guestCountInfo = document.getElementById('guestCountInfo');
+            if (guestCountInfo) guestCountInfo.style.display = 'none';
+
+            if (typeof clearRoomSelectionForm === 'function') {
+                try { clearRoomSelectionForm(); } catch (e2) { /* ignore */ }
+            }
+            if (typeof window.updateHotelSupplementBreakfastVisibility === 'function') {
+                window.updateHotelSupplementBreakfastVisibility(null);
+            }
+
+            // Multi-city: restore segment city and ensure hotels list is available
+            if (isMulti && keepCity && hotelCity) {
+                if (typeof jQuery !== 'undefined' && jQuery(hotelCity).data('select2')) {
+                    jQuery(hotelCity).val(keepCity).trigger('change.select2');
+                } else {
+                    hotelCity.value = keepCity;
+                }
+                if (typeof window.loadHotelsForCity === 'function') {
+                    window.loadHotelsForCity(keepCity);
+                } else if (typeof loadHotelsForCity === 'function') {
+                    loadHotelsForCity(keepCity);
+                }
+            }
+
+            if (typeof showNotification === 'function') showNotification('Hotel form cleared', 'info');
+        };
+
+        window.clearGuideForm = function (day, index) {
+            const h = window.__serviceClearHelpers;
+            const citySelect = document.getElementById(`day${day}_guide_city_${index}`);
+            const guideSelect = document.getElementById(`day${day}_guide_${index}`);
+            const packageSelect = document.getElementById(`day${day}_guide_${index}_package`);
+            const pickupInput = document.getElementById(`day${day}_guide_${index}_pickup_time_input`);
+            const pickupAmpm = document.getElementById(`day${day}_guide_${index}_pickup_time_ampm`);
+            const pickupHidden = document.getElementById(`day${day}_guide_${index}_pickup_time`);
+            const supplement = document.getElementById(`day${day}_guide_${index}_is_supplement`);
+            const remarks = document.getElementById(`day${day}_guide_${index}_remarks`);
+
+            const keepCity = h.keepOrClearCity(citySelect);
+            h.resetSelect(guideSelect, keepCity ? '<option value="">Select Guide</option>' : '<option value="">Select city first</option>', !keepCity, keepCity ? 'Select Guide' : 'Select city first');
+            h.resetSelect(packageSelect, '<option value="">Select Duration</option>', false, 'Select Duration');
+            if (pickupInput) pickupInput.value = '';
+            if (pickupAmpm) pickupAmpm.value = 'AM';
+            if (pickupHidden) pickupHidden.value = '';
+            if (supplement) supplement.checked = false;
+            if (remarks) remarks.value = '';
+            ['base_price', 'hours', 'surcharge', 'total_price'].forEach(function (k) {
+                const el = document.getElementById(`day${day}_guide_${index}_${k}`);
+                if (el) el.value = '0';
+            });
+            h.resetGuestSummary(`day${day}_guide_${index}_guest_summary`);
+            const totalDisp = document.getElementById(`day${day}_guide_${index}_total_price_display`);
+            if (totalDisp) totalDisp.textContent = h.currency() + ' 0.00';
+            const nameEl = document.getElementById(`day${day}_guide_${index}_guide_name`);
+            if (nameEl) nameEl.textContent = 'Guide Name';
+            const pkgDisp = document.getElementById(`day${day}_guide_${index}_package_price_display`);
+            if (pkgDisp) pkgDisp.textContent = h.currency() + ' 0.00';
+            if (keepCity && citySelect) {
+                h.setSelectValue(citySelect, keepCity);
+                if (typeof loadGuidesForCity === 'function') loadGuidesForCity(day, keepCity, index);
+            }
+            if (typeof updateGuideDataField === 'function') updateGuideDataField();
+            if (typeof showNotification === 'function') showNotification('Guide form cleared', 'info');
+        };
+
+        window.clearRestaurantForm = function (day, index) {
+            const h = window.__serviceClearHelpers;
+            const isMulti = h.isMultiCity();
+            const citySelect = document.getElementById(`day${day}_restaurant_city_${index}`);
+            const restaurantSelect = document.getElementById(`day${day}_restaurant_${index}`);
+            const mealType = document.getElementById(`day${day}_meal_type_${index}`);
+            const dish = document.getElementById(`day${day}_dish_${index}`);
+            const timeSlot = document.getElementById(`day${day}_time_slot_${index}`);
+            const dishContainer = document.getElementById(`day${day}_dish_container_${index}`);
+            const transferRequired = document.getElementById(`day${day}_restaurant_${index}_transfer_required`);
+            const supplement = document.getElementById(`day${day}_restaurant_${index}_is_supplement`);
+            const remarks = document.getElementById(`day${day}_restaurant_${index}_remarks`);
+            const keepCity = isMulti && citySelect ? String(citySelect.value || '').trim() : '';
+
+            // Single-city: clear city. Multi-city: keep segment city.
+            if (!isMulti && citySelect) {
+                if (typeof jQuery !== 'undefined' && jQuery(citySelect).data('select2')) {
+                    jQuery(citySelect).val(null).trigger('change');
+                } else {
+                    citySelect.value = '';
+                    citySelect.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+
+            // Clear restaurant selection (do not leave it stuck disabled)
+            if (restaurantSelect) {
+                if (typeof jQuery !== 'undefined' && jQuery(restaurantSelect).hasClass('select2-hidden-accessible')) {
+                    try { jQuery(restaurantSelect).select2('destroy'); } catch (e) { /* ignore */ }
+                }
+                restaurantSelect.innerHTML = keepCity
+                    ? '<option value="">Search Restaurant</option>'
+                    : '<option value="">Select city first</option>';
+                restaurantSelect.value = '';
+                restaurantSelect.disabled = !keepCity;
+                if (typeof window.reinitializeSelect2 === 'function' && restaurantSelect.id) {
+                    window.reinitializeSelect2(restaurantSelect.id, keepCity ? 'Search Restaurant' : 'Select city first');
+                }
+                if (typeof jQuery !== 'undefined') {
+                    jQuery(restaurantSelect).prop('disabled', !keepCity);
+                }
+            }
+
+            // Meal / dish / time — clear and keep usable
+            [mealType, dish, timeSlot].forEach(function (el, i) {
+                if (!el) return;
+                if (typeof jQuery !== 'undefined' && jQuery(el).hasClass('select2-hidden-accessible')) {
+                    try { jQuery(el).select2('destroy'); } catch (e) { /* ignore */ }
+                }
+                el.disabled = false;
+                if (i === 0) el.innerHTML = '<option value="">Select Meal Type</option>';
+                else if (i === 1) el.innerHTML = '<option value="">Select Dish</option>';
+                else el.innerHTML = '<option value="">Select Time Slot</option>';
+                el.value = '';
+                if (typeof jQuery !== 'undefined') jQuery(el).prop('disabled', false);
+            });
+
+            if (dishContainer) {
+                dishContainer.style.display = 'none';
+                dishContainer.querySelectorAll('.dynamic-dishes, .dish-option-btn').forEach(function (n) {
+                    try { n.remove(); } catch (e) { /* ignore */ }
+                });
+            }
+
+            // Hidden pricing fields
+            const mealIdField = document.getElementById(`day${day}_restaurant_${index}_meal_id`);
+            const dishNameField = document.getElementById(`day${day}_restaurant_${index}_dish_name`);
+            const totalHidden = document.getElementById(`day${day}_restaurant_${index}_total_price`);
+            if (mealIdField) mealIdField.value = '';
+            if (dishNameField) dishNameField.value = '';
+            if (totalHidden) totalHidden.value = '0';
+
+            if (transferRequired) {
+                transferRequired.value = 'No';
+                if (typeof jQuery !== 'undefined' && jQuery(transferRequired).data('select2')) {
+                    jQuery(transferRequired).val('No').trigger('change');
+                }
+            }
+            if (typeof window.toggleRestaurantTransferFields === 'function') {
+                window.toggleRestaurantTransferFields(day, index);
+            }
+
+            // Transfer time inputs
+            const tInput = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_time_input`);
+            const tAmpm = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_time_ampm`);
+            const tHidden = document.getElementById(`day${day}_restaurant_${index}_transfer_pickup_time`);
+            if (tInput) tInput.value = '';
+            if (tAmpm) tAmpm.value = 'AM';
+            if (tHidden) tHidden.value = '';
+
+            if (supplement) supplement.checked = false;
+            if (remarks) remarks.value = '';
+            h.resetGuestSummary(`day${day}_restaurant_${index}_guest_summary`);
+
+            const totalDisp = document.getElementById(`day${day}_restaurant_${index}_total_display`);
+            if (totalDisp) totalDisp.textContent = h.currency() + ' 0.00';
+            const nameEl = document.getElementById(`day${day}_restaurant_${index}_restaurant_name`);
+            if (nameEl) nameEl.textContent = '';
+            const pricingDetails = document.getElementById(`day${day}_restaurant_${index}_pricing_details`);
+            if (pricingDetails) pricingDetails.innerHTML = '';
+            const transportPricing = document.getElementById(`day${day}_restaurant_${index}_transport_pricing_content`);
+            if (transportPricing) transportPricing.innerHTML = '<div class="text-muted small">No transport selected</div>';
+            const priceDisplay = document.getElementById(`day${day}_restaurant_${index}_price_display`);
+            if (priceDisplay) {
+                // leave card visible; just cleared content above
+            }
+
+            // Reload restaurant list for kept city (and refresh Select2 inside loader)
+            if (keepCity && typeof loadRestaurantsForCity === 'function') {
+                loadRestaurantsForCity(day, keepCity, index);
+            } else if (typeof loadRestaurantDetails === 'function') {
+                loadRestaurantDetails(day, '', index);
+            }
+
+            if (typeof updateRestaurantPricing === 'function') {
+                try { updateRestaurantPricing(day, index); } catch (e) { /* ignore */ }
+            }
+            if (typeof updateRestaurantDataField === 'function') updateRestaurantDataField();
+            if (typeof showNotification === 'function') showNotification('Restaurant form cleared', 'info');
+        };
+
+        window.clearEntryPortForm = function (day, index) {
+            const h = window.__serviceClearHelpers;
+            const idx = (index === undefined || index === null) ? 0 : index;
+            // Shared search fields (only clear fully on first vehicle slot)
+            if (String(idx) === '0') {
+                const flight = document.getElementById(`day${day}_arrival_flight_no`);
+                if (flight) flight.value = '';
+                const timeInput = document.getElementById(`day${day}_entry_pickup_time_input`);
+                const timeAmpm = document.getElementById(`day${day}_entry_pickup_time_ampm`);
+                const timeHidden = document.getElementById(`day${day}_entry_pickup_time`);
+                if (timeInput) timeInput.value = '';
+                if (timeAmpm) timeAmpm.value = 'AM';
+                if (timeHidden) timeHidden.value = '';
+                const city = document.getElementById('modal_local_transfer_city');
+                const keepCity = h.keepOrClearCity(city);
+                ['entry_pickup_container', 'entry_dropoff_container'].forEach(function (cid) {
+                    const box = document.getElementById(cid);
+                    if (!box) return;
+                    box.querySelectorAll('select').forEach(function (sel) {
+                        h.resetSelect(sel, '<option value="">Select location</option>', false, 'Select location');
+                    });
+                });
+                const results = document.getElementById(`day${day}_entry_vehicle_results`);
+                if (results) results.style.display = 'none';
+                if (keepCity && city) h.setSelectValue(city, keepCity);
+            }
+            h.resetSelect(document.getElementById(`day${day}_entry_${idx}_vehicle_id`), '<option value="">Choose vehicle</option>', false, 'Choose vehicle');
+            h.resetSelect(document.getElementById(`day${day}_entry_${idx}_service_type`), '<option value="">Select service type</option>', false, 'Select service type');
+            ['adults', 'children', 'passengers', 'custom_price', 'base_price', 'total_price', 'guest_count'].forEach(function (k) {
+                const el = document.getElementById(`day${day}_entry_${idx}_${k}`);
+                if (el) el.value = (k === 'adults' || k === 'passengers' || k === 'guest_count') ? (document.getElementById('adults')?.value || '1') : (k === 'children' ? '0' : '');
+            });
+            const supplement = document.getElementById(`day${day}_entry_${idx}_is_supplement`);
+            const remarks = document.getElementById(`day${day}_entry_${idx}_remarks`);
+            if (supplement) supplement.checked = false;
+            if (remarks) remarks.value = '';
+            const totalDisp = document.getElementById(`day${day}_entry_${idx}_total_price_display`);
+            if (totalDisp) totalDisp.textContent = h.currency() + ' 0.00';
+            const pricingContent = document.getElementById(`day${day}_entry_${idx}_pricing_content`);
+            if (pricingContent) pricingContent.innerHTML = '';
+            if (typeof updateTransportDataField === 'function') updateTransportDataField();
+            if (typeof showNotification === 'function') showNotification('Arrival transport form cleared', 'info');
+        };
+
+        window.clearExitPortForm = function (day, index) {
+            const h = window.__serviceClearHelpers;
+            const idx = (index === undefined || index === null) ? 0 : index;
+            if (String(idx) === '0') {
+                const flight = document.getElementById(`day${day}_departure_flight_no`);
+                if (flight) flight.value = '';
+                const timeInput = document.getElementById(`day${day}_exit_time_input`);
+                const timeAmpm = document.getElementById(`day${day}_exit_time_ampm`);
+                const timeHidden = document.getElementById(`day${day}_exit_time`);
+                if (timeInput) timeInput.value = '';
+                if (timeAmpm) timeAmpm.value = 'AM';
+                if (timeHidden) timeHidden.value = '';
+                const city = document.getElementById('modal_exit_city');
+                const keepCity = h.keepOrClearCity(city);
+                ['exit_pickup_container', 'exit_dropoff_container'].forEach(function (cid) {
+                    const box = document.getElementById(cid);
+                    if (!box) return;
+                    box.querySelectorAll('select').forEach(function (sel) {
+                        h.resetSelect(sel, '<option value="">Select location</option>', false, 'Select location');
+                    });
+                });
+                const results = document.getElementById(`day${day}_exit_vehicle_results`);
+                if (results) results.style.display = 'none';
+                if (keepCity && city) h.setSelectValue(city, keepCity);
+            }
+            h.resetSelect(document.getElementById(`day${day}_exit_${idx}_vehicle_id`), '<option value="">Choose vehicle</option>', false, 'Choose vehicle');
+            h.resetSelect(document.getElementById(`day${day}_exit_${idx}_service_type`), '<option value="">Select service type</option>', false, 'Select service type');
+            ['adults', 'children', 'passengers', 'custom_price', 'base_price', 'total_price', 'guest_count'].forEach(function (k) {
+                const el = document.getElementById(`day${day}_exit_${idx}_${k}`);
+                if (el) el.value = (k === 'adults' || k === 'passengers' || k === 'guest_count') ? (document.getElementById('adults')?.value || '1') : (k === 'children' ? '0' : '');
+            });
+            const supplement = document.getElementById(`day${day}_exit_${idx}_is_supplement`);
+            const remarks = document.getElementById(`day${day}_exit_${idx}_remarks`);
+            if (supplement) supplement.checked = false;
+            if (remarks) remarks.value = '';
+            const totalDisp = document.getElementById(`day${day}_exit_${idx}_total_price_display`);
+            if (totalDisp) totalDisp.textContent = h.currency() + ' 0.00';
+            const pricingContent = document.getElementById(`day${day}_exit_${idx}_pricing_content`);
+            if (pricingContent) pricingContent.innerHTML = '';
+            if (typeof updateTransportDataField === 'function') updateTransportDataField();
+            if (typeof showNotification === 'function') showNotification('Departure transport form cleared', 'info');
+        };
+
+        window.clearTransportForm = function (day, index) {
+            const h = window.__serviceClearHelpers;
+            const isFirst = (index === undefined || index === null || String(index) === '0' || String(index) === '1' && !document.getElementById(`day${day}_transport_city_${index}`));
+            const cityId = document.getElementById(`day${day}_transport_city_${index}`)
+                ? `day${day}_transport_city_${index}`
+                : `day${day}_transport_city_0`;
+            const citySelect = document.getElementById(cityId);
+            const keepCity = h.keepOrClearCity(citySelect);
+
+            // First slot uses unindexed vehicle ids; addMore uses indexed ids
+            const vehicleId = document.getElementById(`day${day}_transport_${index}_vehicle_id`)
+                || document.getElementById(`day${day}_transport_vehicle_id`);
+            const serviceType = document.getElementById(`day${day}_transport_${index}_service_type_select`)
+                || document.getElementById(`day${day}_transport_${index}_service_type`)
+                || document.getElementById(`day${day}_transport_service_type`);
+            h.resetSelect(vehicleId, '<option value="">Choose vehicle</option>', false, 'Choose vehicle');
+            h.resetSelect(serviceType, '<option value="">Select service type</option>', false, 'Select service type');
+
+            const suppIdx = (index !== undefined && index !== null) ? index : 1;
+            const supplement = document.getElementById(`day${day}_transport_${suppIdx}_is_supplement`)
+                || document.getElementById(`day${day}_transport_1_is_supplement`);
+            const remarks = document.getElementById(`day${day}_transport_${suppIdx}_remarks`)
+                || document.getElementById(`day${day}_transport_1_remarks`);
+            if (supplement) supplement.checked = false;
+            if (remarks) remarks.value = '';
+
+            // Reset location/time fields inside this transport item if present
+            const item = (vehicleId && vehicleId.closest) ? vehicleId.closest('.transport-item, .card') : null;
+            const root = item || document.getElementById(`day${day}_transports_container`) || document;
+            root.querySelectorAll(`input[type="text"], input[type="number"], textarea`).forEach(function (inp) {
+                if (!inp.id || inp.id.indexOf(`day${day}_transport`) === -1) return;
+                if (inp.id.indexOf('adults') !== -1 || inp.id.indexOf('passengers') !== -1) {
+                    inp.value = document.getElementById('adults')?.value || '1';
+                } else if (inp.id.indexOf('children') !== -1) {
+                    inp.value = '0';
+                } else if (inp.type === 'number') {
+                    inp.value = '';
+                } else if (inp.tagName === 'TEXTAREA' || inp.type === 'text') {
+                    if (inp.id.indexOf('remarks') === -1) inp.value = '';
+                }
+            });
+            root.querySelectorAll('select').forEach(function (sel) {
+                if (!sel.id || sel.id.indexOf(`day${day}_transport`) === -1) return;
+                if (sel.id.indexOf('_city_') !== -1) return;
+                if (sel === vehicleId || sel === serviceType) return;
+                if (sel.options && sel.options.length) {
+                    sel.selectedIndex = 0;
+                    if (typeof jQuery !== 'undefined' && jQuery(sel).data('select2')) {
+                        jQuery(sel).val(sel.value).trigger('change');
+                    }
+                }
+            });
+
+            const totalDisp = document.getElementById(`day${day}_transport_${index}_total_price_display`)
+                || document.getElementById(`day${day}_transport_total_price_display`);
+            if (totalDisp) totalDisp.textContent = h.currency() + ' 0.00';
+            const pricingContent = document.getElementById(`day${day}_transport_${index}_pricing_content`)
+                || document.getElementById(`day${day}_transport_pricing_content`);
+            if (pricingContent) pricingContent.innerHTML = '';
+
+            if (keepCity && citySelect) h.setSelectValue(citySelect, keepCity);
+            if (typeof updateTransportDataField === 'function') updateTransportDataField();
+            if (typeof showNotification === 'function') showNotification('Transport form cleared', 'info');
         };
         
         // Function to update all attraction pricing immediately
@@ -26231,13 +28450,138 @@
         }, 1000);
     }
 
+    // ---- Local transfer pickup/dropoff locations are city scoped ----
+    // Zone-assigned locations must be requested per city, otherwise every city of the country
+    // is offered (e.g. Batam hotels while Barrackpore is selected).
+    window.zoneAssignedLocationsUrl = function (city) {
+        const base = "{{ route('fetch-zone-assigned-locations') }}";
+        const cityName = String(city || '').trim();
+        return cityName ? `${base}?city=${encodeURIComponent(cityName)}` : base;
+    };
+
+    // City chosen on a given transport row (static row uses index 0), with sensible fallbacks.
+    window.getTransportRowCity = function (day, index) {
+        const idx = (index === null || index === undefined) ? 0 : index;
+        const rowCity = document.getElementById(`day${day}_transport_city_${idx}`);
+        if (rowCity && rowCity.value) {
+            return rowCity.value;
+        }
+        const anyTransportCity = document.querySelector('.transport-city-select');
+        if (anyTransportCity && anyTransportCity.value) {
+            return anyTransportCity.value;
+        }
+        return (typeof window.getSingleCityName === 'function') ? window.getSingleCityName() : '';
+    };
+
+    // Shared option label for zone-assigned locations (hotel/restaurant/attraction).
+    window.buildTransportLocationOption = function (location) {
+        let icon = '';
+        switch (location.type) {
+            case 'hotel':
+                icon = '🏨';
+                break;
+            case 'restaurant':
+                icon = '🍽️';
+                break;
+            case 'attraction':
+                icon = '🎯';
+                break;
+            default:
+                icon = '📍';
+        }
+
+        const option = document.createElement('option');
+        option.value = location.id;
+        option.textContent = `${icon} ${location.name} (${location.type}) - ${location.location}`;
+        option.dataset.type = location.type;
+        option.dataset.latitude = location.latitude || '';
+        option.dataset.longitude = location.longitude || '';
+        return option;
+    };
+
+    /**
+     * Reload a transport row's pickup locations for the newly selected city.
+     * Wired to the city select's onchange (both static and dynamically added transport rows).
+     */
+    window.loadTransportZonesForCity = function (day, cityName, index) {
+        const idx = (index === null || index === undefined) ? 0 : parseInt(index, 10) || 0;
+        const pickupName = idx > 0 ? `day${day}_transport_${idx}_pickup_zone_id` : `day${day}_transport_pickup_zone_id`;
+        const dropoffName = idx > 0 ? `day${day}_transport_${idx}_dropoff_zone_id` : `day${day}_transport_dropoff_zone_id`;
+
+        const bundleRoot = document.getElementById('segmentServicesBundle');
+        const scope = bundleRoot || document;
+        const pickupSelect = scope.querySelector(`select[name="${pickupName}"]`);
+        const dropoffSelect = scope.querySelector(`select[name="${dropoffName}"]`);
+        const cityMessage = document.getElementById(`day${day}_transport_city_message_${idx}`);
+        const vehicleSelect = scope.querySelector(`select[name="${idx > 0 ? `day${day}_transport_${idx}_vehicle_id` : `day${day}_transport_vehicle_id`}"]`);
+
+        const refreshSelect2 = function (select) {
+            if (!select) return;
+            if (typeof jQuery !== 'undefined' && jQuery(select).data('select2')) {
+                jQuery(select).trigger('change.select2');
+            }
+        };
+
+        if (dropoffSelect) {
+            dropoffSelect.innerHTML = '<option value="">Select pickup location first</option>';
+            dropoffSelect.disabled = true;
+            refreshSelect2(dropoffSelect);
+        }
+        if (vehicleSelect) {
+            vehicleSelect.innerHTML = '<option value="">Select pickup first</option>';
+            vehicleSelect.disabled = true;
+            refreshSelect2(vehicleSelect);
+        }
+
+        if (!cityName) {
+            if (pickupSelect) {
+                pickupSelect.innerHTML = '<option value="">Select city first</option>';
+                pickupSelect.disabled = true;
+                refreshSelect2(pickupSelect);
+            }
+            if (cityMessage) cityMessage.style.display = 'block';
+            return;
+        }
+
+        if (cityMessage) cityMessage.style.display = 'none';
+        if (!pickupSelect) return;
+
+        pickupSelect.innerHTML = '<option value="">Loading pickup locations...</option>';
+        pickupSelect.disabled = true;
+        refreshSelect2(pickupSelect);
+
+        fetch(window.zoneAssignedLocationsUrl(cityName))
+            .then(response => response.json())
+            .then(data => {
+                pickupSelect.innerHTML = '<option value="">Select pickup location</option>';
+
+                if (data.success && Array.isArray(data.locations) && data.locations.length) {
+                    data.locations.forEach(location => {
+                        pickupSelect.appendChild(window.buildTransportLocationOption(location));
+                    });
+                    pickupSelect.disabled = false;
+                } else {
+                    pickupSelect.innerHTML = '<option value="">No locations available in this city</option>';
+                    pickupSelect.disabled = true;
+                }
+
+                refreshSelect2(pickupSelect);
+            })
+            .catch(error => {
+                console.error('Error loading pickup locations for city:', cityName, error);
+                pickupSelect.innerHTML = '<option value="">Error loading locations</option>';
+                pickupSelect.disabled = true;
+                refreshSelect2(pickupSelect);
+            });
+    };
+
     function fetchZonesForAllTransportSections(city) {
     console.log('Fetching zones and locations for city:', city);
     
     // Fetch both zones and locations data
     Promise.all([
         fetch(`{{ route('fetch-zones-by-dmc') }}?city=${encodeURIComponent(city)}`).then(response => response.json()),
-        fetch(`{{ route('fetch-zone-assigned-locations') }}`).then(response => response.json())
+        fetch(window.zoneAssignedLocationsUrl(city)).then(response => response.json())
     ]).then(([zonesData, locationsData]) => {
         console.log('Zones data received:', zonesData);
         console.log('Locations data received:', locationsData);
@@ -26272,33 +28616,24 @@
             // For local transfer pickup selects, use location data with hotels, attractions, restaurants
             if (select.name && select.name.includes('_transport_') && locationsData.success && locationsData.locations) {
                 console.log(`Updating local transfer pickup select ${index} with locations:`, select.name);
+
+                // Each transport row has its own city: when the row's city differs from the city
+                // this batch was fetched for, reload that row so it only lists its own city's locations.
+                const rowMatch = select.name.match(/^day(\d+)_transport_(?:(\d+)_)?pickup_zone_id$/);
+                if (rowMatch) {
+                    const rowDay = rowMatch[1];
+                    const rowIndex = rowMatch[2] ? parseInt(rowMatch[2], 10) : 0;
+                    const rowCity = window.getTransportRowCity(rowDay, rowIndex);
+                    if (rowCity && String(rowCity).toLowerCase() !== String(city || '').toLowerCase()) {
+                        window.loadTransportZonesForCity(rowDay, rowCity, rowIndex);
+                        return;
+                    }
+                }
+
                 select.innerHTML = '<option value="">Select pickup location</option>';
                 
                 locationsData.locations.forEach(location => {
-                    const option = document.createElement('option');
-                    option.value = location.id;
-                    
-                    // Enhanced display format with icons for different types
-                    let icon = '';
-                    switch(location.type) {
-                        case 'hotel':
-                            icon = '🏨';
-                            break;
-                        case 'restaurant':
-                            icon = '🍽️';
-                            break;
-                        case 'attraction':
-                            icon = '🎯';
-                            break;
-                        default:
-                            icon = '📍';
-                    }
-                    
-                    option.textContent = `${icon} ${location.name} (${location.type}) - ${location.location}`;
-                    option.dataset.type = location.type;
-                    option.dataset.latitude = location.latitude || '';
-                    option.dataset.longitude = location.longitude || '';
-                    select.appendChild(option);
+                    select.appendChild(window.buildTransportLocationOption(location));
                 });
                 
                 select.disabled = false;
@@ -26463,8 +28798,46 @@
             });
     }
 
-    // Fetch ports for the selected city (ports.city_id = cities.city_id) and fill the pickup dropdown.
-    // The city name alone is enough — the server resolves cities.city_id and the country from it.
+    // Arrival/departure ports come from the city's country, not only that city.
+    window.getCountryForPortCity = function(cityName, selectId) {
+        const select = document.getElementById(selectId);
+        if (select) {
+            const selected = select.options[select.selectedIndex];
+            if (selected && selected.value === cityName && selected.getAttribute('data-country')) {
+                return selected.getAttribute('data-country');
+            }
+            const match = Array.from(select.options).find(function (o) { return o.value === cityName; });
+            if (match && match.getAttribute('data-country')) {
+                return match.getAttribute('data-country');
+            }
+        }
+        if (Array.isArray(window.allCitiesData)) {
+            const city = window.allCitiesData.find(function (c) { return c && c.name === cityName; });
+            if (city && city.country) {
+                return city.country;
+            }
+        }
+        const countrySelect = document.getElementById('user_country');
+        if (countrySelect && countrySelect.value) {
+            return countrySelect.value;
+        }
+        const hidden = document.getElementById('country_id');
+        return (hidden && hidden.value) || '';
+    };
+
+    window.buildPortsByCountryUrl = function(cityName, selectId) {
+        const params = new URLSearchParams();
+        const country = window.getCountryForPortCity(cityName, selectId);
+        if (country) {
+            params.set('country_id', country);
+        }
+        if (cityName) {
+            params.set('city', cityName);
+        }
+        return `{{ route('fetch-ports-by-country-single-tour') }}?${params.toString()}`;
+    };
+
+    // Fetch all ports in the selected city's country and fill the arrival pickup dropdown.
     window.loadEntryPickupPortsForCity = function(cityName) {
         const pickupSelect = document.getElementById('entry_pickup_port_select');
         if (!pickupSelect) return;
@@ -26474,25 +28847,16 @@
             return;
         }
 
-        // Send country too when we can (harmless), but city is what matters.
-        const countrySelect = document.getElementById('user_country');
-        let country = (document.getElementById('country_id') && document.getElementById('country_id').value) || '';
-        if (!country && countrySelect && countrySelect.value) {
-            const opt = countrySelect.options[countrySelect.selectedIndex];
-            country = (opt && opt.getAttribute('data-country-id')) || countrySelect.value;
-        }
-
         pickupSelect.innerHTML = '<option value="">Loading ports...</option>';
         $.ajax({
-            url: "{{ route('fetch-ports-by-country-single-tour') }}",
+            url: window.buildPortsByCountryUrl(cityName, 'modal_local_transfer_city'),
             type: "GET",
-            data: { country_id: country, city: cityName },
             dataType: 'json'
         }).done(function(response) {
             const ports = (response && response.ports) ? response.ports : [];
             pickupSelect.innerHTML = ports.length
                 ? '<option value="">Select pickup port</option>'
-                : '<option value="">No ports for this city</option>';
+                : '<option value="">No ports for this country</option>';
             ports.forEach(function(port) {
                 const option = document.createElement('option');
                 option.value = port.port_id;
@@ -26559,7 +28923,7 @@
             window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
             window.fetchJsonDeduped(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
             window.fetchJsonDeduped(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
-            window.fetchJsonDeduped(`{{ route('fetch-ports-by-country-single-tour') }}?city=${encodeURIComponent(cityName)}`)
+            window.fetchJsonDeduped(window.buildPortsByCountryUrl(cityName, 'modal_local_transfer_city'))
         ])
         .then(([hotelsData, attractionsData, restaurantsData, portsData]) => {
             console.log('AJAX responses received:');
@@ -26571,7 +28935,7 @@
             // Clear the dropdown
             dropoffSelect.innerHTML = '<option value="">Select pickup port first</option>';
             
-            // Add Ports first — city-dependent (ports.city_id = cities.city_id)
+            // Add Ports first — all ports in the selected city's country
             const ports = (portsData && portsData.ports) ? portsData.ports : [];
             if (ports && ports.length > 0) {
                 const portGroup = document.createElement('optgroup');
@@ -26710,7 +29074,7 @@
             window.fetchJsonDeduped(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
             window.fetchJsonDeduped(`{{ route('fetch-attractions-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
             window.fetchJsonDeduped(`{{ route('fetch-restaurants-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${dmcId}`),
-            window.fetchJsonDeduped(`{{ route('fetch-ports-by-country-single-tour') }}?city=${encodeURIComponent(cityName)}`)
+            window.fetchJsonDeduped(window.buildPortsByCountryUrl(cityName, 'modal_exit_city'))
         ])
         .then(([hotelsData, attractionsData, restaurantsData, portsData]) => {
             console.log('Exit port AJAX responses received:');
@@ -26719,13 +29083,13 @@
             console.log('Restaurants:', restaurantsData);
             console.log('Ports:', portsData);
 
-            // Departure drop off ports — city-dependent (ports.city_id = cities.city_id)
+            // Departure drop off ports — all ports in the selected city's country
             const exitDropoffSelect = document.getElementById('exit_dropoff_port_select');
             if (exitDropoffSelect) {
                 const exitPorts = (portsData && portsData.ports) ? portsData.ports : [];
                 exitDropoffSelect.innerHTML = exitPorts.length
                     ? '<option value="">Select dropoff port</option>'
-                    : '<option value="">No ports for this city</option>';
+                    : '<option value="">No ports for this country</option>';
                 exitPorts.forEach(function(port) {
                     const option = document.createElement('option');
                     option.value = port.port_id;
@@ -26934,19 +29298,17 @@
             // Pickup field (ports)
             const ports = @json($ports ?? []);
             pickupContainer.innerHTML = `
-                <select class="form-select pickup-zone-select border-2" name="day1_entry_pickup_zone_id" style="padding-left: 45px;" id="entry_pickup_port_select" onchange="handlePickupZoneChange(1, 'entry')">
+                <select class="form-select pickup-zone-select border-2" name="day1_entry_pickup_zone_id" id="entry_pickup_port_select" onchange="handlePickupZoneChange(1, 'entry')">
                     <option value="">Select pickup port</option>
                     ${ports.map(port => `<option value="${port.port_id}">${port.port_name}</option>`).join('')}
                 </select>
-                <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
             `;
             
             // Dropoff field (will be populated by AJAX call)
             dropoffContainer.innerHTML = `
-                <select class="form-select dropoff-zone-select border-2" name="day1_entry_dropoff_zone_id" disabled style="padding-left: 45px; padding-right: 45px;" id="entry_dropoff_location_select">
+                <select class="form-select dropoff-zone-select border-2" name="day1_entry_dropoff_zone_id" disabled id="entry_dropoff_location_select">
                     <option value="">Select city first</option>
                 </select>
-                <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
             `;
             
             console.log('Zone-based selects created, pickup will be populated by updateAllPortDropdowns');
@@ -27096,6 +29458,8 @@
                     const exitPriceField = document.getElementById(`day${day}_exit_0_price_field`);
                     if (exitPriceField) {
                         exitPriceField.style.display = 'block';
+                        const priceDisplay = document.getElementById(`day${day}_exit_0_price_display`);
+                        if (priceDisplay) priceDisplay.style.display = 'block';
                         console.log(`Showing custom price field for primary exit port (zone=0): day${day}_exit_0_price_field`);
                     }
                     
@@ -27117,18 +29481,16 @@
             
             // Pickup field (hotels, attractions, restaurants - where customer is staying/visiting)
             pickupContainer.innerHTML = `
-                <select class="form-select pickup-zone-select border-2" name="day${day}_exit_pickup_zone_id" style="padding-left: 45px;" id="exit_pickup_location_select" onchange="handlePickupZoneChange(${day}, 'exit')">
+                <select class="form-select pickup-zone-select border-2" name="day${day}_exit_pickup_zone_id" id="exit_pickup_location_select" onchange="handlePickupZoneChange(${day}, 'exit')">
                     <option value="">Select city first</option>
                 </select>
-                <i class="ri-map-pin-fill position-absolute text-success" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
             `;
             
-            // Dropoff field (ports) — city-dependent: filled by loadExitPortsForCity for the selected city.
+            // Dropoff field (ports) — country-wide: filled by loadExitPortsForCity from the city's country.
             dropoffContainer.innerHTML = `
-                <select class="form-select dropoff-zone-select border-2" name="day${day}_exit_dropoff_zone_id" style="padding-left: 45px; padding-right: 45px;" id="exit_dropoff_port_select">
+                <select class="form-select dropoff-zone-select border-2" name="day${day}_exit_dropoff_zone_id" id="exit_dropoff_port_select">
                     <option value="">Select city first</option>
                 </select>
-                <i class="ri-map-pin-fill position-absolute text-danger" style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
             `;
             
             console.log('Zone-based selects created for exit port, pickup will be populated by updateAllPortDropdowns');
@@ -27756,7 +30118,7 @@
                 // For local transfer dropoff, populate with zone-assigned locations (excluding pickup location)
                 dropoffZoneSelect.innerHTML = '<option value="">Loading locations...</option>';
                 
-                fetch(`{{ route('fetch-zone-assigned-locations') }}`)
+                fetch(window.zoneAssignedLocationsUrl(window.getTransportRowCity(day, 0)))
                     .then(response => response.json())
                     .then(data => {
                         console.log('Zone-assigned locations response for local transfer:', data);
@@ -28127,7 +30489,7 @@
                 
                 dropoffZoneSelect.innerHTML = '<option value="">Loading locations...</option>';
                 
-                fetch(`{{ route('fetch-zone-assigned-locations') }}`)
+                fetch(window.zoneAssignedLocationsUrl(window.getTransportRowCity(day, 0)))
                     .then(response => response.json())
                     .then(data => {
                         console.log('Zone-assigned locations response for local transfer:', data);
@@ -28853,7 +31215,7 @@
                                                     <i class="ri-price-tag-3-line" style="color: #667eea; margin-right: 5px;"></i>
                                                     Custom Price:
                                                 </span>
-                                                <span class="fw-semibold" style="color: #495057;">$${customPrice.toFixed(2)} <small style="color: #6c757d; font-weight: normal;">(fixed price)</small></span>
+                                                <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${customPrice.toFixed(2)} <small style="color: #6c757d; font-weight: normal;">(fixed price)</small></span>
                                             </div>
                                             <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 0.5rem;">
                                                 <i class="ri-information-line me-1" style="color: #667eea;"></i>Point-to-point service with custom pricing
@@ -28875,7 +31237,7 @@
                                                     </div>
                                                     Total Price
                                                 </h6>
-                                                <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;">$${customPrice.toFixed(2)}</span>
+                                                <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;">${getTourCurrency()} ${customPrice.toFixed(2)}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -28911,7 +31273,7 @@
                 if (totalPriceField) totalPriceField.value = customPrice.toFixed(2);
                 if (guestCountField) guestCountField.value = totalGuests;
                 
-                console.log(`Point-to-point service pricing: Custom price $${customPrice} for ${totalGuests} passengers`);
+                console.log(`Point-to-point service pricing: Custom price ${getTourCurrency()} ${customPrice} for ${totalGuests} passengers`);
                 
                 // Update other transport header for point-to-point services
                 if (section.startsWith('transport')) {
@@ -29157,11 +31519,11 @@
                         pricingDescription = `
                             <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                                 <span style="color: #6c757d;"><i class="ri-car-line" style="color: #667eea; margin-right: 5px;"></i>Base (vehicle):</span>
-                                <span class="fw-semibold" style="color: #495057;">SGD ${displayPrice.toFixed(2)}</span>
+                                <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${displayPrice.toFixed(2)}</span>
                             </div>
                             <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                                 <span style="color: #6c757d;"><i class="ri-time-line" style="color: #667eea; margin-right: 5px;"></i>Hourly rate:</span>
-                                <span class="fw-semibold" style="color: #495057;">SGD ${costPerHour.toFixed(2)} per hour</span>
+                                <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${costPerHour.toFixed(2)} per hour</span>
                             </div>
                             <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                                 <span style="color: #6c757d;"><i class="ri-calendar-check-line" style="color: #667eea; margin-right: 5px;"></i>Selected hours:</span>
@@ -29169,11 +31531,11 @@
                             </div>
                             <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                                 <span style="color: #6c757d;"><i class="ri-calculator-line" style="color: #667eea; margin-right: 5px;"></i>Hours charge:</span>
-                                <span class="fw-semibold" style="color: #495057;">SGD ${costPerHour.toFixed(2)} × ${selectedHours} = SGD ${hourlyCost.toFixed(2)}</span>
+                                <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${costPerHour.toFixed(2)} × ${selectedHours} = ${getTourCurrency()} ${hourlyCost.toFixed(2)}</span>
                             </div>
                             <div class="d-flex justify-content-between align-items-center mb-2 pt-2 border-top border-1" style="font-size: 0.9rem;">
                                 <span style="color: #495057;" class="fw-semibold"><i class="ri-money-dollar-circle-line me-1" style="color: #667eea;"></i>Total:</span>
-                                <span class="fw-bold" style="color: #495057;">SGD ${displayPrice.toFixed(2)} + SGD ${hourlyCost.toFixed(2)} = SGD ${totalHourlyPrice.toFixed(2)}</span>
+                                <span class="fw-bold" style="color: #495057;">${getTourCurrency()} ${displayPrice.toFixed(2)} + ${getTourCurrency()} ${hourlyCost.toFixed(2)} = ${getTourCurrency()} ${totalHourlyPrice.toFixed(2)}</span>
                             </div>
                             <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 0.5rem;">
                                 <i class="ri-information-line me-1" style="color: #667eea;"></i>Private hourly: base + (hours × rate per hour).
@@ -29183,11 +31545,11 @@
                         pricingDescription = `
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <span style="color: #6c757d;"><i class="ri-car-line" style="color: #667eea; margin-right: 5px;"></i>Vehicle Price:</span>
-                                <span class="fw-semibold" style="color: #495057;">$${displayPrice.toFixed(2)} <small style="color: #6c757d;">(base)</small></span>
+                                <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${displayPrice.toFixed(2)} <small style="color: #6c757d;">(base)</small></span>
                             </div>
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <span style="color: #6c757d;"><i class="ri-time-line" style="color: #667eea; margin-right: 5px;"></i>Hourly Rate:</span>
-                                <span class="fw-semibold" style="color: #495057;">$${costPerHour.toFixed(2)} <small style="color: #6c757d;">per hour</small></span>
+                                <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${costPerHour.toFixed(2)} <small style="color: #6c757d;">per hour</small></span>
                             </div>
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <span style="color: #6c757d;"><i class="ri-group-line" style="color: #667eea; margin-right: 5px;"></i>Total Guests:</span>
@@ -29206,7 +31568,7 @@
                 pricingDescription = `
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <span style="color: #6c757d;"><i class="ri-car-line" style="color: #667eea; margin-right: 5px;"></i>Vehicle Price:</span>
-                        <span class="fw-semibold" style="color: #495057;">$${displayPrice.toFixed(2)} <small style="color: #6c757d;">(per vehicle)</small></span>
+                        <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${displayPrice.toFixed(2)} <small style="color: #6c757d;">(per vehicle)</small></span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <span style="color: #6c757d;"><i class="ri-group-line" style="color: #667eea; margin-right: 5px;"></i>Total Guests:</span>
@@ -29256,11 +31618,11 @@
                     pricingDescription = `
                         <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                             <span style="color: #6c757d;"><i class="ri-price-tag-3-line" style="color: #28a745; margin-right: 5px;"></i>Base (per person):</span>
-                            <span class="fw-semibold" style="color: #495057;">SGD ${displayPrice.toFixed(2)}</span>
+                            <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${displayPrice.toFixed(2)}</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                             <span style="color: #6c757d;"><i class="ri-time-line" style="color: #28a745; margin-right: 5px;"></i>Hourly rate (per person):</span>
-                            <span class="fw-semibold" style="color: #495057;">SGD ${sharableCostPerHour.toFixed(2)} × ${sharedSelectedHours} h = SGD ${sharedHourlyCost.toFixed(2)}</span>
+                            <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${sharableCostPerHour.toFixed(2)} × ${sharedSelectedHours} h = ${getTourCurrency()} ${sharedHourlyCost.toFixed(2)}</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                             <span style="color: #6c757d;"><i class="ri-group-line" style="color: #28a745; margin-right: 5px;"></i>Total guests:</span>
@@ -29268,7 +31630,7 @@
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-2 pt-2 border-top border-1" style="font-size: 0.85rem;">
                             <span style="color: #495057;" class="fw-semibold"><i class="ri-calculator-line me-1" style="color: #28a745;"></i>Total:</span>
-                            <span class="fw-semibold" style="color: #495057;">(SGD ${sharedPerPerson.toFixed(2)} per person) × ${totalGuests} = SGD ${(sharedPerPerson * totalGuests).toFixed(2)}</span>
+                            <span class="fw-semibold" style="color: #495057;">(${getTourCurrency()} ${sharedPerPerson.toFixed(2)} per person) × ${totalGuests} = ${getTourCurrency()} ${(sharedPerPerson * totalGuests).toFixed(2)}</span>
                         </div>
                         <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 0.5rem;">
                             <i class="ri-information-line me-1" style="color: #28a745;"></i>Shared hourly: (base + hours × rate) × guests.
@@ -29282,7 +31644,7 @@
                 pricingDescription = `
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <span style="color: #6c757d;"><i class="ri-price-tag-3-line" style="color: #28a745; margin-right: 5px;"></i>Base Price:</span>
-                        <span class="fw-semibold" style="color: #495057;">$${displayPrice.toFixed(2)} <small style="color: #6c757d;">per person</small></span>
+                        <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${displayPrice.toFixed(2)} <small style="color: #6c757d;">per person</small></span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <span style="color: #6c757d;"><i class="ri-group-line" style="color: #28a745; margin-right: 5px;"></i>Total Guests:</span>
@@ -29343,15 +31705,15 @@
                     pricingDescription = `
                     <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                         <span style="color: #6c757d;"><i class="ri-user-line" style="color: #667eea; margin-right: 5px;"></i>Total adult price:</span>
-                        <span class="fw-semibold" style="color: #495057;">SGD ${adultPrice.toFixed(2)} × ${adultsCount} = SGD ${adultTotal.toFixed(2)}</span>
+                        <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${adultPrice.toFixed(2)} × ${adultsCount} = ${getTourCurrency()} ${adultTotal.toFixed(2)}</span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                         <span style="color: #6c757d;"><i class="ri-user-smile-line" style="color: #28a745; margin-right: 5px;"></i>Total child price:</span>
-                        <span class="fw-semibold" style="color: #495057;">SGD ${childPrice.toFixed(2)} × ${childrenCount} = SGD ${childTotal.toFixed(2)}</span>
+                        <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${childPrice.toFixed(2)} × ${childrenCount} = ${getTourCurrency()} ${childTotal.toFixed(2)}</span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                         <span style="color: #6c757d;"><i class="ri-user-heart-line" style="color: #ffc107; margin-right: 5px;"></i>Total infant price:</span>
-                        <span class="fw-semibold" style="color: #495057;">SGD ${infantPrice.toFixed(2)} × ${infantsCount} = SGD ${infantTotal.toFixed(2)}</span>
+                        <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${infantPrice.toFixed(2)} × ${infantsCount} = ${getTourCurrency()} ${infantTotal.toFixed(2)}</span>
                     </div>
                 `;
                 } else {
@@ -29359,15 +31721,15 @@
                     pricingDescription = `
                     <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                         <span style="color: #6c757d;"><i class="ri-user-line" style="color: #667eea; margin-right: 5px;"></i>Adult price:</span>
-                        <span class="fw-semibold" style="color: #495057;">SGD ${displayPrice.toFixed(2)}</span>
+                        <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${displayPrice.toFixed(2)}</span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                         <span style="color: #6c757d;"><i class="ri-user-smile-line" style="color: #28a745; margin-right: 5px;"></i>Child price:</span>
-                        <span class="fw-semibold" style="color: #495057;">SGD ${displayPrice.toFixed(2)}</span>
+                        <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${displayPrice.toFixed(2)}</span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                         <span style="color: #6c757d;"><i class="ri-user-heart-line" style="color: #ffc107; margin-right: 5px;"></i>Infant price:</span>
-                        <span class="fw-semibold" style="color: #495057;">SGD ${displayPrice.toFixed(2)}</span>
+                        <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${displayPrice.toFixed(2)}</span>
                     </div>
                     <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 0.5rem;">
                         <i class="ri-information-line me-1" style="color: #667eea;"></i>Private vehicle: fixed price per trip (not per person).
@@ -29440,7 +31802,7 @@
                                                 </div>
                                                 Total Price
                                             </h6>
-                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_${section}_total_price_display">${(section.startsWith('entry') || section.startsWith('exit') || section === 'transport') ? 'SGD ' : '$'}${totalPrice.toFixed(2)}</span>
+                                            <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;" id="day${day}_${section}_total_price_display">${getTourCurrency()} ${totalPrice.toFixed(2)}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -29450,7 +31812,7 @@
                 </div>
             `;
             
-            console.log(`${priceType} service selected for day ${day}, section ${section}: ${(section.startsWith('entry') || section.startsWith('exit') || section === 'transport') ? 'SGD ' : '$'}${displayPrice} ${selectedServiceType === 'Private' ? 'per vehicle' : 'per person'}, Total: $${totalPrice}`);
+            console.log(`${priceType} service selected for day ${day}, section ${section}: ${(section.startsWith('entry') || section.startsWith('exit') || section === 'transport') ? 'SGD ' : '$'}${displayPrice} ${selectedServiceType === 'Private' ? 'per vehicle' : 'per person'}, Total: ${getTourCurrency()} ${totalPrice}`);
             
             // Add event listener to hours dropdown for hourly transport to update pricing when hours change
             if (isHourlyTransport) {
@@ -29499,8 +31861,8 @@
             if (guestCountField) guestCountField.value = totalGuests;
             
             console.log(`Pricing data stored in hidden fields for day ${day}, section ${section}:`);
-            console.log(`- Base Price: $${displayPrice.toFixed(2)}`);
-            console.log(`- Total Price: $${totalPrice.toFixed(2)}`);
+            console.log(`- Base Price: ${getTourCurrency()} ${displayPrice.toFixed(2)}`);
+            console.log(`- Total Price: ${getTourCurrency()} ${totalPrice.toFixed(2)}`);
             console.log(`- Guest Count: ${totalGuests}`);
             
             // Update arrival header if this is an entry section
@@ -29606,7 +31968,7 @@
                                 <div class="card-body" style="padding: 1rem;">
                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                         <span style="color: #6c757d;"><i class="ri-price-tag-3-line" style="color: #667eea; margin-right: 5px;"></i>Custom Price:</span>
-                                        <span class="fw-semibold" style="color: #495057;">SGD ${customPrice.toFixed(2)}</span>
+                                        <span class="fw-semibold" style="color: #495057;">${getTourCurrency()} ${customPrice.toFixed(2)}</span>
                                     </div>
                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                         <span style="color: #6c757d;"><i class="ri-map-pin-line" style="color: #667eea; margin-right: 5px;"></i>Service Type:</span>
@@ -29636,7 +31998,7 @@
                                             </div>
                                             Total Price
                                         </h6>
-                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;">SGD ${customPrice.toFixed(2)}</span>
+                                        <span class="fw-bold text-white" style="font-size: 1.5rem; color: #ffffff !important;">${getTourCurrency()} ${customPrice.toFixed(2)}</span>
                                     </div>
                                 </div>
                             </div>
@@ -29663,7 +32025,7 @@
             if (totalPriceField) totalPriceField.value = customPrice.toFixed(2);
             if (guestCountField) guestCountField.value = totalGuests;
             
-            console.log(`Custom pricing updated for day ${day}, section ${section}: SGD ${customPrice.toFixed(2)}`);
+            console.log(`Custom pricing updated for day ${day}, section ${section}: ${getTourCurrency()} ${customPrice.toFixed(2)}`);
             
             // Update other transport header after custom pricing change
             if (section.startsWith('transport')) {
@@ -29728,7 +32090,7 @@
                     <div>
                         <strong>Hourly Custom Pricing</strong>
                         <div class="small">
-                            <strong>Custom Price:</strong> <span class="text-success fw-bold">SGD ${customPrice.toFixed(2)}</span><br>
+                            <strong>Custom Price:</strong> <span class="text-success fw-bold">${getTourCurrency()} ${customPrice.toFixed(2)}</span><br>
                             <strong>Service Type:</strong> Hourly<br>
                             <small class="text-info">Fixed price for hourly service regardless of guest count.</small>
                         </div>
@@ -29807,7 +32169,7 @@
                     <div>
                         <strong>Entry Port Custom Pricing</strong>
                         <div class="small">
-                            <strong>Custom Price:</strong> <span class="text-success fw-bold">SGD ${customPrice.toFixed(2)}</span><br>
+                            <strong>Custom Price:</strong> <span class="text-success fw-bold">${getTourCurrency()} ${customPrice.toFixed(2)}</span><br>
                             <strong>Service Type:</strong> Private<br>
                             <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
                             <small class="text-info">Fixed price for entry port service in zone 0 mode.</small>
@@ -29825,7 +32187,7 @@
             if (totalPriceField) totalPriceField.value = customPrice.toFixed(2);
             if (guestCountField) guestCountField.value = totalGuests;
             
-            console.log(`Entry port custom pricing updated for day ${day}, section ${section}: SGD ${customPrice.toFixed(2)}`);
+            console.log(`Entry port custom pricing updated for day ${day}, section ${section}: ${getTourCurrency()} ${customPrice.toFixed(2)}`);
             
         } else {
             // Hide price display if no custom price
@@ -29891,7 +32253,7 @@
                 }
                 
                 if (arrivalTotalPriceEl) {
-                    arrivalTotalPriceEl.textContent = `SGD ${totalPrice.toFixed(2)}`;
+                    arrivalTotalPriceEl.textContent = `${getTourCurrency()} ${totalPrice.toFixed(2)}`;
                 }
                 return;
             }
@@ -29969,7 +32331,7 @@
         }
         
         if (arrivalTotalPriceEl) {
-            arrivalTotalPriceEl.textContent = `SGD ${totalArrivalPrice.toFixed(2)}`;
+            arrivalTotalPriceEl.textContent = `${getTourCurrency()} ${totalArrivalPrice.toFixed(2)}`;
         }
     }
 
@@ -30017,7 +32379,11 @@
                 }
                 
                 if (departureTotalPriceEl) {
-                    departureTotalPriceEl.textContent = `SGD ${totalPrice.toFixed(2)}`;
+                    const formattedTotal = totalPrice.toLocaleString('en-US', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                    departureTotalPriceEl.textContent = `${getTourCurrency()} ${formattedTotal}`;
                 }
                 return;
             }
@@ -30095,7 +32461,11 @@
         }
         
         if (departureTotalPriceEl) {
-            departureTotalPriceEl.textContent = `SGD ${totalDeparturePrice.toFixed(2)}`;
+            const formattedTotal = totalDeparturePrice.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+            departureTotalPriceEl.textContent = `${getTourCurrency()} ${formattedTotal}`;
         }
     }
 
@@ -30174,80 +32544,77 @@
         }
         
         if (otherTransportTotalPriceEl) {
-            otherTransportTotalPriceEl.textContent = `SGD ${totalTransportPrice.toFixed(2)}`;
+            const formattedTotal = totalTransportPrice.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+            otherTransportTotalPriceEl.textContent = `${getTourCurrency()} ${formattedTotal}`;
         }
     }
 
     // Update exit port custom pricing function (Zone = 0)
     window.updateExitPortCustomPricing = function(day, section) {
         console.log('Updating exit port custom pricing for day', day, 'section', section);
-        
-        // Get the custom price input field
+
         const customPriceInput = document.getElementById(`day${day}_${section}_custom_price`);
         const priceDisplay = document.getElementById(`day${day}_${section}_price_display`);
-        
+
         if (!customPriceInput || !priceDisplay) {
             console.error('Custom price input or price display not found for exit port', section);
             return;
         }
-        
+
         const customPrice = parseFloat(customPriceInput.value) || 0;
-        
+        const adults = parseInt(document.getElementById(`day${day}_${section}_adults`)?.value || document.getElementById('adults')?.value) || 0;
+        const children = parseInt(document.getElementById(`day${day}_${section}_children`)?.value || document.getElementById('children')?.value) || 0;
+        const totalGuests = adults + children;
+        const cur = typeof getTourCurrency === 'function' ? getTourCurrency() : 'SGD';
+
+        priceDisplay.style.display = 'block';
+
+        const pricingContent = document.getElementById(`day${day}_${section}_pricing_content`);
+        const totalDisplay = document.getElementById(`day${day}_${section}_total_price_display`);
+
         if (customPrice > 0) {
-            // Get guest count for display
-            const adults = parseInt(document.getElementById('adults')?.value) || 0;
-            const children = parseInt(document.getElementById('children')?.value) || 0;
-            const totalGuests = adults + children;
-            
-            // Update price display with custom price
-            priceDisplay.style.display = 'block';
-            priceDisplay.innerHTML = `
-                <div class="d-flex align-items-center">
-                    <i class="ri-money-dollar-circle-line me-2 fs-4"></i>
-                    <div>
-                        <strong>Exit Port Custom Pricing</strong>
-                        <div class="small">
-                            <strong>Custom Price:</strong> <span class="text-success fw-bold">SGD ${customPrice.toFixed(2)}</span><br>
-                            <strong>Service Type:</strong> Private<br>
-                            <strong>Total Guests:</strong> ${totalGuests} (${adults} adults, ${children} children)<br>
-                            <small class="text-info">Fixed price for exit port service in zone 0 mode.</small>
-                        </div>
+            if (pricingContent) {
+                pricingContent.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>Custom price:</span>
+                        <span class="fw-semibold">${cur} ${customPrice.toFixed(2)}</span>
                     </div>
-                </div>
-            `;
-            
-            // Store pricing data in hidden fields
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>Service type:</span>
+                        <span class="fw-semibold">Private</span>
+                    </div>
+                    <small class="text-muted">Private vehicle: fixed price per trip (not per person).</small>
+                `;
+            }
+            if (totalDisplay) {
+                totalDisplay.textContent = `${cur} ${customPrice.toFixed(2)}`;
+            }
+
             const basePriceField = document.getElementById(`day${day}_${section}_base_price`);
             const totalPriceField = document.getElementById(`day${day}_${section}_total_price`);
             const guestCountField = document.getElementById(`day${day}_${section}_guest_count`);
-            
+
             if (basePriceField) basePriceField.value = customPrice.toFixed(2);
             if (totalPriceField) totalPriceField.value = customPrice.toFixed(2);
             if (guestCountField) guestCountField.value = totalGuests;
-            
-            console.log(`Exit port custom pricing updated for day ${day}, section ${section}: SGD ${customPrice.toFixed(2)}`);
-            
-            // Update departure header after custom pricing change
-            if (section.startsWith('exit')) {
-                updateDepartureHeader(day);
-            }
-            
+
+            console.log(`Exit port custom pricing updated for day ${day}, section ${section}: ${cur} ${customPrice.toFixed(2)}`);
         } else {
-            // Hide price display if no custom price
-            priceDisplay.style.display = 'none';
-            // Clear hidden fields
             const basePriceField = document.getElementById(`day${day}_${section}_base_price`);
             const totalPriceField = document.getElementById(`day${day}_${section}_total_price`);
             const guestCountField = document.getElementById(`day${day}_${section}_guest_count`);
-            
+
             if (basePriceField) basePriceField.value = '0';
             if (totalPriceField) totalPriceField.value = '0';
             if (guestCountField) guestCountField.value = '0';
-            
-            // Update departure header after custom pricing change
-            if (section.startsWith('exit')) {
-                updateDepartureHeader(day);
-            }
+            if (totalDisplay) totalDisplay.textContent = `${cur} 0.00`;
+        }
+
+        if (section.startsWith('exit')) {
+            updateDepartureHeader(day);
         }
     }
 
@@ -30306,8 +32673,8 @@
                     vehicle_model: selectedOption.dataset.vehicleModel || "",
                     model_year: selectedOption.dataset.modelYear || null,
                     seating_capacity: selectedOption.dataset.seatingcapacity || 0,
-                    city: "Singapore", // Default city
-                    country: "Singapore" // Default country
+                    city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
+                    country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '')
                 };
             }
             
@@ -30388,8 +32755,8 @@
                 vehicle_id: vehicleId,
                 service_type: serviceType,
                 passengers: passengers,
-                country: "Singapore",
-                city: "Singapore",
+                country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : ''),
+                city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
                 transport_type: "entry_port"
             };
             
@@ -30443,8 +32810,8 @@
                     vehicle_model: selectedOption.dataset.vehicleModel || "",
                     model_year: selectedOption.dataset.modelYear || null,
                     seating_capacity: selectedOption.dataset.seatingcapacity || 0,
-                    city: "Singapore",
-                    country: "Singapore"
+                    city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
+                    country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '')
                 };
             }
             
@@ -30518,8 +32885,8 @@
                 vehicle_id: vehicleId,
                 service_type: serviceType,
                 passengers: document.getElementById(`day${day}_exit_0_passengers`)?.value || 1,
-                country: "Singapore",
-                city: "Singapore",
+                country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : ''),
+                city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
                 transport_type: "exit_port"
             };
             
@@ -30588,8 +32955,8 @@
                     vehicle_model: selectedOption.dataset.vehicleModel || "",
                     model_year: selectedOption.dataset.modelYear || null,
                     seating_capacity: selectedOption.dataset.seatingcapacity || 0,
-                    city: "Singapore",
-                    country: "Singapore"
+                    city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
+                    country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : '')
                 };
             }
             
@@ -30665,8 +33032,8 @@
                 vehicle_id: vehicleId,
                 service_type: serviceType,
                 passengers: document.getElementById(`day${day}_transport_passengers`)?.value || 1,
-                country: "Singapore",
-                city: "Singapore",
+                country: (typeof window.getActiveServiceCountry === 'function' ? window.getActiveServiceCountry() : ''),
+                city: (typeof window.getActiveServiceCity === 'function' ? window.getActiveServiceCity() : ''),
                 transport_type: "transport"
             };
             
@@ -31158,6 +33525,8 @@
                                 const exitPriceField = document.getElementById(`day${day}_${exitSection}_price_field`);
                                 if (exitPriceField) {
                                     exitPriceField.style.display = 'block';
+                                    const priceDisplay = document.getElementById(`day${day}_${exitSection}_price_display`);
+                                    if (priceDisplay) priceDisplay.style.display = 'block';
                                     console.log(`Showing custom price field for exit port (zone=0): day${day}_${exitSection}_price_field`);
                                 }
                                 
@@ -31759,7 +34128,7 @@
                 const dishNameField = document.getElementById(`day1_restaurant_${restaurantIndex}_dish_name`);
                 
                 console.log(`Restaurant ${restaurantIndex} hidden fields:`);
-                console.log(`- Total Price: $${totalPriceField?.value || 'Not found'}`);
+                console.log(`- Total Price: ${getTourCurrency()} ${totalPriceField?.value || 'Not found'}`);
                 console.log(`- Meal ID: ${mealIdField?.value || 'Not found'}`);
                 console.log(`- Dish Name: ${dishNameField?.value || 'Not found'}`);
             });
@@ -31779,9 +34148,9 @@
                 // Check if all restaurants have correct pricing
                 parsedData.forEach((restaurant, index) => {
                     console.log(`Restaurant ${index + 1}:`);
-                    console.log(`- Total Price: $${restaurant.totalPrice}`);
-                    console.log(`- Meal Price: $${restaurant.mealPrice}`);
-                    console.log(`- Meal Description Price: $${restaurant.MealDescription[0]?.price || 'N/A'}`);
+                    console.log(`- Total Price: ${getTourCurrency()} ${restaurant.totalPrice}`);
+                    console.log(`- Meal Price: ${getTourCurrency()} ${restaurant.mealPrice}`);
+                    console.log(`- Meal Description Price: ${getTourCurrency()} ${restaurant.MealDescription[0]?.price || 'N/A'}`);
                 });
             } else {
                 console.log('No restaurant data found');
@@ -31798,7 +34167,7 @@
             const dishNameField = document.getElementById('day1_restaurant_1_dish_name');
             
             console.log('Restaurant hidden fields:');
-            console.log(`- Total Price: $${totalPriceField?.value || 'Not found'}`);
+            console.log(`- Total Price: ${getTourCurrency()} ${totalPriceField?.value || 'Not found'}`);
             console.log(`- Meal ID: ${mealIdField?.value || 'Not found'}`);
             console.log(`- Dish Name: ${dishNameField?.value || 'Not found'}`);
             
@@ -31831,8 +34200,8 @@
                 
                 if (basePriceField && totalPriceField && serviceTypeField) {
                     console.log(`${section.toUpperCase()} PORT - Hidden fields:`);
-                    console.log(`- Base Price: $${basePriceField.value}`);
-                    console.log(`- Total Price: $${totalPriceField.value}`);
+                    console.log(`- Base Price: ${getTourCurrency()} ${basePriceField.value}`);
+                    console.log(`- Total Price: ${getTourCurrency()} ${totalPriceField.value}`);
                     console.log(`- Service Type: ${serviceTypeField.value}`);
                 } else {
                     console.log(`${section.toUpperCase()} PORT - Hidden fields not found`);
@@ -31967,8 +34336,8 @@
             
             if (basePriceField && totalPriceField && serviceTypeField && guestCountField) {
                 console.log('Current hidden field values:');
-                console.log(`- Base Price: $${basePriceField.value}`);
-                console.log(`- Total Price: $${totalPriceField.value}`);
+                console.log(`- Base Price: ${getTourCurrency()} ${basePriceField.value}`);
+                console.log(`- Total Price: ${getTourCurrency()} ${totalPriceField.value}`);
                 console.log(`- Service Type: ${serviceTypeField.value}`);
                 console.log(`- Guest Count: ${guestCountField.value}`);
             }
@@ -32225,20 +34594,371 @@
                         console.log('All guide pricing triggered');
                     };
 
+                    // Cache geocoded city bounds for soft location bias (ranking only, not hard restriction).
+                    window._gmapsCityBoundsCache = window._gmapsCityBoundsCache || {};
+
+                    // Resolve the city dropdown tied to a Google Maps location input (Other Transport / entry / exit).
+                    window.resolveCitySelectForAutocompleteInput = function(input) {
+                        if (!input) return null;
+                        const inputId = input.id || '';
+                        let citySelect = null;
+
+                        // day1_transport_2_pickup_location / day1_transport_2_hourly_pickup_location
+                        let match = inputId.match(/^day(\d+)_transport_(\d+)_(?:hourly_)?(?:pickup|dropoff)_location$/);
+                        if (match) {
+                            citySelect = document.getElementById(`day${match[1]}_transport_city_${match[2]}`);
+                        } else {
+                            // day1_transport_pickup_location / day1_transport_hourly_pickup_location
+                            match = inputId.match(/^day(\d+)_transport_(?:hourly_)?(?:pickup|dropoff)_location$/);
+                            if (match) {
+                                citySelect = document.getElementById(`day${match[1]}_transport_city_0`);
+                            }
+                        }
+
+                        if (!citySelect) {
+                            if (inputId.includes('_entry_')) {
+                                citySelect = document.getElementById('modal_local_transfer_city');
+                            } else if (inputId.includes('_exit_')) {
+                                citySelect = document.getElementById('modal_exit_city');
+                            }
+                        }
+
+                        return citySelect || null;
+                    };
+
+                    window.resolveCityForAutocompleteInput = function(input) {
+                        const citySelect = window.resolveCitySelectForAutocompleteInput(input);
+                        if (!citySelect) return '';
+
+                        const opt = citySelect.options?.[citySelect.selectedIndex];
+                        const fromData = (opt?.getAttribute?.('data-city-name') || '').trim();
+                        const fromText = (opt?.textContent || '').trim().split('(')[0].trim();
+                        const fromValue = String(citySelect.value || '').trim();
+                        return fromData || fromText || fromValue;
+                    };
+
+                    // Prefer the country on the city option tied to this input (destination-aware),
+                    // then fall back to the package/country selectors. Never hardcode India.
+                    window.resolveCountryForAutocompleteInput = function(input) {
+                        const citySelect = window.resolveCitySelectForAutocompleteInput(input);
+                        if (citySelect) {
+                            try {
+                                if (typeof $ !== 'undefined' && $(citySelect).length && $(citySelect).data('select2')) {
+                                    const d = $(citySelect).select2('data');
+                                    const fromSelect2 = d?.[0]?.country != null ? String(d[0].country).trim() : '';
+                                    if (fromSelect2) return fromSelect2;
+                                }
+                            } catch (e) {}
+                            const opt = citySelect.options?.[citySelect.selectedIndex];
+                            const fromOpt = (opt?.getAttribute?.('data-country') || '').trim();
+                            if (fromOpt) return fromOpt;
+                        }
+
+                        if (typeof window.resolveSelectedCountryNameForAutocomplete === 'function') {
+                            return window.resolveSelectedCountryNameForAutocomplete() || '';
+                        }
+                        return document.getElementById('user_country')?.value || '';
+                    };
+
+                    /**
+                     * Build a contextual Places query.
+                     * - "Hotel Verge" + Launceston/Australia => "Hotel Verge, Launceston, Australia"
+                     * - Already-complete queries (contain city/country or commas) are left unchanged.
+                     */
+                    window.buildContextualPlacesQuery = function(rawQuery, cityName, countryName) {
+                        const q = String(rawQuery || '').trim();
+                        if (!q) return q;
+
+                        const lower = q.toLowerCase();
+                        const city = String(cityName || '').trim();
+                        const country = String(countryName || '').trim();
+
+                        if (city && lower.includes(city.toLowerCase())) return q;
+                        if (country && lower.includes(country.toLowerCase())) return q;
+                        // User already typed a multi-part location string — do not rewrite it.
+                        if (q.indexOf(',') !== -1) return q;
+
+                        if (city && country) return `${q}, ${city}, ${country}`;
+                        if (city) return `${q}, ${city}`;
+                        if (country) return `${q}, ${country}`;
+                        return q;
+                    };
+
+                    // Geocode city (+ country) and apply SOFT viewport bias to Autocomplete.
+                    // Important: strictBounds must stay false so worldwide matches are not blocked.
+                    window.applyCityBoundsToAutocomplete = function(autocomplete, cityName, countryName) {
+                        if (!autocomplete || !cityName || typeof google === 'undefined' || !google.maps?.Geocoder) {
+                            return;
+                        }
+
+                        const cacheKey = `${String(cityName).trim().toLowerCase()}|${String(countryName || '').trim().toLowerCase()}`;
+                        const applyBounds = (bounds) => {
+                            if (!bounds) return;
+                            try {
+                                autocomplete.setBounds(bounds);
+                                autocomplete.setOptions({ strictBounds: false });
+                            } catch (e) {
+                                console.warn('Failed to apply city bounds to autocomplete', e);
+                            }
+                        };
+
+                        if (window._gmapsCityBoundsCache[cacheKey]) {
+                            applyBounds(window._gmapsCityBoundsCache[cacheKey]);
+                            return;
+                        }
+
+                        const geocoder = new google.maps.Geocoder();
+                        const address = countryName ? `${cityName}, ${countryName}` : cityName;
+                        geocoder.geocode({ address: address }, function(results, status) {
+                            if (status !== 'OK' || !results?.[0]) {
+                                console.warn('City geocode failed for autocomplete bias:', address, status);
+                                return;
+                            }
+                            const bounds = results[0].geometry.viewport || results[0].geometry.bounds;
+                            if (!bounds) return;
+                            window._gmapsCityBoundsCache[cacheKey] = bounds;
+                            applyBounds(bounds);
+                        });
+                    };
+
+                    window.applyDestinationOptionsToAutocomplete = function(autocomplete, input) {
+                        if (!autocomplete || !input) return;
+                        const cityName = window.resolveCityForAutocompleteInput(input);
+                        const countryName = window.resolveCountryForAutocompleteInput(input);
+                        const countryCode = (typeof window.getCountryCode === 'function')
+                            ? window.getCountryCode(countryName)
+                            : '';
+
+                        // Soft bias always. When a City is selected, also prefer that country's results
+                        // (dynamic — never hardcoded to India) so Gold Coast → Australia, etc.
+                        const options = { strictBounds: false };
+                        if (cityName && countryCode) {
+                            options.componentRestrictions = { country: countryCode };
+                        } else {
+                            options.componentRestrictions = null;
+                        }
+                        try {
+                            autocomplete.setOptions(options);
+                        } catch (e) {
+                            console.warn('Failed to update autocomplete destination options', e);
+                        }
+
+                        if (cityName) {
+                            window.applyCityBoundsToAutocomplete(autocomplete, cityName, countryName);
+                        } else if (countryName && typeof google !== 'undefined' && google.maps?.Geocoder) {
+                            window.applyCityBoundsToAutocomplete(autocomplete, countryName, '');
+                        }
+                    };
+
+                    window.hideCityAwarePlaceSuggestions = function(input) {
+                        const box = input && input._citySuggestBox;
+                        if (box) {
+                            box.classList.remove('is-open');
+                            box.innerHTML = '';
+                        }
+                        document.body.classList.remove('gmaps-city-suggest-open');
+                    };
+
+                    window.renderCityAwarePlaceSuggestions = function(input, predictions, onSelect) {
+                        if (!input) return;
+                        let parent = input.parentElement;
+                        if (!parent) return;
+                        if (getComputedStyle(parent).position === 'static') {
+                            parent.style.position = 'relative';
+                        }
+
+                        let box = input._citySuggestBox;
+                        if (!box) {
+                            box = document.createElement('div');
+                            box.className = 'gmaps-city-suggestions';
+                            box.setAttribute('role', 'listbox');
+                            parent.appendChild(box);
+                            input._citySuggestBox = box;
+                        }
+
+                        if (!predictions || !predictions.length) {
+                            window.hideCityAwarePlaceSuggestions(input);
+                            return;
+                        }
+
+                        box.innerHTML = predictions.map(function(p, idx) {
+                            const main = (p.structured_formatting && p.structured_formatting.main_text)
+                                ? p.structured_formatting.main_text
+                                : (p.description || '');
+                            const secondary = (p.structured_formatting && p.structured_formatting.secondary_text)
+                                ? p.structured_formatting.secondary_text
+                                : '';
+                            return '<div class="gmaps-city-suggestion-item" data-index="' + idx + '" role="option">' +
+                                '<div class="main-text"></div>' +
+                                (secondary ? '<div class="secondary-text"></div>' : '') +
+                                '</div>';
+                        }).join('');
+
+                        Array.from(box.querySelectorAll('.gmaps-city-suggestion-item')).forEach(function(item, idx) {
+                            const p = predictions[idx];
+                            const mainEl = item.querySelector('.main-text');
+                            const secEl = item.querySelector('.secondary-text');
+                            const main = (p.structured_formatting && p.structured_formatting.main_text)
+                                ? p.structured_formatting.main_text
+                                : (p.description || '');
+                            const secondary = (p.structured_formatting && p.structured_formatting.secondary_text)
+                                ? p.structured_formatting.secondary_text
+                                : '';
+                            if (mainEl) mainEl.textContent = main;
+                            if (secEl) secEl.textContent = secondary;
+
+                            item.addEventListener('mousedown', function(e) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (typeof onSelect === 'function') onSelect(p);
+                                window.hideCityAwarePlaceSuggestions(input);
+                            });
+                        });
+
+                        box.classList.add('is-open');
+                        document.body.classList.add('gmaps-city-suggest-open');
+                    };
+
+                    window.fetchCityAwarePlacePredictions = function(input, rawQuery, callback) {
+                        if (typeof google === 'undefined' || !google.maps?.places?.AutocompleteService) {
+                            callback([]);
+                            return;
+                        }
+                        const city = window.resolveCityForAutocompleteInput(input);
+                        const country = window.resolveCountryForAutocompleteInput(input);
+                        if (!city) {
+                            callback([]);
+                            return;
+                        }
+
+                        const contextual = window.buildContextualPlacesQuery(rawQuery, city, country);
+                        const service = new google.maps.places.AutocompleteService();
+                        const req = { input: contextual };
+                        const countryCode = (typeof window.getCountryCode === 'function')
+                            ? window.getCountryCode(country)
+                            : '';
+                        // Prefer selected destination country when city is known (city-respected search).
+                        if (countryCode) {
+                            req.componentRestrictions = { country: countryCode };
+                        }
+                        const cacheKey = `${String(city || '').trim().toLowerCase()}|${String(country || '').trim().toLowerCase()}`;
+                        if (window._gmapsCityBoundsCache[cacheKey]) {
+                            req.bounds = window._gmapsCityBoundsCache[cacheKey];
+                        }
+
+                        // Ensure city bounds are warm for subsequent keystrokes
+                        if (!window._gmapsCityBoundsCache[cacheKey] && typeof window.applyCityBoundsToAutocomplete === 'function') {
+                            // Geocode into cache; predictions still run immediately with contextual query
+                            const geocoder = new google.maps.Geocoder();
+                            const address = country ? `${city}, ${country}` : city;
+                            geocoder.geocode({ address: address }, function(results, status) {
+                                if (status === 'OK' && results?.[0]) {
+                                    const bounds = results[0].geometry.viewport || results[0].geometry.bounds;
+                                    if (bounds) window._gmapsCityBoundsCache[cacheKey] = bounds;
+                                }
+                            });
+                        }
+
+                        console.log('City-aware Places query:', contextual, { city, country, countryCode });
+                        service.getPlacePredictions(req, function(predictions, status) {
+                            if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions?.length) {
+                                // Retry without country lock if restricted search misses (still city in query text).
+                                if (req.componentRestrictions) {
+                                    delete req.componentRestrictions;
+                                    service.getPlacePredictions(req, function(predictions2, status2) {
+                                        if (status2 !== google.maps.places.PlacesServiceStatus.OK || !predictions2?.length) {
+                                            callback([]);
+                                            return;
+                                        }
+                                        callback(predictions2);
+                                    });
+                                    return;
+                                }
+                                callback([]);
+                                return;
+                            }
+                            callback(predictions);
+                        });
+                    };
+
+                    window.placeMatchesSelectedCity = function(place, cityName) {
+                        if (!cityName || !place) return true;
+                        const needle = String(cityName).trim().toLowerCase();
+                        if (!needle) return true;
+                        const parts = [
+                            place.formatted_address || '',
+                            place.name || '',
+                            ...((place.address_components || []).map(c => `${c.long_name || ''} ${c.short_name || ''}`))
+                        ];
+                        return parts.join(' ').toLowerCase().includes(needle);
+                    };
+
+                    // Refresh bias/restrictions on already-initialized inputs when Other Transport city changes.
+                    window.refreshAutocompleteCityBounds = function(citySelectEl) {
+                        if (!citySelectEl) return;
+                        const selectId = citySelectEl.id || '';
+                        const match = selectId.match(/^day(\d+)_transport_city_(\d+)$/);
+                        if (!match) return;
+
+                        const day = match[1];
+                        const index = parseInt(match[2], 10) || 0;
+                        const ids = index === 0
+                            ? [
+                                `day${day}_transport_pickup_location`,
+                                `day${day}_transport_dropoff_location`,
+                                `day${day}_transport_hourly_pickup_location`
+                            ]
+                            : [
+                                `day${day}_transport_${index}_pickup_location`,
+                                `day${day}_transport_${index}_dropoff_location`,
+                                `day${day}_transport_${index}_hourly_pickup_location`
+                            ];
+
+                        ids.forEach(function(id) {
+                            const input = document.getElementById(id);
+                            if (!input) return;
+                            // Clear previous location when city changes so stale values are not kept.
+                            if (input.value) {
+                                input.value = '';
+                                const latField = document.getElementById(id.replace('_location', '_lat'));
+                                const lngField = document.getElementById(id.replace('_location', '_lng'));
+                                const placeIdField = document.getElementById(id.replace('_location', '_place_id'));
+                                if (latField) latField.value = '';
+                                if (lngField) lngField.value = '';
+                                if (placeIdField) placeIdField.value = '';
+                            }
+                            if (input._placesAutocomplete) {
+                                window.applyDestinationOptionsToAutocomplete(input._placesAutocomplete, input);
+                            } else {
+                                input.removeAttribute('data-autocomplete-initialized');
+                            }
+                        });
+
+                        setTimeout(function() {
+                            if (typeof window.initializeGoogleMapsAutocomplete === 'function') {
+                                window.initializeGoogleMapsAutocomplete();
+                            }
+                        }, 50);
+                    };
+
                     // Google Maps Autocomplete Functionality
+                    // Uses: google.maps.places.Autocomplete (+ Geocoder for soft city bias)
+                    // Optional assist: AutocompleteService / PlacesService for contextual short queries
                     window.initializeGoogleMapsAutocomplete = function() {
                         console.log('Initializing Google Maps Autocomplete...');
                         
-                        // Get selected country for location bias / restrictions.
-                        // In city-driven flows, the country dropdown can be hidden/empty, so also fall back to city option metadata.
+                        // Package-level country fallback (city-driven flows may leave this empty).
                         const resolveSelectedCountryName = () => {
+                            if (typeof window.getActiveServiceCountry === 'function') {
+                                const fromStay = window.getActiveServiceCountry();
+                                if (fromStay) return fromStay;
+                            }
                             const fromCountryField = document.getElementById('user_country')?.value || '';
                             if (fromCountryField) return fromCountryField;
                             
                             const citySelectIds = ['single_city', 'modal_local_transfer_city', 'modal_exit_city'];
                             for (const id of citySelectIds) {
                                 const sel = document.getElementById(id);
-                                // Prefer Select2 data if available (single_city is Select2 in most flows)
                                 try {
                                     if (sel && typeof $ !== 'undefined' && $(sel).length && $(sel).data('select2')) {
                                         const d = $(sel).select2('data');
@@ -32250,39 +34970,178 @@
                                 const fromCityOption = opt?.getAttribute?.('data-country') || '';
                                 if (fromCityOption) return fromCityOption;
                             }
+
+                            const transportCity = document.querySelector('.transport-city-select');
+                            const transportOpt = transportCity?.options?.[transportCity.selectedIndex];
+                            const fromTransport = transportOpt?.getAttribute?.('data-country') || '';
+                            if (fromTransport) return fromTransport;
                             
                             return '';
                         };
-                        
-                        const selectedCountry = resolveSelectedCountryName();
-                        const selectedCity = ''; // City will be selected per service section
-                        
-                        // Create location bias for better search results
-                        let locationBias = null;
-                        if (selectedCountry && selectedCity) {
-                            // Use the city as the center point for location bias
-                            locationBias = selectedCity + ', ' + selectedCountry;
-                        } else if (selectedCountry) {
-                            locationBias = selectedCountry;
-                        }
+                        window.resolveSelectedCountryNameForAutocomplete = resolveSelectedCountryName;
                         
                         // Initialize autocomplete for all transport location inputs
                         document.querySelectorAll('.google-maps-autocomplete').forEach(input => {
                             if (input && !input.hasAttribute('data-autocomplete-initialized')) {
                                 console.log('Initializing autocomplete for:', input.id);
                                 
-                                // Create autocomplete instance
+                                const cityName = window.resolveCityForAutocompleteInput(input);
+                                const countryName = window.resolveCountryForAutocompleteInput(input);
+
+                                // Worldwide-capable Autocomplete with city-respected bias when City is selected.
                                 const autocompleteOptions = {
-                                    types: ['establishment', 'geocode'],
-                                    fields: ['place_id', 'geometry', 'formatted_address', 'name', 'address_components']
+                                    fields: ['place_id', 'geometry', 'formatted_address', 'name', 'address_components'],
+                                    strictBounds: false
                                 };
-                                
-                                const countryCode = getCountryCode(selectedCountry);
-                                if (countryCode) {
+                                const countryCode = (typeof window.getCountryCode === 'function')
+                                    ? window.getCountryCode(countryName)
+                                    : '';
+                                if (cityName && countryCode) {
                                     autocompleteOptions.componentRestrictions = { country: countryCode };
                                 }
-                                
+
                                 const autocomplete = new google.maps.places.Autocomplete(input, autocompleteOptions);
+                                input._placesAutocomplete = autocomplete;
+
+                                if (cityName) {
+                                    window.applyCityBoundsToAutocomplete(autocomplete, cityName, countryName);
+                                } else if (countryName) {
+                                    window.applyCityBoundsToAutocomplete(autocomplete, countryName, '');
+                                }
+
+                                // City-aware suggestions: search as "query, SelectedCity, Country"
+                                // so results respect the City dropdown (e.g. Gold Coast).
+                                if (!input._placesContextualAssistBound) {
+                                    input._placesContextualAssistBound = true;
+                                    let assistTimer = null;
+
+                                    const resolvePlacesService = function() {
+                                        if (!input._placesService && typeof google !== 'undefined' && google.maps?.places?.PlacesService) {
+                                            input._placesService = new google.maps.places.PlacesService(document.createElement('div'));
+                                        }
+                                        return input._placesService || null;
+                                    };
+
+                                    const fillPlaceFields = function(place) {
+                                        if (!place?.geometry?.location) return;
+                                        const lat = place.geometry.location.lat();
+                                        const lng = place.geometry.location.lng();
+                                        const latField = document.getElementById(input.id.replace('_location', '_lat'));
+                                        const lngField = document.getElementById(input.id.replace('_location', '_lng'));
+                                        const placeIdField = document.getElementById(input.id.replace('_location', '_place_id'));
+                                        if (latField) latField.value = lat;
+                                        if (lngField) lngField.value = lng;
+                                        if (placeIdField) placeIdField.value = place.place_id || '';
+                                        input.value = place.formatted_address || place.name || input.value;
+                                        input.dispatchEvent(new Event('change', { bubbles: true }));
+
+                                        // Mirror place_changed: enable transport search when coords are set
+                                        const inputId = input.id || '';
+                                        if (inputId.includes('transport') && (inputId.includes('pickup_location') || inputId.includes('dropoff_location'))) {
+                                            const dayMatch = inputId.match(/day(\d+)_transport/);
+                                            if (dayMatch && typeof enableSearchButton === 'function') {
+                                                const day = parseInt(dayMatch[1], 10);
+                                                setTimeout(function() {
+                                                    if (inputId.includes('hourly_pickup_location')) {
+                                                        if (inputId.match(/day\d+_transport_hourly_pickup_location$/)) {
+                                                            enableSearchButton(day, 'transport_hourly', 0);
+                                                        } else {
+                                                            const indexMatch = inputId.match(/day\d+_transport_(\d+)_hourly_pickup_location/);
+                                                            if (indexMatch) enableSearchButton(day, `transport_${indexMatch[1]}_hourly`, parseInt(indexMatch[1], 10));
+                                                        }
+                                                    } else if (inputId.match(/day\d+_transport_(pickup|dropoff)_location$/)) {
+                                                        enableSearchButton(day, 'transport_additional', 0);
+                                                    } else {
+                                                        const indexMatch = inputId.match(/day\d+_transport_(\d+)_(pickup|dropoff)_location/);
+                                                        if (indexMatch) enableSearchButton(day, `transport_${indexMatch[1]}_additional`, parseInt(indexMatch[1], 10));
+                                                    }
+                                                }, 50);
+                                            }
+                                        }
+                                    };
+
+                                    const selectPrediction = function(prediction) {
+                                        const placesService = resolvePlacesService();
+                                        if (!placesService || !prediction?.place_id) return;
+                                        placesService.getDetails({
+                                            placeId: prediction.place_id,
+                                            fields: ['place_id', 'geometry', 'formatted_address', 'name', 'address_components']
+                                        }, function(place, status) {
+                                            if (status !== google.maps.places.PlacesServiceStatus.OK || !place) {
+                                                // Fallback: use description text if details fail
+                                                input.value = prediction.description || input.value;
+                                                return;
+                                            }
+                                            fillPlaceFields(place);
+                                        });
+                                    };
+
+                                    input.addEventListener('input', function() {
+                                        const raw = String(input.value || '').trim();
+                                        const placeIdField = document.getElementById(input.id.replace('_location', '_place_id'));
+                                        if (placeIdField) placeIdField.value = '';
+
+                                        clearTimeout(assistTimer);
+                                        if (raw.length < 2) {
+                                            window.hideCityAwarePlaceSuggestions(input);
+                                            return;
+                                        }
+
+                                        assistTimer = setTimeout(function() {
+                                            const city = window.resolveCityForAutocompleteInput(input);
+                                            if (input._placesAutocomplete) {
+                                                window.applyDestinationOptionsToAutocomplete(input._placesAutocomplete, input);
+                                            }
+
+                                            // When City is selected, drive suggestions via contextual query.
+                                            if (city) {
+                                                window.fetchCityAwarePlacePredictions(input, raw, function(predictions) {
+                                                    window.renderCityAwarePlaceSuggestions(input, predictions, selectPrediction);
+                                                });
+                                            } else {
+                                                window.hideCityAwarePlaceSuggestions(input);
+                                            }
+                                        }, 220);
+                                    });
+
+                                    input.addEventListener('blur', function() {
+                                        setTimeout(function() {
+                                            window.hideCityAwarePlaceSuggestions(input);
+                                            const placeIdField = document.getElementById(input.id.replace('_location', '_place_id'));
+                                            if (placeIdField && placeIdField.value) return;
+                                            const raw = String(input.value || '').trim();
+                                            if (raw.length < 3) return;
+
+                                            const city = window.resolveCityForAutocompleteInput(input);
+                                            const country = window.resolveCountryForAutocompleteInput(input);
+                                            const contextual = window.buildContextualPlacesQuery(raw, city, country);
+                                            const shouldResolve = !!city || (contextual !== raw) || raw.indexOf(',') !== -1;
+                                            if (!shouldResolve) return;
+
+                                            const placesService = resolvePlacesService();
+                                            if (!placesService || !placesService.findPlaceFromQuery) return;
+
+                                            placesService.findPlaceFromQuery({
+                                                query: contextual,
+                                                fields: ['place_id', 'geometry', 'formatted_address', 'name', 'address_components']
+                                            }, function(results, status) {
+                                                if (status !== google.maps.places.PlacesServiceStatus.OK || !results?.[0]) {
+                                                    console.log('findPlaceFromQuery miss for', contextual, status);
+                                                    return;
+                                                }
+                                                if (String(input.value || '').trim() !== raw) return;
+                                                console.log('findPlaceFromQuery hit:', contextual, results[0]);
+                                                fillPlaceFields(results[0]);
+                                            });
+                                        }, 220);
+                                    });
+
+                                    input.addEventListener('keydown', function(e) {
+                                        if (e.key === 'Escape') {
+                                            window.hideCityAwarePlaceSuggestions(input);
+                                        }
+                                    });
+                                }
                                 
                                 // Add place_changed event listener
                                 autocomplete.addListener('place_changed', function() {
@@ -32291,6 +35150,14 @@
                                     if (!place.geometry) {
                                         console.log('No geometry found for selected place');
                                         return;
+                                    }
+
+                                    window.hideCityAwarePlaceSuggestions(input);
+
+                                    // Soft city check only — do not block valid worldwide selections.
+                                    const selectedCityForInput = window.resolveCityForAutocompleteInput(input);
+                                    if (selectedCityForInput && !window.placeMatchesSelectedCity(place, selectedCityForInput)) {
+                                        console.warn('Selected place may be outside the chosen city (allowed):', selectedCityForInput, place.formatted_address);
                                     }
                                     
                                     console.log('Place selected:', place);
@@ -32631,6 +35498,19 @@
                                 reinitializeAutocomplete();
                             }, 1000); // Wait for city options to load
                         }
+                        // Other Transport city change → refresh soft destination bias for Google suggestions
+                        if (e.target.classList && e.target.classList.contains('transport-city-select')) {
+                            setTimeout(() => {
+                                if (typeof window.refreshAutocompleteCityBounds === 'function') {
+                                    window.refreshAutocompleteCityBounds(e.target);
+                                }
+                            }, 100);
+                        }
+                        if (e.target.id === 'modal_local_transfer_city' || e.target.id === 'modal_exit_city') {
+                            setTimeout(() => {
+                                reinitializeAutocomplete();
+                            }, 200);
+                        }
                     });
                     
                     // Reinitialize when transport service type changes (for newly shown fields)
@@ -32841,6 +35721,8 @@
                                         const exitPriceField = document.getElementById(`day${day}_${exitSection}_price_field`);
                                         if (exitPriceField) {
                                             exitPriceField.style.display = 'block';
+                                            const priceDisplay = document.getElementById(`day${day}_${exitSection}_price_display`);
+                                            if (priceDisplay) priceDisplay.style.display = 'block';
                                             console.log(`Showing custom price field for exit port (zone=0): day${day}_${exitSection}_price_field`);
                                         }
                                         
@@ -32875,116 +35757,30 @@
                     };
 
                     // Agency-Agent Dependent Dropdown Functionality
-                    // Handle agency change to load agents (using Select2 event)
                     document.addEventListener('DOMContentLoaded', function() {
-                        // Wait for jQuery to be available
                         if (typeof jQuery === 'undefined') {
                             console.error('jQuery is not loaded');
                             return;
                         }
-                        
-                        const agentSelect = document.getElementById('agent_id');
-                        const $agentSelect = jQuery('#agent_id');
-                        const isAgentDisabled = agentSelect && agentSelect.hasAttribute('disabled');
-                        
-                        // Handle agency change using Select2 event
+
                         jQuery('#agency_id').on('change', function() {
                             const agencyId = jQuery(this).val();
-                            
+                            const agentSelect = document.getElementById('agent_id');
+                            const $agentSelect = jQuery('#agent_id');
+
                             if (!agentSelect) return;
-                            
-                            // Clear agent dropdown
-                            agentSelect.innerHTML = '<option value="">Choose agent...</option>';
-                            $agentSelect.val(null).trigger('change');
-                            
-                            if (agencyId) {
-                                // Show loading state
-                                agentSelect.innerHTML = '<option value="">Loading agents...</option>';
-                                $agentSelect.prop('disabled', true);
-                                
-                                // Make AJAX request to get agents by agency
-                                fetch(`{{ url(route('fetch-agents-by-agency')) }}?agency_id=${agencyId}`, {
-                                    method: 'GET',
-                                    headers: {
-                                        'Accept': 'application/json',
-                                        'Content-Type': 'application/json',
-                                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                                    }
-                                })
-                                .then(response => response.json())
-                                .then(data => {
-                                    // Clear loading state
-                                    agentSelect.innerHTML = '<option value="">Choose agent...</option>';
-                                    
-                                    if (data.success && data.agents && data.agents.length > 0) {
-                                        // Populate agent dropdown
-                                        data.agents.forEach(agent => {
-                                            const option = document.createElement('option');
-                                            option.value = agent.agent_id;
-                                            option.textContent = agent.name;
-                                            agentSelect.appendChild(option);
-                                        });
-                                        
-                                        console.log(`Loaded ${data.agents.length} agents for agency ${agencyId}`);
-                                    } else {
-                                        console.log('No agents found for selected agency');
-                                        agentSelect.innerHTML = '<option value="">No agents found</option>';
-                                    }
-                                    
-                                    // Destroy and reinitialize Select2 to recognize new options
-                                    $agentSelect.select2('destroy');
-                                    jQuery('#agent_id').select2({
-                                        placeholder: "Choose agent...",
-                                        allowClear: true,
-                                        width: '100%'
-                                    });
-                                    
-                                    // Re-enable agent select (unless it was originally disabled due to enquiry)
-                                    if (!isAgentDisabled) {
-                                        $agentSelect.prop('disabled', false);
-                                    } else {
-                                        $agentSelect.prop('disabled', true);
-                                    }
-                                })
-                                .catch(error => {
-                                    console.error('Error fetching agents:', error);
-                                    agentSelect.innerHTML = '<option value="">Error loading agents</option>';
-                                    
-                                    // Destroy and reinitialize Select2
-                                    $agentSelect.select2('destroy');
-                                    $agentSelect.select2({
-                                        placeholder: "Choose agent...",
-                                        allowClear: true,
-                                        width: '100%'
-                                    });
-                                    
-                                    // Re-enable agent select (unless it was originally disabled due to enquiry)
-                                    if (!isAgentDisabled) {
-                                        $agentSelect.prop('disabled', false);
-                                    } else {
-                                        $agentSelect.prop('disabled', true);
-                                    }
-                                    
-                                    // Show user-friendly error message
-                                    alert('Error loading agents. Please try again.');
-                                });
-                            } else {
-                                // Reset to default state when no agency is selected
-                                // Destroy and reinitialize Select2
-                                $agentSelect.select2('destroy');
-                                jQuery('#agent_id').select2({
-                                    placeholder: "Choose agent...",
-                                    allowClear: true,
-                                    width: '100%'
-                                });
-                                
-                                // Re-enable agent select (unless it was originally disabled due to enquiry)
-                                if (!isAgentDisabled) {
+
+                            if (!agencyId) {
+                                agentSelect.innerHTML = '<option value="">Choose agency contact...</option>';
+                                $agentSelect.val(null).trigger('change');
+                                window.initAgentSelect2();
+                                if (!window.isAgentSelectLocked()) {
                                     $agentSelect.prop('disabled', false);
-                                } else {
-                                    $agentSelect.prop('disabled', true);
                                 }
+                                return;
                             }
+
+                            window.loadAgentsByAgencyId(agencyId);
                         });
                     });
 
@@ -34777,6 +37573,32 @@
     #hotelLoadingStatus i {
         font-size: 1rem;
     }
+
+    .add-agency-contact-wrap {
+        background: #e8f7ff !important;
+    }
+
+    .add-agency-contact-wrap .add-agency-contact-btn {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: #ffffff !important;
+        background: #18C1FF !important;
+        border: 1px solid #18C1FF !important;
+        border-radius: 8px;
+        box-shadow: none;
+    }
+
+    .add-agency-contact-wrap .add-agency-contact-btn:hover,
+    .add-agency-contact-wrap .add-agency-contact-btn:focus {
+        color: #ffffff !important;
+        background: #12b0eb !important;
+        border-color: #12b0eb !important;
+        box-shadow: 0 2px 8px rgba(24, 193, 255, 0.35);
+    }
+
+    .select2-results__message:empty {
+        display: none;
+    }
 </style>
 
 <!-- Dish Selection Modal -->
@@ -34799,7 +37621,7 @@
                         </div>
                     </div>
                     <div class="col-md-6 text-end">
-                        <span id="modalTotalPrice" class="h4 text-success">$0.00</span>
+                        <span id="modalTotalPrice" class="h4 text-success">{{ $dmcCurrency }} 0.00</span>
                         <br>
                         <small id="modalGuestInfo" class="text-muted"></small>
                     </div>

@@ -224,6 +224,70 @@
         margin-bottom: 6px;
     }
 
+    .itinerary-country-nav-group {
+        margin-bottom: 10px;
+    }
+
+    .itinerary-country-nav-title {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #71717a;
+        padding: 6px 8px 4px;
+    }
+
+    .itinerary-country-section {
+        margin-bottom: 8px;
+    }
+
+    .itinerary-country-section-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 14px;
+        margin-bottom: 10px;
+        border-radius: 8px;
+        background: linear-gradient(90deg, #f4f4f5 0%, #fafafa 100%);
+        border: 1px solid var(--border-color);
+        border-left: 4px solid var(--primary-color, #2563eb);
+    }
+
+    .itinerary-country-section-header i {
+        color: var(--primary-color, #2563eb);
+        font-size: 16px;
+    }
+
+    .itinerary-country-section-header h3 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 700;
+        color: #27272a;
+    }
+
+    .itinerary-country-section-header .country-day-count {
+        margin-left: auto;
+        font-size: 12px;
+        color: #71717a;
+        font-weight: 500;
+    }
+
+    .itinerary-container.view-list .itinerary-country-section-header {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        background: #f4f4f5;
+    }
+
+    .itinerary-container.view-grid .itinerary-country-section {
+        display: contents;
+    }
+
+    .itinerary-container.view-grid .itinerary-country-section-header {
+        grid-column: 1 / -1;
+        margin-bottom: 0;
+    }
+
     .itinerary-day-btn {
         width: 100%;
         border: none;
@@ -2905,6 +2969,7 @@
                                         $formattedBooking->booking_id = $booking->id . '-' . uniqid();
                                         $formattedBooking->agent_id = $booking->agent_id ?? null;
                                         $formattedBooking->type = $booking->type ?? 'unknown';
+                                        $formattedBooking->country = $booking->country ?? ($item['country'] ?? null);
                                         
                                         // Create a modified copy of the item data with stay info
                                         $itemCopy = $item;
@@ -2969,6 +3034,7 @@
                                     $formattedBooking->booking_id = $booking->id . '-' . uniqid();
                                     $formattedBooking->agent_id = $booking->agent_id ?? null;
                                     $formattedBooking->type = $booking->type ?? 'unknown';
+                                    $formattedBooking->country = $booking->country ?? ($item['country'] ?? null);
                                     
                                     // Create a modified copy of the item data with checkout info
                                     $itemCopy = $item;
@@ -3044,6 +3110,7 @@
                                         $formattedBooking->booking_id = $booking->id . '-' . uniqid(); // Add unique ID to ensure uniqueness
                                         $formattedBooking->agent_id = $booking->agent_id ?? null;
                                         $formattedBooking->type = $booking->type ?? 'unknown';
+                                        $formattedBooking->country = $booking->country ?? ($item['country'] ?? null);
                                         // Store the complete item data
                                         $formattedBooking->data_decoded = [$item];
                                         $formattedBooking->dmc_company = $booking->dmc_company ?? 'N/A';
@@ -3094,29 +3161,194 @@
                     }
                     
                     $dayCount = 1;
+
+                    // Multi-country: Country → Days → Services (single-country keeps flat day list)
+                    $tourCountries = $tourCountries ?? \App\Helpers\CommonHelper::parseTourDestinationCountries($tourDetails->destination ?? null);
+                    $cityCountryMap = $cityCountryMap ?? [];
+                    $isMultiCountry = $isMultiCountry ?? (count($tourCountries) > 1);
+
+                    $dateToGlobalDay = [];
+                    $globalIdx = 1;
+                    foreach ($allDates as $d => $_bookings) {
+                        $dateToGlobalDay[$d] = $globalIdx++;
+                    }
+                    $totalTourDays = count($allDates);
+
+                    $renderDays = [];
+                    if ($isMultiCountry && count($allDates) > 0) {
+                        $itineraryByCountry = [];
+                        foreach ($tourCountries as $countryName) {
+                            $itineraryByCountry[$countryName] = [];
+                        }
+
+                        // Put each service under its own country (no empty days on the wrong country)
+                        foreach ($allDates as $dateStr => $dayBookings) {
+                            foreach ($dayBookings as $bookingItem) {
+                                $resolvedCountry = \App\Helpers\CommonHelper::resolveBookingServiceCountry(
+                                    $bookingItem,
+                                    $tourCountries,
+                                    $cityCountryMap
+                                );
+                                if (!isset($itineraryByCountry[$resolvedCountry])) {
+                                    $itineraryByCountry[$resolvedCountry] = [];
+                                }
+                                if (!isset($itineraryByCountry[$resolvedCountry][$dateStr])) {
+                                    $itineraryByCountry[$resolvedCountry][$dateStr] = [];
+                                }
+                                $itineraryByCountry[$resolvedCountry][$dateStr][] = $bookingItem;
+                            }
+                        }
+
+                        // Drop countries with no services
+                        $countriesWithServices = [];
+                        foreach ($itineraryByCountry as $countryName => $dates) {
+                            if (!empty($dates)) {
+                                $countriesWithServices[$countryName] = $dates;
+                            }
+                        }
+
+                        // Order countries by earliest service date so Aug 01's country comes first
+                        // (not destination CSV order). Tie-break with destination order.
+                        $destinationOrder = [];
+                        foreach ($tourCountries as $idx => $countryName) {
+                            $destinationOrder[$countryName] = $idx;
+                        }
+                        $orderedCountries = array_keys($countriesWithServices);
+                        usort($orderedCountries, function ($a, $b) use ($countriesWithServices, $destinationOrder) {
+                            $aDates = array_keys($countriesWithServices[$a]);
+                            $bDates = array_keys($countriesWithServices[$b]);
+                            sort($aDates);
+                            sort($bDates);
+                            $aFirst = $aDates[0] ?? '9999-12-31';
+                            $bFirst = $bDates[0] ?? '9999-12-31';
+                            if ($aFirst !== $bFirst) {
+                                return strcmp($aFirst, $bFirst);
+                            }
+                            $aOrder = $destinationOrder[$a] ?? 999;
+                            $bOrder = $destinationOrder[$b] ?? 999;
+                            return $aOrder <=> $bOrder;
+                        });
+
+                        $navIndex = 1;
+                        foreach ($orderedCountries as $countryName) {
+                            $countryDates = $countriesWithServices[$countryName];
+                            ksort($countryDates);
+
+                            // Fill gaps only between this country's first and last booked dates
+                            $countryDateKeys = array_keys($countryDates);
+                            if (count($countryDateKeys) > 0) {
+                                $rangeStart = \Carbon\Carbon::parse($countryDateKeys[0]);
+                                $rangeEnd = \Carbon\Carbon::parse($countryDateKeys[count($countryDateKeys) - 1]);
+                                $cursor = $rangeStart->copy();
+                                $filledCountryDates = [];
+                                while ($cursor->lte($rangeEnd)) {
+                                    $ds = $cursor->format('Y-m-d');
+                                    if (array_key_exists($ds, $allDates)) {
+                                        $filledCountryDates[$ds] = $countryDates[$ds] ?? [];
+                                    }
+                                    $cursor->addDay();
+                                }
+                                $countryDates = $filledCountryDates;
+                            }
+
+                            $isFirstInCountry = true;
+                            $countryDayCount = count($countryDates);
+                            $countryDayPos = 0;
+                            foreach ($countryDates as $dateStr => $countryDayBookings) {
+                                $countryDayPos++;
+                                $renderDays[] = [
+                                    'country' => $countryName,
+                                    'date' => $dateStr,
+                                    'bookings' => $countryDayBookings,
+                                    'global_day' => $dateToGlobalDay[$dateStr] ?? $navIndex,
+                                    'nav_index' => $navIndex,
+                                    'is_first_of_country' => $isFirstInCountry,
+                                    'is_last_of_country' => $countryDayPos === $countryDayCount,
+                                    'country_day_count' => $countryDayCount,
+                                ];
+                                $isFirstInCountry = false;
+                                $navIndex++;
+                            }
+                        }
+                    } else {
+                        $navIndex = 1;
+                        foreach ($allDates as $dateStr => $dayBookings) {
+                            $renderDays[] = [
+                                'country' => null,
+                                'date' => $dateStr,
+                                'bookings' => $dayBookings,
+                                'global_day' => $dateToGlobalDay[$dateStr] ?? $navIndex,
+                                'nav_index' => $navIndex,
+                                'is_first_of_country' => false,
+                                'is_last_of_country' => false,
+                                'country_day_count' => 0,
+                            ];
+                            $navIndex++;
+                        }
+                    }
                 @endphp
                     
-                @if(count($allDates) > 0)
+                @if(count($renderDays) > 0)
                     <div class="itinerary-daywise-layout">
                         <div class="itinerary-daywise-sidebar">
-                            <div class="itinerary-daywise-sidebar-title">Day Plan</div>
-                            @foreach($allDates as $sidebarDate => $sidebarBookings)
-                                @php
-                                    $sidebarDayCount = $loop->iteration;
-                                @endphp
-                                <button
-                                    type="button"
-                                    class="itinerary-day-btn {{ $loop->first ? 'active' : '' }}"
-                                    data-day-index="{{ $sidebarDayCount }}">
-                                    {{ \Carbon\Carbon::parse($sidebarDate)->format('d M, D') }}
-                                </button>
-                            @endforeach
+                            <div class="itinerary-daywise-sidebar-title">{{ $isMultiCountry ? 'Country Plan' : 'Day Plan' }}</div>
+                            @if($isMultiCountry)
+                                @php $sidebarCountry = null; @endphp
+                                @foreach($renderDays as $sidebarDay)
+                                    @if($sidebarCountry !== $sidebarDay['country'])
+                                        @if($sidebarCountry !== null)
+                                            </div>
+                                        @endif
+                                        @php $sidebarCountry = $sidebarDay['country']; @endphp
+                                        <div class="itinerary-country-nav-group">
+                                            <div class="itinerary-country-nav-title">
+                                                <i class="fas fa-globe-asia" style="margin-right:4px;"></i>{{ $sidebarCountry }}
+                                            </div>
+                                    @endif
+                                    <button
+                                        type="button"
+                                        class="itinerary-day-btn {{ $loop->first ? 'active' : '' }}"
+                                        data-day-index="{{ $sidebarDay['nav_index'] }}"
+                                        data-country="{{ $sidebarDay['country'] }}">
+                                        Day {{ $sidebarDay['global_day'] }} · {{ \Carbon\Carbon::parse($sidebarDay['date'])->format('d M, D') }}
+                                    </button>
+                                    @if($loop->last)
+                                        </div>
+                                    @endif
+                                @endforeach
+                            @else
+                                @foreach($renderDays as $sidebarDay)
+                                    <button
+                                        type="button"
+                                        class="itinerary-day-btn {{ $loop->first ? 'active' : '' }}"
+                                        data-day-index="{{ $sidebarDay['nav_index'] }}">
+                                        {{ \Carbon\Carbon::parse($sidebarDay['date'])->format('d M, D') }}
+                                    </button>
+                                @endforeach
+                            @endif
                         </div>
 
                         <div class="itinerary-daywise-content">
-                    @foreach($allDates as $date => $dayBookings)
+                    @foreach($renderDays as $renderDay)
+                        @php
+                            $date = $renderDay['date'];
+                            $dayBookings = $renderDay['bookings'];
+                            $dayCount = $renderDay['global_day'];
+                            $navIndex = $renderDay['nav_index'];
+                            $dayCountry = $renderDay['country'];
+                        @endphp
+
+                        @if($isMultiCountry && !empty($renderDay['is_first_of_country']))
+                            <div class="itinerary-country-section" data-country="{{ $dayCountry }}">
+                                <div class="itinerary-country-section-header">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                    <h3>{{ $dayCountry }}</h3>
+                                    <span class="country-day-count">{{ $renderDay['country_day_count'] }} {{ \Illuminate\Support\Str::plural('day', $renderDay['country_day_count']) }}</span>
+                                </div>
+                        @endif
+
                         <!-- Date Container -->
-                        <div class="date-container drop-zone day-{{ $dayCount > 7 ? (($dayCount - 1) % 7) + 1 : $dayCount }} {{ $dayCount === 1 ? 'active' : '' }}" data-date="{{ $date }}" data-day-index="{{ $dayCount }}">
+                        <div class="date-container drop-zone day-{{ $dayCount > 7 ? (($dayCount - 1) % 7) + 1 : $dayCount }} {{ $navIndex === 1 ? 'active' : '' }}" data-date="{{ $date }}" data-day-index="{{ $navIndex }}" @if($dayCountry) data-country="{{ $dayCountry }}" @endif>
                             <div class="timeline-line"></div>
                             
                             <!-- Day Indicator -->
@@ -3257,7 +3489,7 @@
                                 
                                 // Special handling for entry/exit ports based on day
                                 $isFirstDay = $dayCount == 1;
-                                $isLastDay = $dayCount == count($allDates);
+                                $isLastDay = $dayCount == ($totalTourDays ?? count($allDates));
                                 
                                 // Combine all bookings in the right priority order:
                                 // 1. Entry Port (first day only) 
@@ -4370,8 +4602,10 @@
                             
                             </div> <!-- Close services-list -->
                         </div> <!-- Close date-container -->
-                        
-                        @php $dayCount++; @endphp
+
+                        @if($isMultiCountry && !empty($renderDay['is_last_of_country']))
+                            </div> <!-- Close itinerary-country-section -->
+                        @endif
                     @endforeach
                         </div>
                     </div>

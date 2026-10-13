@@ -78,21 +78,29 @@ class TicketController extends Controller
         // Validate request data
         $request->validate([
             'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
+            'description' => ['required', 'string', function ($attribute, $value, $fail) {
+                if (trim(strip_tags($value ?? '')) === '') {
+                    $fail('Important Notes is required. Please fill in this field.');
+                }
+            }],
             'remarks' => 'nullable|string',
-            'terms_conditions' => 'nullable|string',
-            'child_price' => 'nullable|numeric|min:0',
-            'adult_price' => 'required|numeric|min:0',
-            'senior_adult_price' => 'nullable|numeric|min:0',
-            'child_cost_price' => 'nullable|numeric|min:0',
-            'adult_cost_price' => 'nullable|numeric|min:0',
-            'senior_adult_cost_price' => 'nullable|numeric|min:0',
-            'child_price_nri' => 'nullable|numeric|min:0',
-            'adult_price_nri' => 'nullable|numeric|min:0',
-            'senior_adult_price_nri' => 'nullable|numeric|min:0',
-            'child_cost_price_nri' => 'nullable|numeric|min:0',
-            'adult_cost_price_nri' => 'nullable|numeric|min:0',
-            'senior_adult_cost_price_nri' => 'nullable|numeric|min:0',
+            'terms_conditions' => ['required', 'string', function ($attribute, $value, $fail) {
+                if (trim(strip_tags($value ?? '')) === '') {
+                    $fail('Terms & Conditions is required. Please fill in this field.');
+                }
+            }],
+            'child_price' => 'nullable',
+            'adult_price' => 'required',
+            'senior_adult_price' => 'nullable',
+            'child_cost_price' => 'nullable',
+            'adult_cost_price' => 'nullable',
+            'senior_adult_cost_price' => 'nullable',
+            'child_price_nri' => 'nullable',
+            'adult_price_nri' => 'nullable',
+            'senior_adult_price_nri' => 'nullable',
+            'child_cost_price_nri' => 'nullable',
+            'adult_cost_price_nri' => 'nullable',
+            'senior_adult_cost_price_nri' => 'nullable',
             'status' => 'nullable|in:0,1',
         ]);
 
@@ -169,6 +177,7 @@ class TicketController extends Controller
             return redirect()->route('tickets.add_ticket', Crypt::encrypt($attraction_id))->with('success', 'Ticket created successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
+            dd($e);
             return redirect()->back()->with('error', 'Failed to create ticket.');
         }
     }
@@ -208,7 +217,7 @@ class TicketController extends Controller
                 $dmcUsers = User::where('role_id', 11)
                     ->where('user_type', 2)
                     ->whereIn('userId', $attractionDmcIds)
-                    ->select('userId', 'name', 'company_name')
+                    ->select('userId', 'name', 'company_name', 'currency')
                     ->orderBy('company_name', 'asc')
                     ->get();
             }
@@ -267,7 +276,11 @@ class TicketController extends Controller
         if(!$ticket){
             return redirect()->back()->with('error', 'Ticket not found.');
         }
-        return view('tickets.edit-ticket', compact('ticket'));
+
+        // Needed for currency-price-note on the edit ticket page
+        $auth_user = Auth::user();
+
+        return view('tickets.edit-ticket', compact('ticket', 'auth_user'));
     }
 
     /**
@@ -282,21 +295,29 @@ class TicketController extends Controller
         // Validate request data
         $request->validate([
             'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
+            'description' => ['required', 'string', function ($attribute, $value, $fail) {
+                if (trim(strip_tags($value ?? '')) === '') {
+                    $fail('Important Notes is required. Please fill in this field.');
+                }
+            }],
             'remarks' => 'nullable|string',
-            'terms_conditions' => 'nullable|string',
-            'child_price' => 'nullable|numeric|min:0',
-            'adult_price' => 'required|numeric|min:0',
-            'senior_adult_price' => 'nullable|numeric|min:0',
-            'child_cost_price' => 'nullable|numeric|min:0',
-            'adult_cost_price' => 'nullable|numeric|min:0',
-            'senior_adult_cost_price' => 'nullable|numeric|min:0',
-            'child_price_nri' => 'nullable|numeric|min:0',
-            'adult_price_nri' => 'nullable|numeric|min:0',
-            'senior_adult_price_nri' => 'nullable|numeric|min:0',
-            'child_cost_price_nri' => 'nullable|numeric|min:0',
-            'adult_cost_price_nri' => 'nullable|numeric|min:0',
-            'senior_adult_cost_price_nri' => 'nullable|numeric|min:0',
+            'terms_conditions' => ['required', 'string', function ($attribute, $value, $fail) {
+                if (trim(strip_tags($value ?? '')) === '') {
+                    $fail('Terms & Conditions is required. Please fill in this field.');
+                }
+            }],
+            'child_price' => 'nullable',
+            'adult_price' => 'required',
+            'senior_adult_price' => 'nullable',
+            'child_cost_price' => 'nullable',
+            'adult_cost_price' => 'nullable',
+            'senior_adult_cost_price' => 'nullable',
+            'child_price_nri' => 'nullable',
+            'adult_price_nri' => 'nullable',
+            'senior_adult_price_nri' => 'nullable',
+            'child_cost_price_nri' => 'nullable',
+            'adult_cost_price_nri' => 'nullable',
+            'senior_adult_cost_price_nri' => 'nullable',
             'status' => 'nullable|in:0,1',
         ]);
         $ticket_id = Crypt::decrypt($ticket_id);

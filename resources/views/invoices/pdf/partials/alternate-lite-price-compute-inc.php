@@ -272,17 +272,39 @@ $taxBreakdownLite = $notesLite['tax_breakdown'] ?? [];
 $liteGstAmount = (float) ($invoice->gst_amount ?? 0);
 $liteFinalPrice = (float) $baseAmountLite + $liteGstAmount;
 
-$litePaymentReceived = (float) ($invoice->payment_received ?? 0);
+$litePaymentReceived = (float) ($invoicePaymentReceivedForDisplay ?? ($invoice->payment_received ?? 0));
 $liteOutstandingBalance = (float) ($invoice->outstanding_balance ?? $liteFinalPrice);
 
-$litePdfFormatPrice = function ($amount) use ($selectedCurrencyLite, $exchangeRateLite) {
+$baseCurrencyLite = strtoupper($baseCurrency ?? $selectedCurrencyLite);
+if (!empty($isThirdPartyInvoice) && !empty($thirdPartyNegotiation)) {
+    $tpSummaryLite = \App\Helpers\CommonHelper::buildThirdPartyInvoiceSummary(
+        $invoice,
+        $thirdPartyNegotiation,
+        $selectedCurrencyLite,
+        $baseCurrencyLite
+    );
+    $liteActualAmount = $tpSummaryLite['actualAmount'];
+    $liteNegotiatedAmount = $tpSummaryLite['negotiatedAmount'];
+    $baseAmountLite = $tpSummaryLite['baseAmount'];
+    $liteDiscountVsActual = $tpSummaryLite['discount'];
+    $liteGstAmount = $tpSummaryLite['gstAmount'];
+    $taxBreakdownLite = $tpSummaryLite['taxBreakdown'];
+    $liteFinalPrice = $tpSummaryLite['finalPrice'];
+    $litePaymentReceived = $tpSummaryLite['paymentReceived'];
+    $liteOutstandingBalance = $tpSummaryLite['outstandingBalance'];
+}
+
+$litePdfFormatPrice = function ($amount) use ($selectedCurrencyLite, $exchangeRateLite, $baseCurrencyLite, $isThirdPartyInvoice, $formatPrice) {
+    if (!empty($isThirdPartyInvoice) && isset($formatPrice) && is_callable($formatPrice)) {
+        return $formatPrice($amount);
+    }
     if (! is_numeric($amount)) {
         return '0.00';
     }
     $amt = (float) $amount;
-    if ($selectedCurrencyLite === 'SGD') {
+    if ($selectedCurrencyLite === $baseCurrencyLite || $selectedCurrencyLite === 'SGD') {
         return number_format(round($amt, 2), 2);
     }
 
-    return number_format(round($amt, 2), 2).' SGD ('.number_format(round($amt * $exchangeRateLite, 2), 2).' '.$selectedCurrencyLite.')';
+    return number_format(round($amt, 2), 2).' '.$baseCurrencyLite.' ('.number_format(round($amt * $exchangeRateLite, 2), 2).' '.$selectedCurrencyLite.')';
 };

@@ -228,6 +228,40 @@
         border-color: #c7d2fe !important;
     }
 
+    .dataTables_wrapper .dataTables_paginate {
+        display: none !important;
+    }
+
+    .packaged-infinite-footer {
+        padding: 1rem 0 0.25rem;
+        text-align: center;
+    }
+
+    .packaged-infinite-footer .packaged-scroll-loader {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #64748b;
+    }
+
+    .packaged-infinite-footer.is-loading .packaged-scroll-loader {
+        display: inline-flex;
+    }
+
+    .packaged-infinite-footer .packaged-scroll-end {
+        display: none;
+        font-size: 12px;
+        font-weight: 600;
+        color: #94a3b8;
+    }
+
+    .packaged-infinite-footer.is-end .packaged-scroll-end {
+        display: block;
+    }
+
     .dataTables_wrapper .dt-buttons {
         display: none !important;
     }
@@ -344,6 +378,9 @@
 @endsection
 
 @section('content')
+@php
+    $dmcCurrency = \App\Helpers\CommonHelper::getDmcCurrencyByCountry();
+@endphp
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card">
@@ -396,6 +433,8 @@
                         <tr>
                             <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Serial Number">No</th>
                             <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Package Name & ID">Package Name</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Country">Country</th>
+                            <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="City">City</th>
                             <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Adult Price">Adult Price</th>
                             <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Child Price">Child Price</th>
                             <th class="th-tooltip" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Senior Price">Senior Price</th>
@@ -414,9 +453,11 @@
                                         <small class="text-muted">ID: {{ $attraction->package_attraction_id ?? 'N/A' }}</small>
                                     </div>
                                 </td>
-                                <td>${{ number_format($attraction->adult_price, 2) }}</td>
-                                <td>${{ number_format($attraction->child_price, 2) }}</td>
-                                <td>${{ number_format($attraction->senior_citizen_price, 2) }}</td>
+                                <td>{{ $attraction->list_country ?? '—' }}</td>
+                                <td>{{ $attraction->list_city ?? '—' }}</td>
+                                <td>{{ $dmcCurrency }} {{ number_format($attraction->adult_price, 2) }}</td>
+                                <td>{{ $dmcCurrency }} {{ number_format($attraction->child_price, 2) }}</td>
+                                <td>{{ $dmcCurrency }} {{ number_format($attraction->senior_citizen_price, 2) }}</td>
                                 <td>
                                     @if($attraction->status == 1)
                                         <span class="badge-status active"><span class="dot"></span>Active</span>
@@ -466,6 +507,13 @@
                         @endforeach
                     </tbody>
                 </table>
+                <div id="packagedInfiniteFooter" class="packaged-infinite-footer">
+                    <div class="packaged-scroll-loader">
+                        <i class="ri-loader-4-line spin"></i>
+                        <span>Loading more packages…</span>
+                    </div>
+                    <div class="packaged-scroll-end">All packages loaded</div>
+                </div>
                 </div>
             </div>
         </div>
@@ -480,25 +528,75 @@
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
 <script>
     $(document).ready(function() {
-        // Initialize DataTable
-        $('.datatables-basic').DataTable({
-            responsive: true,
-            dom: '<"row align-items-center mb-2"<"col-sm-6 col-12"l><"col-sm-6 col-12"f>>rt<"row align-items-center mt-2"<"col-sm-6 col-12"i><"col-sm-6 col-12"p>>',
+        var packagedBatchSize = 25;
+        var packagedTable = $('.datatables-basic').DataTable({
+            responsive: false,
+            autoWidth: false,
+            dom: '<"row align-items-center mb-2"<"col-sm-6 col-12"l><"col-sm-6 col-12"f>>rt<"row align-items-center mt-2"<"col-sm-12"i>>',
             buttons: ['copy', 'csv', 'excel', 'pdf', 'print'],
             language: {
                 search: "_INPUT_",
                 searchPlaceholder: "Search...",
             },
-            lengthMenu: [10, 25, 50, 100],
+            lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+            pageLength: packagedBatchSize,
+            paging: true,
             pagingType: 'simple_numbers',
         });
 
-        // Export dropdown wiring
-        $('#exportCopy').on('click', function() { $('.datatables-basic').DataTable().button('.buttons-copy').trigger(); });
-        $('#exportCSV').on('click', function() { $('.datatables-basic').DataTable().button('.buttons-csv').trigger(); });
-        $('#exportExcel').on('click', function() { $('.datatables-basic').DataTable().button('.buttons-excel').trigger(); });
-        $('#exportPDF').on('click', function() { $('.datatables-basic').DataTable().button('.buttons-pdf').trigger(); });
-        $('#exportPrint').on('click', function() { $('.datatables-basic').DataTable().button('.buttons-print').trigger(); });
+        var $infiniteFooter = $('#packagedInfiniteFooter');
+        var packagedInfiniteLoading = false;
+        var packagedInfiniteGuard = false;
+
+        function updatePackagedInfiniteFooter() {
+            var info = packagedTable.page.info();
+            var allVisible = info.recordsDisplay <= info.length;
+            $infiniteFooter.toggleClass('is-end', allVisible && info.recordsDisplay > 0);
+            $infiniteFooter.removeClass('is-loading');
+            packagedInfiniteLoading = false;
+        }
+
+        function loadMorePackagedIfNeeded() {
+            if (packagedInfiniteLoading) return;
+            var info = packagedTable.page.info();
+            if (info.recordsDisplay <= info.length) {
+                updatePackagedInfiniteFooter();
+                return;
+            }
+            var scrollBottom = $(window).scrollTop() + $(window).height();
+            if (scrollBottom < $(document).height() - 120) return;
+            packagedInfiniteLoading = true;
+            $infiniteFooter.addClass('is-loading').removeClass('is-end');
+            setTimeout(function() {
+                var currentInfo = packagedTable.page.info();
+                packagedTable.page.len(Math.min(currentInfo.length + packagedBatchSize, currentInfo.recordsDisplay)).draw(false);
+                updatePackagedInfiniteFooter();
+            }, 150);
+        }
+
+        packagedTable.on('length.dt', function(e, settings, len) {
+            packagedBatchSize = len;
+            updatePackagedInfiniteFooter();
+        });
+        packagedTable.on('search.dt', function() {
+            if (packagedInfiniteGuard) return;
+            packagedInfiniteGuard = true;
+            packagedTable.page.len(packagedBatchSize).draw(false);
+            packagedInfiniteGuard = false;
+            updatePackagedInfiniteFooter();
+        });
+        packagedTable.on('draw.dt', function() {
+            if (!packagedInfiniteGuard) updatePackagedInfiniteFooter();
+        });
+        $(window).on('scroll.packagedInfinite resize.packagedInfinite', loadMorePackagedIfNeeded);
+        updatePackagedInfiniteFooter();
+        loadMorePackagedIfNeeded();
+
+        $('#exportCopy').on('click', function() { packagedTable.button('.buttons-copy').trigger(); });
+        $('#exportCSV').on('click', function() { packagedTable.button('.buttons-csv').trigger(); });
+        $('#exportExcel').on('click', function() { packagedTable.button('.buttons-excel').trigger(); });
+        $('#exportPDF').on('click', function() { packagedTable.button('.buttons-pdf').trigger(); });
+        $('#exportPrint').on('click', function() { packagedTable.button('.buttons-print').trigger(); });
     });
 
     // Initialise Bootstrap tooltips for headers + action buttons

@@ -13,7 +13,7 @@
         flex-wrap: wrap;
         align-items: center;
         gap: 0.35rem;
-        min-width: 140px;
+        min-width: 180px;
     }
     .day-level-list-table .inclusion-cell {
         min-width: 110px;
@@ -109,9 +109,19 @@
                                                     · {{ $pkg['total_days'] ?: $pkg['max_day'] }} day(s)
                                                 </div>
                                                 @if($pkg['has_stable_id'])
-                                                    <a href="{{ route('day-level.edit', ['day_level' => $row->id, 'package_id' => $pkg['package_id']]) }}" class="btn btn-outline-warning btn-sm mt-1 py-0 px-2">
-                                                        Edit package
-                                                    </a>
+                                                    <div class="d-flex flex-wrap gap-1 mt-1">
+                                                        <a href="{{ route('day-level.edit', ['day_level' => $row->id, 'package_id' => $pkg['package_id']]) }}" class="btn btn-outline-warning btn-sm py-0 px-2">
+                                                            Edit package
+                                                        </a>
+                                                        <button
+                                                            type="button"
+                                                            class="btn btn-outline-danger btn-sm py-0 px-2 day-level-delete-package-btn"
+                                                            data-url="{{ route('day-level.destroy-package', ['day_level' => $row->id, 'package_id' => $pkg['package_id']]) }}"
+                                                            data-label="{{ ($pkg['cities'] ? implode(', ', $pkg['cities']) : 'Package') . ' · ' . ($pkg['total_days'] ?: $pkg['max_day']) . ' day(s)' }}"
+                                                        >
+                                                            Delete package
+                                                        </button>
+                                                    </div>
                                                 @else
                                                     <span class="text-muted small d-block">Legacy package</span>
                                                 @endif
@@ -129,6 +139,14 @@
                                         <a href="{{ route('day-level.show', $row->id) }}" class="btn btn-outline-secondary btn-sm">
                                             View
                                         </a>
+                                        <button
+                                            type="button"
+                                            class="btn btn-outline-danger btn-sm day-level-delete-row-btn"
+                                            data-url="{{ route('day-level.destroy', $row->id) }}"
+                                            data-label="{{ (optional($row->masterDmc)->company_name ?: 'Master DMC') . ' / ' . (optional($row->dmc)->company_name ?: 'DMC') . ' / ' . ($row->country ?: 'N/A') }}"
+                                        >
+                                            Delete
+                                        </button>
                                     </div>
                                 </td>
                                 <td class="text-center inclusion-cell">
@@ -223,6 +241,58 @@
                     checkbox.disabled = false;
                 }
             });
+        });
+
+        function softDeleteDayLevel(url, confirmText) {
+            if (!window.confirm(confirmText)) {
+                return;
+            }
+
+            $.ajax({
+                url: url,
+                method: 'DELETE',
+                data: {
+                    _token: '{{ csrf_token() }}',
+                },
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                success: function (response) {
+                    if (typeof toastr !== 'undefined') {
+                        toastr.success(response.message || 'Deleted successfully.');
+                    }
+                    window.setTimeout(function () {
+                        window.location.reload();
+                    }, 600);
+                },
+                error: function (xhr) {
+                    const message = xhr.responseJSON?.message || 'Could not delete. Please try again.';
+                    if (typeof toastr !== 'undefined') {
+                        toastr.error(message);
+                    } else {
+                        alert(message);
+                    }
+                }
+            });
+        }
+
+        $(document).on('click', '.day-level-delete-row-btn', function () {
+            const url = this.dataset.url;
+            const label = this.dataset.label || 'this Day Level';
+            softDeleteDayLevel(
+                url,
+                'Soft-delete ' + label + '?\n\nIt will be removed from the list and from Azure JSON.'
+            );
+        });
+
+        $(document).on('click', '.day-level-delete-package-btn', function () {
+            const url = this.dataset.url;
+            const label = this.dataset.label || 'this package';
+            softDeleteDayLevel(
+                url,
+                'Delete package "' + label + '"?\n\nIt will be removed from this Day Level and from Azure JSON.'
+            );
         });
     });
 </script>

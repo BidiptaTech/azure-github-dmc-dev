@@ -336,6 +336,10 @@ class GuestController extends Controller
                 if ($plainPassword) {
                     $existingGuest->app_password = Hash::make($plainPassword);
                     $existingGuest->save();
+                    CommonHelper::invalidateAccessTokens(Guest::class, [
+                        $existingGuest->id,
+                        $existingGuest->guest_id,
+                    ]);
                     
                     Log::info('Guest password updated', [
                         'guest_id' => $existingGuest->guest_id,
@@ -527,6 +531,13 @@ class GuestController extends Controller
 
             $guest->update($updateData);
             $guest->refresh();
+
+            if ($plainPassword) {
+                CommonHelper::invalidateAccessTokens(Guest::class, [
+                    $guest->id,
+                    $guest->guest_id,
+                ]);
+            }
 
             $currentTourIds = $this->normalizeTourIds($guest->tour_id);
             $removedTourIds = array_values(array_diff($previousTourIds, $currentTourIds));

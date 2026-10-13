@@ -552,7 +552,7 @@
                                                                                     @if(isset($v['qty'])) · Qty: {{ $v['qty'] }} @endif
                                                                                 </div>
                                                                                 @if(isset($v['selected_price']))
-                                                                                    <div class="text-primary fw-semibold">SGD {{ number_format((float) $v['selected_price'], 2) }}</div>
+                                                                                    <div class="text-primary fw-semibold">{{ $currency ?? 'SGD' }} {{ number_format((float) $v['selected_price'], 2) }}</div>
                                                                                 @endif
                                                                             </div>
                                                                         </div>
@@ -598,7 +598,7 @@
                                                                                     @if(isset($v['qty'])) · Qty: {{ $v['qty'] }} @endif
                                                                                 </div>
                                                                                 @if(isset($v['selected_price']))
-                                                                                    <div class="text-primary fw-semibold">SGD {{ number_format((float) $v['selected_price'], 2) }}</div>
+                                                                                    <div class="text-primary fw-semibold">{{ $currency ?? 'SGD' }} {{ number_format((float) $v['selected_price'], 2) }}</div>
                                                                                 @endif
                                                                             </div>
                                                                         </div>
@@ -700,7 +700,7 @@
                                                                             <span class="badge bg-info-subtle text-info">
                                                                                 <i class="ri-taxi-line me-1"></i>{{ $a['vehicle_name'] ?? 'Transfer' }}
                                                                                 @if(!empty($a['transfer_type'])) · {{ ucfirst((string) $a['transfer_type']) }} @endif
-                                                                                @if(isset($a['transfer_price'])) · SGD {{ number_format((float) $a['transfer_price'], 2) }} @endif
+                                                                                @if(isset($a['transfer_price'])) · {{ $currency ?? 'SGD' }} {{ number_format((float) $a['transfer_price'], 2) }} @endif
                                                                             </span>
                                                                         @endif
                                                                     </div>
@@ -735,15 +735,15 @@
                                                                     <div class="fw-semibold">{{ $r['restaurant_name'] ?? ($r['name'] ?? 'Restaurant') }}</div>
                                                                     <div class="text-muted small">
                                                                         @if($mealLabel) {{ $mealLabel }} @endif
-                                                                        @if(isset($r['adult_price'])) · Adult: SGD {{ number_format((float) $r['adult_price'], 2) }} @endif
-                                                                        @if(isset($r['child_price'])) · Child: SGD {{ number_format((float) $r['child_price'], 2) }} @endif
+                                                                        @if(isset($r['adult_price'])) · Adult: {{ $currency ?? 'SGD' }} {{ number_format((float) $r['adult_price'], 2) }} @endif
+                                                                        @if(isset($r['child_price'])) · Child: {{ $currency ?? 'SGD' }} {{ number_format((float) $r['child_price'], 2) }} @endif
                                                                     </div>
                                                                     <div class="mt-2 d-flex flex-wrap gap-2 small">
                                                                         @if($hasTransfer)
                                                                             <span class="badge bg-info-subtle text-info">
                                                                                 <i class="ri-taxi-line me-1"></i>{{ $r['vehicle_name'] ?? 'Transfer' }}
                                                                                 @if(!empty($r['transfer_type'])) · {{ ucfirst((string) $r['transfer_type']) }} @endif
-                                                                                @if(isset($r['transfer_price'])) · SGD {{ number_format((float) $r['transfer_price'], 2) }} @endif
+                                                                                @if(isset($r['transfer_price'])) · {{ $currency ?? 'SGD' }} {{ number_format((float) $r['transfer_price'], 2) }} @endif
                                                                             </span>
                                                                         @endif
                                                                     </div>
@@ -898,7 +898,7 @@
                         <div class="mb-2">
                             <div class="d-flex justify-content-between align-items-center">
                                 <span class="text-muted">Total Price:</span>
-                                <span class="h6 mb-0">SGD {{ number_format($pdTotal, 2) }}</span>
+                                <span class="h6 mb-0">{{ $currency ?? 'SGD' }} {{ number_format($pdTotal, 2) }}</span>
                             </div>
                         </div>
                         @endif
@@ -914,7 +914,7 @@
                                     @if($pdMarkupType === 'percentage')
                                         {{ rtrim(rtrim(number_format($pdMarkupAmount, 2), '0'), '.') }}%
                                     @else
-                                        SGD {{ number_format($pdMarkupAmount, 2) }}
+                                        {{ $currency ?? 'SGD' }} {{ number_format($pdMarkupAmount, 2) }}
                                     @endif
                                 </span>
                             </div>
@@ -925,7 +925,7 @@
                             <div class="d-flex justify-content-between align-items-center">
                                 <span class="fw-bold">Final Price:</span>
                                 <span class="h5 text-primary mb-0">
-                                    SGD {{ number_format($pdFinal !== null ? $pdFinal : (is_numeric($package->price_adult) ? (float) $package->price_adult : 0), 2) }}
+                                    {{ $currency ?? 'SGD' }} {{ number_format($pdFinal !== null ? $pdFinal : (is_numeric($package->price_adult) ? (float) $package->price_adult : 0), 2) }}
                                 </span>
                             </div>
                         </div>
@@ -934,7 +934,7 @@
                         <div class="mb-3">
                             <div class="d-flex justify-content-between align-items-center">
                                 <span>Senior Price:</span>
-                                <span class="h6 text-info mb-0">SGD {{ number_format($package->price_senior, 2) }}</span>
+                                <span class="h6 text-info mb-0">{{ $currency ?? 'SGD' }} {{ number_format($package->price_senior, 2) }}</span>
                             </div>
                         </div>
                         @endif
@@ -943,7 +943,7 @@
                         <div class="mb-3">
                             <div class="d-flex justify-content-between align-items-center">
                                 <span>Child Price:</span>
-                                <span class="h6 text-success mb-0">SGD {{ number_format($package->price_child, 2) }}</span>
+                                <span class="h6 text-success mb-0">{{ $currency ?? 'SGD' }} {{ number_format($package->price_child, 2) }}</span>
                             </div>
                         </div>
                         @endif

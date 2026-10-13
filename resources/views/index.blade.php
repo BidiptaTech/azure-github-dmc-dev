@@ -33,7 +33,7 @@
     .saas-dashboard {
         background: var(--dash-bg);
         min-height: 100vh;
-        padding: 28px;
+        padding: 20px 22px;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
@@ -42,20 +42,20 @@
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        margin-bottom: 28px;
+        margin-bottom: 18px;
         flex-wrap: wrap;
-        gap: 16px;
+        gap: 12px;
     }
     .dash-header-left h1 {
-        font-size: 1.625rem;
-        font-weight: 800;
+        font-size: 1.35rem;
+        font-weight: 700;
         color: var(--text-primary);
-        margin: 0 0 4px 0;
+        margin: 0 0 2px 0;
         line-height: 1.3;
         letter-spacing: -0.02em;
     }
     .dash-header-left p {
-        font-size: 0.875rem;
+        font-size: 0.8125rem;
         color: var(--text-secondary);
         margin: 0;
     }
@@ -128,27 +128,30 @@
     /* ---- KPI Grid ---- */
     .kpi-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 14px;
-        margin-bottom: 24px;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 12px;
+        margin-bottom: 18px;
     }
 
-    /* ==== HERO KPI CARDS — Bold Colored Backgrounds ==== */
+    /* ==== HERO KPI CARDS — Compact business metrics ==== */
     .hero-card {
-        border-radius: var(--radius);
-        padding: 18px;
+        border-radius: 12px;
+        padding: 14px 16px;
         position: relative;
         overflow: hidden;
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
         border: none;
+        display: flex;
+        flex-direction: column;
+        min-height: 118px;
     }
     .hero-card::before {
         content: '';
         position: absolute;
         top: -40%;
         right: -20%;
-        width: 160px;
-        height: 160px;
+        width: 120px;
+        height: 120px;
         border-radius: 50%;
         background: rgba(255,255,255,0.08);
         pointer-events: none;
@@ -158,47 +161,95 @@
         position: absolute;
         bottom: -30%;
         left: -15%;
-        width: 120px;
-        height: 120px;
+        width: 90px;
+        height: 90px;
         border-radius: 50%;
         background: rgba(255,255,255,0.05);
         pointer-events: none;
     }
     .hero-card:hover {
-        transform: translateY(-4px);
-        box-shadow: var(--shadow-xl);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+    }
+    .hero-card .kpi-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        position: relative;
+        z-index: 1;
     }
     .hero-card .kpi-icon {
-        width: 42px;
-        height: 42px;
-        border-radius: 12px;
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
         background: rgba(255,255,255,0.2);
         color: #fff;
-        font-size: 1.15rem;
+        font-size: 1rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
     }
+    .hero-card .kpi-period-chip {
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: rgba(255,255,255,0.9);
+        background: rgba(255,255,255,0.18);
+        border-radius: 999px;
+        padding: 3px 8px;
+    }
     .hero-card .kpi-value {
-        font-size: 1.95rem;
+        font-size: 1.65rem;
         font-weight: 800;
         color: #fff;
         letter-spacing: -0.02em;
+        line-height: 1.1;
+        position: relative;
+        z-index: 1;
     }
     .hero-card .kpi-label {
-        color: rgba(255,255,255,0.8);
+        color: rgba(255,255,255,0.88);
         font-weight: 600;
-        font-size: 0.875rem;
+        font-size: 0.72rem;
         text-transform: uppercase;
         letter-spacing: 0.04em;
+        margin-top: 4px;
+        position: relative;
+        z-index: 1;
     }
+    .hero-card .kpi-footer {
+        margin-top: auto;
+        padding-top: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: relative;
+        z-index: 1;
+    }
+    .hero-card .kpi-link {
+        color: #fff;
+        font-size: 0.72rem;
+        font-weight: 600;
+        text-decoration: none;
+        opacity: 0.9;
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+    }
+    .hero-card .kpi-link:hover { opacity: 1; color: #fff; }
     .hero-card .kpi-progress {
         background: rgba(255,255,255,0.15);
-        height: 5px;
+        height: 3px;
         border-radius: 3px;
-        margin-top: 14px;
+        flex: 1;
+        margin-right: 10px;
     }
     .hero-card .kpi-progress-bar {
-        background: rgba(255,255,255,0.75);
+        background: rgba(255,255,255,0.8);
         height: 100%;
         border-radius: 3px;
     }
@@ -220,11 +271,11 @@
     /* ==== STATUS CARDS — Colored fill with depth ==== */
     .status-card {
         background: var(--card-bg);
-        border-radius: var(--radius);
-        padding: 16px;
+        border-radius: 12px;
+        padding: 12px 14px;
         position: relative;
         overflow: hidden;
-        transition: transform 0.25s ease, box-shadow 0.25s ease;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
         border: 1px solid var(--border);
         box-shadow: var(--shadow-sm);
     }
@@ -278,6 +329,11 @@
     .status-emerald .kpi-icon { background: linear-gradient(135deg, #059669, #10b981); color: #fff; box-shadow: 0 4px 12px rgba(5,150,105,0.25); }
     .status-emerald .kpi-value { color: #047857; }
     .status-emerald .kpi-link  { color: #059669; }
+
+    .status-teal::before { background: linear-gradient(90deg, #0d9488, #2dd4bf); }
+    .status-teal .kpi-icon { background: linear-gradient(135deg, #0d9488, #14b8a6); color: #fff; box-shadow: 0 4px 12px rgba(13,148,136,0.25); }
+    .status-teal .kpi-value { color: #0f766e; }
+    .status-teal .kpi-link  { color: #0d9488; }
 
     /* ==== PRODUCT STAT CARDS — Colored background fills ==== */
     .kpi-card {
@@ -414,16 +470,16 @@
 
     /* ---- Section Title ---- */
     .section-heading {
-        font-size: 1.0625rem;
+        font-size: 0.9375rem;
         font-weight: 700;
         color: var(--text-primary);
-        margin: 0 0 18px 0;
+        margin: 4px 0 12px 0;
         display: flex;
         align-items: center;
         gap: 8px;
         letter-spacing: -0.01em;
     }
-    .section-heading i { color: var(--accent); font-size: 1.25rem; }
+    .section-heading i { color: var(--accent); font-size: 1.1rem; }
 
     /* ---- Panel Card ---- */
     .panel {
@@ -809,7 +865,7 @@
     <div class="dash-header">
         <div class="dash-header-left">
             <h1>Welcome back, {{ Auth::user()->name }}</h1>
-            <p>Here's what's happening with your travel management system.</p>
+            <p>Operations overview for your bookings and inventory.</p>
         </div>
         <div class="dash-header-right">
             <div class="period-toggle">
@@ -823,45 +879,61 @@
         </div>
     </div>
 
-    {{-- ===== PRIMARY KPI CARDS — Bold Hero Cards ===== --}}
+    @php
+        $periodLabel = $period === 'month' ? 'This Month' : 'Today';
+    @endphp
+
+    {{-- ===== PRIMARY KPI CARDS — Compact business metrics ===== --}}
     @if($userPermissions['canViewBusinessMetrics'] || $userPermissions['canViewEnquiries'])
     <div class="kpi-grid" style="grid-template-columns: repeat(3, 1fr);">
         @if($userPermissions['canViewEnquiries'])
         <div class="hero-card hero-amber">
-            <div class="kpi-icon">
-                <i class="ri-questionnaire-line"></i>
+            <div class="kpi-top">
+                <div class="kpi-icon"><i class="ri-questionnaire-line"></i></div>
+                <span class="kpi-period-chip">{{ $periodLabel }}</span>
             </div>
             <div class="kpi-value" id="enquiry-count">{{ $counts['enquiries']['total'] ?? 0 }}</div>
             <div class="kpi-label">Total Enquiries</div>
             @php $eTotal = $counts['enquiries']['total'] ?? 0; $eProg = min(($eTotal / 500) * 100, 100); @endphp
-            <div class="kpi-progress">
-                <div class="kpi-progress-bar" id="enquiry-progress" style="width: {{ $eProg }}%;"></div>
+            <div class="kpi-footer">
+                <div class="kpi-progress">
+                    <div class="kpi-progress-bar" id="enquiry-progress" style="width: {{ $eProg }}%;"></div>
+                </div>
+                <a href="{{ route('bookings.new-enquiries') }}" class="kpi-link">View <i class="ri-arrow-right-s-line"></i></a>
             </div>
         </div>
         @endif
 
         @if($userPermissions['canViewBusinessMetrics'])
         <div class="hero-card hero-indigo">
-            <div class="kpi-icon">
-                <i class="ri-bookmark-3-line"></i>
+            <div class="kpi-top">
+                <div class="kpi-icon"><i class="ri-checkbox-circle-line"></i></div>
+                <span class="kpi-period-chip">{{ $periodLabel }}</span>
             </div>
-            <div class="kpi-value" id="booking-count">{{ $counts['bookings']['total'] ?? 0 }}</div>
-            <div class="kpi-label">Total Bookings</div>
-            @php $bTotal = $counts['bookings']['total'] ?? 0; $bProg = min(($bTotal / 500) * 100, 100); @endphp
-            <div class="kpi-progress">
-                <div class="kpi-progress-bar" id="booking-progress" style="width: {{ $bProg }}%;"></div>
+            <div class="kpi-value" id="booking-count">{{ $counts['bookings']['total'] ?? ($counts['bookingStatus']['confirmed'] ?? 0) }}</div>
+            <div class="kpi-label">Total Confirmed Bookings</div>
+            @php $bTotal = $counts['bookings']['total'] ?? ($counts['bookingStatus']['confirmed'] ?? 0); $bProg = min(($bTotal / 500) * 100, 100); @endphp
+            <div class="kpi-footer">
+                <div class="kpi-progress">
+                    <div class="kpi-progress-bar" id="booking-progress" style="width: {{ $bProg }}%;"></div>
+                </div>
+                <a href="{{ route('bookings.confirmed') }}" class="kpi-link">View <i class="ri-arrow-right-s-line"></i></a>
             </div>
         </div>
 
         <div class="hero-card hero-emerald">
-            <div class="kpi-icon">
-                <i class="ri-route-line"></i>
+            <div class="kpi-top">
+                <div class="kpi-icon"><i class="ri-flag-2-line"></i></div>
+                <span class="kpi-period-chip">{{ $periodLabel }}</span>
             </div>
-            <div class="kpi-value" id="tour-count">{{ $counts['tours']['total'] ?? 0 }}</div>
-            <div class="kpi-label">Active Tours</div>
-            @php $tTotal = $counts['tours']['total'] ?? 0; $tProg = min(($tTotal / 500) * 100, 100); @endphp
-            <div class="kpi-progress">
-                <div class="kpi-progress-bar" id="tour-progress" style="width: {{ $tProg }}%;"></div>
+            <div class="kpi-value" id="tour-count">{{ $counts['tours']['total'] ?? ($counts['bookingStatus']['actual'] ?? 0) }}</div>
+            <div class="kpi-label">Actual Tours</div>
+            @php $tTotal = $counts['tours']['total'] ?? ($counts['bookingStatus']['actual'] ?? 0); $tProg = min(($tTotal / 500) * 100, 100); @endphp
+            <div class="kpi-footer">
+                <div class="kpi-progress">
+                    <div class="kpi-progress-bar" id="tour-progress" style="width: {{ $tProg }}%;"></div>
+                </div>
+                <a href="{{ route('bookings.actual') }}" class="kpi-link">View <i class="ri-arrow-right-s-line"></i></a>
             </div>
         </div>
         @endif
@@ -870,8 +942,8 @@
 
     {{-- ===== BOOKING STATUS CARDS ===== --}}
     @if($userPermissions['canViewBusinessMetrics'] && isset($counts['bookingStatus']))
-    <h2 class="section-heading"><i class="ri-bookmark-3-line"></i> Booking Status &mdash; {{ ucfirst($period) }}</h2>
-    <div class="kpi-grid" style="grid-template-columns: repeat(4, 1fr);">
+    <h2 class="section-heading"><i class="ri-bookmark-3-line"></i> Booking Status &mdash; {{ $periodLabel }}</h2>
+    <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));">
         @php $roleIds = [34, 124, 125, 36, 126, 127]; @endphp
         @if(!in_array(Auth::user()->role_id, $roleIds))
         <div class="status-card status-rose">
@@ -896,8 +968,14 @@
         <div class="status-card status-emerald">
             <div class="kpi-icon"><i class="ri-checkbox-circle-line"></i></div>
             <div class="kpi-value" id="confirmed-count">{{ $counts['bookingStatus']['confirmed'] ?? 0 }}</div>
-            <div class="kpi-label">Confirmed Tours</div>
+            <div class="kpi-label">Confirmed</div>
             <a href="{{ route('bookings.confirmed') }}" class="kpi-link"><i class="ri-arrow-right-s-line"></i> View</a>
+        </div>
+        <div class="status-card status-teal">
+            <div class="kpi-icon"><i class="ri-flag-2-line"></i></div>
+            <div class="kpi-value" id="actual-count">{{ $counts['bookingStatus']['actual'] ?? 0 }}</div>
+            <div class="kpi-label">Actual Tours</div>
+            <a href="{{ route('bookings.actual') }}" class="kpi-link"><i class="ri-arrow-right-s-line"></i> View</a>
         </div>
     </div>
     @endif
@@ -1244,12 +1322,12 @@ function initializeEnhancedChart() {
     }
     if (userPermissions.canViewBusinessMetrics) {
         if ({!! json_encode(isset($counts['bookings'])) !!}) {
-            chartLabels.push('Bookings');
+            chartLabels.push('Confirmed');
             totalData.push({{ $counts['bookings']['total'] ?? 0 }});
             monthData.push({{ $counts['bookings']['confirmed'] ?? 0 }});
         }
         if ({!! json_encode(isset($counts['tours'])) !!}) {
-            chartLabels.push('Tours');
+            chartLabels.push('Actual Tours');
             totalData.push({{ $counts['tours']['total'] ?? 0 }});
             monthData.push({{ $counts['tours']['active'] ?? 0 }});
         }
@@ -1606,10 +1684,22 @@ function changeTimeFilter(period) {
             updateCounts(data.counts);
             updateChart(data.counts, data.userPermissions);
             updateChartTitle(data.period);
+            updatePeriodLabels(data.period);
         }
     })
     .catch(e => console.error('Error:', e))
     .finally(() => hideLoadingState());
+}
+
+function updatePeriodLabels(period) {
+    const label = period === 'month' ? 'This Month' : 'Today';
+    document.querySelectorAll('.kpi-period-chip').forEach(el => { el.textContent = label; });
+    const statusHeading = [...document.querySelectorAll('.section-heading')].find(h =>
+        h.textContent.includes('Booking Status')
+    );
+    if (statusHeading) {
+        statusHeading.innerHTML = `<i class="ri-bookmark-3-line"></i> Booking Status &mdash; ${label}`;
+    }
 }
 
 function showLoadingState() {
@@ -1637,6 +1727,7 @@ function updateCounts(counts) {
         updateElementCount('prospect-count', counts.bookingStatus.prospect || 0);
         updateElementCount('tentative-count', counts.bookingStatus.tentative || 0);
         updateElementCount('confirmed-count', counts.bookingStatus.confirmed || 0);
+        updateElementCount('actual-count', counts.bookingStatus.actual || 0);
     }
     updateAllStatsCards(counts);
 }
@@ -1737,8 +1828,8 @@ function updateChart(counts, permissions) {
         chartLabels.push('Enquiries'); totalData.push(counts.enquiries.total); monthData.push(counts.enquiries.new || 0);
     }
     if (userPermissions.canViewBusinessMetrics) {
-        if (counts.bookings) { chartLabels.push('Bookings'); totalData.push(counts.bookings.total); monthData.push(counts.bookings.confirmed || 0); }
-        if (counts.tours)    { chartLabels.push('Tours');    totalData.push(counts.tours.total);    monthData.push(counts.tours.active); }
+        if (counts.bookings) { chartLabels.push('Confirmed'); totalData.push(counts.bookings.total); monthData.push(counts.bookings.confirmed || 0); }
+        if (counts.tours)    { chartLabels.push('Actual Tours'); totalData.push(counts.tours.total); monthData.push(counts.tours.active || 0); }
     }
     if (userPermissions.canViewHotels && counts.hotels)           { chartLabels.push('Hotels');      totalData.push(counts.hotels.total);      monthData.push(counts.hotels.active); }
     if (userPermissions.canViewRestaurants && counts.restaurants)  { chartLabels.push('Restaurants'); totalData.push(counts.restaurants.total); monthData.push(counts.restaurants.active); }

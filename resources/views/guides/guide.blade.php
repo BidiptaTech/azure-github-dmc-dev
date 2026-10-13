@@ -229,6 +229,40 @@
         border-color: #c7d2fe !important;
     }
 
+    .dataTables_wrapper .dataTables_paginate {
+        display: none !important;
+    }
+
+    .guides-infinite-footer {
+        padding: 1rem 0 0.25rem;
+        text-align: center;
+    }
+
+    .guides-infinite-footer .guides-scroll-loader {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #64748b;
+    }
+
+    .guides-infinite-footer.is-loading .guides-scroll-loader {
+        display: inline-flex;
+    }
+
+    .guides-infinite-footer .guides-scroll-end {
+        display: none;
+        font-size: 12px;
+        font-weight: 600;
+        color: #94a3b8;
+    }
+
+    .guides-infinite-footer.is-end .guides-scroll-end {
+        display: block;
+    }
+
     .dataTables_wrapper .dt-buttons {
         display: none !important;
     }
@@ -317,6 +351,8 @@
     #guidesTable .col-name       { width: 80px;  min-width: 75px; }
     #guidesTable .col-master-dmc,
     #guidesTable .col-dmc        { width: 100px; min-width: 90px; }
+    #guidesTable .col-country    { width: 90px;  min-width: 80px; }
+    #guidesTable .col-city       { width: 80px;  min-width: 70px; }
     #guidesTable .col-contact    { width: 90px;  min-width: 80px; }
     #guidesTable .col-email      { width: 140px; min-width: 120px; }
     #guidesTable .col-languages  { width: 80px;  min-width: 75px; }
@@ -414,6 +450,8 @@
                                 <th class="th-tooltip col-master-dmc" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Master DMC">Master</th>
                                 <th class="th-tooltip col-dmc" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Destination Management Company">DMC</th>
                             @endif
+                            <th class="th-tooltip col-country" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Country">Country</th>
+                            <th class="th-tooltip col-city" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="City">City</th>
                             <th class="th-tooltip col-contact" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Contact Number">Contact No</th>
                             <th class="th-tooltip col-email" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Email Address">Email</th>
                             <th class="th-tooltip col-languages" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-title="Languages Spoken">Languages</th>
@@ -447,6 +485,9 @@
                                 <td class="col-master-dmc">{{ $masterdmcUser ? $masterdmcUser->company_name : 'N/A' }}</td>
                                 <td class="col-dmc">{{ $dmcUser ? $dmcUser->company_name : 'N/A' }}</td>
                             @endif
+
+                            <td class="col-country">{{ $guide->country ?: '—' }}</td>
+                            <td class="col-city">{{ $guide->city ?: '—' }}</td>
 
                             <td class="col-contact">
                                 @if($guide->contact_no)
@@ -542,6 +583,13 @@
                         @endforeach
                     </tbody>
                 </table>
+                <div id="guidesInfiniteFooter" class="guides-infinite-footer">
+                    <div class="guides-scroll-loader">
+                        <i class="ri-loader-4-line spin"></i>
+                        <span>Loading more guides…</span>
+                    </div>
+                    <div class="guides-scroll-end">All guides loaded</div>
+                </div>
                 </div>
 
             </div>
@@ -557,21 +605,26 @@
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
 <script>
     $(document).ready(function() {
-        $('.datatables-basic').DataTable({
+        var guidesBatchSize = 25;
+        var guidesTable = $('.datatables-basic').DataTable({
             responsive: false,
             autoWidth: false,
             ordering: false,
-            dom: '<"row align-items-center mb-2"<"col-sm-6 col-12"l><"col-sm-6 col-12"f>>rt<"row align-items-center mt-2"<"col-sm-6 col-12"i><"col-sm-6 col-12"p>>',
+            dom: '<"row align-items-center mb-2"<"col-sm-6 col-12"l><"col-sm-6 col-12"f>>rt<"row align-items-center mt-2"<"col-sm-12"i>>',
             buttons: ['copy', 'csv', 'excel', 'pdf', 'print'],
             language: {
                 search: "_INPUT_",
                 searchPlaceholder: "Search...",
             },
-            lengthMenu: [10, 25, 50, 100],
+            lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+            pageLength: guidesBatchSize,
+            paging: true,
             pagingType: 'simple_numbers',
             columnDefs: [
                 { targets: '.col-no',          width: '38px'  },
                 { targets: '.col-name',        width: '80px'  },
+                { targets: '.col-country',     width: '90px'  },
+                { targets: '.col-city',        width: '80px'  },
                 { targets: '.col-contact',     width: '90px'  },
                 { targets: '.col-email',       width: '140px' },
                 { targets: '.col-languages',   width: '80px'  },
@@ -581,11 +634,59 @@
             ],
         });
 
-        $('#exportCopy').on('click',  function() { $('.datatables-basic').DataTable().button('.buttons-copy').trigger(); });
-        $('#exportCSV').on('click',   function() { $('.datatables-basic').DataTable().button('.buttons-csv').trigger(); });
-        $('#exportExcel').on('click', function() { $('.datatables-basic').DataTable().button('.buttons-excel').trigger(); });
-        $('#exportPDF').on('click',   function() { $('.datatables-basic').DataTable().button('.buttons-pdf').trigger(); });
-        $('#exportPrint').on('click', function() { $('.datatables-basic').DataTable().button('.buttons-print').trigger(); });
+        var $infiniteFooter = $('#guidesInfiniteFooter');
+        var guidesInfiniteLoading = false;
+        var guidesInfiniteGuard = false;
+
+        function updateGuidesInfiniteFooter() {
+            var info = guidesTable.page.info();
+            var allVisible = info.recordsDisplay <= info.length;
+            $infiniteFooter.toggleClass('is-end', allVisible && info.recordsDisplay > 0);
+            $infiniteFooter.removeClass('is-loading');
+            guidesInfiniteLoading = false;
+        }
+
+        function loadMoreGuidesIfNeeded() {
+            if (guidesInfiniteLoading) return;
+            var info = guidesTable.page.info();
+            if (info.recordsDisplay <= info.length) {
+                updateGuidesInfiniteFooter();
+                return;
+            }
+            var scrollBottom = $(window).scrollTop() + $(window).height();
+            if (scrollBottom < $(document).height() - 120) return;
+            guidesInfiniteLoading = true;
+            $infiniteFooter.addClass('is-loading').removeClass('is-end');
+            setTimeout(function() {
+                var currentInfo = guidesTable.page.info();
+                guidesTable.page.len(Math.min(currentInfo.length + guidesBatchSize, currentInfo.recordsDisplay)).draw(false);
+                updateGuidesInfiniteFooter();
+            }, 150);
+        }
+
+        guidesTable.on('length.dt', function(e, settings, len) {
+            guidesBatchSize = len;
+            updateGuidesInfiniteFooter();
+        });
+        guidesTable.on('search.dt', function() {
+            if (guidesInfiniteGuard) return;
+            guidesInfiniteGuard = true;
+            guidesTable.page.len(guidesBatchSize).draw(false);
+            guidesInfiniteGuard = false;
+            updateGuidesInfiniteFooter();
+        });
+        guidesTable.on('draw.dt', function() {
+            if (!guidesInfiniteGuard) updateGuidesInfiniteFooter();
+        });
+        $(window).on('scroll.guidesInfinite resize.guidesInfinite', loadMoreGuidesIfNeeded);
+        updateGuidesInfiniteFooter();
+        loadMoreGuidesIfNeeded();
+
+        $('#exportCopy').on('click',  function() { guidesTable.button('.buttons-copy').trigger(); });
+        $('#exportCSV').on('click',   function() { guidesTable.button('.buttons-csv').trigger(); });
+        $('#exportExcel').on('click', function() { guidesTable.button('.buttons-excel').trigger(); });
+        $('#exportPDF').on('click',   function() { guidesTable.button('.buttons-pdf').trigger(); });
+        $('#exportPrint').on('click', function() { guidesTable.button('.buttons-print').trigger(); });
     });
 </script>
 

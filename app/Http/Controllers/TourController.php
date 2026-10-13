@@ -153,9 +153,35 @@ class TourController extends Controller
         ])->orderBy('created_at', 'desc');
         
         // Step 3: Apply role-specific filters
+        // Own agent tree OR sibling-DMC multi-country tours that include this user's/DMC country
+        // (e.g. Singapore DMC creates "Singapore, Malaysia, India" → India DMC can see it).
         if ($agent_ids !== null && $agent_ids->isNotEmpty()) {
-            // Filter by agent IDs if we have a list
-            $query->whereIn('agent_id', $agent_ids);
+            $country = CommonHelper::resolveUserOperatingCountry($user);
+            $dmcIdForAccess = CommonHelper::getDmcId($user);
+            $siblingDmcIds = $dmcIdForAccess ? CommonHelper::getSiblingDmcIds((int) $dmcIdForAccess) : [];
+
+            $query->where(function ($q) use ($agent_ids, $country, $siblingDmcIds) {
+                $q->whereIn('agent_id', $agent_ids);
+                if ($country && count($siblingDmcIds) > 1) {
+                    $q->orWhere(function ($q2) use ($country, $siblingDmcIds) {
+                        $q2->whereIn('dmc_id', $siblingDmcIds);
+                        CommonHelper::whereDestinationContainsCountry($q2, $country, 'destination');
+                    });
+                }
+            });
+        } elseif ($agent_ids !== null && $agent_ids->isEmpty()) {
+            // Keep empty agent list behavior: no agent tours, but still allow multi-country sibling tours
+            $country = CommonHelper::resolveUserOperatingCountry($user);
+            $dmcIdForAccess = CommonHelper::getDmcId($user);
+            $siblingDmcIds = $dmcIdForAccess ? CommonHelper::getSiblingDmcIds((int) $dmcIdForAccess) : [];
+            if ($country && count($siblingDmcIds) > 1) {
+                $query->where(function ($q) use ($country, $siblingDmcIds) {
+                    $q->whereIn('dmc_id', $siblingDmcIds);
+                    CommonHelper::whereDestinationContainsCountry($q, $country, 'destination');
+                });
+            } else {
+                $query->whereRaw('1 = 0');
+            }
         }
         
         // Apply additional role-specific filtering
@@ -691,21 +717,24 @@ class TourController extends Controller
         }
         
         try {
+            // Resolve the tour base (DMC) currency instead of assuming SGD.
+            $baseCurrency = $tour->user_currency ?: \App\Helpers\CommonHelper::getDmcCurrencyByCountry();
+
             // Get currency data from request
-            $selectedCurrency = $request->input('currency', 'SGD');
-            $exchangeRate = $request->input('exchange_rate', 1);
-            $originalAmount = $request->input('payment_amount'); // The amount user entered
-            
-            // Calculate SGD amount based on currency
-            if ($selectedCurrency === 'SGD') {
-                $sgdAmount = $originalAmount;
+            $selectedCurrency = $request->input('currency', $baseCurrency);
+            $exchangeRate = (float) $request->input('exchange_rate', 1);
+            $originalAmount = (float) $request->input('payment_amount'); // The amount user entered
+
+            // Convert the entered amount into the tour base currency for consistent storage.
+            if ($selectedCurrency === $baseCurrency || $exchangeRate <= 0) {
+                $baseAmount = $originalAmount;
             } else {
-                // Convert foreign currency to SGD
-                $sgdAmount = $originalAmount / $exchangeRate;
+                // Convert the selected (foreign) currency back to the base currency.
+                $baseAmount = $originalAmount / $exchangeRate;
             }
-        
+
         $paymentData = [
-            'amount' => $sgdAmount, // Store SGD converted amount
+            'amount' => $baseAmount, // Store amount converted to the tour base currency
             'original_amount' => $originalAmount, // Store original amount in selected currency
             'currency' => $selectedCurrency, // Store selected currency
             'exchange_rate' => $exchangeRate, // Store exchange rate used
@@ -731,7 +760,7 @@ class TourController extends Controller
             'null',
             'null',
             'null',
-            $sgdAmount,
+            $baseAmount,
             $selectedCurrency,
             $request->payment_date,
             $request->payment_type,
@@ -747,18 +776,20 @@ class TourController extends Controller
         $tour->payment_details = json_encode($paymentDetails);
         $tour->save();
         
-        // Create success message with currency information
-        $successMessage = 'Payment of ' . number_format($sgdAmount, 2) . ' SGD';
-        if ($selectedCurrency !== 'SGD') {
-            $successMessage .= ' (converted from ' . number_format($originalAmount, 2) . ' ' . $selectedCurrency . ')';
-        }
-        $successMessage .= ' has been successfully added to Tour #' . $tourId;
+        // Create success message from the amount the user actually paid (selected currency).
+        // Do not show base-currency conversion in the success toast — that confuses operators.
+        $paidCurrency = strtoupper(trim((string) $selectedCurrency));
+        $paidAmountFormatted = number_format($originalAmount, 2);
+        $successMessage = $paidCurrency . ' ' . $paidAmountFormatted . ' payment is successfully recorded.';
         
         // Check if request is AJAX and return JSON response
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
                 'success' => true,
                 'message' => $successMessage,
+                'payment_currency' => $paidCurrency,
+                'payment_amount' => $originalAmount,
+                'payment_amount_formatted' => $paidAmountFormatted,
                 'payment_index' => $paymentIndex,
                 'verified' => (bool) ($request->boolean('auto_verify')),
             ]);
@@ -1002,19 +1033,28 @@ class TourController extends Controller
                 'payment_type' => 'required|string'
             ]);
 
-            $selectedCurrency = $request->input('currency', 'SGD');
+            // Resolve the tour base (DMC) currency instead of assuming SGD.
+            $baseCurrency = $tour->user_currency ?: \App\Helpers\CommonHelper::getDmcCurrencyByCountry();
+
+            $selectedCurrency = $request->input('currency', $baseCurrency);
             $exchangeRate = (float) $request->input('exchange_rate', 1);
             $originalAmount = (float) $request->input('payment_amount');
 
-            $sgdAmount = $selectedCurrency === 'SGD' ? $originalAmount : $originalAmount / $exchangeRate;
+            $baseAmount = ($selectedCurrency === $baseCurrency || $exchangeRate <= 0)
+                ? $originalAmount
+                : $originalAmount / $exchangeRate;
 
             $paymentDetails = json_decode($tour->payment_details, true) ?: [];
             if (!isset($paymentDetails[$paymentIndex])) {
                 return response()->json(['success' => false, 'message' => 'Payment not found'], 404);
             }
 
+            if ((int) ($paymentDetails[$paymentIndex]['status'] ?? 0) === 2) {
+                return response()->json(['success' => false, 'message' => 'Declined payments cannot be edited'], 422);
+            }
+
             $paymentDetails[$paymentIndex] = [
-                'amount' => $sgdAmount,
+                'amount' => $baseAmount,
                 'original_amount' => $originalAmount,
                 'currency' => $selectedCurrency,
                 'exchange_rate' => $exchangeRate,
@@ -1043,7 +1083,7 @@ class TourController extends Controller
                 null,
                 null,
                 null,
-                $sgdAmount,
+                $baseAmount,
                 $selectedCurrency,
                 $request->payment_date,
                 $request->payment_type

@@ -380,7 +380,7 @@
                         @forelse($tours as $key => $tour)
                         <tr 
                             class="{{ $tour->tour_status === 'Refund - Pending' ? 'table-danger' : 'table-success' }}"
-                            data-created-at="{{ optional($tour->created_at)->toDateString() }}"
+                            data-created-at="{{ optional($tour->destination_created_at ?? $tour->created_at)->toDateString() }}"
                             data-updated-at="{{ optional($tour->updated_at)->toDateString() }}"
                             data-adult="{{ $tour->adult ?? 0 }}"
                             data-child="{{ $tour->child ?? 0 }}"
@@ -590,7 +590,10 @@
                                     </span>
                                     <span class="created-at-line" title="Created at">
                                         <i class="ri-calendar-line"></i>
-                                        <span>{{ $tour->created_at->format('D, M d, Y') }} · {{ $tour->created_at->format('h:i A') }}</span>
+                                        @php
+                                            $createdAt = $tour->destination_created_at ?? $tour->created_at;
+                                        @endphp
+                                        <span>{{ $createdAt->format('D, M d, Y') }} · {{ $createdAt->format('h:i A') }}</span>
                                     </span>
                                 </div>
                             </td>

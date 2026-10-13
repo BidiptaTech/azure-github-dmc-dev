@@ -27,6 +27,88 @@ use Illuminate\Validation\ValidationException;
 
 class GuideController extends Controller
 {
+    private function resolveDmcIdForUser(?User $user): ?int
+    {
+        if (!$user) {
+            return null;
+        }
+        $roleId = (int) ($user->role_id ?? 0);
+        if (in_array($roleId, [11, 20], true)) {
+            return (int) $user->userId;
+        }
+        if (in_array($roleId, [35, 75, 102, 130, 132, 133, 135, 136, 137, 138], true)) {
+            return $user->created_by ? (int) $user->created_by : null;
+        }
+        if (in_array($roleId, [76, 139], true)) {
+            $productHead = User::where('userId', $user->created_by)->first();
+            return $productHead && $productHead->created_by ? (int) $productHead->created_by : null;
+        }
+        if (in_array($roleId, [111, 140], true)) {
+            $productManager = User::where('userId', $user->created_by)->first();
+            $productHead = $productManager ? User::where('userId', $productManager->created_by)->first() : null;
+            return $productHead && $productHead->created_by ? (int) $productHead->created_by : null;
+        }
+        return null;
+    }
+
+    private function getMasterDmcCountryNamesForDmc(int $dmcId): array
+    {
+        $dmcUser = User::where('userId', $dmcId)->first();
+        if (!$dmcUser) {
+            return [];
+        }
+
+        $masterDmcId = $dmcUser->master_dmc_id ?? null;
+        if (empty($masterDmcId)) {
+            $visited = [];
+            $candidateId = $dmcUser->created_by ?? null;
+            $safety = 0;
+            while (!empty($candidateId) && $safety < 8 && !in_array($candidateId, $visited, true)) {
+                $visited[] = $candidateId;
+                $candidate = User::where('userId', $candidateId)->first();
+                if (!$candidate) {
+                    break;
+                }
+                if ((int) ($candidate->role_id ?? 0) === 3) {
+                    $masterDmcId = $candidate->userId;
+                    break;
+                }
+                $candidateId = $candidate->created_by ?? null;
+                $safety++;
+            }
+        }
+
+        $masterDmc = User::where('userId', $masterDmcId ?: $dmcId)->first();
+        if ($masterDmc && !empty($masterDmc->country)) {
+            return array_values(array_filter(array_map(
+                static fn ($c) => trim($c),
+                preg_split('/\s*,\s*/', (string) $masterDmc->country)
+            )));
+        }
+
+        if (!empty($dmcUser->country)) {
+            return array_values(array_filter(array_map(
+                static fn ($c) => trim($c),
+                preg_split('/\s*,\s*/', (string) $dmcUser->country)
+            )));
+        }
+
+        return [];
+    }
+
+    private function getScopedCountriesForUser(User $user, ?int $dmcId = null)
+    {
+        $dmcId = $dmcId ?: $this->resolveDmcIdForUser($user);
+        $masterNames = $dmcId ? $this->getMasterDmcCountryNamesForDmc($dmcId) : [];
+
+        $query = Country::where('is_active', 1)->orderBy('name');
+        if (!empty($masterNames) && !in_array((int) $user->role_id, [1, 2, 3, 20, 23], true)) {
+            $query->whereIn('name', $masterNames);
+        }
+
+        return $query->get();
+    }
+
     /*
     * Display a listing of the Category.
     * Date 18-01-2025
@@ -145,7 +227,11 @@ class GuideController extends Controller
         'contact_no' => 'required|string|min:8|max:15',
         'email' => 'required|email|max:255',
         'languages' => 'required|array',
-        'about' => 'required',
+        'about' => ['required', 'string', function ($attribute, $value, $fail) {
+            if (trim(strip_tags($value ?? '')) === '') {
+                $fail('About is required. Please fill in this field.');
+            }
+        }],
         // 'license_no' => 'required|string',
         'license_no' => [
                                 'required',
@@ -355,15 +441,20 @@ class GuideController extends Controller
         }
 
         if(in_array($authuser->role_id, [11, 20, 35, 75, 102, 130, 132, 133, 135, 136, 137, 138, 139, 140])){
-            $userCountry = User::where('userId', $authuser->userId)->first()->country;
-            $cities = City::where('country', $userCountry)->get();
+            $dmcId = $this->resolveDmcIdForUser($authuser);
+            $masterNames = $dmcId ? $this->getMasterDmcCountryNamesForDmc($dmcId) : [];
+            $userCountry = $masterNames[0] ?? '';
+            $cities = $userCountry ? City::where('country', $userCountry)->orderBy('name')->get() : collect();
         }
         else{
             $userCountry = '';
-            $cities = [];
+            $cities = collect();
         }
+
+        $masterDmcCountries = $this->getScopedCountriesForUser($authuser);
+        $country = $masterDmcCountries->isNotEmpty() ? $masterDmcCountries : $country;
     
-        return view('guides.create-guide',compact('languages', 'dmcs', 'country', 'userCountry', 'cities'));
+        return view('guides.create-guide',compact('languages', 'dmcs', 'country', 'userCountry', 'cities', 'masterDmcCountries'));
     }
 
     /*
@@ -408,7 +499,11 @@ class GuideController extends Controller
                 'service_type' => 'required|integer',
                 'guide_age' => 'required',
                 'wp_number' => 'required|numeric',
-                'about' => 'required|string',
+                'about' => ['required', 'string', function ($attribute, $value, $fail) {
+                    if (trim(strip_tags($value ?? '')) === '') {
+                        $fail('About is required. Please fill in this field.');
+                    }
+                }],
                 'license_image' => 'required|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
                 'master_image' => 'required|mimes:jpg,jpeg,png,bmp,gif,svg,webp,avif',
                 'day_rate' => 'nullable|numeric',
@@ -468,31 +563,14 @@ class GuideController extends Controller
                     return redirect()->back()->withInput()->with('error', 'Profile image upload failed. Please try again.');
                 }
 
-                if ($auth_user->role_id == 11 || $auth_user->role_id == 20) {
-                    $dmc_id = $auth_user->userId;
-                    $status = 1;
-                } elseif ($auth_user->role_id == 4 || $auth_user->role_id == 23 || $auth_user->role_id == 1 || $auth_user->role_id == 2) {
-                    $dmc_id = $validated['dmc'] ?? null;
-                    $status = 1;
-                } elseif (in_array($auth_user->role_id, [35, 130, 132, 133, 135, 136, 137, 138], true)) {
-                    $userdmc = User::where('userId', $auth_user->created_by)->first();
-                    $dmc_id = $userdmc ? $userdmc->userId : null;
-                    $status = 1;
-                } elseif (in_array($auth_user->role_id, [75, 139], true)) {
-                    $user_product_head = User::where('userId', $auth_user->created_by)->first();
-                    $user_product_head_dmc = $user_product_head ? User::where('userId', $user_product_head->created_by)->first() : null;
-                    $dmc_id = $user_product_head_dmc ? $user_product_head_dmc->userId : null;
-                    $status = 1;
-                } elseif (in_array($auth_user->role_id, [102, 140], true)) {
-                    $user_product_manager = User::where('userId', $auth_user->created_by)->first();
-                    $user_product_head = $user_product_manager ? User::where('userId', $user_product_manager->created_by)->first() : null;
-                    $user_product_head_dmc = $user_product_head ? User::where('userId', $user_product_head->created_by)->first() : null;
-                    $dmc_id = $user_product_head_dmc ? $user_product_head_dmc->userId : null;
-                    $status = 1;
+                // Resolve owning DMC: admins select one; DMC/multirole/staff use their DMC userId
+                $dmcRequiredRoles = [1, 2, 4, 23];
+                if (in_array((int) $auth_user->role_id, $dmcRequiredRoles, true)) {
+                    $dmc_id = $validated['dmc'] ?? $request->input('dmc');
                 } else {
-                    $dmc_id = $validated['dmc'] ?? null;
-                    $status = 1;
+                    $dmc_id = $this->resolveGuideOwnerDmcId($auth_user);
                 }
+                $status = 1;
 
                 if (!$dmc_id) {
                     return redirect()->back()->withInput()->with('error', 'DMC is missing. Please select a DMC and try again.');
@@ -704,26 +782,44 @@ class GuideController extends Controller
     public function fetchCitiesCountries(Request $request)
     {
         $country = null;
-        
+        $countries = [];
+
         // Check if country is passed directly
         if ($request->has('country') && !empty($request->country)) {
             $country = $request->country;
         }
-        // Otherwise, get country from DMC ID (existing functionality)
+        // Otherwise, get master-DMC countries from DMC ID
         elseif ($request->has('dmc_id') && !empty($request->dmc_id)) {
-            $dmcId = $request->dmc_id;
-            $dmc = User::where('userId', $dmcId)->first();
-            if ($dmc) {
-                $country = $dmc->country;
+            $dmcId = (int) $request->dmc_id;
+            $countries = $this->getMasterDmcCountryNamesForDmc($dmcId);
+            $country = $countries[0] ?? null;
+
+            if (!$country) {
+                $dmc = User::where('userId', $dmcId)->first();
+                if ($dmc && !empty($dmc->country)) {
+                    $countries = array_values(array_filter(array_map(
+                        static fn ($c) => trim($c),
+                        preg_split('/\s*,\s*/', (string) $dmc->country)
+                    )));
+                    $country = $countries[0] ?? null;
+                }
             }
         }
-        
+
         if (!$country) {
             return response()->json(['error' => 'Country not found'], 400);
         }
 
-        $cities = City::where('country', $country)->get();
-        return response()->json(['cities' => $cities, 'country' => $country]);
+        if (empty($countries)) {
+            $countries = [$country];
+        }
+
+        $cities = City::where('country', $country)->orderBy('name')->get();
+        return response()->json([
+            'cities' => $cities,
+            'country' => $country,
+            'countries' => $countries,
+        ]);
     }
 
     /*
@@ -737,9 +833,16 @@ class GuideController extends Controller
         }
         $id = Crypt::decrypt($id);
         $guide = Guide::where('guide_id', $id)->first();
-        $city = City::where('country', $guide->country)->get();
         $languages = GuideLanguage::where('guide_id', $id)->get();
-        $country = Country::where('is_active', 1)->get();
+        $dmcId = $guide->dmc_id ? (int) $guide->dmc_id : $this->resolveDmcIdForUser(auth()->user());
+        $masterDmcCountries = $this->getScopedCountriesForUser(auth()->user(), $dmcId);
+        $country = $masterDmcCountries->isNotEmpty()
+            ? $masterDmcCountries
+            : Country::where('is_active', 1)->orderBy('name')->get();
+        $selectedCountry = old('country', $guide->country);
+        $city = $selectedCountry
+            ? City::where('country', $selectedCountry)->orderBy('name')->get()
+            : collect();
         $languagesname = Languages::get();
 
         $authuser = auth()->user();
@@ -751,7 +854,7 @@ class GuideController extends Controller
             $dmcs = User::where('role_id', 11)->get();
         }
 
-        return view('guides.edit-guide', compact('guide', 'languages', 'languagesname', 'country', 'city','dmcs'));
+        return view('guides.edit-guide', compact('guide', 'languages', 'languagesname', 'country', 'city','dmcs', 'masterDmcCountries', 'selectedCountry'));
     }
     /*
     * Update the Guide details.
@@ -785,9 +888,20 @@ class GuideController extends Controller
             'guide_gender' => 'required|in:Male,Female,Other',
             'name' => 'required|string|max:255',
             'contact_no' => 'required|string|min:8|max:15',
-            'email' => 'required|email|max:255',
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('guides', 'email')
+                    ->whereNull('deleted_at')
+                    ->ignore($guide->id),
+            ],
             'languages' => 'array',
-            'about' => 'required',
+            'about' => ['required', 'string', function ($attribute, $value, $fail) {
+                if (trim(strip_tags($value ?? '')) === '') {
+                    $fail('About is required. Please fill in this field.');
+                }
+            }],
             // 'license_no' => 'required|string',
             // 'license_no' => [
             //                     'required',
@@ -818,8 +932,10 @@ class GuideController extends Controller
             'eight_hour_cost_price' => 'required|numeric',
             'ten_hour_cost_price' => 'required|numeric',
             'twelve_hour_cost_price' => 'required|numeric',
+            'app_password' => 'nullable|string|max:255',
         ],[
             'license_no.unique' => 'This gov. license number is already taken by another guide.',
+            'email.unique' => 'This email is already registered for another guide.',
         ]);
 
         //process license image
@@ -840,13 +956,24 @@ class GuideController extends Controller
             }
         }
 
+        $plainPassword = trim((string) $request->input('app_password', ''));
+
         $guide->salutation = $validated['salutation'];
         $guide->guide_gender = $validated['guide_gender'];
         $guide->name = $request->input('name');
         $guide->contact_no = $request->input('contact_no');
         $guide->email = $request->input('email');
-        $guide->app_password = Hash::make($request->app_password);
+        if ($plainPassword !== '') {
+            $guide->app_password = Hash::make($plainPassword);
+
+            // Invalidate all tokens for this guide (id and/or guide_id)
+            CommonHelper::invalidateAccessTokens(Guide::class, [
+                $guide->id,
+                $guide->guide_id,
+            ]);
+        }
         $guide->description = $request->input('about');
+        $guide->country = $request->input('country', $guide->country);
         $guide->city = $request->city;
         $guide->image = $guide_image;
         $guide->is_active = $request->input('guide_status') == 1 ? 1 : 0;
@@ -920,10 +1047,8 @@ class GuideController extends Controller
 
 
         if ($isSaved) {
-            LogActivityService::log('edit_guide', 'App\Models\Guide', $guide->guide_id, $guide);
             return redirect()->route('guide.index')->with('success', 'Guide details updated successfully!');
         } else {
-            LogActivityService::log('edit_guide_failed', 'App\Models\Guide', $guide->guide_id, $guide);
             return redirect()->route('guide.index')->with('error', 'Failed to update guide details.');
         }
     }
@@ -1071,5 +1196,38 @@ class GuideController extends Controller
             ]);
             throw $e;
         }
+    }
+
+    /**
+     * Resolve the DMC userId that should own a guide for the current user.
+     * DMC accounts use their own userId; multirole/staff walk created_by to the parent DMC.
+     */
+    private function resolveGuideOwnerDmcId(User $authUser): ?int
+    {
+        $dmcId = CommonHelper::getDmcId($authUser);
+        if ($dmcId) {
+            return (int) $dmcId;
+        }
+
+        if (in_array((int) $authUser->role_id, [11, 20], true) || (int) $authUser->user_type === 2) {
+            return (int) $authUser->userId;
+        }
+
+        $cursor = $authUser->created_by
+            ? User::where('userId', $authUser->created_by)->first()
+            : null;
+        $guard = 0;
+        while ($cursor && $guard < 6) {
+            if (in_array((int) $cursor->role_id, [11, 20], true) || (int) $cursor->user_type === 2) {
+                return (int) $cursor->userId;
+            }
+            if (empty($cursor->created_by)) {
+                break;
+            }
+            $cursor = User::where('userId', $cursor->created_by)->first();
+            $guard++;
+        }
+
+        return null;
     }
 }

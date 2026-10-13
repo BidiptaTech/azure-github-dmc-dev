@@ -48,6 +48,11 @@
     .select2-dropdown {
         z-index: 9999;
     }
+    .exit-port-block,
+    .other-port-block {
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+    }
 </style>
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
@@ -59,9 +64,18 @@
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>
             </h5>
-            <form action="{{ route('updateports') }}" method="POST" enctype="multipart/form-data" class="card-body">
+            <form id="portsForm" action="{{ route('updateports') }}" method="POST" enctype="multipart/form-data" class="card-body js-submit-loader-form" data-loader-message="Saving..." novalidate>
                 @csrf 
                 <input type="text" id="hotel_id" name="hotel_id" class="form-control" value="{{ $hotel->hotel_unique_id }}" hidden>
+                @if ($errors->any())
+                    <div class="alert alert-danger">
+                        <ul class="mb-0">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
                 <div class="row">
                     <!-- Port of Exit Section -->
                     <div class="row">
@@ -78,11 +92,12 @@
                     <!-- Port of Exit Fields Container -->
                     <div id="exit_fields_container" style="{{ old('enable_port_of_exit', $exit_data ? true : false) ? '' : 'display: none;' }}">
                         @foreach($exit_data as $index => $exit)
-                        <div class="row" id="exit_fields_{{ $index }}">
-                            <!-- Name Select Box -->
-                            <div class="mb-3 col-md-3">
+                        <div class="exit-port-block" id="exit_fields_{{ $index }}">
+                        <div class="row">
+                            <!-- Port Type -->
+                            <div class="mb-3 col-md-2">
                                 <label for="exit_port_name_{{ $index }}" class="form-label"><strong>Port Type</strong><span style="color: red; font-weight: bold;">*</span></label>
-                                <select id="exit_port_name_{{ $index }}" name="exit_port_name[]" class="form-control"
+                                <select id="exit_port_name_{{ $index }}" name="exit_port_name[]" class="form-control" required
                                     @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                     <option value="">Select a Port</option>
                                     <option value="Airport" {{ old('exit_port_name.' . $index, $exit['type'] ?? '') == 'Airport' ? 'selected' : '' }}>Airport</option>
@@ -92,33 +107,55 @@
                                     <option value="BusStand" {{ old('exit_port_name.' . $index, $exit['type'] ?? '') == 'BusStand' ? 'selected' : '' }}>Bus Stand</option>
                                 </select>
                             </div>
+                            <!-- Port Name -->
+                            <div class="mb-3 col-md-2 port-name-field position-relative">
+                                <label for="exit_port_specific_name_{{ $index }}" class="form-label"><strong>Port Name</strong><span style="color: red; font-weight: bold;">*</span></label>
+                                <input type="text" id="exit_port_specific_name_{{ $index }}" class="form-control port-name-input" name="exit_port_specific_name[]"
+                                    value="{{ old('exit_port_specific_name.' . $index, $exit['port_name'] ?? '') }}"
+                                    placeholder="Enter port name" required
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
+                                <div class="port-suggestions list-group position-absolute w-100" style="z-index: 1000;"></div>
+                            </div>
                             <!-- Latitude Field -->
-                            <div class="mb-3 col-md-3">
+                            <div class="mb-3 col-md-2">
                                 <label for="exit_latitude_{{ $index }}" class="form-label"><strong>Latitude</strong><span style="color: red; font-weight: bold;">*</span></label>
-                                <input type="text" id="exit_latitude_{{ $index }}" name="exit_latitude[]" class="form-control" placeholder="Enter Latitude" value="{{ old('exit_latitude.' . $index, $exit['latitude'] ?? '') }}" oninput="validateLatitude(this)"
+                                <input type="text" id="exit_latitude_{{ $index }}" name="exit_latitude[]" class="form-control" placeholder="Enter Latitude" value="{{ old('exit_latitude.' . $index, $exit['latitude'] ?? '') }}" oninput="validateLatitude(this)" required
                                     @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                 <small class="validation-message" id="exit_latitude_{{ $index }}-validation-message"></small>
                             </div>
                             <!-- Longitude Field -->
-                            <div class="mb-3 col-md-3">
+                            <div class="mb-3 col-md-2">
                                 <label for="exit_longitude_{{ $index }}" class="form-label"><strong>Longitude</strong><span style="color: red; font-weight: bold;">*</span></label>
-                                <input type="text" id="exit_longitude_{{ $index }}" name="exit_longitude[]" class="form-control" placeholder="Enter Longitude" value="{{ old('exit_longitude.' . $index, $exit['longitude'] ?? '') }}" oninput="validateLongitude(this)"
+                                <input type="text" id="exit_longitude_{{ $index }}" name="exit_longitude[]" class="form-control" placeholder="Enter Longitude" value="{{ old('exit_longitude.' . $index, $exit['longitude'] ?? '') }}" oninput="validateLongitude(this)" required
                                     @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                 <small class="validation-message" id="exit_longitude_{{ $index }}-validation-message"></small>
                             </div>
-                            <!-- Distance Field -->
+                            <!-- Distance km then miles -->
+                            @php
+                                $exitMiles = old('exit_distance.' . $index, $exit['distance'] ?? '');
+                                $exitKm = ($exitMiles !== '' && is_numeric($exitMiles))
+                                    ? number_format((float) $exitMiles * 1.60934, 2, '.', '')
+                                    : old('exit_distance_km.' . $index, '');
+                            @endphp
                             <div class="mb-3 col-md-2">
-                                <label for="exit_distance_{{ $index }}" class="form-label"><strong>Distance</strong><span style="color: red; font-weight: bold;">*</span></label>
-                                <input type="text" id="exit_distance_{{ $index }}" name="exit_distance[]" class="form-control" placeholder="Enter Distance" value="{{ old('exit_distance.' . $index, $exit['distance'] ?? '') }}" oninput="validateDistance(this)"
+                                <label for="exit_distance_km_{{ $index }}" class="form-label"><strong>Distance (km)</strong><span style="color: red; font-weight: bold;">*</span></label>
+                                <input type="text" id="exit_distance_km_{{ $index }}" name="exit_distance_km[]" class="form-control distance-km" placeholder="Enter Distance (km)" value="{{ $exitKm }}" data-pair="exit_{{ $index }}" oninput="syncDistancePair(this)" required
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
+                                <small class="validation-message" id="exit_distance_km_{{ $index }}-validation-message"></small>
+                            </div>
+                            <div class="mb-3 col-md-2">
+                                <label for="exit_distance_{{ $index }}" class="form-label"><strong>Distance (miles)</strong><span style="color: red; font-weight: bold;">*</span></label>
+                                <input type="text" id="exit_distance_{{ $index }}" name="exit_distance[]" class="form-control distance-miles" placeholder="Enter Distance (miles)" value="{{ $exitMiles }}" data-pair="exit_{{ $index }}" oninput="syncDistancePair(this)" required
                                     @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                 <small class="validation-message" id="exit_distance_{{ $index }}-validation-message"></small>
                             </div>
-                            
-                            <!-- Delete Button -->
-                            <div class="mb-3 col-md-1">
-                                <button type="button" class="btn btn-danger remove-exit-field" style="margin-top: 27px;"
+                        </div>
+                        <div class="row">
+                            <div class="mb-3 col-md-12">
+                                <button type="button" class="btn btn-danger remove-exit-field"
                                     @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>Delete</button>
                             </div>
+                        </div>
                         </div>
                         @endforeach
                         <div id="exit_key_locations">
@@ -145,15 +182,16 @@
                     <!-- Others Conditional Fields (Initially Hidden/Shown based on enable_others) -->
                     <div id="others_fields_container" style="{{ old('enable_others', $others_data ?? false) ? '' : 'display: none;' }}">
                         @foreach($others as $index => $other)
-                        <div class="row" id="others_fields_{{ $index }}">
+                        <div class="other-port-block" id="others_fields_{{ $index }}">
+                        <div class="row">
                             <!-- Name Select Box -->
-                            <div class="mb-3 col-md-3">
+                            <div class="mb-3 col-md-2">
                                 <label for="others_port_name_{{ $index }}" class="form-label">
                                     <strong>Name</strong><span style="color: red; font-weight: bold;">*</span>
                                 </label>
                                 <input type="text" id="others_port_name_{{ $index }}" name="others_port_name[]" class="form-control" 
                                     placeholder="Enter Name" 
-                                    value="{{ old('others_port_name.' . $index, $other['type'] ?? '') }}"
+                                    value="{{ old('others_port_name.' . $index, $other['type'] ?? '') }}" required
                                     @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                             </div>
 
@@ -164,7 +202,7 @@
                                 </label>
                                 <input type="text" id="others_latitude_{{ $index }}" name="others_latitude[]" class="form-control" 
                                     placeholder="Enter Latitude" 
-                                    value="{{ old('others_latitude.' . $index, $other['latitude'] ?? '') }}" oninput="validateLatitude(this)"
+                                    value="{{ old('others_latitude.' . $index, $other['latitude'] ?? '') }}" oninput="validateLatitude(this)" required
                                     @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                 <small class="validation-message" id="others_latitude_{{ $index }}-validation-message"></small>
                             </div>
@@ -176,7 +214,7 @@
                                 </label>
                                 <input type="text" id="others_longitude_{{ $index }}" name="others_longitude[]" class="form-control" 
                                     placeholder="Enter Longitude" 
-                                    value="{{ old('others_longitude.' . $index, $other['longitude'] ?? '') }}" oninput="validateLongitude(this)"
+                                    value="{{ old('others_longitude.' . $index, $other['longitude'] ?? '') }}" oninput="validateLongitude(this)" required
                                     @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                 <small class="validation-message" id="others_longitude_{{ $index }}-validation-message"></small>
                             </div>
@@ -185,7 +223,7 @@
                                 <label for="others_type_{{ $index }}" class="form-label">
                                     <strong>Type</strong><span style="color: red; font-weight: bold;">*</span>
                                 </label>
-                                <select id="others_type_{{ $index }}" name="others_type[]" class="form-select"
+                                <select id="others_type_{{ $index }}" name="others_type[]" class="form-select" required
                                     @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                                     <option value="">Select Type</option>
                                     <option value="Transit" {{ old('others_type.' . $index, $other['port_name'] ?? '') == 'Transit' ? 'selected' : '' }}>Transit</option>
@@ -200,23 +238,40 @@
                                 @enderror
                             </div>
 
-                            <!-- Distance Field -->
+                            <!-- Distance Km + Miles -->
+                            @php
+                                $otherMiles = old('others_distance.' . $index, $other['distance'] ?? '');
+                                $otherKm = ($otherMiles !== '' && is_numeric($otherMiles))
+                                    ? number_format((float) $otherMiles * 1.60934, 2, '.', '')
+                                    : old('others_distance_km.' . $index, '');
+                            @endphp
+                            <div class="mb-3 col-md-2">
+                                <label for="others_distance_km_{{ $index }}" class="form-label">
+                                    <strong>Distance (km)</strong><span style="color: red; font-weight: bold;">*</span>
+                                </label>
+                                <input type="text" id="others_distance_km_{{ $index }}" name="others_distance_km[]" class="form-control distance-km"
+                                    placeholder="Enter Distance (km)"
+                                    value="{{ $otherKm }}" data-pair="others_{{ $index }}" oninput="syncDistancePair(this)" required
+                                    @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
+                                <small class="validation-message" id="others_distance_km_{{ $index }}-validation-message"></small>
+                            </div>
                             <div class="mb-3 col-md-2">
                                 <label for="others_distance_{{ $index }}" class="form-label">
-                                    <strong>Distance</strong><span style="color: red; font-weight: bold;">*</span>
+                                    <strong>Distance (miles)</strong><span style="color: red; font-weight: bold;">*</span>
                                 </label>
-                                <input type="text" id="others_distance_{{ $index }}" name="others_distance[]" class="form-control" 
-                                    placeholder="Enter Distance" 
-                                    value="{{ old('others_distance.' . $index, $other['distance'] ?? '') }}" oninput="validateDistance(this)"
+                                <input type="text" id="others_distance_{{ $index }}" name="others_distance[]" class="form-control distance-miles"
+                                    placeholder="Enter Distance (miles)"
+                                    value="{{ $otherMiles }}" data-pair="others_{{ $index }}" oninput="syncDistancePair(this)" required
                                     @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
                                 <small class="validation-message" id="others_distance_{{ $index }}-validation-message"></small>
                             </div>
-
-                            <!-- Delete Button -->
-                            <div class="mb-3 col-md-1">
-                                <button type="button" class="btn btn-danger remove-other-field" style="margin-top: 30px;"
+                        </div>
+                        <div class="row">
+                            <div class="mb-3 col-md-12">
+                                <button type="button" class="btn btn-danger remove-other-field"
                                     @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>Delete</button>
                             </div>
+                        </div>
                         </div>
                         @endforeach
 
@@ -232,206 +287,95 @@
 
                 </div>
                 <div class="d-flex justify-content-between mt-4">
-                    <button type="submit" class="btn btn-primary px-4"
-                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>Save</button>
+                    <button type="submit" class="btn btn-primary px-4 js-submit-loader-btn"
+                        @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
+                        <span class="js-submit-loader-btn-text">Save</span>
+                        <span class="js-submit-loader-btn-loading d-none">
+                            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                            Saving...
+                        </span>
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+<x-form-submit-loader message="Saving..." />
 @endsection
 
 @section('scripts')
 
 <script>
     $(document).ready(function () {
-    function setupPortTypeSelects() {
-        document.querySelectorAll('select[id^="exit_port_name_"]').forEach(select => {
-            const newSelect = select.cloneNode(true);
-            select.parentNode.replaceChild(newSelect, select);
-            
-                newSelect.addEventListener('change', function () {
-                const row = this.closest('.row');
-                let nameField = row.querySelector('.port-name-field');
-                const isExit = this.id.includes('exit_port_name');
-                const index = parseInt(this.id.split('_').pop());
-                const dataArray = @json($exit_data);
-                const portNameValue = dataArray && dataArray[index] ? dataArray[index].port_name || '' : '';
-                
-                if (!nameField) {
-                    nameField = document.createElement('div');
-                        nameField.className = 'mb-3 col-md-2 port-name-field position-relative';
-                    nameField.innerHTML = `
-                        <label class="form-label"><strong>Port Name</strong><span style="color: red; font-weight: bold;">*</span></label>
-                            <input type="text" class="form-control port-name-input" name="${'exit_port_specific_name[]'}" 
-                            value="${portNameValue}" placeholder="Enter name of the ${this.value}"
-                            @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
-                            <div class="port-suggestions list-group position-absolute w-100" style="z-index: 1000;"></div>
-                    `;
-                    const latitudeField = row.querySelector('div.mb-3:nth-child(2)');
-                    row.insertBefore(nameField, latitudeField);
-                    
-                        row.querySelectorAll('.mb-3.col-md-3').forEach(col => {
-                        col.classList.remove('col-md-3');
-                        col.classList.add('col-md-2');
-                    });
-                } else {
-                    const input = nameField.querySelector('input');
-                    input.placeholder = `Enter name of the ${this.value}`;
-                    input.name = 'exit_port_specific_name[]';
-                    if (portNameValue) {
-                        input.value = portNameValue;
-                    }
+        window.bindPortNameAutocomplete = function (scope) {
+            const root = scope || document;
+            root.querySelectorAll('.port-name-field').forEach(function (nameField) {
+                const input = nameField.querySelector('.port-name-input');
+                const suggestionBox = nameField.querySelector('.port-suggestions');
+                if (!input || !suggestionBox || input.dataset.autocompleteBound === '1') {
+                    return;
                 }
-                
-                nameField.style.display = this.value ? 'block' : 'none';
+                input.dataset.autocompleteBound = '1';
+                const row = nameField.closest('.row');
 
-                    // Autocomplete setup
-                    const input = nameField.querySelector('input');
-                    const suggestionBox = nameField.querySelector('.port-suggestions');
-                    
-                    input.addEventListener('keyup', function () {
-                        const hotelId = document.getElementById('hotel_id')?.value;
-                        const query = this.value;
+                input.addEventListener('keyup', function () {
+                    const hotelId = document.getElementById('hotel_id')?.value;
+                    const query = this.value;
 
-                        if (!hotelId || !query) {
-                            suggestionBox.innerHTML = '';
-                            return;
-                        }
-
-                        // Get base URL from environment variable
-                        const baseUrl = "{{ env('APP_URL') }}";
-                        fetch(`${baseUrl}/get-ports?hotel_id=${encodeURIComponent(hotelId)}&q=${encodeURIComponent(query)}`)
-                            .then(response => response.json())
-                            .then(data => {
-                                suggestionBox.innerHTML = '';
-                                data.forEach(port => {
-                                    const item = document.createElement('div');
-                                    item.className = 'list-group-item list-group-item-action';
-                                    item.textContent = port.port_name;
-                                    item.style.cursor = 'pointer';
-                                    item.addEventListener('click', () => {
-                                        input.value = port.port_name;
-                                        suggestionBox.innerHTML = '';
-                                        
-                                        // FIX: Use the correct field names for latitude and longitude
-                                        const latitudeInput = row.querySelector('input[name="exit_latitude[]"]');
-                                        const longitudeInput = row.querySelector('input[name="exit_longitude[]"]');
-                                        
-                                        if (latitudeInput && longitudeInput) {
-                                            latitudeInput.value = port.latitude;
-                                            longitudeInput.value = port.longitude;
-                                            
-                                            // Trigger validation if available
-                                            if (typeof validateLatitude === 'function') {
-                                                validateLatitude(latitudeInput);
-                                            }
-                                            if (typeof validateLongitude === 'function') {
-                                                validateLongitude(longitudeInput);
-                                            }
-                                        }
-                                    });
-                                    suggestionBox.appendChild(item);
-                                });
-                            });
-                    });
-                });
-
-            if (newSelect.value) {
-                const event = new Event('change');
-                newSelect.dispatchEvent(event);
-            }
-        });
-    }
-
-    setupPortTypeSelects();
-
-        function setupAddMoreButton(buttonId, containerId, isExit = false) {
-            const originalClick = document.getElementById(buttonId).onclick;
-            document.getElementById(buttonId).onclick = function (e) {
-                if (originalClick) originalClick.call(this, e);
-        setTimeout(() => {
-                    const container = document.getElementById(containerId);
-            const newContainer = container.lastElementChild;
-            if (newContainer) {
-                const portTypeSelect = newContainer.querySelector('.port-type-select');
-                        if (!portTypeSelect) return;
-                        
-                        portTypeSelect.addEventListener('change', function () {
-                            let nameField = newContainer.querySelector('.port-name-field');
-                    
-                    if (!nameField) {
-                        nameField = document.createElement('div');
-                                nameField.className = 'port-name-field col-md-3 position-relative';
-                        nameField.innerHTML = `
-                                    <label>Port Name</label>
-                                    <input type="text" name="${'exit_port_specific_name[]'}" class="form-control port-name-input" 
-                                    placeholder="Enter name of the ${this.value}" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
-                                    <div class="port-suggestions list-group position-absolute w-100" style="z-index: 1000;"></div>
-                                `;
-                                this.closest('.col-md-3').insertAdjacentElement('afterend', nameField);
-                    } else {
-                        const input = nameField.querySelector('input');
-                        input.placeholder = `Enter name of the ${this.value}`;
+                    if (!hotelId || !query) {
+                        suggestionBox.innerHTML = '';
+                        return;
                     }
-                    
-                    nameField.style.display = this.value ? 'block' : 'none';
 
-                            const input = nameField.querySelector('input');
-                            const suggestionBox = nameField.querySelector('.port-suggestions');
-                            input.addEventListener('keyup', function () {
-                                const hotelId = document.getElementById('hotel_id')?.value;
-                                const query = this.value;
-
-                                if (!hotelId || !query) {
+                    const baseUrl = "{{ env('APP_URL') }}";
+                    fetch(`${baseUrl}/get-ports?hotel_id=${encodeURIComponent(hotelId)}&q=${encodeURIComponent(query)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            suggestionBox.innerHTML = '';
+                            data.forEach(port => {
+                                const item = document.createElement('div');
+                                item.className = 'list-group-item list-group-item-action';
+                                item.textContent = port.port_name;
+                                item.style.cursor = 'pointer';
+                                item.addEventListener('click', () => {
+                                    input.value = port.port_name;
                                     suggestionBox.innerHTML = '';
-                                    return;
-                                }
 
-                                // Get base URL from environment variable
-                                const baseUrl = "{{ env('APP_URL') }}";
-                                fetch(`${baseUrl}/get-ports?hotel_id=${encodeURIComponent(hotelId)}&q=${encodeURIComponent(query)}`)
-                                    .then(response => response.json())
-                                    .then(data => {
-                                        suggestionBox.innerHTML = '';
-                                        data.forEach(port => {
-                                            const item = document.createElement('div');
-                                            item.className = 'list-group-item list-group-item-action';
-                                            item.textContent = port.port_name;
-                                            item.style.cursor = 'pointer';
-                                            item.addEventListener('click', () => {
-                                                input.value = port.port_name;
-                                                suggestionBox.innerHTML = '';
-                                                
-                                                // FIX: Use the correct field names for latitude and longitude
-                                                const latitudeInput = newContainer.querySelector('input[name="exit_latitude[]"]');
-                                                const longitudeInput = newContainer.querySelector('input[name="exit_longitude[]"]');
-                                                
-                                                if (latitudeInput && longitudeInput) {
-                                                    latitudeInput.value = port.latitude;
-                                                    longitudeInput.value = port.longitude;
-                                                    
-                                                    // Trigger validation if available
-                                                    if (typeof validateLatitude === 'function') {
-                                                        validateLatitude(latitudeInput);
-                                                    }
-                                                    if (typeof validateLongitude === 'function') {
-                                                        validateLongitude(longitudeInput);
-                                                    }
-                                                }
-                                            });
-                                            suggestionBox.appendChild(item);
-                                        });
-                                    });
+                                    const latitudeInput = row.querySelector('input[name="exit_latitude[]"]');
+                                    const longitudeInput = row.querySelector('input[name="exit_longitude[]"]');
+
+                                    if (latitudeInput && longitudeInput) {
+                                        latitudeInput.value = port.latitude;
+                                        longitudeInput.value = port.longitude;
+
+                                        if (typeof validateLatitude === 'function') {
+                                            validateLatitude(latitudeInput);
+                                        }
+                                        if (typeof validateLongitude === 'function') {
+                                            validateLongitude(longitudeInput);
+                                        }
+                                    }
+                                });
+                                suggestionBox.appendChild(item);
                             });
+                        });
                 });
-            }
-        }, 100);
-    };
-        }
+            });
+        };
 
-        setupAddMoreButton('exit-locations-add-more', 'exit_locations-additional-fields', true);
-});
+        // Update placeholder when Port Type changes
+        document.querySelectorAll('select[id^="exit_port_name_"], select.port-type-select').forEach(function (select) {
+            select.addEventListener('change', function () {
+                const row = this.closest('.row');
+                const nameInput = row ? row.querySelector('.port-name-input') : null;
+                if (nameInput && this.value) {
+                    nameInput.placeholder = `Enter name of the ${this.value}`;
+                }
+            });
+        });
+
+        window.bindPortNameAutocomplete(document);
+    });
 </script>
 
 
@@ -450,80 +394,73 @@
     const exitAdditionalFieldsContainer = document.getElementById('exit_locations-additional-fields');
     exitAddMoreButton.addEventListener('click', function () {
         const newExitContainer = document.createElement('div');
-        newExitContainer.classList.add('mt-3', 'border', 'p-3');
+        newExitContainer.classList.add('mt-3', 'exit-port-block');
+        const pairId = 'exit_new_' + Date.now();
+        const timestamp = Date.now();
         newExitContainer.innerHTML = `
                 <div class="row">
-                    <div  class="col-md-3">
-                        <label for="exit_port_type">Port Type</label>
-                        <select name="exit_port_name[]" class="form-select port-type-select" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
+                    <div class="col-md-2 mb-3">
+                        <label class="form-label"><strong>Port Type</strong><span style="color: red; font-weight: bold;">*</span></label>
+                        <select name="exit_port_name[]" class="form-select port-type-select" required @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                             <option value="">Select a Port</option>
                             <option value="Airport">Airport</option>
                             <option value="Seaport">Seaport</option>
-                            <option value="Landport">Land Border Crossing</option>
+                            <option value="LandPort">Land Border Crossing</option>
                             <option value="Railway">Railway</option>
                             <option value="BusStand">Bus Stand</option>
                         </select>
-                        <!-- Removed duplicate input field with same name -->
                     </div>
-                    <div class="col-md-3">
-                        <label for="exit_latitude">Latitude</label>
-                        <input type="text" name="exit_latitude[]" class="form-control" placeholder="Enter Latitude" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
+                    <div class="col-md-2 mb-3 port-name-field position-relative">
+                        <label class="form-label"><strong>Port Name</strong><span style="color: red; font-weight: bold;">*</span></label>
+                        <input type="text" name="exit_port_specific_name[]" class="form-control port-name-input" placeholder="Enter port name" required @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
+                        <div class="port-suggestions list-group position-absolute w-100" style="z-index: 1000;"></div>
                     </div>
-                    <div class="col-md-3">
-                        <label for="exit_longitude">Longitude</label>
-                        <input type="text" name="exit_longitude[]" class="form-control" placeholder="Enter Longitude" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
+                    <div class="col-md-2 mb-3">
+                        <label class="form-label"><strong>Latitude</strong><span style="color: red; font-weight: bold;">*</span></label>
+                        <input type="text" id="exit_latitude_new_${timestamp}" name="exit_latitude[]" class="form-control" placeholder="Enter Latitude" required @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
+                        <small class="validation-message" id="exit_latitude_new_${timestamp}-validation-message"></small>
                     </div>
-                    <div class="col-md-2">
-                        <label for="exit_distance">Distance</label>
-                        <input type="text" name="exit_distance[]" class="form-control" placeholder="Enter Distance" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
+                    <div class="col-md-2 mb-3">
+                        <label class="form-label"><strong>Longitude</strong><span style="color: red; font-weight: bold;">*</span></label>
+                        <input type="text" id="exit_longitude_new_${timestamp}" name="exit_longitude[]" class="form-control" placeholder="Enter Longitude" required @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
+                        <small class="validation-message" id="exit_longitude_new_${timestamp}-validation-message"></small>
                     </div>
-                    <div class="mb-3 col-md-1">
-                        <button type="button" class="btn btn-danger delete-exit" style="margin-top: 27px;" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>Delete</button>
+                    <div class="col-md-2 mb-3">
+                        <label class="form-label"><strong>Distance (km)</strong><span style="color: red; font-weight: bold;">*</span></label>
+                        <input type="text" id="exit_distance_km_new_${timestamp}" name="exit_distance_km[]" class="form-control distance-km" placeholder="Enter Distance (km)" data-pair="${pairId}" oninput="syncDistancePair(this)" required @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
+                        <small class="validation-message" id="exit_distance_km_new_${timestamp}-validation-message"></small>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label class="form-label"><strong>Distance (miles)</strong><span style="color: red; font-weight: bold;">*</span></label>
+                        <input type="text" id="exit_distance_new_${timestamp}" name="exit_distance[]" class="form-control distance-miles" placeholder="Enter Distance (miles)" data-pair="${pairId}" oninput="syncDistancePair(this)" required @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
+                        <small class="validation-message" id="exit_distance_new_${timestamp}-validation-message"></small>
                     </div>
                 </div>
-            </div>
+                <div class="row">
+                    <div class="mb-3 col-md-12">
+                        <button type="button" class="btn btn-danger delete-exit" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>Delete</button>
+                    </div>
+                </div>
         `;
         exitAdditionalFieldsContainer.appendChild(newExitContainer);
-        const portTypeSelect = newExitContainer.querySelector('.port-type-select');
-        const otherPortInput = newExitContainer.querySelector('.other-port-input');
-        if (otherPortInput) {
-            portTypeSelect.addEventListener('change', function () {
-                otherPortInput.style.display = this.value === 'Others' ? 'block' : 'none';
-            });
-        }
         const deleteButton = newExitContainer.querySelector('.delete-exit');
         deleteButton.addEventListener('click', function () {
             newExitContainer.remove();
         });
-        
-        // Add validation for dynamically created exit fields
-        const latitudeInput = newExitContainer.querySelector('input[name="exit_latitude[]"]');
-        const longitudeInput = newExitContainer.querySelector('input[name="exit_longitude[]"]');
-        const distanceInput = newExitContainer.querySelector('input[name="exit_distance[]"]');
-        
-        // Generate unique IDs for validation
-        const timestamp = new Date().getTime();
-        latitudeInput.id = `exit_latitude_new_${timestamp}`;
-        longitudeInput.id = `exit_longitude_new_${timestamp}`;
-        distanceInput.id = `exit_distance_new_${timestamp}`;
-        
-        // Add validation message elements
-        latitudeInput.insertAdjacentHTML('afterend', `<small class="validation-message" id="${latitudeInput.id}-validation-message"></small>`);
-        longitudeInput.insertAdjacentHTML('afterend', `<small class="validation-message" id="${longitudeInput.id}-validation-message"></small>`);
-        distanceInput.insertAdjacentHTML('afterend', `<small class="validation-message" id="${distanceInput.id}-validation-message"></small>`);
-        
-        // Add validation event listeners
-        latitudeInput.addEventListener('input', function() {
-            validateLatitude(this);
-        });
-        
-        longitudeInput.addEventListener('input', function() {
-            validateLongitude(this);
-        });
-        
-        distanceInput.addEventListener('input', function() {
-            validateDistance(this);
-        });
+        newExitContainer.querySelectorAll('input[name="exit_latitude[]"]').forEach(el => el.addEventListener('input', function() { validateLatitude(this); }));
+        newExitContainer.querySelectorAll('input[name="exit_longitude[]"]').forEach(el => el.addEventListener('input', function() { validateLongitude(this); }));
+        if (typeof window.bindPortNameAutocomplete === 'function') {
+            window.bindPortNameAutocomplete(newExitContainer);
+        }
+        const portTypeSelect = newExitContainer.querySelector('.port-type-select');
+        if (portTypeSelect) {
+            portTypeSelect.addEventListener('change', function () {
+                const nameInput = newExitContainer.querySelector('.port-name-input');
+                if (nameInput && this.value) {
+                    nameInput.placeholder = `Enter name of the ${this.value}`;
+                }
+            });
+        }
     });
 });
 </script>
@@ -554,8 +491,8 @@
         });
         document.querySelectorAll('.remove-exit-field').forEach(button => {
             button.addEventListener('click', function () {
-                const row = this.closest('.row');
-                row.remove();
+                const block = this.closest('.exit-port-block') || this.closest('.row');
+                block.remove();
             });
         });
     });
@@ -584,10 +521,13 @@
         document.getElementById('others-locations-add-more').addEventListener('click', function() {
            
             const container = document.getElementById('others_locations-additional-fields');
+            const pairId = 'others_new_' + Date.now();
+            const timestamp = Date.now();
             const newFields = `
-                <div class="row mb-3">
-                    <div class="mb-3 col-md-3">
-                        <label for="others_port_name" class="form-label">
+                <div class="other-port-block mb-3">
+                <div class="row">
+                    <div class="mb-3 col-md-2">
+                        <label class="form-label">
                             <strong>Name</strong><span style="color: red; font-weight: bold;">*</span>
                         </label>
                         <input type="text" name="others_port_name[]" class="form-control" placeholder="Enter Name" required @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
@@ -595,17 +535,19 @@
 
                     <div class="mb-3 col-md-2">
                         <label class="form-label"><strong>Latitude</strong><span style="color: red; font-weight: bold;">*</span></label>
-                        <input type="text" name="others_latitude[]" class="form-control" placeholder="Enter Latitude" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
+                        <input type="text" id="others_latitude_new_${timestamp}" name="others_latitude[]" class="form-control" placeholder="Enter Latitude" oninput="validateLatitude(this)" required @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
+                        <small class="validation-message" id="others_latitude_new_${timestamp}-validation-message"></small>
                     </div>
 
                     <div class="mb-3 col-md-2">
                         <label class="form-label"><strong>Longitude</strong><span style="color: red; font-weight: bold;">*</span></label>
-                        <input type="text" name="others_longitude[]" class="form-control" placeholder="Enter Longitude" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
+                        <input type="text" id="others_longitude_new_${timestamp}" name="others_longitude[]" class="form-control" placeholder="Enter Longitude" oninput="validateLongitude(this)" required @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
+                        <small class="validation-message" id="others_longitude_new_${timestamp}-validation-message"></small>
                     </div>
 
                     <div class="mb-3 col-md-2">
                         <label class="form-label"><strong>Type</strong><span style="color: red; font-weight: bold;">*</span></label>
-                        <select name="others_type[]" class="form-select" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
+                        <select name="others_type[]" class="form-select" required @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>
                             <option value="">Select Type</option>
                             <option value="Transit">Transit</option>
                             <option value="Transport">Transport</option>
@@ -617,13 +559,22 @@
                     </div>
 
                     <div class="mb-3 col-md-2">
-                        <label class="form-label"><strong>Distance</strong><span style="color: red; font-weight: bold;">*</span></label>
-                        <input type="text" name="others_distance[]" class="form-control" placeholder="Enter Distance" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
+                        <label class="form-label"><strong>Distance (km)</strong><span style="color: red; font-weight: bold;">*</span></label>
+                        <input type="text" id="others_distance_km_new_${timestamp}" name="others_distance_km[]" class="form-control distance-km" placeholder="Enter Distance (km)" data-pair="${pairId}" oninput="syncDistancePair(this)" required @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
+                        <small class="validation-message" id="others_distance_km_new_${timestamp}-validation-message"></small>
                     </div>
 
-                    <div class="mb-3 col-md-1">
-                        <button type="button" class="btn btn-danger remove-other-field" style="margin-top: 27px;" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>Delete</button>
+                    <div class="mb-3 col-md-2">
+                        <label class="form-label"><strong>Distance (miles)</strong><span style="color: red; font-weight: bold;">*</span></label>
+                        <input type="text" id="others_distance_new_${timestamp}" name="others_distance[]" class="form-control distance-miles" placeholder="Enter Distance (miles)" data-pair="${pairId}" oninput="syncDistancePair(this)" required @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
+                        <small class="validation-message" id="others_distance_new_${timestamp}-validation-message"></small>
                     </div>
+                </div>
+                <div class="row">
+                    <div class="mb-3 col-md-12">
+                        <button type="button" class="btn btn-danger remove-other-field" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) disabled @endif>Delete</button>
+                    </div>
+                </div>
                 </div>`;
             container.insertAdjacentHTML('beforeend', newFields);
 
@@ -631,14 +582,17 @@
             document.querySelectorAll('.port-name-select').forEach(function (selectElement) {
                 selectElement.addEventListener('change', function() {
                     const othersInputContainer = this.closest('.row').querySelector('.others-input-container');
-                    othersInputContainer.style.display = this.value === 'Other' ? 'block' : 'none';
+                    if (othersInputContainer) {
+                        othersInputContainer.style.display = this.value === 'Other' ? 'block' : 'none';
+                    }
                 });
             });
 
             // Add Delete functionality to new Delete button
             document.querySelectorAll('.remove-other-field').forEach(function (btn) {
                 btn.addEventListener('click', function () {
-                    this.closest('.row').remove();
+                    const block = this.closest('.other-port-block') || this.closest('.row');
+                    block.remove();
                 });
             });
         });
@@ -646,508 +600,56 @@
         // Remove delete button functionality for initially loaded fields
         document.querySelectorAll('.remove-other-field').forEach(function (btn) {
             btn.addEventListener('click', function () {
-                this.closest('.row').remove();
+                const block = this.closest('.other-port-block') || this.closest('.row');
+                block.remove();
             });
         });
     });
 </script>
 
 <script>
-    // Add this function to the scripts section
-document.addEventListener('DOMContentLoaded', function() {
-    // Update existing distance labels to specify miles
-    function updateExistingLabels() {
-        // Update entry section labels
-        document.querySelectorAll('label[for^="distance_"]').forEach(label => {
-            if (!label.innerHTML.includes('(miles)')) {
-                label.innerHTML = label.innerHTML.replace('Distance', 'Distance (miles)');
-            }
-        });
-        
-        // Update exit section labels
-        document.querySelectorAll('label[for^="exit_distance_"]').forEach(label => {
-            if (!label.innerHTML.includes('(miles)')) {
-                label.innerHTML = label.innerHTML.replace('Distance', 'Distance (miles)');
-            }
-        });
-        
-        // Update others section labels
-        document.querySelectorAll('label[for^="others_distance_"]').forEach(label => {
-            if (!label.innerHTML.includes('(miles)')) {
-                label.innerHTML = label.innerHTML.replace('Distance', 'Distance (miles)');
-            }
-        });
+window.MILES_TO_KM = 1.60934;
+window.KM_TO_MILES = 0.621371;
+
+/**
+ * Keep Distance (miles) and Distance (km) in sync before save.
+ * Saved value remains exit_distance[] / others_distance[] (miles).
+ */
+window.syncDistancePair = function (input) {
+    input.value = String(input.value || '').replace(/[^0-9.]/g, '');
+    const parts = input.value.split('.');
+    if (parts.length > 2) {
+        input.value = parts[0] + '.' + parts.slice(1).join('');
     }
-    
-    // Add km fields next to the existing miles fields
-    function addKmFieldsToExistingRows() {
-        // Constants for conversion - make them global
-        window.MILES_TO_KM = 1.60934;
-        window.KM_TO_MILES = 0.621371;
-        
-        // Process entry section
-        document.querySelectorAll('input[name="distanceentry[]"]').forEach((milesInput, index) => {
-            const row = milesInput.closest('.row');
-            const milesContainer = milesInput.closest('.mb-3');
-            
-            // Skip if km field already exists
-            if (row.querySelector('.km-field')) return;
-            
-            // Create km field
-            const kmContainer = document.createElement('div');
-            kmContainer.className = 'mb-3 col-md-2 km-field';
-            kmContainer.innerHTML = `
-                <label for="distance_km_${index}" class="form-label"><strong>Distance (km)</strong><span style="color: red; font-weight: bold;">*</span></label>
-                <input type="text" id="distance_km_${index}" name="distanceentry_km[]" class="form-control" 
-                    placeholder="Enter Distance (km)" value="${milesInput.value ? (parseFloat(milesInput.value) * window.MILES_TO_KM).toFixed(2) : ''}" 
-                    oninput="validateDistance(this)" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
-                <small class="validation-message" id="distance_km_${index}-validation-message"></small>
-            `;
-            
-            // Insert after miles field
-            milesContainer.insertAdjacentElement('afterend', kmContainer);
-            
-            // Get the km input
-            const kmInput = kmContainer.querySelector('input');
-            
-            // Add conversion event listeners
-            milesInput.addEventListener('input', function() {
-                if (this.value && !isNaN(parseFloat(this.value))) {
-                    kmInput.value = (parseFloat(this.value) * window.MILES_TO_KM).toFixed(2);
-                    // Trigger validation on km field
-                    if (typeof validateDistance === 'function') {
-                        validateDistance(kmInput);
-                    }
-                } else {
-                    kmInput.value = '';
-                }
-            });
-            
-            kmInput.addEventListener('input', function() {
-                if (this.value && !isNaN(parseFloat(this.value))) {
-                    milesInput.value = (parseFloat(this.value) * window.KM_TO_MILES).toFixed(2);
-                    // Trigger validation on miles field
-                    if (typeof validateDistance === 'function') {
-                        validateDistance(milesInput);
-                    }
-                } else {
-                    milesInput.value = '';
-                }
-            });
-        });
-        
-        // Process exit section
-        document.querySelectorAll('input[name="exit_distance[]"]').forEach((milesInput, index) => {
-            const row = milesInput.closest('.row');
-            const milesContainer = milesInput.closest('.mb-3');
-            
-            // Skip if km field already exists
-            if (row.querySelector('.km-field')) return;
-            
-            // Create km field
-            const kmContainer = document.createElement('div');
-            kmContainer.className = 'mb-3 col-md-2 km-field';
-            kmContainer.innerHTML = `
-                <label for="exit_distance_km_${index}" class="form-label"><strong>Distance (km)</strong><span style="color: red; font-weight: bold;">*</span></label>
-                <input type="text" id="exit_distance_km_${index}" name="exit_distance_km[]" class="form-control" 
-                    placeholder="Enter Distance (km)" value="${milesInput.value ? (parseFloat(milesInput.value) * window.MILES_TO_KM).toFixed(2) : ''}" 
-                    oninput="validateDistance(this)" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
-                <small class="validation-message" id="exit_distance_km_${index}-validation-message"></small>
-            `;
-            
-            // Insert after miles field
-            milesContainer.insertAdjacentElement('afterend', kmContainer);
-            
-            // Get the km input
-            const kmInput = kmContainer.querySelector('input');
-            
-            // Add conversion event listeners
-            milesInput.addEventListener('input', function() {
-                if (this.value && !isNaN(parseFloat(this.value))) {
-                    kmInput.value = (parseFloat(this.value) * window.MILES_TO_KM).toFixed(2);
-                    // Trigger validation on km field
-                    if (typeof validateDistance === 'function') {
-                        validateDistance(kmInput);
-                    }
-                } else {
-                    kmInput.value = '';
-                }
-            });
-            
-            kmInput.addEventListener('input', function() {
-                if (this.value && !isNaN(parseFloat(this.value))) {
-                    milesInput.value = (parseFloat(this.value) * window.KM_TO_MILES).toFixed(2);
-                    // Trigger validation on miles field
-                    if (typeof validateDistance === 'function') {
-                        validateDistance(milesInput);
-                    }
-                } else {
-                    milesInput.value = '';
-                }
-            });
-        });
-        
-        // Process others section
-        document.querySelectorAll('input[name="others_distance[]"]').forEach((milesInput, index) => {
-            const row = milesInput.closest('.row');
-            const milesContainer = milesInput.closest('.mb-3');
-            
-            // Skip if km field already exists
-            if (row.querySelector('.km-field')) return;
-            
-            // Create km field
-            const kmContainer = document.createElement('div');
-            kmContainer.className = 'mb-3 col-md-2 km-field';
-            kmContainer.innerHTML = `
-                <label for="others_distance_km_${index}" class="form-label"><strong>Distance (km)</strong><span style="color: red; font-weight: bold;">*</span></label>
-                <input type="text" id="others_distance_km_${index}" name="others_distance_km[]" class="form-control" 
-                    placeholder="Enter Distance (km)" value="${milesInput.value ? (parseFloat(milesInput.value) * window.MILES_TO_KM).toFixed(2) : ''}" 
-                    oninput="validateDistance(this)" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
-                <small class="validation-message" id="others_distance_km_${index}-validation-message"></small>
-            `;
-            
-            // Insert after miles field
-            milesContainer.insertAdjacentElement('afterend', kmContainer);
-            
-            // Get the km input
-            const kmInput = kmContainer.querySelector('input');
-            
-            // Add conversion event listeners
-            milesInput.addEventListener('input', function() {
-                if (this.value && !isNaN(parseFloat(this.value))) {
-                    kmInput.value = (parseFloat(this.value) * window.MILES_TO_KM).toFixed(2);
-                    // Trigger validation on km field
-                    if (typeof validateDistance === 'function') {
-                        validateDistance(kmInput);
-                    }
-                } else {
-                    kmInput.value = '';
-                }
-            });
-            
-            kmInput.addEventListener('input', function() {
-                if (this.value && !isNaN(parseFloat(this.value))) {
-                    milesInput.value = (parseFloat(this.value) * window.KM_TO_MILES).toFixed(2);
-                    // Trigger validation on miles field
-                    if (typeof validateDistance === 'function') {
-                        validateDistance(milesInput);
-                    }
-                } else {
-                    milesInput.value = '';
-                }
-            });
-        });
-    }
-    
-    // Update "Add More" buttons to include km fields in new rows
-    function updateAddMoreButtons() {
-        // Constants for conversion - make them global
-        window.MILES_TO_KM = 1.60934;
-        window.KM_TO_MILES = 0.621371;
-        
-        // Update entry add more button
-        const entryAddMoreBtn = document.getElementById('entry-locations-add-more');
-        const originalEntryHandler = entryAddMoreBtn.onclick;
-        
-        entryAddMoreBtn.onclick = function(e) {
-            // Call original handler
-            if (originalEntryHandler) {
-                originalEntryHandler.call(this, e);
-            }
-            
-            // Add km field to the new row
-            setTimeout(() => {
-                const container = document.getElementById('entry_locations-additional-fields');
-                const newContainers = container.querySelectorAll('.entry-input-fields, .mt-3.border');
-                
-                // Get only the newly added container (the last one)
-                if (newContainers.length === 0) return;
-                const newContainer = newContainers[newContainers.length - 1];
-                
-                if (newContainer) {
-                    // Check if this container already has a km field
-                    if (newContainer.querySelector('.km-field')) return;
-                    
-                    // Find the miles distance field
-                    const milesInput = newContainer.querySelector('input[name="distanceentry[]"]');
-                    
-                    if (milesInput) {
-                        // Clear any default value that might have been carried over
-                        milesInput.value = '';
-                        
-                        // Get the container
-                        const milesContainer = milesInput.closest('div');
-                        
-                        // Generate timestamp for unique ID
-                        const timestamp = new Date().getTime();
-                        
-                        // Create km field with empty value
-                        const kmContainer = document.createElement('div');
-                        kmContainer.className = milesContainer.className + ' km-field';
-                        kmContainer.innerHTML = `
-                            <label for="distance_km_${timestamp}">Distance (km)</label>
-                            <input type="text" id="distance_km_${timestamp}" name="distanceentry_km[]" class="form-control" placeholder="Enter Distance (km)" value="" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
-                            <small class="validation-message" id="distance_km_${timestamp}-validation-message"></small>
-                        `;
-                        
-                        // Insert after miles field
-                        milesContainer.insertAdjacentElement('afterend', kmContainer);
-                        
-                        // Get the km input
-                        const kmInput = kmContainer.querySelector('input');
-                        
-                        // Update miles label
-                        const milesLabel = milesContainer.querySelector('label');
-                        if (milesLabel && !milesLabel.textContent.includes('(miles)')) {
-                            milesLabel.textContent = 'Distance (miles)';
-                        }
-                        
-                        // Add conversion event listeners
-                        milesInput.addEventListener('input', function() {
-                            if (this.value && !isNaN(parseFloat(this.value))) {
-                                kmInput.value = (parseFloat(this.value) * window.MILES_TO_KM).toFixed(2);
-                                // Trigger validation on km field
-                                if (typeof validateDistance === 'function') {
-                                    validateDistance(kmInput);
-                                }
-                            } else {
-                                kmInput.value = '';
-                            }
-                        });
-                        
-                        kmInput.addEventListener('input', function() {
-                            if (this.value && !isNaN(parseFloat(this.value))) {
-                                milesInput.value = (parseFloat(this.value) * window.KM_TO_MILES).toFixed(2);
-                                // Trigger validation on miles field
-                                if (typeof validateDistance === 'function') {
-                                    validateDistance(milesInput);
-                                }
-                            } else {
-                                milesInput.value = '';
-                            }
-                        });
-                    }
-                }
-            }, 100);
-        };
-        
-        // Update exit add more button
-        const exitAddMoreBtn = document.getElementById('exit-locations-add-more');
-        const originalExitHandler = exitAddMoreBtn.onclick;
-        
-        exitAddMoreBtn.onclick = function(e) {
-            // Call original handler
-            if (originalExitHandler) {
-                originalExitHandler.call(this, e);
-            }
-            
-            // Add km field to the new row
-            setTimeout(() => {
-                const container = document.getElementById('exit_locations-additional-fields');
-                const newContainers = container.querySelectorAll('.mt-3.border');
-                
-                // Get only the newly added container (the last one)
-                if (newContainers.length === 0) return;
-                const newRow = newContainers[newContainers.length - 1];
-                
-                if (newRow) {
-                    // Check if this container already has a km field
-                    if (newRow.querySelector('.km-field')) return;
-                    
-                    // Find the miles distance field
-                    const milesInput = newRow.querySelector('input[name="exit_distance[]"]');
-                    
-                    if (milesInput) {
-                        // Clear any default value that might have been carried over
-                        milesInput.value = '';
-                        
-                        // Get the container
-                        const milesContainer = milesInput.closest('div');
-                        
-                        // Generate timestamp for unique ID
-                        const timestamp = new Date().getTime();
-                        
-                        // Create km field with empty value
-                        const kmContainer = document.createElement('div');
-                        kmContainer.className = milesContainer.className + ' km-field';
-                        kmContainer.innerHTML = `
-                            <label for="exit_distance_km_${timestamp}">Distance (km)</label>
-                            <input type="text" id="exit_distance_km_${timestamp}" name="exit_distance_km[]" class="form-control" placeholder="Enter Distance (km)" value="" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
-                            <small class="validation-message" id="exit_distance_km_${timestamp}-validation-message"></small>
-                        `;
-                        
-                        // Insert after miles field
-                        milesContainer.insertAdjacentElement('afterend', kmContainer);
-                        
-                        // Get the km input
-                        const kmInput = kmContainer.querySelector('input');
-                        
-                        // Update miles label
-                        const milesLabel = milesContainer.querySelector('label');
-                        if (milesLabel && !milesLabel.textContent.includes('(miles)')) {
-                            milesLabel.textContent = 'Distance (miles)';
-                        }
-                        
-                        // Add conversion event listeners
-                        milesInput.addEventListener('input', function() {
-                            if (this.value && !isNaN(parseFloat(this.value))) {
-                                kmInput.value = (parseFloat(this.value) * window.MILES_TO_KM).toFixed(2);
-                                // Trigger validation on km field
-                                if (typeof validateDistance === 'function') {
-                                    validateDistance(kmInput);
-                                }
-                            } else {
-                                kmInput.value = '';
-                            }
-                        });
-                        
-                        kmInput.addEventListener('input', function() {
-                            if (this.value && !isNaN(parseFloat(this.value))) {
-                                milesInput.value = (parseFloat(this.value) * window.KM_TO_MILES).toFixed(2);
-                                // Trigger validation on miles field
-                                if (typeof validateDistance === 'function') {
-                                    validateDistance(milesInput);
-                                }
-                            } else {
-                                milesInput.value = '';
-                            }
-                        });
-                    }
-                }
-            }, 100);
-        };
-        
-        // Update others add more button
-        const othersAddMoreBtn = document.getElementById('others-locations-add-more');
-        const originalOthersHandler = othersAddMoreBtn.onclick;
-        
-        othersAddMoreBtn.onclick = function(e) {
-            // Call original handler
-            if (originalOthersHandler) {
-                originalOthersHandler.call(this, e);
-            }
-            
-            // Add km field to the new row
-            setTimeout(() => {
-                const container = document.getElementById('others_locations-additional-fields');
-                const rows = container.querySelectorAll('.row');
-                
-                // Get only the newly added row (the last one)
-                if (rows.length === 0) return;
-                const newRow = rows[rows.length - 1];
-                
-                if (newRow) {
-                    // Check if this row already has a km field
-                    if (newRow.querySelector('.km-field')) return;
-                    
-                    // Find the miles distance field
-                    const milesInput = newRow.querySelector('input[name="others_distance[]"]');
-                    
-                    if (milesInput) {
-                        // Clear any default value that might have been carried over
-                        milesInput.value = '';
-                        
-                        // Get the container
-                        const milesContainer = milesInput.closest('div');
-                        
-                        // Generate timestamp for unique ID
-                        const timestamp = new Date().getTime();
-                        
-                        // Create km field with empty value
-                        const kmContainer = document.createElement('div');
-                        kmContainer.className = milesContainer.className + ' km-field';
-                        kmContainer.innerHTML = `
-                            <label class="form-label"><strong>Distance (km)</strong><span style="color: red; font-weight: bold;">*</span></label>
-                            <input type="text" id="others_distance_km_${timestamp}" name="others_distance_km[]" class="form-control" placeholder="Enter Distance (km)" value="" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
-                            <small class="validation-message" id="others_distance_km_${timestamp}-validation-message"></small>
-                        `;
-                        
-                        // Insert after miles field
-                        milesContainer.insertAdjacentElement('afterend', kmContainer);
-                        
-                        // Get the km input
-                        const kmInput = kmContainer.querySelector('input');
-                        
-                        // Update miles label
-                        const milesLabel = milesContainer.querySelector('label');
-                        if (milesLabel && !milesLabel.textContent.includes('(miles)')) {
-                            milesLabel.innerHTML = milesLabel.innerHTML.replace('Distance', 'Distance (miles)');
-                        }
-                        
-                        // Add conversion event listeners
-                        milesInput.addEventListener('input', function() {
-                            if (this.value && !isNaN(parseFloat(this.value))) {
-                                kmInput.value = (parseFloat(this.value) * window.MILES_TO_KM).toFixed(2);
-                                // Trigger validation on km field
-                                if (typeof validateDistance === 'function') {
-                                    validateDistance(kmInput);
-                                }
-                            } else {
-                                kmInput.value = '';
-                            }
-                        });
-                        
-                        kmInput.addEventListener('input', function() {
-                            if (this.value && !isNaN(parseFloat(this.value))) {
-                                milesInput.value = (parseFloat(this.value) * window.KM_TO_MILES).toFixed(2);
-                                // Trigger validation on miles field
-                                if (typeof validateDistance === 'function') {
-                                    validateDistance(milesInput);
-                                }
-                            } else {
-                                milesInput.value = '';
-                            }
-                        });
-                    }
-                }
-            }, 100);
-        };
-    }
-    
-    // Initialize
-    updateExistingLabels();
-    addKmFieldsToExistingRows();
-    updateAddMoreButtons();
-    
-    // Update the validateDistance function to work with both fields
-    window.validateDistance = function(input) {
-        // Preserve original function behavior
-        // Force numeric input by immediately replacing non-numeric characters
-        input.value = input.value.replace(/[^0-9.]/g, '');
-        
-        // Allow only one decimal point
-        let value = input.value;
-        
-        // Ensure only one decimal point
-        const decimalCount = (value.match(/\./g) || []).length;
-        if (decimalCount > 1) {
-            const parts = value.split('.');
-            value = parts[0] + '.' + parts.slice(1).join('');
-            input.value = value;
-        }
-        
-        const distanceRegex = /^[0-9]+(\.[0-9]{1,2})?$/;
-        
-        // Determine unit type from input ID
-        const isKm = input.id.includes('_km_');
-        const unitText = isKm ? 'kilometers' : 'miles';
-        
-        if (value === '') {
-            showValidationMessage(input, false, `Distance in ${unitText} is required`);
-        } else if (!distanceRegex.test(value)) {
-            showValidationMessage(input, false, `
-                Please enter a valid distance in ${unitText}:
-                <ul class="mt-1 mb-0">
-                    <li>Must be a positive number</li>
-                    <li>Can include up to 2 decimal places</li>
-                    <li>Example: 25.5</li>
-                </ul>
-            `);
+
+    const pair = input.getAttribute('data-pair');
+    if (!pair) return;
+
+    const row = input.closest('.row') || document;
+    const milesInput = row.querySelector('.distance-miles[data-pair="' + pair + '"]');
+    const kmInput = row.querySelector('.distance-km[data-pair="' + pair + '"]');
+    if (!milesInput || !kmInput) return;
+
+    const isKm = input.classList.contains('distance-km');
+    const num = parseFloat(input.value);
+
+    if (input.value === '' || isNaN(num)) {
+        if (isKm) {
+            milesInput.value = '';
         } else {
-            showValidationMessage(input, true, '');
+            kmInput.value = '';
         }
-    };
- });
+    } else if (isKm) {
+        milesInput.value = (num * window.KM_TO_MILES).toFixed(2);
+    } else {
+        kmInput.value = (num * window.MILES_TO_KM).toFixed(2);
+    }
+
+    if (typeof validateDistance === 'function') {
+        validateDistance(milesInput);
+        validateDistance(kmInput);
+    }
+};
 </script>
 
 <script>
@@ -1204,6 +706,7 @@ function validateLatitude(input) {
     
     if (value === '') {
         showValidationMessage(input, false, 'Latitude is required');
+        return false;
     } else if (!latitudeRegex.test(value)) {
         showValidationMessage(input, false, `
             Please enter a valid latitude:
@@ -1214,8 +717,10 @@ function validateLatitude(input) {
                 <li>Example: 23.456789802</li>
             </ul>
         `);
+        return false;
     } else {
         showValidationMessage(input, true, '');
+        return true;
     }
 }
 
@@ -1247,6 +752,7 @@ function validateLongitude(input) {
     
     if (value === '') {
         showValidationMessage(input, false, 'Longitude is required');
+        return false;
     } else if (!longitudeRegex.test(value)) {
         showValidationMessage(input, false, `
             Please enter a valid longitude:
@@ -1257,8 +763,10 @@ function validateLongitude(input) {
                 <li>Example: 78.123456658</li>
             </ul>
         `);
+        return false;
     } else {
         showValidationMessage(input, true, '');
+        return true;
     }
 }
 
@@ -1278,22 +786,181 @@ function validateDistance(input) {
     }
     
     const distanceRegex = /^[0-9]+(\.[0-9]{1,2})?$/;
+    const unitText = input.classList.contains('distance-km') ? 'kilometers' : 'miles';
     
     if (value === '') {
-        showValidationMessage(input, false, 'Distance is required');
+        showValidationMessage(input, false, `Distance in ${unitText} is required`);
+        return false;
     } else if (!distanceRegex.test(value)) {
         showValidationMessage(input, false, `
-            Please enter a valid distance:
+            Please enter a valid distance in ${unitText}:
             <ul class="mt-1 mb-0">
                 <li>Must be a positive number</li>
                 <li>Can include up to 2 decimal places</li>
                 <li>Example: 25.5</li>
             </ul>
         `);
+        return false;
     } else {
         showValidationMessage(input, true, '');
+        return true;
     }
 }
+
+function markFieldInvalid(field, message) {
+    if (!field) return;
+    field.classList.add('is-invalid');
+    field.classList.remove('is-valid');
+    if (typeof showValidationMessage === 'function' && field.tagName === 'INPUT') {
+        // Prefer existing validation message slot when available
+        const existingMsg = document.getElementById(field.id + '-validation-message');
+        if (existingMsg) {
+            showValidationMessage(field, false, message);
+            return;
+        }
+    }
+    let feedback = field.parentElement.querySelector('.ports-required-feedback');
+    if (!feedback) {
+        feedback = document.createElement('div');
+        feedback.className = 'text-danger ports-required-feedback mt-1';
+        field.parentElement.appendChild(feedback);
+    }
+    feedback.textContent = message;
+}
+
+function clearFieldInvalid(field) {
+    if (!field) return;
+    field.classList.remove('is-invalid');
+    const feedback = field.parentElement ? field.parentElement.querySelector('.ports-required-feedback') : null;
+    if (feedback) feedback.remove();
+}
+
+function validateRequiredSelectOrText(field, label) {
+    const value = (field.value || '').toString().trim();
+    if (!value) {
+        markFieldInvalid(field, label + ' is required');
+        return false;
+    }
+    clearFieldInvalid(field);
+    field.classList.add('is-valid');
+    return true;
+}
+
+function validatePortsFormBeforeSave() {
+    let isValid = true;
+    let firstInvalid = null;
+
+    const exitEnabled = document.getElementById('port_of_exit')?.checked;
+    const othersEnabled = document.getElementById('others')?.checked;
+
+    if (exitEnabled) {
+        const exitRows = document.querySelectorAll('#exit_fields_container .row');
+        exitRows.forEach(function (row) {
+            // Skip utility rows that don't contain port fields
+            const typeSelect = row.querySelector('select[name="exit_port_name[]"]');
+            if (!typeSelect) return;
+
+            if (!validateRequiredSelectOrText(typeSelect, 'Port Type')) {
+                isValid = false;
+                firstInvalid = firstInvalid || typeSelect;
+            }
+
+            const portName = row.querySelector('input[name="exit_port_specific_name[]"]');
+            if (typeSelect.value) {
+                if (!portName) {
+                    isValid = false;
+                    markFieldInvalid(typeSelect, 'Port Name is required');
+                    firstInvalid = firstInvalid || typeSelect;
+                } else if (!validateRequiredSelectOrText(portName, 'Port Name')) {
+                    isValid = false;
+                    firstInvalid = firstInvalid || portName;
+                }
+            }
+
+            const lat = row.querySelector('input[name="exit_latitude[]"]');
+            const lng = row.querySelector('input[name="exit_longitude[]"]');
+            const dist = row.querySelector('input[name="exit_distance[]"]');
+
+            if (lat && !validateLatitude(lat)) {
+                isValid = false;
+                firstInvalid = firstInvalid || lat;
+            }
+            if (lng && !validateLongitude(lng)) {
+                isValid = false;
+                firstInvalid = firstInvalid || lng;
+            }
+            if (dist && !validateDistance(dist)) {
+                isValid = false;
+                firstInvalid = firstInvalid || dist;
+            }
+        });
+    }
+
+    if (othersEnabled) {
+        const otherRows = document.querySelectorAll('#others_fields_container .row');
+        otherRows.forEach(function (row) {
+            const nameInput = row.querySelector('input[name="others_port_name[]"]');
+            if (!nameInput) return;
+
+            if (!validateRequiredSelectOrText(nameInput, 'Name')) {
+                isValid = false;
+                firstInvalid = firstInvalid || nameInput;
+            }
+
+            const typeSelect = row.querySelector('select[name="others_type[]"]');
+            if (typeSelect && !validateRequiredSelectOrText(typeSelect, 'Type')) {
+                isValid = false;
+                firstInvalid = firstInvalid || typeSelect;
+            }
+
+            const lat = row.querySelector('input[name="others_latitude[]"]');
+            const lng = row.querySelector('input[name="others_longitude[]"]');
+            const dist = row.querySelector('input[name="others_distance[]"]');
+
+            if (lat && !validateLatitude(lat)) {
+                isValid = false;
+                firstInvalid = firstInvalid || lat;
+            }
+            if (lng && !validateLongitude(lng)) {
+                isValid = false;
+                firstInvalid = firstInvalid || lng;
+            }
+            if (dist && !validateDistance(dist)) {
+                isValid = false;
+                firstInvalid = firstInvalid || dist;
+            }
+        });
+    }
+
+    if (!isValid && firstInvalid) {
+        firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        firstInvalid.focus();
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Incomplete or invalid fields',
+                text: 'Please fill all mandatory fields with valid values before saving.'
+            });
+        } else {
+            alert('Please fill all mandatory fields with valid values before saving.');
+        }
+    }
+
+    return isValid;
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    const portsForm = document.getElementById('portsForm');
+    if (portsForm) {
+        portsForm.addEventListener('submit', function (e) {
+            if (!validatePortsFormBeforeSave()) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+        });
+    }
+});
 
 // Add CSS for validation messages and icons
 document.head.insertAdjacentHTML('beforeend', `
@@ -1417,197 +1084,24 @@ document.head.insertAdjacentHTML('beforeend', `
     </style>
 `);
 
-// Fix for "Add More" buttons - ensure validation works for dynamically added fields
+// Validate existing fields on page load (miles/km rows already include both fields)
 document.addEventListener('DOMContentLoaded', function() {
-    // Entry Add More Button
-    const entryAddMoreButton = document.getElementById('entry-locations-add-more');
-    if (entryAddMoreButton) {
-        const originalClickHandler = entryAddMoreButton.onclick;
-        entryAddMoreButton.onclick = function(e) {
-            if (originalClickHandler) {
-                originalClickHandler.call(this, e);
-            }
-            
-            // Find newly added elements and set up validation
-            setTimeout(function() {
-                const container = document.getElementById('entry_locations-additional-fields');
-                    const newContainer = container.querySelector('.entry-input-fields:last-child, .row:last-child');
-                if (newContainer) {
-                    const latitudeInput = newContainer.querySelector('input[name="latitudentry[]"]');
-                    const longitudeInput = newContainer.querySelector('input[name="longitudeentry[]"]');
-                    const distanceInput = newContainer.querySelector('input[name="distanceentry[]"]');
-                    
-                    if (latitudeInput) {
-                        const timestamp = new Date().getTime();
-                        latitudeInput.id = `latitude_dyn_${timestamp}`;
-                        latitudeInput.insertAdjacentHTML('afterend', `<small class="validation-message" id="${latitudeInput.id}-validation-message"></small>`);
-                        latitudeInput.oninput = function() { validateLatitude(this); };
-                    }
-                    
-                    if (longitudeInput) {
-                        const timestamp = new Date().getTime();
-                        longitudeInput.id = `longitude_dyn_${timestamp}`;
-                        longitudeInput.insertAdjacentHTML('afterend', `<small class="validation-message" id="${longitudeInput.id}-validation-message"></small>`);
-                        longitudeInput.oninput = function() { validateLongitude(this); };
-                    }
-                    
-                    if (distanceInput) {
-                        const timestamp = new Date().getTime();
-                        distanceInput.id = `distance_dyn_${timestamp}`;
-                        distanceInput.insertAdjacentHTML('afterend', `<small class="validation-message" id="${distanceInput.id}-validation-message"></small>`);
-                        distanceInput.oninput = function() { validateDistance(this); };
-                    }
-                }
-            }, 100); // Small delay to ensure DOM is updated
-        };
-    }
-
-    // Exit Add More Button
-    const exitAddMoreButton = document.getElementById('exit-locations-add-more');
-    if (exitAddMoreButton) {
-        const originalClickHandler = exitAddMoreButton.onclick;
-        exitAddMoreButton.onclick = function(e) {
-            if (originalClickHandler) {
-                originalClickHandler.call(this, e);
-            }
-            
-            // Find newly added elements and set up validation
-            setTimeout(function() {
-                const container = document.getElementById('exit_locations-additional-fields');
-                const newContainer = container.lastElementChild;
-                if (newContainer) {
-                    const latitudeInput = newContainer.querySelector('input[name="exit_latitude[]"]');
-                    const longitudeInput = newContainer.querySelector('input[name="exit_longitude[]"]');
-                    const distanceInput = newContainer.querySelector('input[name="exit_distance[]"]');
-                    
-                    if (latitudeInput) {
-                        const timestamp = new Date().getTime();
-                        latitudeInput.id = `exit_latitude_dyn_${timestamp}`;
-                        latitudeInput.insertAdjacentHTML('afterend', `<small class="validation-message" id="${latitudeInput.id}-validation-message"></small>`);
-                        latitudeInput.oninput = function() { validateLatitude(this); };
-                    }
-                    
-                    if (longitudeInput) {
-                        const timestamp = new Date().getTime();
-                        longitudeInput.id = `exit_longitude_dyn_${timestamp}`;
-                        longitudeInput.insertAdjacentHTML('afterend', `<small class="validation-message" id="${longitudeInput.id}-validation-message"></small>`);
-                        longitudeInput.oninput = function() { validateLongitude(this); };
-                    }
-                    
-                    if (distanceInput) {
-                        const timestamp = new Date().getTime();
-                        distanceInput.id = `exit_distance_dyn_${timestamp}`;
-                        distanceInput.insertAdjacentHTML('afterend', `<small class="validation-message" id="${distanceInput.id}-validation-message"></small>`);
-                        distanceInput.oninput = function() { validateDistance(this); };
-                    }
-                }
-            }, 100); // Small delay to ensure DOM is updated
-        };
-    }
-
-    // Others Add More Button
-    const othersAddMoreButton = document.getElementById('others-locations-add-more');
-    if (othersAddMoreButton) {
-        const originalClickHandler = othersAddMoreButton.onclick;
-        othersAddMoreButton.onclick = function(e) {
-            if (originalClickHandler) {
-                originalClickHandler.call(this, e);
-            }
-            
-            // Find newly added elements and set up validation
-            setTimeout(function() {
-                const container = document.getElementById('others_locations-additional-fields');
-                    const rows = container.querySelectorAll('.row');
-                    
-                    // Get only the newly added row (the last one)
-                    if (rows.length === 0) return;
-                    const newRow = rows[rows.length - 1];
-                    
-                if (newRow) {
-                        // Check if this row already has a km field
-                        if (newRow.querySelector('.km-field')) return;
-                        
-                        // Find the miles distance field
-                        const milesInput = newRow.querySelector('input[name="others_distance[]"]');
-                        
-                        if (milesInput) {
-                            // Clear any default value that might have been carried over
-                            milesInput.value = '';
-                            
-                            // Get the container
-                            const milesContainer = milesInput.closest('div');
-                            
-                            // Generate timestamp for unique ID
-                        const timestamp = new Date().getTime();
-                            
-                            // Create km field with empty value
-                            const kmContainer = document.createElement('div');
-                            kmContainer.className = milesContainer.className + ' km-field';
-                            kmContainer.innerHTML = `
-                                <label class="form-label"><strong>Distance (km)</strong><span style="color: red; font-weight: bold;">*</span></label>
-                                <input type="text" id="others_distance_km_${timestamp}" name="others_distance_km[]" class="form-control" placeholder="Enter Distance (km)" value="" @if(Auth::user()->role_id != 1 && Auth::user()->role_id != 20) readonly @endif>
-                                <small class="validation-message" id="others_distance_km_${timestamp}-validation-message"></small>
-                            `;
-                            
-                            // Insert after miles field
-                            milesContainer.insertAdjacentElement('afterend', kmContainer);
-                            
-                            // Get the km input
-                            const kmInput = kmContainer.querySelector('input');
-                            
-                            // Update miles label
-                            const milesLabel = milesContainer.querySelector('label');
-                            if (milesLabel && !milesLabel.textContent.includes('(miles)')) {
-                                milesLabel.innerHTML = milesLabel.innerHTML.replace('Distance', 'Distance (miles)');
-                            }
-                            
-                            // Add conversion event listeners
-                            milesInput.addEventListener('input', function() {
-                                if (this.value && !isNaN(parseFloat(this.value))) {
-                                    kmInput.value = (parseFloat(this.value) * window.MILES_TO_KM).toFixed(2);
-                                    // Trigger validation on km field
-                                    if (typeof validateDistance === 'function') {
-                                        validateDistance(kmInput);
-                                    }
-                                } else {
-                                    kmInput.value = '';
-                                }
-                            });
-                            
-                            kmInput.addEventListener('input', function() {
-                                if (this.value && !isNaN(parseFloat(this.value))) {
-                                    milesInput.value = (parseFloat(this.value) * window.KM_TO_MILES).toFixed(2);
-                                    // Trigger validation on miles field
-                                    if (typeof validateDistance === 'function') {
-                                        validateDistance(milesInput);
-                                    }
-                                } else {
-                                    milesInput.value = '';
-                                }
-                            });
-                    }
-                }
-            }, 100); // Small delay to ensure DOM is updated
-        };
-    }
-
-    // Validate existing fields on page load
     const latitudeFields = document.querySelectorAll('input[id^="exit_latitude_"], input[id^="others_latitude_"]');
     const longitudeFields = document.querySelectorAll('input[id^="exit_longitude_"], input[id^="others_longitude_"]');
-    const distanceFields = document.querySelectorAll('input[id^="exit_distance_"], input[id^="others_distance_"]');
-    
+    const distanceFields = document.querySelectorAll('.distance-miles, .distance-km');
+
     latitudeFields.forEach(field => {
         if (field.value && field.value.trim() !== '') {
             validateLatitude(field);
         }
     });
-    
+
     longitudeFields.forEach(field => {
         if (field.value && field.value.trim() !== '') {
             validateLongitude(field);
         }
     });
-    
+
     distanceFields.forEach(field => {
         if (field.value && field.value.trim() !== '') {
             validateDistance(field);

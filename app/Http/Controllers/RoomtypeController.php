@@ -190,10 +190,11 @@ public function updateBaseRoom(Request $request)
             Room::where('hotel_id', $room->hotel_id)
                 ->where('room_id', '!=', $room->room_id)
                 ->where('created_by', $ownerId)
-                ->update(['base_room' => false]);
+                ->update(['base_room' => 0]);
         }
 
-        $room->base_room = $request->boolean('base_room');
+        // Persist as 0/1 (column may be decimal; avoid "0.00" truthy-string bugs in the UI)
+        $room->base_room = $request->boolean('base_room') ? 1 : 0;
         $room->save();
         
         return response()->json([

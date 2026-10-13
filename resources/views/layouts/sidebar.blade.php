@@ -924,7 +924,7 @@
                             </ul>
                         </li>
 
-                        <li class="menu-item">
+                        {{-- <li class="menu-item">
                             <a href="javascript:void(0);" class="menu-link menu-toggle">
                                 <div data-i18n="P & L Report (Coming up)">P & L Report (Coming up)</div>
                             </a>
@@ -955,6 +955,13 @@
                                     </a>
                                 </li>
                             </ul>
+                        </li> --}}
+
+                        <li class="menu-item disabled">
+                            <a href="javascript:void(0);" class="menu-link"
+                            style="pointer-events:none;opacity:.55;cursor:not-allowed;">
+                                <div data-i18n="P & L Report (Coming up)">P & L Report (Coming up)</div>
+                            </a>
                         </li>
 
                         <li class="menu-item disabled">
@@ -1296,7 +1303,7 @@
                         </li>
                         @endif
 
-                        @if(hasPermission('view agent'))
+                        @if(hasPermission('view agent') && Auth::user()->role_id != 1)
                         <li class="menu-item @if(Request::is('agents')) active @endif">
                             <a href="{{ route('agents.index') }}" class="menu-link">
                                 <div data-i18n="Add TA Contacts">Add TA Contacts</div>
@@ -1324,19 +1331,19 @@
                         <span class="menu-header-text" data-i18n="Tax Management">Tax Management</span>
                     </li>
 
-                    <li class="menu-item @if(Request::is('tax*')) open active @endif">
+                    <li class="menu-item @if(Request::is('tax') || Request::is('tax/*')) open @endif">
                         <a href="javascript:void(0);" class="menu-link menu-toggle">
                             <i class="menu-icon tf-icons ri-percent-line"></i>
                             <div data-i18n="Tax Management">Tax Management</div>
                         </a>
                         <ul class="menu-sub">
-                            <li class="menu-item @if(Request::is('tax') || Request::is('tax/settings')) open active @endif">
+                            <li class="menu-item @if(Request::is('tax') || Request::is('tax/*')) open @endif">
                                 <a href="javascript:void(0);" class="menu-link menu-toggle">
                                     <div data-i18n="Settings">Settings</div>
                                 </a>
                                 <ul class="menu-sub">
                                     <!-- Add Tax -->
-                                    <li class="menu-item @if(Request::is('tax')) active @endif">
+                                    <li class="menu-item @if((Request::is('tax') || Request::is('tax/*')) && !Request::is('tax/settings')) active @endif">
                                         <a href="{{ route('tax.index') }}" class="menu-link">
                                             <div data-i18n="Add Tax">Add Tax</div>
                                         </a>
@@ -1500,7 +1507,7 @@
 
 
                 @php
-                    $aiConfigurationRoles = [1, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
+                    $aiConfigurationRoles = [1, 11,33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
                 @endphp
                 @if(in_array(auth()->user()->role_id, $aiConfigurationRoles))
                 <li class="menu-header mt-5">
@@ -1518,13 +1525,13 @@
                     </li>
                 @endif
                 @php
-                    $dayLevelRoles = [33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
+                    $dayLevelRoles = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
                 @endphp
                 @if(in_array(auth()->user()->role_id, $dayLevelRoles))
                 <li class="menu-item @if(Request::is('day-level*')) active @endif">
                     <a href="{{ route('day-level.index') }}" class="menu-link">
                         <i class="menu-icon tf-icons ri-calendar-2-line"></i>
-                        <div data-i18n="AI Configuration">AI Configuration</div>
+                        <div data-i18n="AI Definition Tool">AI Definition Tool</div>
                     </a>
                 </li>
                 @endif
@@ -1547,7 +1554,7 @@
                         <span class="menu-header-text" data-i18n="Setting">Setting</span>
                     </li>
                     
-                    <li class="menu-item @if(Request::is('master-setting*', 'country*', 'countries*', 'mail/settings*', 'guide-languages*', 'suppliers*', 'cities*', 'app-management*', 'itinerary_settings.pdf', 'quotation_settings.pdf')) open @endif">
+                    <li class="menu-item @if(Request::is('master-setting*', 'country*', 'countries*', 'mail/settings*', 'guide-languages*', 'suppliers*', 'cities*', 'app-management*', 'dmc-func-app*', 'itinerary_settings.pdf', 'quotation_settings.pdf')) open @endif">
                         <a href="#" class="menu-link menu-toggle">
                             <i class="menu-icon tf-icons ri-settings-3-line"></i>
                             <div data-i18n="General Settings">General Settings</div>
@@ -1589,18 +1596,26 @@
                             </li>
                         @endif
 
-                        @if($sidebarIsAdmin)
+                        @if($sidebarIsAdmin || $sidebarIsDmc)
                             <!-- Email Settings -->
                             <li class="menu-item @if(Request::is('mail/settings')) active @endif">
                                 <a href="{{ route('mail.settings') }}" class="menu-link">
                                     <div data-i18n="Email Settings">Email Settings</div>
                                 </a>
                             </li>
+                        @endif
 
+                        @if($sidebarIsAdmin)
                             <!-- App Settings -->
                             <li class="menu-item @if(Request::is('app-management')) active @endif">
                                 <a href="{{ route('app-management.index') }}" class="menu-link">
                                     <div data-i18n="App Management Settings">App Management Settings</div>
+                                </a>
+                            </li>
+
+                            <li class="menu-item @if(Request::is('dmc-func-app*')) active @endif">
+                                <a href="{{ route('dmc-func-app.index') }}" class="menu-link">
+                                    <div data-i18n="DMC Func App">DMC Func App</div>
                                 </a>
                             </li>
 
@@ -1822,6 +1837,11 @@
             </div>
             <form id="createTourProForm" method="POST" action="{{ route('enquiry-form-pro.initialize') }}" novalidate>
                 @csrf
+                @php
+                    // Tour cannot start today — earliest selectable start is tomorrow.
+                    $ctpMinStartDate = \Carbon\Carbon::now()->addDay()->format('Y-m-d');
+                    $ctpMinEndDate = \Carbon\Carbon::now()->addDays(2)->format('Y-m-d');
+                @endphp
                 <div class="modal-body" style="padding: 10px 15px;">
                     <!-- Row 1: Tour Type + dates -->
                     <div class="row g-2 mb-1">
@@ -1840,11 +1860,11 @@
                         </div>
                         <div class="col-md-3 col-6">
                             <label class="form-label small mb-0" style="font-size: 10px;">Start <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control form-control-sm" id="tourStartDate" name="tour_start_date" required style="font-size: 10px;">
+                            <input type="date" class="form-control form-control-sm" id="tourStartDate" name="tour_start_date" required min="{{ $ctpMinStartDate }}" value="{{ $ctpMinStartDate }}" style="font-size: 10px;">
                         </div>
                         <div class="col-md-3 col-6">
                             <label class="form-label small mb-0" style="font-size: 10px;">End <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control form-control-sm" id="tourEndDate" name="tour_end_date" required style="font-size: 10px;">
+                            <input type="date" class="form-control form-control-sm" id="tourEndDate" name="tour_end_date" required min="{{ $ctpMinEndDate }}" value="{{ $ctpMinEndDate }}" style="font-size: 10px;">
                         </div>
                     </div>
 
@@ -2436,6 +2456,7 @@
                         ctpBindAgencyAgentHandlers();
                         loadAgenciesForDmc();
                         ctpInitTourProSelect2();
+                        if (typeof window.ctpApplyTourStartFloor === 'function') window.ctpApplyTourStartFloor();
                         if (typeof ctpUpdateSubmitButtonState === 'function') ctpUpdateSubmitButtonState();
                     });
                 }
@@ -3292,32 +3313,66 @@
             ctpUpdateSubmitButtonState();
         }
 
-        // Set min date for start date (today)
+        /** Local YYYY-MM-DD (avoids UTC shift from toISOString). */
+        function ctpLocalDateStr(dateObj) {
+            const y = dateObj.getFullYear();
+            const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const d = String(dateObj.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function ctpAddDays(dateStr, days) {
+            const parts = String(dateStr || '').split('-').map(Number);
+            if (parts.length !== 3 || parts.some(isNaN)) return dateStr;
+            const dt = new Date(parts[0], parts[1] - 1, parts[2]);
+            dt.setDate(dt.getDate() + days);
+            return ctpLocalDateStr(dt);
+        }
+
+        /** Earliest selectable tour start = tomorrow. */
+        function ctpMinTourStartDate() {
+            const d = new Date();
+            d.setHours(0, 0, 0, 0);
+            d.setDate(d.getDate() + 1);
+            return ctpLocalDateStr(d);
+        }
+
+        // Tour can start from tomorrow onwards — today and past dates are not selectable
         const tourStartDateInput = document.getElementById('tourStartDate');
         const tourEndDateInput = document.getElementById('tourEndDate');
-        
+
+        /** Re-apply the tomorrow floor (also keeps a long-open page correct past midnight). */
+        window.ctpApplyTourStartFloor = function () {
+            const startEl = document.getElementById('tourStartDate');
+            const endEl = document.getElementById('tourEndDate');
+            if (!startEl || !endEl) return;
+            const minStartStr = ctpMinTourStartDate();
+            startEl.setAttribute('min', minStartStr);
+            if (!startEl.value || startEl.value < minStartStr) {
+                startEl.value = minStartStr;
+            }
+            const minEndStr = ctpAddDays(startEl.value, 1);
+            endEl.setAttribute('min', minEndStr);
+            if (!endEl.value || endEl.value < minEndStr) {
+                endEl.value = minEndStr;
+            }
+        };
+
         if (tourStartDateInput && tourEndDateInput) {
-            const today = new Date().toISOString().split('T')[0];
-            tourStartDateInput.setAttribute('min', today);
-            tourStartDateInput.value = today;
-            
-            // Set end date to tomorrow by default and set min
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            const tomorrowStr = tomorrow.toISOString().split('T')[0];
-            tourEndDateInput.value = tomorrowStr;
-            tourEndDateInput.setAttribute('min', tomorrowStr);
-            
+            window.ctpApplyTourStartFloor();
+
             // Update end date min when start date changes
             tourStartDateInput.addEventListener('change', function() {
-                const startDate = new Date(this.value);
-                const minEndDate = new Date(startDate);
-                minEndDate.setDate(minEndDate.getDate() + 1);
-                const minEndDateStr = minEndDate.toISOString().split('T')[0];
+                const floorStr = ctpMinTourStartDate();
+                if (this.value && this.value < floorStr) {
+                    alert('Start date must be tomorrow or later');
+                    this.value = floorStr;
+                }
+                const minEndDateStr = ctpAddDays(this.value || floorStr, 1);
                 tourEndDateInput.setAttribute('min', minEndDateStr);
-                
+
                 // If end date is less than start date + 1, update it
-                if (new Date(tourEndDateInput.value) <= startDate) {
+                if (!tourEndDateInput.value || tourEndDateInput.value < minEndDateStr) {
                     tourEndDateInput.value = minEndDateStr;
                 }
                 ctpUpdateSubmitButtonState();
@@ -3363,22 +3418,20 @@
                 }
             }
 
-            // Validate dates
-            const startDate = new Date(document.getElementById('tourStartDate').value);
-            const endDate = new Date(document.getElementById('tourEndDate').value);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
-            if (startDate < today) {
+            // Validate dates — tour must start tomorrow or later
+            const startDateStr = document.getElementById('tourStartDate').value;
+            const endDateStr = document.getElementById('tourEndDate').value;
+            const minStartDateStr = ctpMinTourStartDate();
+
+            if (!startDateStr || startDateStr < minStartDateStr) {
                 e.preventDefault();
-                alert('Start date cannot be in the past');
+                alert('Start date must be tomorrow or later');
                 return false;
             }
-            
-            const minEndDate = new Date(startDate);
-            minEndDate.setDate(minEndDate.getDate() + 1);
-            
-            if (endDate < minEndDate) {
+
+            const minEndDateStr = ctpAddDays(startDateStr, 1);
+
+            if (!endDateStr || endDateStr < minEndDateStr) {
                 e.preventDefault();
                 alert('End date must be at least 1 day after start date');
                 return false;

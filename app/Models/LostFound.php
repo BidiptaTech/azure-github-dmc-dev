@@ -8,8 +8,6 @@ class LostFound extends Model
 {
     protected $table = 'lost_found';
 
-    public $timestamps = false;
-
     protected $guarded = [];
 
     protected $casts = [

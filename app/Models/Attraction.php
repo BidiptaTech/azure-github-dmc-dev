@@ -123,6 +123,27 @@ class Attraction extends Model
         return null;
     }
 
+    /** Zone IDs to try for pricing: DMC-specific first, then other assigned zones. */
+    public function getZoneCandidatesForDmc($dmcId): array
+    {
+        $ids = [];
+        $preferred = $this->getZoneForDmc($dmcId);
+        if ($preferred !== null && $preferred !== '') {
+            $ids[] = (string) $preferred;
+        }
+        foreach ($this->zone_assignments ?? [] as $assignment) {
+            $zid = $assignment['zone_id'] ?? null;
+            if ($zid === null || $zid === '') {
+                continue;
+            }
+            $zid = (string) $zid;
+            if (!in_array($zid, $ids, true)) {
+                $ids[] = $zid;
+            }
+        }
+        return $ids;
+    }
+
     /**
      * Set zone assignment for a specific DMC
      */

@@ -24,12 +24,17 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\AutomatedMail;
 use App\Mail\DmcMail;
+use App\Models\EmailsSetup;
+use App\Models\DmcFuncApp;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Country;
+use App\Models\Invoice;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Config;
+// use Illuminate\Support\Facades\Cache;
 use Barryvdh\DomPDF\Facade\Pdf;
 use MicrosoftAzure\Storage\Blob\BlobRestProxy;
 use League\Flysystem\Filesystem;
@@ -37,6 +42,53 @@ use League\Flysystem\AzureBlobStorage\AzureBlobStorageAdapter;
 
 class CommonHelper
 {
+    /**
+     * Invalidate Sanctum personal access tokens for a model.
+     * Matches tokenable_id against both primary key and business id (e.g. driver_id),
+     * because mobile apps may store either value.
+     *
+     * Sets expires_at to now so existing tokens are rejected and the DB clearly shows expiry.
+     *
+     * @param  class-string  $tokenableType  e.g. App\Models\Driver::class
+     * @param  array<int|string|null>  $tokenableIds
+     * @return int  Number of token rows updated
+     */
+    public static function invalidateAccessTokens(string $tokenableType, array $tokenableIds): int
+    {
+        $ids = [];
+        foreach ($tokenableIds as $id) {
+            if ($id === null || $id === '') {
+                continue;
+            }
+            if (is_numeric($id)) {
+                $ids[] = (int) $id;
+            }
+        }
+        $ids = array_values(array_unique($ids));
+        if ($ids === []) {
+            return 0;
+        }
+
+        $expiresAt = Carbon::now();
+
+        $affected = DB::table('personal_access_tokens')
+            ->where('tokenable_type', $tokenableType)
+            ->whereIn('tokenable_id', $ids)
+            ->update([
+                'expires_at' => $expiresAt,
+                'updated_at' => $expiresAt,
+            ]);
+
+        Log::info('Invalidated personal access tokens', [
+            'tokenable_type' => $tokenableType,
+            'tokenable_ids' => $ids,
+            'expires_at' => $expiresAt->toDateTimeString(),
+            'affected' => $affected,
+        ]);
+
+        return (int) $affected;
+    }
+
     /**
      * Safely normalize a JSON field into an array.
      *
@@ -59,6 +111,72 @@ class CommonHelper
             return is_array($decoded) ? $decoded : [];
         }
         return [];
+    }
+
+    /**
+     * Parse package_bookings.travel_dates JSON into Y-m-d start/end.
+     *
+     * Expected shape:
+     * { "start_date": "YYYY-MM-DD", "end_date": "YYYY-MM-DD", "duration_days": int }
+     *
+     * Also accepts legacy check_in / check_out keys. Empty strings are ignored.
+     * If end_date is missing and duration_days is set, end_date = start_date + duration_days - 1.
+     *
+     * @return array{start_date: ?string, end_date: ?string, duration_days: int}
+     */
+    public static function parsePackageTravelDates($value): array
+    {
+        $td = self::normalizeJsonArray($value);
+        $pick = static function (array $src, array $keys): ?string {
+            foreach ($keys as $key) {
+                $v = $src[$key] ?? null;
+                if (is_string($v) && trim($v) !== '') {
+                    return trim($v);
+                }
+            }
+            return null;
+        };
+
+        $startRaw = $pick($td, ['start_date', 'startDate', 'check_in', 'check_in_date']);
+        $endRaw = $pick($td, ['end_date', 'endDate', 'check_out', 'check_out_date']);
+        $duration = (int) ($td['duration_days'] ?? $td['duration'] ?? 0);
+
+        $start = null;
+        $end = null;
+        try {
+            if ($startRaw) {
+                $start = \Carbon\Carbon::parse($startRaw)->toDateString();
+            }
+        } catch (\Throwable $e) {
+            $start = null;
+        }
+        try {
+            if ($endRaw) {
+                $end = \Carbon\Carbon::parse($endRaw)->toDateString();
+            }
+        } catch (\Throwable $e) {
+            $end = null;
+        }
+
+        if ($start && !$end && $duration > 0) {
+            try {
+                $end = \Carbon\Carbon::parse($start)->addDays(max(0, $duration - 1))->toDateString();
+            } catch (\Throwable $e) {
+                $end = $start;
+            }
+        }
+        if ($start && !$end) {
+            $end = $start;
+        }
+        if ($end && !$start) {
+            $start = $end;
+        }
+
+        return [
+            'start_date' => $start,
+            'end_date' => $end,
+            'duration_days' => $duration,
+        ];
     }
 
     /**
@@ -190,10 +308,10 @@ class CommonHelper
     public static function image_path($name, $logoFile, $container = 'uploads') {
         $get_filestorage = Setting::where('name', $name)->where('status', 1)->first();
         $logoName = 'logo_' . time() . '_' . Str::random(6) . '.' . $logoFile->getClientOriginalExtension();
-        
+       
         if ($get_filestorage) {
             try {
-                
+               
                 if ($get_filestorage->value == 'local') {
                     $destinationPath = public_path('build/images');
                     $logoFile->move($destinationPath, $logoName);
@@ -233,7 +351,7 @@ class CommonHelper
 
     /**
      * Upload JSON to Azure only (same file_storage setting as image_path).
-     * Skips local and S3 — returns master_value null when storage is not azure.
+     * Skips local and S3 â€” returns master_value null when storage is not azure.
      */
     public static function json_path(string $name, string $jsonContent, string $fileName, string $container = 'aiuploads'): array
     {
@@ -358,6 +476,525 @@ class CommonHelper
         return ['master_value' => $url];
     }
 
+    /**
+     * Delete a JSON blob from the AI Azure storage account.
+     * Treats BlobNotFound as success (already gone).
+     */
+    public static function deleteJsonFromAzure(string $fileName, string $container = 'aiuploads'): bool
+    {
+        $fileName = trim($fileName);
+        if ($fileName === '') {
+            return false;
+        }
+
+        $storage = Setting::where('name', 'file_storage')->where('status', 1)->first();
+        if (! $storage || $storage->value !== 'azure') {
+            Log::warning('Azure JSON delete skipped: file_storage is not azure', [
+                'file_name' => $fileName,
+            ]);
+
+            return false;
+        }
+
+        try {
+            $config = self::azureAiDiskConfig();
+            if (empty($config['name']) || empty($config['key'])) {
+                Log::warning('Azure JSON delete skipped: missing AI storage credentials', [
+                    'file_name' => $fileName,
+                ]);
+
+                return false;
+            }
+
+            $blobContainer = self::azureAiContainer($container);
+            $connectionString = sprintf(
+                'DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s;EndpointSuffix=core.windows.net',
+                $config['name'],
+                $config['key']
+            );
+
+            $blobClient = BlobRestProxy::createBlobService($connectionString);
+            $blobClient->deleteBlob($blobContainer, $fileName);
+
+            Log::info('Azure JSON blob deleted', [
+                'file_name' => $fileName,
+                'container' => $blobContainer,
+                'account' => $config['name'],
+            ]);
+
+            return true;
+        } catch (\Throwable $e) {
+            $message = $e->getMessage();
+            if (
+                stripos($message, 'BlobNotFound') !== false
+                || stripos($message, 'The specified blob does not exist') !== false
+            ) {
+                Log::info('Azure JSON blob already absent', [
+                    'file_name' => $fileName,
+                    'container' => $container,
+                ]);
+
+                return true;
+            }
+
+            Log::error('Azure JSON delete failed: ' . $message, [
+                'file_name' => $fileName,
+                'container' => $container,
+            ]);
+
+            return false;
+        }
+    }
+
+    /**
+     * List blob names in the AI container that start with a prefix.
+     *
+     * @return list<string>
+     */
+    public static function listAzureJsonBlobs(string $prefix = '', string $container = 'aiuploads'): array
+    {
+        $storage = Setting::where('name', 'file_storage')->where('status', 1)->first();
+        if (! $storage || $storage->value !== 'azure') {
+            return [];
+        }
+
+        try {
+            $config = self::azureAiDiskConfig();
+            if (empty($config['name']) || empty($config['key'])) {
+                return [];
+            }
+
+            $blobContainer = self::azureAiContainer($container);
+            $connectionString = sprintf(
+                'DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s;EndpointSuffix=core.windows.net',
+                $config['name'],
+                $config['key']
+            );
+
+            $blobClient = BlobRestProxy::createBlobService($connectionString);
+            $options = new \MicrosoftAzure\Storage\Blob\Models\ListBlobsOptions();
+            if (trim($prefix) !== '') {
+                $options->setPrefix($prefix);
+            }
+
+            $names = [];
+            $nextMarker = null;
+            do {
+                if ($nextMarker !== null && $nextMarker !== '') {
+                    $options->setMarker($nextMarker);
+                }
+                $result = $blobClient->listBlobs($blobContainer, $options);
+                foreach ($result->getBlobs() as $blob) {
+                    $name = trim((string) $blob->getName());
+                    if ($name !== '') {
+                        $names[] = $name;
+                    }
+                }
+                $nextMarker = method_exists($result, 'getNextMarker') ? $result->getNextMarker() : null;
+            } while (! empty($nextMarker));
+
+            return $names;
+        } catch (\Throwable $e) {
+            Log::error('Azure JSON list failed: ' . $e->getMessage(), [
+                'prefix' => $prefix,
+                'container' => $container,
+            ]);
+
+            return [];
+        }
+    }
+
+    /**
+     * Azure AI Search config from services.azure_search / .env.
+     *
+     * @return array{endpoint: string, admin_key: string, index: string, indexer: string, key_field: string, api_version: string}|null
+     */
+    public static function azureSearchConfig(): ?array
+    {
+        $cfg = config('services.azure_search', []);
+        $endpoint = rtrim(trim((string) ($cfg['endpoint'] ?? '')), '/');
+        $adminKey = trim((string) ($cfg['admin_key'] ?? ''));
+        $index = trim((string) ($cfg['index'] ?? ''));
+
+        if ($endpoint === '' || $adminKey === '' || $index === '') {
+            return null;
+        }
+
+        return [
+            'endpoint' => $endpoint,
+            'admin_key' => $adminKey,
+            'index' => $index,
+            'indexer' => trim((string) ($cfg['indexer'] ?? '')),
+            'key_field' => trim((string) ($cfg['key_field'] ?? 'id')) ?: 'id',
+            'api_version' => trim((string) ($cfg['api_version'] ?? '2024-07-01')) ?: '2024-07-01',
+        ];
+    }
+
+    /**
+     * Delete documents from Azure AI Search by key (default field: id = package_id).
+     *
+     * @param  list<string>  $documentKeys
+     * @return array{ok: bool, deleted: list<string>, skipped: bool, error: ?string}
+     */
+    public static function deleteAzureSearchDocumentsByKeys(array $documentKeys): array
+    {
+        $keys = [];
+        foreach ($documentKeys as $key) {
+            $key = trim((string) $key);
+            if ($key !== '') {
+                $keys[$key] = true;
+            }
+        }
+        $keys = array_keys($keys);
+
+        $empty = ['ok' => true, 'deleted' => [], 'skipped' => true, 'error' => null];
+        if ($keys === []) {
+            return $empty;
+        }
+
+        $cfg = self::azureSearchConfig();
+        if ($cfg === null) {
+            Log::warning('Azure Search document delete skipped: AZURE_SEARCH_* not configured');
+
+            return [
+                'ok' => false,
+                'deleted' => [],
+                'skipped' => true,
+                'error' => 'Azure Search not configured',
+            ];
+        }
+
+        $keyField = $cfg['key_field'];
+        $deleted = [];
+        $url = sprintf(
+            '%s/indexes/%s/docs/index?api-version=%s',
+            $cfg['endpoint'],
+            rawurlencode($cfg['index']),
+            rawurlencode($cfg['api_version'])
+        );
+
+        try {
+            foreach (array_chunk($keys, 500) as $chunk) {
+                $value = [];
+                foreach ($chunk as $docKey) {
+                    $value[] = [
+                        '@search.action' => 'delete',
+                        $keyField => $docKey,
+                    ];
+                }
+
+                $response = Http::withHeaders([
+                    'api-key' => $cfg['admin_key'],
+                    'Content-Type' => 'application/json',
+                ])->timeout(60)->post($url, ['value' => $value]);
+
+                if (! $response->successful()) {
+                    Log::error('Azure Search document delete failed', [
+                        'status' => $response->status(),
+                        'body' => $response->body(),
+                        'keys' => $chunk,
+                    ]);
+
+                    return [
+                        'ok' => false,
+                        'deleted' => $deleted,
+                        'skipped' => false,
+                        'error' => 'HTTP ' . $response->status() . ': ' . $response->body(),
+                    ];
+                }
+
+                $deleted = array_merge($deleted, $chunk);
+            }
+
+            Log::info('Azure Search documents deleted by key', [
+                'index' => $cfg['index'],
+                'key_field' => $keyField,
+                'count' => count($deleted),
+                'keys' => $deleted,
+            ]);
+
+            return [
+                'ok' => true,
+                'deleted' => $deleted,
+                'skipped' => false,
+                'error' => null,
+            ];
+        } catch (\Throwable $e) {
+            Log::error('Azure Search document delete exception: ' . $e->getMessage());
+
+            return [
+                'ok' => false,
+                'deleted' => $deleted,
+                'skipped' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * List document keys currently in the Azure AI Search index.
+     *
+     * @return list<string>
+     */
+    public static function listAzureSearchDocumentKeys(int $pageSize = 1000): array
+    {
+        $cfg = self::azureSearchConfig();
+        if ($cfg === null) {
+            return [];
+        }
+
+        $keyField = $cfg['key_field'];
+        $keys = [];
+        $skip = 0;
+
+        try {
+            do {
+                $url = sprintf(
+                    '%s/indexes/%s/docs/search?api-version=%s',
+                    $cfg['endpoint'],
+                    rawurlencode($cfg['index']),
+                    rawurlencode($cfg['api_version'])
+                );
+
+                $response = Http::withHeaders([
+                    'api-key' => $cfg['admin_key'],
+                    'Content-Type' => 'application/json',
+                ])->timeout(60)->post($url, [
+                    'search' => '*',
+                    'select' => $keyField,
+                    'top' => $pageSize,
+                    'skip' => $skip,
+                ]);
+
+                if (! $response->successful()) {
+                    Log::warning('Azure Search list keys failed', [
+                        'status' => $response->status(),
+                        'body' => $response->body(),
+                    ]);
+
+                    break;
+                }
+
+                $payload = $response->json();
+                $rows = is_array($payload['value'] ?? null) ? $payload['value'] : [];
+                foreach ($rows as $row) {
+                    if (! is_array($row)) {
+                        continue;
+                    }
+                    $key = trim((string) ($row[$keyField] ?? ''));
+                    if ($key !== '') {
+                        $keys[] = $key;
+                    }
+                }
+
+                $count = count($rows);
+                $skip += $count;
+            } while ($count === $pageSize && $skip < 100000);
+
+            return array_values(array_unique($keys));
+        } catch (\Throwable $e) {
+            Log::error('Azure Search list keys exception: ' . $e->getMessage());
+
+            return $keys;
+        }
+    }
+
+    /**
+     * Remove index docs whose keys are not in the active package id set (stale after blob deletes).
+     *
+     * @param  list<string>  $activePackageIds
+     * @return array{ok: bool, deleted: list<string>, skipped: bool, error: ?string}
+     */
+    public static function purgeAzureSearchOrphansNotIn(array $activePackageIds): array
+    {
+        $cfg = self::azureSearchConfig();
+        if ($cfg === null) {
+            return [
+                'ok' => false,
+                'deleted' => [],
+                'skipped' => true,
+                'error' => 'Azure Search not configured',
+            ];
+        }
+
+        $active = [];
+        foreach ($activePackageIds as $id) {
+            $id = trim((string) $id);
+            if ($id !== '') {
+                $active[$id] = true;
+            }
+        }
+
+        $indexed = self::listAzureSearchDocumentKeys();
+        $orphans = [];
+        foreach ($indexed as $key) {
+            if (! isset($active[$key])) {
+                $orphans[] = $key;
+            }
+        }
+
+        if ($orphans === []) {
+            return [
+                'ok' => true,
+                'deleted' => [],
+                'skipped' => false,
+                'error' => null,
+            ];
+        }
+
+        Log::info('Azure Search orphan purge starting', [
+            'active_count' => count($active),
+            'indexed_count' => count($indexed),
+            'orphan_count' => count($orphans),
+            'orphans' => $orphans,
+        ]);
+
+        return self::deleteAzureSearchDocumentsByKeys($orphans);
+    }
+
+    /**
+     * Reset then run the Azure AI Search indexer so it re-reads current blob JSON.
+     *
+     * @return array{ok: bool, reset: bool, run: bool, skipped: bool, error: ?string}
+     */
+    public static function resetAndRunAzureSearchIndexer(): array
+    {
+        $cfg = self::azureSearchConfig();
+        if ($cfg === null || $cfg['indexer'] === '') {
+            Log::warning('Azure Search indexer reset/run skipped: endpoint/key/index/indexer not configured');
+
+            return [
+                'ok' => false,
+                'reset' => false,
+                'run' => false,
+                'skipped' => true,
+                'error' => 'Azure Search indexer not configured',
+            ];
+        }
+
+        $headers = [
+            'api-key' => $cfg['admin_key'],
+            'Content-Type' => 'application/json',
+        ];
+
+        try {
+            $resetUrl = sprintf(
+                '%s/indexers/%s/reset?api-version=%s',
+                $cfg['endpoint'],
+                rawurlencode($cfg['indexer']),
+                rawurlencode($cfg['api_version'])
+            );
+            $resetResponse = Http::withHeaders($headers)->timeout(60)->post($resetUrl);
+            if (! $resetResponse->successful() && $resetResponse->status() !== 204) {
+                Log::error('Azure Search indexer reset failed', [
+                    'status' => $resetResponse->status(),
+                    'body' => $resetResponse->body(),
+                ]);
+
+                return [
+                    'ok' => false,
+                    'reset' => false,
+                    'run' => false,
+                    'skipped' => false,
+                    'error' => 'Reset HTTP ' . $resetResponse->status() . ': ' . $resetResponse->body(),
+                ];
+            }
+
+            $runUrl = sprintf(
+                '%s/indexers/%s/run?api-version=%s',
+                $cfg['endpoint'],
+                rawurlencode($cfg['indexer']),
+                rawurlencode($cfg['api_version'])
+            );
+            $runResponse = Http::withHeaders($headers)->timeout(60)->post($runUrl);
+            if (! $runResponse->successful() && $runResponse->status() !== 202) {
+                Log::error('Azure Search indexer run failed', [
+                    'status' => $runResponse->status(),
+                    'body' => $runResponse->body(),
+                ]);
+
+                return [
+                    'ok' => false,
+                    'reset' => true,
+                    'run' => false,
+                    'skipped' => false,
+                    'error' => 'Run HTTP ' . $runResponse->status() . ': ' . $runResponse->body(),
+                ];
+            }
+
+            Log::info('Azure Search indexer reset + run triggered', [
+                'indexer' => $cfg['indexer'],
+                'index' => $cfg['index'],
+            ]);
+
+            return [
+                'ok' => true,
+                'reset' => true,
+                'run' => true,
+                'skipped' => false,
+                'error' => null,
+            ];
+        } catch (\Throwable $e) {
+            Log::error('Azure Search indexer reset/run exception: ' . $e->getMessage());
+
+            return [
+                'ok' => false,
+                'reset' => false,
+                'run' => false,
+                'skipped' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * After blob JSON sync: delete removed package docs, purge orphans, reset+run indexer.
+     *
+     * @param  list<string>  $deletedPackageIds
+     * @param  list<string>  $activePackageIds
+     * @return array{ok: bool, deleted_keys: list<string>, orphan_deleted: list<string>, indexer: array<string, mixed>, skipped: bool, error: ?string}
+     */
+    public static function syncAzureSearchAfterDayLevelChange(array $deletedPackageIds, array $activePackageIds): array
+    {
+        $result = [
+            'ok' => false,
+            'deleted_keys' => [],
+            'orphan_deleted' => [],
+            'indexer' => [],
+            'skipped' => false,
+            'error' => null,
+        ];
+
+        if (self::azureSearchConfig() === null) {
+            $result['skipped'] = true;
+            $result['error'] = 'Azure Search not configured';
+
+            return $result;
+        }
+
+        $deleteResult = self::deleteAzureSearchDocumentsByKeys($deletedPackageIds);
+        $result['deleted_keys'] = $deleteResult['deleted'] ?? [];
+
+        $orphanResult = self::purgeAzureSearchOrphansNotIn($activePackageIds);
+        $result['orphan_deleted'] = $orphanResult['deleted'] ?? [];
+
+        $indexerResult = self::resetAndRunAzureSearchIndexer();
+        $result['indexer'] = $indexerResult;
+
+        $result['ok'] = (! empty($deleteResult['ok']) || ! empty($deleteResult['skipped']))
+            && (! empty($orphanResult['ok']) || ! empty($orphanResult['skipped']))
+            && (! empty($indexerResult['ok']) || ! empty($indexerResult['skipped']));
+
+        if (! $result['ok']) {
+            $result['error'] = $deleteResult['error']
+                ?? $orphanResult['error']
+                ?? $indexerResult['error']
+                ?? 'Azure Search sync failed';
+        }
+
+        return $result;
+    }
+
     /*
     * Upload file to Azure with dynamic container support
     * Date 16-06-2025
@@ -367,7 +1004,7 @@ class CommonHelper
         try {
             // Get Azure configuration
             $config = config('filesystems.disks.azure');
-            
+           
             // Create connection string
             $connectionString = sprintf(
                 'DefaultEndpointsProtocol=https;AccountName=%s;AccountKey=%s;EndpointSuffix=core.windows.net',
@@ -377,10 +1014,10 @@ class CommonHelper
 
             // Create blob client
             $blobClient = BlobRestProxy::createBlobService($connectionString);
-            
+           
             // Ensure container exists
             self::ensureAzureContainerExists($blobClient, $container);
-            
+           
             Log::info('Attempting Azure upload', [
                 'file_name' => $fileName,
                 'container' => $container
@@ -388,10 +1025,10 @@ class CommonHelper
 
             // Read file content
             $fileContent = file_get_contents($file->getRealPath());
-            
+           
             // Upload directly using blob client
             $blobClient->createBlockBlob($container, $fileName, $fileContent);
-            
+           
             // Generate URL
             $logoPath = sprintf(
                 'https://%s.blob.core.windows.net/%s/%s',
@@ -399,7 +1036,7 @@ class CommonHelper
                 $container,
                 $fileName
             );
-            
+           
             Log::info('Azure upload successful', [
                 'path' => $fileName,
                 'url' => $logoPath,
@@ -416,7 +1053,7 @@ class CommonHelper
                 'file_name' => $fileName,
                 'container' => $container
             ]);
-            
+           
             return [
                 'master_value' => null,
                 'error' => $e->getMessage()
@@ -613,7 +1250,7 @@ class CommonHelper
              $booking_data = Order::where('tour_id', $tour_id)
                 ->get();
         }
-        
+       
         $date_service = [];
         $hotel = [];
         $attraction = [];
@@ -624,36 +1261,36 @@ class CommonHelper
         $guide = [];
         $restaurant = [];
         $local_transport = [];
-    
+   
         foreach ($booking_data as $booking) {
             $json_data = $booking->data;
-    
+   
             // Check if data is a JSON string and decode it
             if (!empty($json_data) && is_string($json_data)) {
                 $array = json_decode($json_data, true);
-                
+               
                 if (json_last_error() === JSON_ERROR_NONE && is_array($array)) {
                     foreach ($array as $item) {
                         $bookingDates = $item['bookingDate'] ?? null;
                         $bookingType = $booking->type ?? null;
-    
+   
                         if (!$bookingDates || !$bookingType) {
                             Log::error("Missing bookingDate or type for booking ID: {$booking->booking_id}");
                             continue;
                         }
-    
+   
                         // Ensure bookingDates is always an array
                         if (!is_array($bookingDates)) {
                             $bookingDates = [$bookingDates];
                         }
-    
+   
                         // Expand date range if needed
                         $expandedDates = [];
                         if (count($bookingDates) == 2) {
                             try {
                                 $startDate = \Carbon\Carbon::createFromFormat('Y-m-d', $bookingDates[0]);
                                 $endDate = \Carbon\Carbon::createFromFormat('Y-m-d', $bookingDates[1]);
-                                
+                               
                                 // Include all dates in the range
                                 while ($startDate->lte($endDate)) {
                                     $expandedDates[] = $startDate->format('Y-m-d');
@@ -666,11 +1303,11 @@ class CommonHelper
                         } else {
                             $expandedDates = $bookingDates;
                         }
-    
+   
                         // Process each generated date
                         foreach ($expandedDates as $bookingDate) {
                             if (empty($bookingDate)) continue;
-                            
+                           
                             // For hotel bookings, skip the last date in date_service
                             if ($bookingType === 'hotel') {
                                 // Check if this is the last date in the range
@@ -680,12 +1317,12 @@ class CommonHelper
                                 } else {
                                     $isLastDate = $bookingDate === end($bookingDates);
                                 }
-                                
+                               
                                 if ($isLastDate) {
                                     continue; // Skip adding this date to date_service
                                 }
                             }
-                            
+                           
                             if (!isset($date_service[$bookingDate])) {
                                 $date_service[$bookingDate] = ['services' => []];
                             }
@@ -697,13 +1334,13 @@ class CommonHelper
                             }
                             $date_service[$bookingDate]['services'][$bookingType]['count']++;
                         }
-    
+   
                         // Organize data by type
                         $bookingArray = array_merge(
                             ['id' => $booking->booking_id, 'type' => $bookingType],
                             $item
                         );
-    
+   
                         switch ($bookingType) {
                             case 'hotel':
                                 $hotel[] = $bookingArray;
@@ -747,24 +1384,24 @@ class CommonHelper
                 foreach ($json_data as $item) {
                     $bookingDates = $item['bookingDate'] ?? null;
                     $bookingType = $booking->type ?? null;
-    
+   
                     if (!$bookingDates || !$bookingType) {
                         Log::error("Missing bookingDate or type for booking ID: {$booking->booking_id}");
                         continue;
                     }
-    
+   
                     // Ensure bookingDates is always an array
                     if (!is_array($bookingDates)) {
                         $bookingDates = [$bookingDates];
                     }
-    
+   
                     // Convert date range into all dates
                     $expandedDates = [];
                     if (count($bookingDates) == 2) {
                         try {
                             $startDate = \Carbon\Carbon::createFromFormat('Y-m-d', $bookingDates[0]);
                             $endDate = \Carbon\Carbon::createFromFormat('Y-m-d', $bookingDates[1]);
-                            
+                           
                             // Include all dates in the range
                             while ($startDate->lte($endDate)) {
                                 $expandedDates[] = $startDate->format('Y-m-d');
@@ -777,11 +1414,11 @@ class CommonHelper
                     } else {
                         $expandedDates = $bookingDates;
                     }
-    
+   
                     // Process each date
                     foreach ($expandedDates as $bookingDate) {
                         if (empty($bookingDate)) continue;
-                        
+                       
                         // For hotel bookings, skip the last date in date_service
                         if ($bookingType === 'hotel') {
                             // Check if this is the last date in the range
@@ -791,12 +1428,12 @@ class CommonHelper
                             } else {
                                 $isLastDate = $bookingDate === end($bookingDates);
                             }
-                            
+                           
                             if ($isLastDate) {
                                 continue; // Skip adding this date to date_service
                             }
                         }
-                        
+                       
                         if (!isset($date_service[$bookingDate])) {
                             $date_service[$bookingDate] = ['services' => []];
                         }
@@ -808,13 +1445,13 @@ class CommonHelper
                         }
                         $date_service[$bookingDate]['services'][$bookingType]['count']++;
                     }
-    
+   
                     // Organize data by type
                     $bookingArray = array_merge(
                         ['id' => $booking->booking_id, 'type' => $bookingType],
                         $item
                     );
-    
+   
                     switch ($bookingType) {
                         case 'hotel':
                             $hotel[] = $bookingArray;
@@ -854,7 +1491,7 @@ class CommonHelper
                 Log::error("Invalid or missing 'data' field for booking ID: {$booking->booking_id}");
             }
         }
-    
+   
         return [
             'date_service' => $date_service,
             'hotel' => $hotel,
@@ -879,7 +1516,7 @@ class CommonHelper
     }
 
     /*
-    *Common Response create tour and edit tour 
+    *Common Response create tour and edit tour
     *Date 29-01-2025
     */
     public static function CommonBookingResponse($agent_id, $tour_id, $type)
@@ -888,7 +1525,7 @@ class CommonHelper
             ->where('agent_id', $agent_id)
             ->where('status', '!=', 4)
             ->get();
-        
+       
         $date_service = [];
         $data = []; // Store only the requested type data
         $hotel_count = 0;
@@ -903,11 +1540,11 @@ class CommonHelper
 
         foreach ($booking_data as $booking) {
             $json_data = $booking->data;
-            
+           
             // Check if data is a JSON string and decode it
             if (!empty($json_data) && is_string($json_data)) {
                 $array = json_decode($json_data, true);
-                
+               
                 if (json_last_error() === JSON_ERROR_NONE && is_array($array)) {
                     foreach ($array as $item) {
                         $bookingDates = $item['bookingDate'] ?? null;
@@ -924,7 +1561,7 @@ class CommonHelper
                                 try {
                                     $startDate = \Carbon\Carbon::createFromFormat('Y-m-d', $bookingDates[0]);
                                     $endDate = \Carbon\Carbon::createFromFormat('Y-m-d', $bookingDates[1]);
-                                    
+                                   
                                     // Include all dates in the range
                                     while ($startDate->lte($endDate)) {
                                         $expandedDates[] = $startDate->format('Y-m-d');
@@ -941,7 +1578,7 @@ class CommonHelper
                             // Process each date
                             foreach ($expandedDates as $bookingDate) {
                                 if (empty($bookingDate)) continue;
-                                
+                               
                                 // For hotel bookings, skip the last date in date_service
                                 if ($booking->type === 'hotel') {
                                     // Check if this is the last date in the range
@@ -951,23 +1588,23 @@ class CommonHelper
                                     } else {
                                         $isLastDate = $bookingDate === end($bookingDates);
                                     }
-                                    
+                                   
                                     if ($isLastDate) {
                                         continue; // Skip adding this date to date_service
                                     }
                                 }
-                                
+                               
                                 if (!isset($date_service[$bookingDate])) {
                                     $date_service[$bookingDate] = ['services' => []];
                                 }
-                                
+                               
                                 if (!isset($date_service[$bookingDate]['services'][$booking->type])) {
                                     $date_service[$bookingDate]['services'][$booking->type] = [
                                         'status' => $booking->status,
                                         'count' => 0
                                     ];
                                 }
-                                
+                               
                                 $date_service[$bookingDate]['services'][$booking->type]['count']++;
                             }
                         }
@@ -989,9 +1626,9 @@ class CommonHelper
                         }
                         // Count booking types
                         if ($booking->type == 'hotel') $hotel_count++;
-                        if ($booking->type == 'attraction') 
+                        if ($booking->type == 'attraction')
                         $attraction_count++;
-                        if ($booking->type == 'attraction_package') 
+                        if ($booking->type == 'attraction_package')
                         $attraction_count++;
                         if ($booking->type == 'entry_port') $entry_port_count++;
                         if ($booking->type == 'exit_port') $exit_port_count++;
@@ -1020,7 +1657,7 @@ class CommonHelper
                             try {
                                 $startDate = \Carbon\Carbon::createFromFormat('Y-m-d', $bookingDates[0]);
                                 $endDate = \Carbon\Carbon::createFromFormat('Y-m-d', $bookingDates[1]);
-                                
+                               
                                 while ($startDate->lte($endDate)) {
                                     $expandedDates[] = $startDate->format('Y-m-d');
                                     $startDate->addDay();
@@ -1043,23 +1680,23 @@ class CommonHelper
                                 } else {
                                     $isLastDate = $bookingDate === end($bookingDates);
                                 }
-                                
+                               
                                 if ($isLastDate) {
                                     continue; // Skip adding this date to date_service
                                 }
                             }
-                            
+                           
                             if (!isset($date_service[$bookingDate])) {
                                 $date_service[$bookingDate] = ['services' => []];
                             }
-                            
+                           
                             if (!isset($date_service[$bookingDate]['services'][$booking->type])) {
                                 $date_service[$bookingDate]['services'][$booking->type] = [
                                     'status' => $booking->status,
                                     'count' => 0
                                 ];
                             }
-                            
+                           
                             $date_service[$bookingDate]['services'][$booking->type]['count']++;
                         }
                     }
@@ -1099,7 +1736,7 @@ class CommonHelper
         $service = [
             'date_service' => $date_service,
             'type' => $type,
-            'data' => $data, 
+            'data' => $data,
             'hotel_count' => $hotel_count,
             'attraction_count' => $attraction_count,
             'entry_port_count' => $entry_port_count,
@@ -1230,7 +1867,7 @@ class CommonHelper
     public static function calculateDmcModePricehotel($base_price, $dmc_id, $name, $type, $city)
     {
         $dmc = User::where('userId', $dmc_id)->first();
-        
+       
         if (!$dmc) {
             return [0, null]; // No valid DMC found, return 0
         }
@@ -1254,7 +1891,7 @@ class CommonHelper
             ->where('city', $city)
             ->where('dmc_id', $dmc->userId) // Use the resolved DMC
             ->first();
-            
+           
         }elseif ($type === 'guide') {
             $hotel = Guide::where('name', $name)
             ->where('city', $city)
@@ -1263,7 +1900,7 @@ class CommonHelper
         } else {
             return [0, null]; // Invalid type, return 0
         }
-        
+       
         if (!$hotel) {
             return [0, null]; // Hotel not linked to this DMC, return 0
         }
@@ -1275,10 +1912,10 @@ class CommonHelper
         return [$price ?? 0, $dmc->userId ?? null]; // Ensure price is numeric, fallback to 0
     }
  
-    //Vehicle dmc mode price 
+    //Vehicle dmc mode price
     public static function calculateDmcModePriceVehicle($base_price, $salesManagerId, $name, $type)
     {
-        $dmc = User::where('userId', $dmc_id)->first(); 
+        $dmc = User::where('userId', $dmc_id)->first();
         if (!$dmc) {
             return [0, null]; // No valid DMC found, return 0
         }
@@ -1395,10 +2032,10 @@ class CommonHelper
 
             // Store the file in the temporary disk
             $path = Storage::disk('azure_temp')->putFileAs($container, $file, $fileName);
-            
+           
             // Generate the URL for the stored file
             $url = Storage::disk('azure_temp')->url($path);
-            
+           
             return [
                 'master_value' => $url,
             ];
@@ -1409,7 +2046,7 @@ class CommonHelper
                 'file_name' => $fileName,
                 'container' => $container
             ]);
-            
+           
             return [
                 'master_value' => null,
                 'error' => $e->getMessage()
@@ -1430,15 +2067,15 @@ class CommonHelper
                 $config['name'],
                 $config['key']
             );
-            
+           
             $blobClient = BlobRestProxy::createBlobService($connectionString);
-            
+           
             // Extract filename from URL
             $fileName = basename(parse_url($imageUrl, PHP_URL_PATH));
-            
+           
             // Delete the blob
             $blobClient->deleteBlob('uploads', $fileName);
-            
+           
         } catch (\Exception $e) {
             // Ignore errors, just log
             Log::error('Azure image deletion failed: ' . $e->getMessage());
@@ -1450,7 +2087,7 @@ class CommonHelper
         try {
             // Process order data to prepare template data
             $data = [];
-            
+           
             // Extract data from order object if it's an object
             if (is_object($orderData)) {
                 // If it's an Order model object, extract what we need
@@ -1496,17 +2133,17 @@ class CommonHelper
                 ];
             }
 
-            
-            
+           
+           
             // If it's already an array, use it directly
             else if (is_array($orderData)) {
                 $data = $orderData;
             }
-            
+           
             // Get company settings for the email
             $logoSetting = self::masterSettingsName('logo');
             $nameSetting = self::masterSettingsName('name');
-            
+           
             // Add company info to the data array
             $companyData = [
                 "company" => [
@@ -1514,7 +2151,7 @@ class CommonHelper
                     "logo" => $orderData['dmc_logo'] ?? $logoSetting['master_value'] ?? asset('images/logo.png')
                 ]
             ];
-            
+           
             // Add mail settings for the template
             $mailSettings = (object)[
                 "support_email" => $orderData['dmc_email'] ?? null,
@@ -1524,41 +2161,45 @@ class CommonHelper
                 "instagram_url" => "https://instagram.com/yourcompany",
                 "linkedin_url" => "https://linkedin.com/company/yourcompany"
             ];
-            
+           
             // Merge all data
             $viewData = array_merge($data, $companyData);
             $viewData['mail_settings'] = $mailSettings;
+
+            // Use DMC-specific SMTP from emails_setup (not .env)
+            self::applyEmailsSetupMailConfig();
+
             // Determine which template to use based on the type
             $template = 'mails.' . $type;
             if (!view()->exists($template)) {
                 $template = 'mails.booking_confirmation'; // Default template
             }
-            
+           
             // Render the email template
             try {
                 $html = view($template, $viewData)->render();
             } catch (\Exception $e) {
                 return "Error rendering email template: " . $e->getMessage();
             }
-            
+           
             // Extract the entire style tag content
             preg_match('/<style>(.*?)<\/style>/s', $html, $styleMatches);
             $styles = !empty($styleMatches[0]) ? $styleMatches[0] : '';
-            
+           
             // Extract the email-container div with all its contents
             preg_match('/<div class="email-container">(.*?)<\/div>\s*$/s', $html, $matches);
             if (!empty($matches[0])) {
                 $extractedHtml = $matches[0];
-                
+               
                 // Add minimal HTML structure with the extracted styles
                 $emailHtml = '<!DOCTYPE html><html><head><title>' . $subject . '</title>' . $styles . '</head><body>' . $extractedHtml . '</body></html>';
-                
+               
                 // Send the email to the actual recipient
                 try {
                     Mail::to($email)->send(new DmcMail($emailHtml, $subject));
                     // Log successful email sending
                     Log::info("Email sent successfully to: {$email}", ['type' => $type, 'subject' => $subject]);
-                    
+                   
                     return true;
                 } catch (\Exception $e) {
                     return "Failed to send email: " . $e->getMessage();
@@ -1578,12 +2219,464 @@ class CommonHelper
         }
     }
 
+    /**
+     * Send a hotel booking confirmation email with a custom subject and body
+     * (plain text body is wrapped in a minimal HTML email container).
+     *
+     * @param  string  $email    Hotel email from hotels.email
+     * @param  string  $subject  Email subject
+     * @param  string  $body     Plain-text email body (e.g. from mail preview content)
+     * @return true|string       true on success, error message string on failure
+     */
+    public static function sendHotelApprovalEmail($email, $subject, $body)
+    {
+        try {
+            if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                Log::error('Hotel approval email skipped: invalid hotel email', [
+                    'email' => $email,
+                    'subject' => $subject,
+                ]);
+                return 'Hotel email is not set or invalid';
+            }
+
+            // Use DMC-specific SMTP from emails_setup (not .env)
+            self::applyEmailsSetupMailConfig();
+
+            $escapedBody = nl2br(e($body));
+            $safeSubject = e($subject);
+
+            $emailHtml = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' . $safeSubject . '</title>
+<style>
+body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;margin:0;padding:0;color:#333;line-height:1.6;}
+.email-container{max-width:720px;margin:20px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.08);border:1px solid #e2e8f0;}
+.email-header{background:linear-gradient(135deg,#28a745 0%,#20c997 100%);padding:24px 28px;color:#fff;}
+.email-header h1{margin:0;font-size:20px;}
+.email-body{padding:28px;white-space:pre-wrap;font-family:Consolas,Monaco,monospace;font-size:13px;color:#1f2937;}
+.email-footer{padding:16px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b;}
+</style>
+</head><body>
+<div class="email-container">
+<div class="email-header"><h1>Hotel Booking Confirmation</h1></div>
+<div class="email-body">' . $escapedBody . '</div>
+<div class="email-footer">This email was sent automatically from the booking system.</div>
+</div>
+</body></html>';
+
+            Mail::to($email)->send(new DmcMail($emailHtml, $subject));
+
+            Log::info('Hotel approval email sent successfully', [
+                'email' => $email,
+                'subject' => $subject,
+            ]);
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Hotel approval email sending failed', [
+                'email' => $email,
+                'subject' => $subject,
+                'error' => $e->getMessage(),
+            ]);
+
+            return 'Email sending failed: ' . $e->getMessage();
+        }
+    }
+
+    /**
+     * Apply SMTP/from settings from emails_setup for the given (or current) DMC.
+     * Returns the setup row when found, otherwise null.
+     */
+    public static function applyEmailsSetupMailConfig($dmcId = null): ?EmailsSetup
+    {
+        try {
+            if (empty($dmcId)) {
+                $user = Auth::user();
+                $dmcId = $user ? self::getDmcId($user) : null;
+                if ($user && (int) $user->role_id === 1) {
+                    $dmcId = 1;
+                }
+            }
+
+            if (empty($dmcId)) {
+                return null;
+            }
+
+            $setup = EmailsSetup::where('dmcId', $dmcId)->first();
+            if (!$setup || empty($setup->SMTP_Host)) {
+                return $setup;
+            }
+
+            self::applyRuntimeMailConfig([
+                'host' => $setup->SMTP_Host,
+                'port' => $setup->SMTP_Port,
+                'encryption' => $setup->SMTP_Encrypt,
+                'username' => $setup->SMTP_User,
+                'password' => $setup->SMTP_Pass,
+                'from_email' => $setup->From_Email,
+                'from_name' => $setup->From_Name,
+            ]);
+
+            return $setup;
+        } catch (\Exception $e) {
+            Log::warning('Failed to apply emails_setup mail config', [
+                'dmcId' => $dmcId,
+                'error' => $e->getMessage(),
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Resolve Azure/function-app method name assigned to a DMC.
+     */
+    public static function getDmcFuncAppName($dmcId): ?string
+    {
+        $settings = self::getDmcFuncAppSettings($dmcId);
+
+        return $settings['func_name'] !== '' ? $settings['func_name'] : null;
+    }
+
+    /**
+     * DMC Func App assignment for a DMC (from /dmc-func-app).
+     *
+     * @return array{func_name: string, func_limit: int|null}
+     */
+    public static function getDmcFuncAppSettings($dmcId): array
+    {
+        $dmcId = (int) $dmcId;
+        if ($dmcId <= 0) {
+            return self::emptyDmcFuncAppSettings();
+        }
+
+        $settings = DmcFuncApp::settingsForDmc($dmcId);
+
+        return [
+            'func_name' => trim((string) ($settings['function_name'] ?? '')),
+            'func_limit' => isset($settings['maximum_limit']) && $settings['maximum_limit'] !== null
+                ? (int) $settings['maximum_limit']
+                : null,
+        ];
+    }
+
+    /**
+     * Mail / IMAP / AI identity settings for a DMC (from /mail/settings).
+     * Falls back to the master DMC row when the child DMC has no emails_setup.
+     *
+     * @return array{
+     *     ai_email: string,
+     *     ai_from_name: string,
+     *     smtp_host: string,
+     *     smtp_port: int|null,
+     *     smtp_security: string,
+     *     smtp_user: string,
+     *     smtp_pass: string,
+     *     imap_host: string,
+     *     imap_port: int|null,
+     *     imap_security: string,
+     *     imap_user: string,
+     *     imap_pass: string,
+     *     support_email: string,
+     *     support_phone: string
+     * }
+     */
+    public static function getDmcMailSettings($dmcId): array
+    {
+        $dmcId = (int) $dmcId;
+        if ($dmcId <= 0) {
+            return self::emptyDmcMailSettings();
+        }
+
+        $map = self::getDmcMailSettingsForMany([$dmcId]);
+
+        return $map[$dmcId] ?? self::emptyDmcMailSettings();
+    }
+
+    /** @var array<int, array<string, mixed>> */
+    private static array $dmcAzureRootFieldsCache = [];
+
+    /**
+     * Combined root-level Azure/day-level JSON fields for one DMC.
+     *
+     * @return array<string, mixed>
+     */
+    public static function getDmcAzureRootFields($dmcId): array
+    {
+        $dmcId = (int) $dmcId;
+        if ($dmcId <= 0) {
+            return array_merge(self::emptyDmcFuncAppSettings(), self::emptyDmcMailSettings());
+        }
+
+        $map = self::getDmcAzureRootFieldsForMany([$dmcId]);
+
+        return $map[$dmcId] ?? array_merge(self::emptyDmcFuncAppSettings(), self::emptyDmcMailSettings());
+    }
+
+    /**
+     * Batch loader for day-level Azure JSON export.
+     *
+     * @param  list<int|string>  $dmcIds
+     * @return array<int, array<string, mixed>>
+     */
+    public static function getDmcAzureRootFieldsForMany(array $dmcIds): array
+    {
+        $dmcIds = array_values(array_unique(array_filter(array_map('intval', $dmcIds))));
+        $result = [];
+        $missing = [];
+
+        foreach ($dmcIds as $id) {
+            if (array_key_exists($id, self::$dmcAzureRootFieldsCache)) {
+                $result[$id] = self::$dmcAzureRootFieldsCache[$id];
+            } else {
+                $missing[] = $id;
+            }
+        }
+
+        if ($missing !== []) {
+            $funcMap = DmcFuncApp::settingsForMany($missing);
+            $mailMap = self::getDmcMailSettingsForMany($missing);
+
+            foreach ($missing as $id) {
+                $func = $funcMap[$id] ?? ['function_name' => null, 'maximum_limit' => null];
+                $fields = array_merge(
+                    [
+                        'func_name' => trim((string) ($func['function_name'] ?? '')),
+                        'func_limit' => isset($func['maximum_limit']) && $func['maximum_limit'] !== null
+                            ? (int) $func['maximum_limit']
+                            : null,
+                    ],
+                    $mailMap[$id] ?? self::emptyDmcMailSettings()
+                );
+                self::$dmcAzureRootFieldsCache[$id] = $fields;
+                $result[$id] = $fields;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param  list<int>  $dmcIds
+     * @return array<int, array<string, mixed>>
+     */
+    public static function getDmcMailSettingsForMany(array $dmcIds): array
+    {
+        $dmcIds = array_values(array_unique(array_filter(array_map('intval', $dmcIds))));
+        $result = [];
+        foreach ($dmcIds as $id) {
+            $result[$id] = self::emptyDmcMailSettings();
+        }
+
+        if ($dmcIds === []) {
+            return $result;
+        }
+
+        $setups = EmailsSetup::query()
+            ->whereIn('dmcId', $dmcIds)
+            ->get()
+            ->keyBy(fn ($row) => (int) $row->dmcId);
+
+        $missing = [];
+        foreach ($dmcIds as $id) {
+            if ($setups->has($id)) {
+                $result[$id] = self::mapEmailsSetupToMailFields($setups->get($id));
+            } else {
+                $missing[] = $id;
+            }
+        }
+
+        if ($missing === []) {
+            return $result;
+        }
+
+        $masterByDmc = User::query()
+            ->whereIn('userId', $missing)
+            ->pluck('master_dmc_id', 'userId');
+
+        $masterIds = array_values(array_unique(array_filter(array_map('intval', $masterByDmc->all()))));
+        $masterSetups = $masterIds === []
+            ? collect()
+            : EmailsSetup::query()
+                ->whereIn('dmcId', $masterIds)
+                ->get()
+                ->keyBy(fn ($row) => (int) $row->dmcId);
+
+        foreach ($missing as $id) {
+            $masterId = (int) ($masterByDmc->get($id) ?? $masterByDmc->get((string) $id) ?? 0);
+            if ($masterId > 0 && $masterSetups->has($masterId)) {
+                $result[$id] = self::mapEmailsSetupToMailFields($masterSetups->get($masterId));
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * @return array{func_name: string, func_limit: int|null}
+     */
+    public static function emptyDmcFuncAppSettings(): array
+    {
+        return [
+            'func_name' => '',
+            'func_limit' => null,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function emptyDmcMailSettings(): array
+    {
+        return [
+            'ai_email' => '',
+            'ai_from_name' => '',
+            'smtp_host' => '',
+            'smtp_port' => null,
+            'smtp_security' => '',
+            'smtp_user' => '',
+            'smtp_pass' => '',
+            'imap_host' => '',
+            'imap_port' => null,
+            'imap_security' => '',
+            'imap_user' => '',
+            'imap_pass' => '',
+            'support_email' => '',
+            'support_phone' => '',
+        ];
+    }
+
+    private static function mapEmailsSetupToMailFields(?EmailsSetup $setup): array
+    {
+        if (! $setup) {
+            return self::emptyDmcMailSettings();
+        }
+
+        return [
+            'ai_email' => trim((string) ($setup->From_Email ?? '')),
+            'ai_from_name' => trim((string) ($setup->From_Name ?? '')),
+            'smtp_host' => trim((string) ($setup->SMTP_Host ?? '')),
+            'smtp_port' => $setup->SMTP_Port !== null && $setup->SMTP_Port !== '' ? (int) $setup->SMTP_Port : null,
+            'smtp_security' => trim((string) ($setup->SMTP_Encrypt ?? '')),
+            'smtp_user' => trim((string) ($setup->SMTP_User ?? '')),
+            'smtp_pass' => (string) ($setup->SMTP_Pass ?? ''),
+            'imap_host' => trim((string) ($setup->IMAP_Host ?? '')),
+            'imap_port' => $setup->IMAP_Port !== null && $setup->IMAP_Port !== '' ? (int) $setup->IMAP_Port : null,
+            'imap_security' => trim((string) ($setup->IMAP_Encrypt ?? '')),
+            'imap_user' => trim((string) ($setup->IMAP_User ?? '')),
+            'imap_pass' => (string) ($setup->IMAP_Pass ?? ''),
+            'support_email' => trim((string) ($setup->support_email ?? '')),
+            'support_phone' => trim((string) ($setup->support_phone ?? '')),
+        ];
+    }
+
+    /**
+     * Override Laravel SMTP mailer config at runtime and purge cached mailer.
+     */
+    public static function applyRuntimeMailConfig(array $config): void
+    {
+        $encryption = strtolower((string) ($config['encryption'] ?? 'tls'));
+        if ($encryption === 'none' || $encryption === '') {
+            $encryption = null;
+        }
+
+        Config::set('mail.default', 'smtp');
+        Config::set('mail.mailers.smtp.transport', 'smtp');
+        Config::set('mail.mailers.smtp.host', $config['host'] ?? null);
+        Config::set('mail.mailers.smtp.port', (int) ($config['port'] ?? 587));
+        Config::set('mail.mailers.smtp.encryption', $encryption);
+        Config::set('mail.mailers.smtp.username', $config['username'] ?? null);
+        Config::set('mail.mailers.smtp.password', $config['password'] ?? null);
+
+        if (!empty($config['from_email'])) {
+            Config::set('mail.from.address', $config['from_email']);
+            Config::set('mail.from.name', $config['from_name'] ?? config('app.name'));
+        }
+
+        try {
+            app('mail.manager')->purge('smtp');
+        } catch (\Throwable $e) {
+            // Mail manager may not be bound in some contexts.
+        }
+    }
+
+    /**
+     * Convert SMTP fields from an external API / DMC package payload into Laravel
+     * runtime SMTP config used when *sending* mail.
+     *
+     * Roles:
+     * - To: always the API `sender_email` (resolved by the caller) — never ai_email
+     * - From: SMTP auth mailbox (`smtp_user`) for deliverability alignment
+     * - From name: `ai_from_name` display name when present
+     * - `ai_email`: IMAP / inbound fetch only — not used as To or From here
+     *
+     * @param  array<string, mixed>  $primaryDmc
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>|null
+     */
+    public static function resolveApiRuntimeMailConfig(array $primaryDmc, array $payload = [], array $fallback = []): ?array
+    {
+        // Precedence: DMC entry > payload root > this DMC's stored mail settings.
+        // Empty values never mask a populated fallback, which is what lets the
+        // stored smtp_pass fill in when the API omits it.
+        $source = array_merge(
+            $fallback,
+            self::filterPopulatedMailFields($payload),
+            self::filterPopulatedMailFields($primaryDmc)
+        );
+        $host = trim((string) ($source['smtp_host'] ?? ''));
+        $port = filter_var($source['smtp_port'] ?? null, FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 1, 'max_range' => 65535],
+        ]);
+        $security = strtolower(trim((string) ($source['smtp_security'] ?? '')));
+        $security = $security === 'starttls' ? 'tls' : $security;
+        $username = trim((string) ($source['smtp_user'] ?? ''));
+        $password = (string) ($source['smtp_pass'] ?? '');
+
+        // From must match the SMTP login mailbox (never ai_email — that is for fetch).
+        $fromEmail = filter_var($username, FILTER_VALIDATE_EMAIL)
+            ? $username
+            : '';
+
+        if (
+            $fromEmail === ''
+            || $host === ''
+            || $port === false
+            || ! in_array($security, ['tls', 'ssl', 'none'], true)
+            || $username === ''
+            || $password === ''
+        ) {
+            return null;
+        }
+
+        return [
+            'host' => $host,
+            'port' => (int) $port,
+            'encryption' => $security,
+            'username' => $username,
+            'password' => $password,
+            'from_email' => $fromEmail,
+            'from_name' => trim((string) ($source['ai_from_name'] ?? '')) ?: config('app.name'),
+        ];
+    }
+
+    /**
+     * Drop null/blank entries so a lower-priority source can supply the value.
+     *
+     * @param  array<string, mixed>  $fields
+     * @return array<string, mixed>
+     */
+    private static function filterPopulatedMailFields(array $fields): array
+    {
+        return array_filter(
+            $fields,
+            static fn ($value) => $value !== null && (! is_string($value) || trim($value) !== '')
+        );
+    }
+
     public static function getDmcId($auth_user){
         if($auth_user->agent_id){
             $agent = Agent::where('agent_id', $auth_user->agent_id)->first();
             $sales_manager_dmc = $agent->sales_manager_dmc;
             $dmcId = null;
-            
+           
             if($agent->role_id == 11){
                 $dmcId = $sales_manager_dmc;
             }
@@ -1606,7 +2699,7 @@ class CommonHelper
         }
         elseif($auth_user->userId){
             $user = $auth_user;
-            if($user->role_id == 11){
+            if($user->role_id == 11 || $user->role_id == 20){
                 return $user->userId;
             }
             elseif(in_array($user->role_id, [33, 34, 35, 36, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138])){
@@ -1626,6 +2719,851 @@ class CommonHelper
             }
         }
         return null;
+    }
+
+
+    /**
+     * Country used for multi-country tour visibility.
+     * Prefer user_country, else first CSV segment of country.
+     * For sales staff, fall back to their parent DMC country.
+     */
+    public static function resolveUserOperatingCountry($user): ?string
+    {
+        if (!$user) {
+            return null;
+        }
+
+        $pickFirst = static function (?string $raw): ?string {
+            $raw = trim((string) $raw);
+            if ($raw === '') {
+                return null;
+            }
+            $parts = preg_split('/\s*,\s*/', $raw) ?: [];
+            $first = trim((string) ($parts[0] ?? ''));
+            return $first !== '' ? $first : null;
+        };
+
+        $country = $pickFirst($user->user_country ?? null)
+            ?: $pickFirst($user->country ?? null);
+
+        if ($country) {
+            return $country;
+        }
+
+        // Sales / ops: inherit DMC country (e.g. India DMC â†’ India)
+        $dmcId = self::getDmcId($user);
+        if (!$dmcId && (int) ($user->role_id ?? 0) === 11) {
+            $dmcId = $user->userId;
+        }
+        if ($dmcId && (int) $dmcId !== (int) ($user->userId ?? 0)) {
+            $dmcUser = User::where('userId', $dmcId)->first();
+            if ($dmcUser) {
+                return $pickFirst($dmcUser->user_country ?? null)
+                    ?: $pickFirst($dmcUser->country ?? null);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Child DMC ids under the same Master DMC as $dmcId (includes $dmcId).
+     */
+    public static function getSiblingDmcIds($dmcId): array
+    {
+        $dmcId = (int) $dmcId;
+        if ($dmcId <= 0) {
+            return [];
+        }
+
+        $dmcUser = User::where('userId', $dmcId)->first();
+        if (!$dmcUser) {
+            return [$dmcId];
+        }
+
+        $masterDmcId = (int) ($dmcUser->master_dmc_id ?? 0);
+        if ($masterDmcId <= 0 && (int) ($dmcUser->role_id ?? 0) === 10) {
+            $masterDmcId = $dmcId;
+        }
+
+        if ($masterDmcId <= 0) {
+            $visited = [];
+            $candidateId = (int) ($dmcUser->created_by ?? 0);
+            $safety = 0;
+            while ($candidateId > 0 && $safety < 8 && !in_array($candidateId, $visited, true)) {
+                $visited[] = $candidateId;
+                $candidate = User::where('userId', $candidateId)->first();
+                if (!$candidate) {
+                    break;
+                }
+                if ((int) ($candidate->role_id ?? 0) === 10) {
+                    $masterDmcId = (int) $candidate->userId;
+                    break;
+                }
+                $candidateId = (int) ($candidate->created_by ?? 0);
+                $safety++;
+            }
+        }
+
+        if ($masterDmcId <= 0) {
+            return [$dmcId];
+        }
+
+        $ids = User::where('master_dmc_id', $masterDmcId)
+            ->where('role_id', 11)
+            ->pluck('userId')
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if (!in_array($dmcId, $ids, true)) {
+            $ids[] = $dmcId;
+        }
+
+        return array_values(array_unique(array_filter($ids)));
+    }
+
+    /**
+     * Match tours.destination CSV (e.g. "Singapore, Malaysia, India") to one country.
+     */
+    public static function whereDestinationContainsCountry($query, string $country, string $column = 'destination')
+    {
+        $country = trim($country);
+        if ($country === '') {
+            return $query;
+        }
+
+        $needle = mb_strtolower($country);
+
+        return $query->whereRaw(
+            "EXISTS (
+                SELECT 1
+                FROM unnest(
+                    string_to_array(
+                        regexp_replace(LOWER(COALESCE({$column}, '')), '\\s*,\\s*', ',', 'g'),
+                        ','
+                    )
+                ) AS dest(name)
+                WHERE TRIM(dest.name) = ?
+            )",
+            [$needle]
+        );
+    }
+
+    /**
+     * Master multi-country access:
+     * - Always show tours for the user's own DMC
+     * - Also show sibling-DMC tours when destination includes this DMC/user country
+     *   Example: Singapore DMC sales creates "Singapore, Malaysia, India"
+     *            â†’ India DMC (and India sales) can see that tour
+     */
+    public static function applyTourDmcCountryAccess($query, $dmcId, $user = null, string $dmcColumn = 'tours.dmc_id', string $destinationColumn = 'tours.destination')
+    {
+        $dmcId = (int) $dmcId;
+        if ($dmcId <= 0) {
+            return $query;
+        }
+
+        $user = $user ?: Auth::user();
+        $siblingIds = self::getSiblingDmcIds($dmcId);
+        $country = self::resolveUserOperatingCountry($user);
+
+        // No siblings / no country â†’ classic own-DMC filter
+        if (count($siblingIds) <= 1 || !$country) {
+            return $query->where($dmcColumn, $dmcId);
+        }
+
+        return $query->where(function ($q) use ($dmcId, $siblingIds, $country, $dmcColumn, $destinationColumn) {
+            $q->where($dmcColumn, $dmcId)
+                ->orWhere(function ($q2) use ($siblingIds, $country, $dmcColumn, $destinationColumn) {
+                    $q2->whereIn($dmcColumn, $siblingIds);
+                    self::whereDestinationContainsCountry($q2, $country, $destinationColumn);
+                });
+        });
+    }
+
+    /**
+     * Parse tour destination CSV into ordered unique country names.
+     */
+    public static function parseTourDestinationCountries(?string $destination): array
+    {
+        $destination = trim((string) $destination);
+        if ($destination === '') {
+            return [];
+        }
+
+        $parts = preg_split('/\s*,\s*/', $destination) ?: [];
+        $countries = [];
+        foreach ($parts as $part) {
+            $name = trim((string) $part);
+            if ($name === '') {
+                continue;
+            }
+            $exists = false;
+            foreach ($countries as $existing) {
+                if (strcasecmp($existing, $name) === 0) {
+                    $exists = true;
+                    break;
+                }
+            }
+            if (!$exists) {
+                $countries[] = $name;
+            }
+        }
+
+        return $countries;
+    }
+
+    /**
+     * Collapse whitespace and lowercase a label for attraction/ticket matching.
+     */
+    public static function normalizeServiceLabel(?string $value): string
+    {
+        return strtolower(trim(preg_replace('/\s+/', ' ', (string) $value) ?? ''));
+    }
+
+    /**
+     * Dropdown/catalog label used for attractions: "Name - Location".
+     */
+    public static function attractionDisplayLabel($attraction): string
+    {
+        $name = trim((string) (is_array($attraction) ? ($attraction['name'] ?? '') : ($attraction->name ?? '')));
+        $location = trim((string) (is_array($attraction)
+            ? ($attraction['location'] ?? $attraction['city'] ?? '')
+            : ($attraction->location ?? $attraction->city ?? '')));
+
+        if ($name === '') {
+            return $location;
+        }
+
+        return $location !== '' ? ($name . ' - ' . $location) : $name;
+    }
+
+    /**
+     * Parse open_time / close_time (JSON array string or plain time) into a list.
+     *
+     * @return list<string>
+     */
+    public static function parseAttractionTimeList($value): array
+    {
+        if ($value === null || $value === '') {
+            return [];
+        }
+        if (is_array($value)) {
+            return array_values(array_filter(array_map(
+                static fn ($v) => trim((string) $v),
+                $value
+            )));
+        }
+
+        $raw = trim((string) $value);
+        $decoded = json_decode($raw, true);
+        if (is_array($decoded)) {
+            return array_values(array_filter(array_map(
+                static fn ($v) => trim((string) $v),
+                $decoded
+            )));
+        }
+
+        return $raw !== '' ? [$raw] : [];
+    }
+
+    /**
+     * Build selectable time slots from attraction open/close times.
+     *
+     * @return list<array{open: string, close: string, slot: string}>
+     */
+    public static function attractionTimeSlots($attraction): array
+    {
+        $openTimes = self::parseAttractionTimeList(
+            is_array($attraction) ? ($attraction['open_time'] ?? null) : ($attraction->open_time ?? null)
+        );
+        $closeTimes = self::parseAttractionTimeList(
+            is_array($attraction) ? ($attraction['close_time'] ?? null) : ($attraction->close_time ?? null)
+        );
+        if ($openTimes === [] || $closeTimes === []) {
+            return [];
+        }
+
+        $slots = [];
+        foreach ($openTimes as $index => $openTime) {
+            $closeTime = $closeTimes[$index] ?? $closeTimes[0] ?? '';
+            if ($openTime === '' || $closeTime === '') {
+                continue;
+            }
+            $slots[] = [
+                'open' => $openTime,
+                'close' => $closeTime,
+                'slot' => $openTime . ' - ' . $closeTime,
+            ];
+        }
+
+        return $slots;
+    }
+
+    /**
+     * Compact payload for attraction <option data-attraction-data>.
+     * Avoids embedding the full Eloquent model (which can break JSON in HTML attributes).
+     *
+     * @return array<string, mixed>
+     */
+    public static function attractionSelectPayload($attraction): array
+    {
+        $tickets = collect(is_array($attraction) ? ($attraction['tickets'] ?? []) : ($attraction->tickets ?? []))
+            ->map(function ($ticket) {
+                return [
+                    'ticket_id' => is_array($ticket) ? ($ticket['ticket_id'] ?? null) : ($ticket->ticket_id ?? null),
+                    'name' => is_array($ticket) ? ($ticket['name'] ?? '') : ($ticket->name ?? ''),
+                    'ticket_name' => is_array($ticket) ? ($ticket['name'] ?? $ticket['ticket_name'] ?? '') : ($ticket->name ?? ''),
+                    'adult_price' => is_array($ticket) ? ($ticket['adult_price'] ?? 0) : ($ticket->adult_price ?? 0),
+                    'child_price' => is_array($ticket) ? ($ticket['child_price'] ?? 0) : ($ticket->child_price ?? 0),
+                    'senior_price' => is_array($ticket)
+                        ? ($ticket['senior_price'] ?? $ticket['senior_adult_price'] ?? 0)
+                        : ($ticket->senior_price ?? $ticket->senior_adult_price ?? 0),
+                ];
+            })
+            ->values()
+            ->all();
+
+        $openTimes = self::parseAttractionTimeList(
+            is_array($attraction) ? ($attraction['open_time'] ?? null) : ($attraction->open_time ?? null)
+        );
+        $closeTimes = self::parseAttractionTimeList(
+            is_array($attraction) ? ($attraction['close_time'] ?? null) : ($attraction->close_time ?? null)
+        );
+        $timeSlots = self::attractionTimeSlots($attraction);
+
+        return [
+            'attraction_id' => is_array($attraction) ? ($attraction['attraction_id'] ?? null) : ($attraction->attraction_id ?? null),
+            'name' => is_array($attraction) ? ($attraction['name'] ?? '') : ($attraction->name ?? ''),
+            'location' => is_array($attraction) ? ($attraction['location'] ?? '') : ($attraction->location ?? ''),
+            'open_time' => $openTimes,
+            'close_time' => $closeTimes,
+            'time_slots' => $timeSlots,
+            'tickets' => $tickets,
+        ];
+    }
+
+    /**
+     * Match a catalog attraction when AI/day-level names include " - Location"
+     * or differ only by case/whitespace.
+     *
+     * @param  iterable<mixed>  $attractions
+     */
+    public static function matchAttractionFromList($attractions, $name, $attractionId = null)
+    {
+        $attractions = collect($attractions);
+        $name = trim((string) $name);
+        $attractionId = ($attractionId !== null && $attractionId !== '') ? (string) $attractionId : '';
+        $hasUsableName = $name !== '' && strcasecmp($name, 'N/A') !== 0;
+        $target = $hasUsableName ? self::normalizeServiceLabel($name) : '';
+
+        $matchByName = function () use ($attractions, $target, $hasUsableName) {
+            if (! $hasUsableName) {
+                return null;
+            }
+
+            $exact = $attractions->first(function ($attraction) use ($target) {
+                $attrName = is_array($attraction) ? ($attraction['name'] ?? '') : ($attraction->name ?? '');
+
+                return self::normalizeServiceLabel($attrName) === $target;
+            });
+            if ($exact) {
+                return $exact;
+            }
+
+            return $attractions->first(function ($attraction) use ($target) {
+                $label = self::normalizeServiceLabel(self::attractionDisplayLabel($attraction));
+                if ($label === $target) {
+                    return true;
+                }
+
+                $attrName = self::normalizeServiceLabel(is_array($attraction) ? ($attraction['name'] ?? '') : ($attraction->name ?? ''));
+                if ($attrName === '') {
+                    return false;
+                }
+
+                return str_starts_with($target, $attrName . ' - ');
+            });
+        };
+
+        if ($attractionId !== '') {
+            $byId = $attractions->first(function ($attraction) use ($attractionId) {
+                $id = is_array($attraction)
+                    ? ($attraction['attraction_id'] ?? $attraction['id'] ?? '')
+                    : ($attraction->attraction_id ?? $attraction->id ?? '');
+
+                return (string) $id === $attractionId;
+            });
+            if ($byId) {
+                // If a name was also provided and does not belong to this ID, prefer name
+                // (stale AttractionId after an edit is a common case).
+                if ($hasUsableName) {
+                    $idName = self::normalizeServiceLabel(
+                        is_array($byId) ? ($byId['name'] ?? '') : ($byId->name ?? '')
+                    );
+                    $idLabel = self::normalizeServiceLabel(self::attractionDisplayLabel($byId));
+                    $nameMatchesId = $target === $idName
+                        || $target === $idLabel
+                        || ($idName !== '' && str_starts_with($target, $idName . ' - '));
+                    if (! $nameMatchesId) {
+                        $byName = $matchByName();
+                        if ($byName) {
+                            return $byName;
+                        }
+                    }
+                }
+
+                return $byId;
+            }
+        }
+
+        return $matchByName();
+    }
+
+    /**
+     * Resolve which country a booking/service belongs to (multi-country itinerary).
+     * Prefer order.country, then JSON country, then city→country map, then single tour country.
+     *
+     * @param  object|array  $booking
+     * @param  array<int, string>  $tourCountries
+     * @param  array<string, string>  $cityCountryMap  lowercase city name => country
+     */
+    public static function resolveBookingServiceCountry($booking, array $tourCountries = [], array $cityCountryMap = []): string
+    {
+        $booking = is_array($booking) ? (object) $booking : $booking;
+
+        $candidates = [];
+
+        $orderCountry = trim((string) ($booking->country ?? ''));
+        if ($orderCountry !== '') {
+            $candidates[] = $orderCountry;
+        }
+
+        $data = $booking->data_decoded ?? null;
+        if ($data === null && isset($booking->data)) {
+            $raw = $booking->data;
+            $data = is_string($raw) ? json_decode($raw, true) : $raw;
+        }
+        if (is_object($data)) {
+            $data = (array) $data;
+        }
+        if (is_array($data) && isset($data[0])) {
+            $row = $data[0];
+            if (is_object($row)) {
+                $row = (array) $row;
+            }
+            if (is_array($row)) {
+                $jsonCountry = trim((string) ($row['country'] ?? ''));
+                if ($jsonCountry !== '') {
+                    $candidates[] = $jsonCountry;
+                }
+                $hotelCountry = trim((string) (data_get($row, 'hotelDetails.country') ?? ''));
+                if ($hotelCountry !== '') {
+                    $candidates[] = $hotelCountry;
+                }
+
+                $cityCandidates = [
+                    $row['city'] ?? null,
+                    data_get($row, 'hotelDetails.city'),
+                    data_get($row, 'hotelDetails.location'),
+                    $booking->hotel_location ?? null,
+                    $booking->hotel_name ?? null,
+                ];
+                foreach ($cityCandidates as $cityRaw) {
+                    $city = trim((string) $cityRaw);
+                    if ($city === '') {
+                        continue;
+                    }
+                    // Strip stay-range suffix: "Singapore [2026-08-01→2026-08-03]"
+                    if (preg_match('/^(.+?)\s*\[/', $city, $m)) {
+                        $city = trim($m[1]);
+                    }
+                    $key = mb_strtolower($city);
+                    if (isset($cityCountryMap[$key]) && $cityCountryMap[$key] !== '') {
+                        $candidates[] = $cityCountryMap[$key];
+                        break;
+                    }
+                }
+            }
+        }
+
+        foreach ($candidates as $candidate) {
+            $matched = self::matchTourCountryName($candidate, $tourCountries);
+            if ($matched !== null) {
+                return $matched;
+            }
+        }
+
+        if (count($tourCountries) === 1) {
+            return $tourCountries[0];
+        }
+
+        foreach ($candidates as $candidate) {
+            if ($candidate !== '') {
+                return $candidate;
+            }
+        }
+
+        return 'Other';
+    }
+
+    /**
+     * Match a free-text country against tour destination country list (case-insensitive).
+     *
+     * @param  array<int, string>  $tourCountries
+     */
+    public static function matchTourCountryName(string $candidate, array $tourCountries): ?string
+    {
+        $candidate = trim($candidate);
+        if ($candidate === '') {
+            return null;
+        }
+
+        foreach ($tourCountries as $country) {
+            if (strcasecmp($country, $candidate) === 0) {
+                return $country;
+            }
+        }
+
+        // CSV mistakenly stored on order (e.g. whole destination)
+        if (str_contains($candidate, ',')) {
+            $parts = preg_split('/\s*,\s*/', $candidate) ?: [];
+            foreach ($parts as $part) {
+                $matched = self::matchTourCountryName(trim((string) $part), $tourCountries);
+                if ($matched !== null) {
+                    return $matched;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Country visibility for Services column / service modals on booking lists.
+     *
+     * Restricted third-party DMC (thirdparty=yes, thirdparty_enabled=no):
+     * only that DMC's own country/countries are visible.
+     * Master DMC, normal DMC, and enabled third-party: all tour countries.
+     *
+     * @return array{restricted: bool, countries: array<int, string>}
+     */
+    public static function resolveServiceCountryViewScope($user = null): array
+    {
+        $user = $user ?: Auth::user();
+        $empty = ['restricted' => false, 'countries' => []];
+        if (!$user) {
+            return $empty;
+        }
+
+        $dmcId = self::getDmcId($user);
+        if (!$dmcId && (int) ($user->role_id ?? 0) === 11) {
+            $dmcId = (int) $user->userId;
+        }
+        if (!$dmcId) {
+            return $empty;
+        }
+
+        $dmcUser = User::where('userId', $dmcId)->first();
+        if (!$dmcUser) {
+            return $empty;
+        }
+
+        $isThirdParty = strtolower(trim((string) ($dmcUser->thirdparty ?? 'no'))) === 'yes';
+        $isEnabled = strtolower(trim((string) ($dmcUser->thirdparty_enabled ?? 'no'))) === 'yes';
+        if (!$isThirdParty || $isEnabled) {
+            return $empty;
+        }
+
+        $countries = [];
+        foreach (preg_split('/\s*,\s*/', (string) ($dmcUser->country ?? '')) ?: [] as $part) {
+            $name = trim((string) $part);
+            if ($name !== '') {
+                $countries[] = $name;
+            }
+        }
+
+        $operating = self::resolveUserOperatingCountry($user);
+        if ($operating) {
+            $already = false;
+            foreach ($countries as $existing) {
+                if (strcasecmp($existing, $operating) === 0) {
+                    $already = true;
+                    break;
+                }
+            }
+            if (!$already) {
+                array_unshift($countries, $operating);
+            }
+        }
+
+        if (empty($countries)) {
+            return $empty;
+        }
+
+        return [
+            'restricted' => true,
+            'countries' => array_values(array_unique($countries)),
+        ];
+    }
+
+    /**
+     * Countries available as Services tabs for a tour, honouring third-party scope.
+     *
+     * @param  array{restricted?: bool, countries?: array<int, string>}  $scope
+     * @return array<int, string>
+     */
+    public static function resolveTourServiceTabCountries(?string $destination, $orders = null, array $scope = []): array
+    {
+        $fromDestination = self::parseTourDestinationCountries($destination);
+        $fromOrders = [];
+
+        $orderList = $orders instanceof \Illuminate\Support\Collection
+            ? $orders
+            : collect($orders ?? []);
+
+        foreach ($orderList as $order) {
+            $name = trim((string) ($order->country ?? ''));
+            if ($name === '') {
+                continue;
+            }
+            $matched = self::matchTourCountryName($name, $fromDestination) ?? $name;
+            $exists = false;
+            foreach ($fromOrders as $existing) {
+                if (strcasecmp($existing, $matched) === 0) {
+                    $exists = true;
+                    break;
+                }
+            }
+            if (!$exists) {
+                $fromOrders[] = $matched;
+            }
+        }
+
+        // Prefer destination order; append any order-only countries at the end
+        $countries = $fromDestination;
+        foreach ($fromOrders as $orderCountry) {
+            $exists = false;
+            foreach ($countries as $existing) {
+                if (strcasecmp($existing, $orderCountry) === 0) {
+                    $exists = true;
+                    break;
+                }
+            }
+            if (!$exists) {
+                $countries[] = $orderCountry;
+            }
+        }
+
+        if (!empty($scope['restricted']) && !empty($scope['countries'])) {
+            $allowed = $scope['countries'];
+            $countries = array_values(array_filter($countries, function ($country) use ($allowed) {
+                foreach ($allowed as $allowedCountry) {
+                    if (strcasecmp((string) $country, (string) $allowedCountry) === 0) {
+                        return true;
+                    }
+                }
+                return false;
+            }));
+        }
+
+        return $countries;
+    }
+
+    /**
+     * Whether a resolved booking country is visible under the viewer's scope.
+     *
+     * @param  array{restricted?: bool, countries?: array<int, string>}  $scope
+     */
+    public static function isServiceCountryAllowed(string $country, array $scope = []): bool
+    {
+        if (empty($scope['restricted']) || empty($scope['countries'])) {
+            return true;
+        }
+
+        foreach ($scope['countries'] as $allowed) {
+            if (strcasecmp(trim($country), trim((string) $allowed)) === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Build Services-column data for booking list pages (country tabs + counts).
+     *
+     * @param  object  $tour
+     * @param  array{restricted?: bool, countries?: array<int, string>}  $scope
+     * @return array{
+     *   orders: \Illuminate\Support\Collection,
+     *   svc: array<string, int>,
+     *   serviceData: array<string, array<int, object>>,
+     *   tabCountries: array<int, string>,
+     *   svcByCountry: array<string, array<string, int>>,
+     *   orderCountryMap: array<string, string>
+     * }
+     */
+    public static function buildTourServiceCellData($tour, array $scope = [], string $bookingType = 'enquiry'): array
+    {
+        $serviceTypes = [
+            'hotel', 'attraction', 'restaurant', 'guide',
+            'entry_port', 'exit_port', 'travel_hourly', 'travel_point',
+            'local_transport', 'miscellaneous',
+        ];
+
+        $orders = collect($tour->booking ?? []);
+        $bookingType = strtolower(trim($bookingType));
+
+        if ($orders->isEmpty()) {
+            $query = Order::where('tour_id', $tour->tour_id);
+            if ($bookingType !== '') {
+                $query->where('bookingType', $bookingType);
+            }
+            if ($bookingType === 'booking') {
+                $query->whereNull('deleted_at');
+            }
+            $orders = $query->get();
+        } else {
+            $orders = $orders->filter(function ($order) use ($bookingType) {
+                if ($bookingType === 'booking' && !empty($order->deleted_at)) {
+                    return false;
+                }
+                $type = strtolower(trim((string) ($order->bookingType ?? '')));
+                if ($bookingType === '') {
+                    return true;
+                }
+                return $type === '' || $type === $bookingType;
+            })->values();
+        }
+
+        $tourCountries = self::parseTourDestinationCountries($tour->destination ?? null);
+        $isPro = (int) ($tour->is_pro ?? 0) === 1;
+
+        $svc = array_fill_keys($serviceTypes, 0);
+        $serviceData = [];
+        $orderCountryMap = [];
+
+        foreach ($orders as $order) {
+            $type = (string) ($order->type ?? '');
+            if (!in_array($type, $serviceTypes, true)) {
+                continue;
+            }
+            if ($type === 'miscellaneous' && !$isPro) {
+                continue;
+            }
+
+            $resolved = self::resolveBookingServiceCountry($order, $tourCountries, []);
+            if ($resolved === '' || $resolved === 'Other') {
+                $resolved = $tourCountries[0] ?? 'Other';
+            }
+            $canonical = self::matchTourCountryName($resolved, $tourCountries) ?? $resolved;
+            if (!self::isServiceCountryAllowed($canonical, $scope)) {
+                continue;
+            }
+
+            $svc[$type]++;
+            if (!isset($serviceData[$type])) {
+                $serviceData[$type] = [];
+            }
+            $serviceData[$type][] = $order;
+
+            $mapKey = (string) ($order->booking_id ?? $order->id ?? spl_object_id($order));
+            $orderCountryMap[$mapKey] = $canonical;
+            $order->resolved_service_country = $canonical;
+        }
+
+        $tabCountries = self::resolveTourServiceTabCountries(
+            $tour->destination ?? null,
+            collect($orders)->filter(function ($order) use ($orderCountryMap) {
+                $mapKey = (string) ($order->booking_id ?? $order->id ?? spl_object_id($order));
+                return isset($orderCountryMap[$mapKey]);
+            }),
+            $scope
+        );
+
+        // Ensure every scoped order country appears as a tab
+        foreach ($orderCountryMap as $country) {
+            $exists = false;
+            foreach ($tabCountries as $existing) {
+                if (strcasecmp((string) $existing, (string) $country) === 0) {
+                    $exists = true;
+                    break;
+                }
+            }
+            if (!$exists && self::isServiceCountryAllowed($country, $scope)) {
+                $tabCountries[] = $country;
+            }
+        }
+
+        if (empty($tabCountries) && !empty($scope['restricted']) && !empty($scope['countries'])) {
+            $tabCountries = array_values($scope['countries']);
+        }
+
+        $svcByCountry = [];
+        foreach ($tabCountries as $country) {
+            $svcByCountry[$country] = array_fill_keys($serviceTypes, 0);
+        }
+
+        foreach ($serviceData as $type => $typeOrders) {
+            foreach ($typeOrders as $order) {
+                $mapKey = (string) ($order->booking_id ?? $order->id ?? spl_object_id($order));
+                $country = $orderCountryMap[$mapKey]
+                    ?? ($order->resolved_service_country ?? ($tabCountries[0] ?? 'Other'));
+                if (!isset($svcByCountry[$country])) {
+                    $svcByCountry[$country] = array_fill_keys($serviceTypes, 0);
+                    $tabCountries[] = $country;
+                }
+                $svcByCountry[$country][$type]++;
+            }
+        }
+
+        return [
+            'orders' => $orders,
+            'svc' => $svc,
+            'serviceData' => $serviceData,
+            'tabCountries' => array_values($tabCountries),
+            'svcByCountry' => $svcByCountry,
+            'orderCountryMap' => $orderCountryMap,
+        ];
+    }
+
+    /**
+     * Resolve which Services-tab country an order belongs to.
+     *
+     * @param  array<string, string>  $orderCountryMap
+     */
+    public static function resolveOrderServiceTabCountry($order, array $orderCountryMap = [], array $tabCountries = []): string
+    {
+        $mapKey = (string) ($order->booking_id ?? $order->id ?? spl_object_id($order));
+        if (isset($orderCountryMap[$mapKey]) && $orderCountryMap[$mapKey] !== '') {
+            return $orderCountryMap[$mapKey];
+        }
+
+        $fromAttr = trim((string) ($order->resolved_service_country ?? $order->country ?? ''));
+        if ($fromAttr !== '') {
+            return self::matchTourCountryName($fromAttr, $tabCountries) ?? $fromAttr;
+        }
+
+        return $tabCountries[0] ?? 'Other';
+    }
+
+    /**
+     * Resolve the display currency for a DMC (users.currency of the DMC user).
+     * Pass the packages.dmc_id (or any DMC userId). Returns null when not found.
+     */
+    public static function getDmcCurrency($dmcId = null): ?string
+    {
+        if (empty($dmcId)) {
+            return null;
+        }
+
+        $currency = User::where('userId', $dmcId)->value('currency');
+
+        return filled($currency) ? $currency : null;
     }
 
     /**
@@ -1787,6 +3725,43 @@ class CommonHelper
         return null;
     }
 
+    /**
+     * Resolve lite/pro AI booking mode from DMC user settings (users.ai_response_type).
+     * Falls back to master DMC when the child DMC has no selection.
+     */
+    public static function resolveDmcAiResponseType(?User $dmcUser): ?string
+    {
+        if ($dmcUser === null) {
+            return null;
+        }
+
+        $type = strtolower(trim((string) ($dmcUser->ai_response_type ?? '')));
+        if (in_array($type, ['lite', 'pro'], true)) {
+            return $type;
+        }
+
+        $masterId = (int) ($dmcUser->master_dmc_id ?? 0);
+        if ($masterId > 0 && $masterId !== (int) $dmcUser->userId) {
+            $master = User::where('userId', $masterId)->first();
+            if ($master) {
+                $masterType = strtolower(trim((string) ($master->ai_response_type ?? '')));
+                if (in_array($masterType, ['lite', 'pro'], true)) {
+                    return $masterType;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Map DMC ai_response_type to tours.is_pro (1 = pro, 0 = lite).
+     */
+    public static function resolveTourIsProFromDmc(?User $dmcUser): int
+    {
+        return self::resolveDmcAiResponseType($dmcUser) === 'pro' ? 1 : 0;
+    }
+
     public static function normalizeEmailMessageId(?string $messageId): ?string
     {
         $messageId = trim((string) $messageId);
@@ -1905,7 +3880,7 @@ class CommonHelper
     }
 
     /**
-     * Merge every present list field (cc, cc_list, etc.) — empty arrays are skipped.
+     * Merge every present list field (cc, cc_list, etc.) â€” empty arrays are skipped.
      *
      * @param  array<string, mixed>  $context
      * @param  list<string>  $keys
@@ -2127,46 +4102,77 @@ class CommonHelper
         ?string $threadSubject = null,
         array $referenceMessageIds = [],
         array $ccEmails = [],
-        array $bccEmails = []
+        array $bccEmails = [],
+        ?array $runtimeMailConfig = null
     ): void {
-        if ($emailUuid !== null && $emailUuid !== '') {
-            $finalSubject = self::applyThreadReplySubject($subject, $threadSubject);
-            $referenceChain = self::buildEmailReferenceChain($emailUuid, $referenceMessageIds);
+        $previousMailConfig = null;
+        if ($runtimeMailConfig !== null) {
+            $previousMailConfig = [
+                'default' => Config::get('mail.default'),
+                'smtp' => Config::get('mail.mailers.smtp'),
+                'from' => Config::get('mail.from'),
+            ];
+            self::applyRuntimeMailConfig($runtimeMailConfig);
+            $fromEmail = $fromEmail ?: ($runtimeMailConfig['from_email'] ?? null);
+            $fromName = $fromName ?: ($runtimeMailConfig['from_name'] ?? null);
+        } else {
+            // Use DMC-specific SMTP from emails_setup for normal sends.
+            self::applyEmailsSetupMailConfig();
+        }
 
-            Mail::to($recipientEmail)->send(new AutomatedMail(
+        try {
+            if ($emailUuid !== null && $emailUuid !== '') {
+                $finalSubject = self::applyThreadReplySubject($subject, $threadSubject);
+                $referenceChain = self::buildEmailReferenceChain($emailUuid, $referenceMessageIds);
+
+                Mail::to($recipientEmail)->send(new AutomatedMail(
+                    $html,
+                    $finalSubject,
+                    $emailUuid,
+                    $fromEmail,
+                    $fromName,
+                    $replyToEmail,
+                    $referenceChain,
+                    $ccEmails,
+                    $bccEmails,
+                    $runtimeMailConfig
+                ));
+
+                Log::info('Threaded email sent', [
+                    'to' => $recipientEmail,
+                    'cc' => $ccEmails,
+                    'bcc' => $bccEmails,
+                    'in_reply_to' => $emailUuid,
+                    'references' => $referenceChain,
+                    'subject' => $finalSubject,
+                    'thread_subject' => $threadSubject,
+                ]);
+
+                return;
+            }
+
+            Mail::to($recipientEmail)->send(new DmcMail(
                 $html,
-                $finalSubject,
-                $emailUuid,
+                $subject,
                 $fromEmail,
                 $fromName,
                 $replyToEmail,
-                $referenceChain,
                 $ccEmails,
-                $bccEmails
+                $bccEmails,
+                $runtimeMailConfig
             ));
-
-            Log::info('Threaded email sent', [
-                'to' => $recipientEmail,
-                'cc' => $ccEmails,
-                'bcc' => $bccEmails,
-                'in_reply_to' => $emailUuid,
-                'references' => $referenceChain,
-                'subject' => $finalSubject,
-                'thread_subject' => $threadSubject,
-            ]);
-
-            return;
+        } finally {
+            if ($previousMailConfig !== null) {
+                Config::set('mail.default', $previousMailConfig['default']);
+                Config::set('mail.mailers.smtp', $previousMailConfig['smtp']);
+                Config::set('mail.from', $previousMailConfig['from']);
+                try {
+                    app('mail.manager')->purge('smtp');
+                } catch (\Throwable $e) {
+                    // Mail manager may not be bound in some contexts.
+                }
+            }
         }
-
-        Mail::to($recipientEmail)->send(new DmcMail(
-            $html,
-            $subject,
-            $fromEmail,
-            $fromName,
-            $replyToEmail,
-            $ccEmails,
-            $bccEmails
-        ));
     }
 
     /**
@@ -2198,7 +4204,7 @@ class CommonHelper
     /**
      * Send tour proposal email to agent
      * Date: Current
-     * 
+     *
      * @param int $agentId - Agent ID
      * @param int $tourId - Tour ID
      * @param string $tourDisplayId - Tour Display ID
@@ -2408,14 +4414,17 @@ class CommonHelper
             $bccEmails = self::resolveBccEmailsFromContext($tourData, $dmcEmail);
             $emailData = self::normalizeTourAutoBookedEmailData($tourData);
 
-            $subject = 'Booking #' . ($emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '') . ' — Travclicks';
+            $subject = 'Booking #' . ($emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '') . ' â€” Travclicks';
 
             $html = view('email.booking-confirmation', $emailData)->render();
+            $runtimeMailConfig = is_array($tourData['_mail_config'] ?? null)
+                ? $tourData['_mail_config']
+                : null;
             $dmcContactEmail = trim((string) ($emailData['dmc_contact_email'] ?? ''));
-            $fromEmail = (string) config('mail.from.address');
-            $fromName = trim((string) config('mail.from.name', 'Travclicks'));
+            $fromEmail = (string) ($runtimeMailConfig['from_email'] ?? config('mail.from.address'));
+            $fromName = trim((string) ($runtimeMailConfig['from_name'] ?? config('mail.from.name', 'Travclicks')));
             $dmcLabel = trim((string) ($emailData['dmc_label'] ?? $emailData['dmc_name'] ?? ''));
-            if ($dmcLabel !== '' && $dmcLabel !== 'DMC') {
+            if ($runtimeMailConfig === null && $dmcLabel !== '' && $dmcLabel !== 'DMC') {
                 $fromName = $dmcLabel.' via '.$fromName;
             }
             $replyTo = ($dmcContactEmail !== '' && filter_var($dmcContactEmail, FILTER_VALIDATE_EMAIL))
@@ -2433,7 +4442,8 @@ class CommonHelper
                 $threadSubject,
                 $referenceMessageIds,
                 $ccEmails,
-                $bccEmails
+                $bccEmails,
+                $runtimeMailConfig
             );
 
             Log::info('Booking confirmation email sent', [
@@ -2478,21 +4488,25 @@ class CommonHelper
 
             $displayId = $emailData['tour_display_id'] !== 'N/A' ? $emailData['tour_display_id'] : '';
             $dmcName = (string) ($emailData['dmc_label'] ?? $emailData['dmc_name'] ?? 'DMC');
-            $subject = 'Quotation #' . $displayId . ' from ' . $dmcName . ' — Travclicks';
+            $subject = 'Quotation #' . $displayId . ' from ' . $dmcName . ' â€” Travclicks';
 
             $html = view('email.quotation-confirmation', $emailData)->render();
+            $runtimeMailConfig = is_array($tourData['_mail_config'] ?? null)
+                ? $tourData['_mail_config']
+                : null;
             self::sendHtmlEmail(
                 $recipientEmail,
                 $html,
                 trim($subject),
-                null,
-                null,
-                null,
+                $runtimeMailConfig['from_email'] ?? null,
+                $runtimeMailConfig['from_name'] ?? null,
+                $runtimeMailConfig['from_email'] ?? null,
                 $emailUuid,
                 $threadSubject,
                 $referenceMessageIds,
                 $ccEmails,
-                $bccEmails
+                $bccEmails,
+                $runtimeMailConfig
             );
 
             Log::info('Quotation email sent', [
@@ -2703,7 +4717,7 @@ class CommonHelper
             ];
 
             $dmcName = $viewData['dmc_label'] ?: $viewData['dmc_name'] ?: $selectedDmcName;
-            $subject = 'Destination not supported — '.$requestedCountry.' — '.$dmcName;
+            $subject = 'Destination not supported â€” '.$requestedCountry.' â€” '.$dmcName;
             $html = view('email.unsupported-destination-country', $viewData)->render();
 
             $dmcEmail = trim($viewData['dmc_contact_email']);
@@ -2785,7 +4799,7 @@ class CommonHelper
             ];
 
             $dmcName = $viewData['dmc_label'] ?: $viewData['dmc_name'] ?: 'DMC';
-            $subject = 'Missing travel details — please check and resubmit — '.$dmcName;
+            $subject = 'Missing travel details â€” please check and resubmit â€” '.$dmcName;
             $html = view('email.incomplete-travel-details', $viewData)->render();
 
             $dmcEmail = trim($viewData['dmc_contact_email']);
@@ -2972,7 +4986,7 @@ class CommonHelper
 
         $baseCurrency = strtoupper((string) ($tour->currency ?? self::resolveTourEmailCurrency($tour, $dmcUser)));
 
-        return self::normalizeQuotationEmailData(array_merge($pdfData, [
+        return self::normalizeQuotationEmailData(array_merge($pdfData, self::buildTourTripSummaryFields($tour, $pdfData, $baseCurrency), [
             'dmc_name' => $dmcName,
             'dmc_logo' => self::resolveEmailLogoUrl($dmcUser?->logo ?? null),
             'dmc_label' => $dmcName,
@@ -2993,6 +5007,722 @@ class CommonHelper
             'logoType' => 'dmc',
             'quotationInformationHtml' => (string) ($pdfData['quotationInformationHtml'] ?? ''),
         ]));
+    }
+
+    /**
+     * City names for display, from the stored
+     * "Batam (Indonesia) [2026-08-14->2026-09-05], ..." format.
+     * Country suffixes, date ranges and cities already named by the
+     * destination are dropped so the summary reads "Indonesia - Batam".
+     */
+    protected static function formatTourCitiesLabel($rawCity, string $destination): string
+    {
+        $rawCity = trim((string) $rawCity);
+        if ($rawCity === '') {
+            return '';
+        }
+
+        $stripped = preg_replace(['/\[[^\]]*\]/u', '/\([^)]*\)/u'], '', $rawCity) ?? $rawCity;
+
+        $destinations = array_filter(array_map(
+            static fn ($part) => mb_strtolower(trim($part)),
+            explode(',', $destination)
+        ));
+
+        $cities = [];
+        foreach (explode(',', $stripped) as $part) {
+            $name = trim($part);
+            if ($name === '' || in_array(mb_strtolower($name), $destinations, true)) {
+                continue;
+            }
+            if (! in_array($name, $cities, true)) {
+                $cities[] = $name;
+            }
+        }
+
+        return implode(', ', $cities);
+    }
+
+    /**
+     * Flat "Trip summary" fields for the quotation/booking email header card.
+     *
+     * prepareEmailTemplateData() returns the PDF-shaped payload (tour object,
+     * bookingDetails, tourPrices), but the email card reads flat keys such as
+     * check_in_date / adults / country. Without this mapping the card renders
+     * N/A, 0 guest(s) and no value.
+     *
+     * @param  array<string, mixed>  $pdfData
+     * @return array<string, mixed>
+     */
+    protected static function buildTourTripSummaryFields(Tour $tour, array $pdfData, string $currencyCode): array
+    {
+        $bookingDetails = is_array($pdfData['bookingDetails'] ?? null) ? $pdfData['bookingDetails'] : [];
+
+        $adults = (int) ($bookingDetails['no_of_adults'] ?? $tour->adult ?? 0);
+        $children = (int) ($bookingDetails['no_of_children'] ?? $tour->child ?? 0);
+        $infants = (int) ($bookingDetails['no_of_infants'] ?? $tour->infant ?? 0);
+
+        $formatDate = static function ($value): string {
+            if (empty($value)) {
+                return 'N/A';
+            }
+
+            try {
+                return Carbon::parse($value)->format('M d, Y');
+            } catch (\Throwable $e) {
+                return 'N/A';
+            }
+        };
+
+        // tours has no country column; destination holds the country name.
+        $destination = trim((string) ($tour->destination ?? ''));
+        $city = self::formatTourCitiesLabel($tour->city ?? null, $destination);
+
+        $tourPrices = is_array($pdfData['tourPrices'] ?? null) ? $pdfData['tourPrices'] : [];
+        $estimatedTotal = self::estimateQuotationPackageTotal($tour, $tourPrices, $adults, $children, $infants);
+
+        return [
+            'country' => $destination,
+            'destination' => $destination !== '' ? $destination : 'N/A',
+            'cities_label' => $city,
+            'check_in_date' => $formatDate($tour->check_in_time ?? null),
+            'check_out_date' => $formatDate($tour->check_out_time ?? null),
+            'adults' => $adults,
+            'children' => $children,
+            'infants' => $infants,
+            'total_guests' => $adults + $children + $infants,
+            'currency_code' => $currencyCode,
+            'total_estimation' => round($estimatedTotal, 2),
+        ];
+    }
+
+    /**
+     * Intelligent Est. Quotation Value for FIT / GROUP rooming scenarios.
+     *
+     * Hotel = nightly_room_rate × rooms × trip_nights
+     * Other = other_per_head × chargeable adults (not × nights, not × children)
+     *
+     * tourPrices hotel figures are per-head stay totals (nights already summed for
+     * the hotel booking). Convert to a nightly ROOM rate before × trip nights.
+     *
+     * @param  array<string, mixed>  $tourPrices
+     */
+    protected static function estimateQuotationPackageTotal(
+        Tour $tour,
+        array $tourPrices,
+        int $adults,
+        int $children = 0,
+        int $infants = 0
+    ): float {
+        $otherSingle = (float) ($tourPrices['other_services_single'] ?? 0);
+        $otherDouble = (float) ($tourPrices['other_services_double'] ?? 0);
+        $hotelStaySingle = max(0, (float) ($tourPrices['single_sharing'] ?? 0) - $otherSingle);
+        $hotelStayDouble = max(0, (float) ($tourPrices['double_sharing'] ?? 0) - $otherDouble);
+        $hotelStayTriple = max(0, (float) ($tourPrices['triple_sharing'] ?? 0) - $otherSingle);
+
+        $tripNights = self::resolveTourNightCount($tour);
+        $hotelBookedNights = self::resolveHotelBookedNightCount($tour, $tourPrices, $tripNights);
+
+        $nightlyRoom = [
+            'single' => self::nightlyRoomRateFromStay($hotelStaySingle, $hotelBookedNights, 1),
+            'double' => self::nightlyRoomRateFromStay($hotelStayDouble, $hotelBookedNights, 2),
+            'triple' => self::nightlyRoomRateFromStay($hotelStayTriple, $hotelBookedNights, 3),
+        ];
+
+        $focSeats = strtoupper((string) ($tour->tour_type ?? 'FIT')) === 'GROUP'
+            ? max(0, (int) ($tour->foc_size ?? 0))
+            : 0;
+        $chargeableAdults = max(0, $adults - $focSeats);
+
+        $roomPlan = self::buildHotelRoomPlan(
+            $chargeableAdults,
+            $nightlyRoom['single'] > 0,
+            $nightlyRoom['double'] > 0,
+            $nightlyRoom['triple'] > 0
+        );
+
+        $hotelTotal = 0.0;
+        foreach ($roomPlan as $occupancy => $rooms) {
+            if ($rooms <= 0) {
+                continue;
+            }
+            $hotelTotal += $nightlyRoom[$occupancy] * $rooms * $tripNights;
+        }
+
+        $primaryOccupancy = $roomPlan['triple'] > 0 ? 'triple'
+            : ($roomPlan['double'] > 0 ? 'double' : 'single');
+        $otherPerHead = $primaryOccupancy === 'single'
+            ? $otherSingle
+            : ($otherDouble > 0 ? $otherDouble : $otherSingle);
+
+        return $hotelTotal + ($otherPerHead * $chargeableAdults);
+    }
+
+    /**
+     * Human-readable label for a booked order item in price breakdowns.
+     *
+     * @param  array<string, mixed>  $item
+     */
+    protected static function resolveOrderItemPriceLabel(string $type, array $item): string
+    {
+        $normalizedType = strtolower(str_replace(' ', '_', trim($type)));
+        $headline = static fn (string $value): string => \Illuminate\Support\Str::headline(
+            str_replace(['_', '-'], ' ', trim($value))
+        );
+
+        $name = trim((string) (
+            $item['AttractionName']
+            ?? $item['attractionName']
+            ?? $item['restaurantName']
+            ?? $item['restaurant_name']
+            ?? $item['hotelName']
+            ?? $item['name']
+            ?? ''
+        ));
+
+        return match ($normalizedType) {
+            'attraction', 'attraction_package' => 'Attraction' . ($name !== '' ? ': ' . $name : ''),
+            'restaurant' => 'Restaurant' . ($name !== '' ? ': ' . $name : ''),
+            'entry_port' => 'Arrival' . ($name !== '' ? ': ' . $name : ''),
+            'exit_port' => 'Departure' . ($name !== '' ? ': ' . $name : ''),
+            'guide' => 'Guide' . ($name !== '' ? ': ' . $name : ''),
+            'travel_point', 'point_to_point' => 'Point to Point' . ($name !== '' ? ': ' . $name : ''),
+            'travel_hourly', 'hourly' => 'Hourly Transfer' . ($name !== '' ? ': ' . $name : ''),
+            'local_transport', 'local_transfer', 'local_transfer_vehicle', 'port_transport' => 'Local Transfer' . ($name !== '' ? ': ' . $name : ''),
+            default => ($name !== '' ? $name : $headline($normalizedType !== '' ? $normalizedType : 'Service')),
+        };
+    }
+
+    /**
+     * Segregated quotation price breakdown for PDF / email display.
+     * Hotels show per-head × pax-in-room (e.g. double rate × 2). Other services show per-head × chargeable adults.
+     *
+     * @param  array<string, mixed>  $tourPrices
+     * @return array{lines: array<int, array<string, mixed>>, grand_total: float, occupancy_key: string, chargeable_adults: int}
+     */
+    public static function buildQuotationPriceBreakdown(
+        Tour $tour,
+        array $tourPrices,
+        int $adults,
+        int $children = 0,
+        int $infants = 0
+    ): array {
+        unset($infants);
+
+        $isProTour = (int) ($tour->is_pro ?? 0) === 1;
+        $tourType = strtoupper((string) ($tour->tour_type ?? 'FIT'));
+        $focSize = $tourType === 'GROUP' ? max(0, (int) ($tour->foc_size ?? 0)) : 0;
+        $chargeableAdults = max(0, $adults - $focSize);
+        $occupancyKey = $adults >= 2 ? 'double' : 'single';
+        $hotelPaxInRoom = $occupancyKey === 'double' ? 2 : 1;
+
+        $lines = [];
+        $grandTotal = 0.0;
+
+        foreach ($tourPrices['hotel_price_options'] ?? [] as $hotelOption) {
+            if (! is_array($hotelOption)) {
+                continue;
+            }
+
+            $label = trim((string) ($hotelOption['display_name'] ?? $hotelOption['hotel_name'] ?? 'Hotel'));
+            $single = (float) ($hotelOption['single'] ?? 0);
+            $double = (float) ($hotelOption['double'] ?? 0);
+            if ($isProTour && $double > 0) {
+                $single = $double;
+            }
+
+            $perHead = $occupancyKey === 'double' ? ($double > 0 ? $double : $single) : $single;
+            if ($perHead <= 0) {
+                continue;
+            }
+
+            $lineTotal = $perHead * $hotelPaxInRoom;
+            $lines[] = [
+                'label' => $label,
+                'category' => 'hotel',
+                'per_head' => $perHead,
+                'multiplier' => $hotelPaxInRoom,
+                'multiplier_label' => (string) $hotelPaxInRoom,
+                'line_total' => $lineTotal,
+                'formula' => 'per_head × pax',
+            ];
+            $grandTotal += $lineTotal;
+        }
+
+        foreach ($tourPrices['service_price_lines'] ?? [] as $serviceLine) {
+            if (! is_array($serviceLine)) {
+                continue;
+            }
+
+            $label = trim((string) ($serviceLine['label'] ?? 'Service'));
+            $single = (float) ($serviceLine['single'] ?? 0);
+            $double = (float) ($serviceLine['double'] ?? 0);
+            $childUnit = (float) ($serviceLine['child_unit'] ?? 0);
+            $perHead = $occupancyKey === 'double' ? ($double > 0 ? $double : $single) : $single;
+
+            if ($perHead <= 0 && $childUnit <= 0) {
+                continue;
+            }
+
+            $adultPart = $perHead * max(1, $chargeableAdults);
+            $childPart = $childUnit * max(0, $children);
+            $lineTotal = $adultPart + $childPart;
+
+            $lines[] = [
+                'label' => $label,
+                'category' => (string) ($serviceLine['type'] ?? 'other'),
+                'per_head' => $perHead,
+                'multiplier' => max(1, $chargeableAdults),
+                'multiplier_label' => (string) max(1, $chargeableAdults),
+                'child_unit' => $childUnit,
+                'child_count' => max(0, $children),
+                'child_part' => $childPart,
+                'line_total' => $lineTotal,
+                'formula' => $childPart > 0 ? 'adult + child' : 'per_head × pax',
+            ];
+            $grandTotal += $lineTotal;
+        }
+
+        return [
+            'lines' => $lines,
+            'grand_total' => $grandTotal,
+            'occupancy_key' => $occupancyKey,
+            'chargeable_adults' => $chargeableAdults,
+        ];
+    }
+
+    /**
+     * Trip nights from tour check-in / check-out (minimum 1).
+     */
+    protected static function resolveTourNightCount(Tour $tour): int
+    {
+        try {
+            if (! empty($tour->check_in_time) && ! empty($tour->check_out_time)) {
+                return max(1, (int) Carbon::parse($tour->check_in_time)->diffInDays(Carbon::parse($tour->check_out_time)));
+            }
+        } catch (\Throwable $e) {
+            // fall through
+        }
+
+        return 1;
+    }
+
+    /**
+     * Nights already baked into tourPrices hotel stay totals.
+     *
+     * @param  array<string, mixed>  $tourPrices
+     */
+    protected static function resolveHotelBookedNightCount(Tour $tour, array $tourPrices, int $tripNights): int
+    {
+        $options = $tourPrices['hotel_price_options'] ?? [];
+        if (is_array($options)) {
+            $nights = 0;
+            foreach ($options as $option) {
+                if (! is_array($option)) {
+                    continue;
+                }
+                $range = (string) ($option['date_range'] ?? $option['booking_range'] ?? '');
+                if (preg_match('/(\d{4}-\d{2}-\d{2})\s+to\s+(\d{4}-\d{2}-\d{2})/i', $range, $m)) {
+                    try {
+                        $nights += max(1, (int) Carbon::parse($m[1])->diffInDays(Carbon::parse($m[2])));
+                    } catch (\Throwable $e) {
+                        // ignore bad range
+                    }
+                }
+            }
+            if ($nights > 0) {
+                return $nights;
+            }
+        }
+
+        // Fall back to hotel order bookingDate ranges on this tour.
+        try {
+            $orders = Order::where('tour_id', $tour->tour_id)
+                ->where('status', 1)
+                ->where(function ($q) {
+                    $q->where('type', 'hotel')->orWhere('type', 'Hotel');
+                })
+                ->get();
+
+            $nights = 0;
+            foreach ($orders as $order) {
+                $raw = $order->data;
+                if (is_string($raw)) {
+                    $raw = json_decode($raw, true);
+                }
+                if (! is_array($raw) || $raw === []) {
+                    continue;
+                }
+                $items = isset($raw[0]) ? $raw : [$raw];
+                foreach ($items as $item) {
+                    if (! is_array($item)) {
+                        continue;
+                    }
+                    $bookingDate = $item['bookingDate'] ?? null;
+                    if (is_array($bookingDate) && count($bookingDate) >= 2 && ! empty($bookingDate[0]) && ! empty($bookingDate[1])) {
+                        $nights += max(1, (int) Carbon::parse($bookingDate[0])->diffInDays(Carbon::parse($bookingDate[1])));
+                        continue;
+                    }
+                    $night = (int) ($item['night'] ?? $item['nights'] ?? 0);
+                    if ($night > 0) {
+                        $nights += $night;
+                    }
+                }
+            }
+            if ($nights > 0) {
+                return $nights;
+            }
+        } catch (\Throwable $e) {
+            // fall through
+        }
+
+        return max(1, $tripNights);
+    }
+
+    /**
+     * Convert a per-head stay total into a nightly ROOM rate.
+     */
+    protected static function nightlyRoomRateFromStay(float $stayPerHead, int $hotelBookedNights, int $headsPerRoom): float
+    {
+        if ($stayPerHead <= 0 || $headsPerRoom <= 0) {
+            return 0.0;
+        }
+
+        $nights = max(1, $hotelBookedNights);
+
+        return ($stayPerHead / $nights) * $headsPerRoom;
+    }
+
+    /**
+     * Allocate rooms for chargeable adults using the largest available occupancy.
+     *
+     * @return array{single: int, double: int, triple: int}
+     */
+    protected static function buildHotelRoomPlan(
+        int $adults,
+        bool $singleAvailable,
+        bool $doubleAvailable,
+        bool $tripleAvailable
+    ): array {
+        $plan = ['single' => 0, 'double' => 0, 'triple' => 0];
+        $remaining = max(0, $adults);
+
+        if ($remaining === 0) {
+            if ($singleAvailable) {
+                $plan['single'] = 1;
+            } elseif ($doubleAvailable) {
+                $plan['double'] = 1;
+            }
+
+            return $plan;
+        }
+
+        if ($tripleAvailable) {
+            $plan['triple'] = intdiv($remaining, 3);
+            $remaining %= 3;
+        }
+
+        if ($doubleAvailable) {
+            $plan['double'] = intdiv($remaining, 2);
+            $remaining %= 2;
+            if ($remaining === 1 && ! $singleAvailable) {
+                $plan['double']++;
+                $remaining = 0;
+            }
+        }
+
+        if ($remaining > 0) {
+            if ($singleAvailable) {
+                $plan['single'] += $remaining;
+            } elseif ($doubleAvailable) {
+                $plan['double'] += $remaining;
+            } elseif ($tripleAvailable) {
+                $plan['triple'] += (int) ceil($remaining / 3);
+            }
+        }
+
+        if ($adults > 0 && ($plan['single'] + $plan['double'] + $plan['triple']) === 0) {
+            if ($doubleAvailable) {
+                $plan['double'] = max(1, (int) ceil($adults / 2));
+            } elseif ($singleAvailable) {
+                $plan['single'] = $adults;
+            } elseif ($tripleAvailable) {
+                $plan['triple'] = max(1, (int) ceil($adults / 3));
+            } else {
+                $plan['double'] = 1;
+            }
+        }
+
+        return $plan;
+    }
+
+    /**
+     * Resolve quotation hotel display occupancy from booked rooming (not total pax).
+     * e.g. 14 pax in 7 double rooms => double occupancy, not triple.
+     *
+     * @param  \Illuminate\Support\Collection|array|null  $orders
+     * @param  array<int, array<string, mixed>>|null  $hotelOptions
+     * @return array{occupancy_key: string, rooming_text: string, room_counts: array{single: int, double: int, triple: int}}
+     */
+    public static function resolveQuotationHotelDisplayOccupancy($orders = null, ?array $hotelOptions = null, int $adults = 0): array
+    {
+        $roomCounts = ['single' => 0, 'double' => 0, 'triple' => 0];
+
+        $orderList = $orders instanceof \Illuminate\Support\Collection
+            ? $orders
+            : collect($orders ?? []);
+
+        foreach ($orderList as $order) {
+            if (strtolower((string) ($order->type ?? '')) !== 'hotel') {
+                continue;
+            }
+
+            $rawData = $order->data;
+            if (is_string($rawData)) {
+                $rawData = json_decode($rawData, true);
+            }
+            if (empty($rawData) || ! is_array($rawData)) {
+                continue;
+            }
+
+            $items = isset($rawData[0]) && is_array($rawData[0]) ? $rawData : [$rawData];
+            foreach ($items as $item) {
+                if (! is_array($item)) {
+                    continue;
+                }
+
+                $rooms = $item['rooms'] ?? [];
+                if (! is_array($rooms)) {
+                    continue;
+                }
+
+                foreach ($rooms as $room) {
+                    if (! is_array($room)) {
+                        continue;
+                    }
+
+                    $noOfRooms = (int) ($room['no_of_room'] ?? $room['number_of_rooms'] ?? 0);
+                    $noOfRooms = $noOfRooms > 0 ? $noOfRooms : 1;
+                    $beds = isset($room['beds']) && is_array($room['beds']) ? $room['beds'] : [];
+
+                    if (! empty($beds)) {
+                        foreach ($beds as $bed) {
+                            if (! is_array($bed)) {
+                                continue;
+                            }
+                            $headCount = (int) ($bed['head_count'] ?? $bed['headCount'] ?? $bed['occupancy'] ?? 0);
+                            if ($headCount >= 3) {
+                                $roomCounts['triple'] += $noOfRooms;
+                            } elseif ($headCount >= 2) {
+                                $roomCounts['double'] += $noOfRooms;
+                            } elseif ($headCount >= 1) {
+                                $roomCounts['single'] += $noOfRooms;
+                            }
+                        }
+                    } else {
+                        $selectedPersons = (int) ($room['selected_persons'] ?? $room['selectedPersons'] ?? 0);
+                        if ($selectedPersons === 3) {
+                            $roomCounts['triple'] += $noOfRooms;
+                        } elseif ($selectedPersons === 2) {
+                            $roomCounts['double'] += $noOfRooms;
+                        } elseif ($selectedPersons === 1) {
+                            $roomCounts['single'] += $noOfRooms;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (($roomCounts['single'] + $roomCounts['double'] + $roomCounts['triple']) === 0 && is_array($hotelOptions)) {
+            foreach ($hotelOptions as $hotel) {
+                if (! is_array($hotel)) {
+                    continue;
+                }
+                $nor = $hotel['no_of_rooms'] ?? [];
+                if (! is_array($nor)) {
+                    continue;
+                }
+                $roomCounts['single'] += (int) ($nor['single'] ?? 0);
+                $roomCounts['double'] += (int) ($nor['double'] ?? 0);
+                $roomCounts['triple'] += (int) ($nor['triple'] ?? 0);
+            }
+        }
+
+        $totalRooms = $roomCounts['single'] + $roomCounts['double'] + $roomCounts['triple'];
+
+        if ($totalRooms > 0) {
+            if ($roomCounts['triple'] > 0
+                && $roomCounts['triple'] >= $roomCounts['double']
+                && $roomCounts['triple'] >= $roomCounts['single']) {
+                $occupancyKey = 'triple';
+            } elseif ($roomCounts['double'] > 0 && $roomCounts['double'] >= $roomCounts['single']) {
+                $occupancyKey = 'double';
+            } else {
+                $occupancyKey = 'single';
+            }
+        } else {
+            $occupancyKey = $adults <= 1 ? 'single' : 'double';
+            $roomCounts[$occupancyKey] = $occupancyKey === 'double'
+                ? max(1, (int) ceil(max(1, $adults) / 2))
+                : 1;
+        }
+
+        $roomingParts = [];
+        if ($roomCounts['single'] > 0) {
+            $roomingParts[] = sprintf('%02d SGL', $roomCounts['single']);
+        }
+        if ($roomCounts['double'] > 0) {
+            $roomingParts[] = sprintf('%02d DBL TWIN', $roomCounts['double']);
+        }
+        if ($roomCounts['triple'] > 0) {
+            $roomingParts[] = sprintf('%02d TRPL', $roomCounts['triple']);
+        }
+        if ($roomingParts === []) {
+            $roomingParts[] = match ($occupancyKey) {
+                'triple' => sprintf('%02d TRPL', max(1, $roomCounts['triple'])),
+                'double' => sprintf('%02d DBL TWIN', max(1, $roomCounts['double'])),
+                default => sprintf('%02d SGL', max(1, $roomCounts['single'])),
+            };
+        }
+
+        return [
+            'occupancy_key' => $occupancyKey,
+            'rooming_text' => implode(' + ', $roomingParts),
+            'room_counts' => $roomCounts,
+        ];
+    }
+
+    /**
+     * Hotel per-pax rate for quotation display from actual hotel order totalPrice.
+     * Formula: totalPrice / (number_of_rooms × head_count)
+     *
+     * @param  \Illuminate\Support\Collection|array|null  $orders
+     * @return array{per_pax: float, rooms: int, head_count: int, hotel_total: float}|null
+     */
+    public static function resolveHotelQuotationPerPaxFromOrders($orders = null, $tour = null, ?string $targetCurrency = null): ?array
+    {
+        $orderList = $orders instanceof \Illuminate\Support\Collection
+            ? $orders
+            : collect($orders ?? []);
+
+        $hotelTotal = 0.0;
+        $totalRooms = 0;
+        $headCountPerRoom = 0;
+
+        foreach ($orderList as $order) {
+            if ((int) ($order->status ?? 0) !== 1) {
+                continue;
+            }
+            if (strtolower((string) ($order->type ?? '')) !== 'hotel') {
+                continue;
+            }
+
+            $rawData = $order->data;
+            if (is_string($rawData)) {
+                $rawData = json_decode($rawData, true);
+            }
+            if (empty($rawData) || ! is_array($rawData)) {
+                continue;
+            }
+
+            $orderCurrency = strtoupper(trim((string) ($order->currency ?? '')));
+            if ($orderCurrency === '' && $tour) {
+                $orderCurrency = strtoupper(trim((string) ($tour->currency ?? 'SGD')));
+            }
+            if ($orderCurrency === '') {
+                $orderCurrency = strtoupper(trim((string) ($targetCurrency ?? 'SGD')));
+            }
+
+            $items = isset($rawData[0]) && is_array($rawData[0]) ? $rawData : [$rawData];
+            foreach ($items as $item) {
+                if (! is_array($item)) {
+                    continue;
+                }
+
+                $amount = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+                if ($amount <= 0) {
+                    continue;
+                }
+
+                if ($targetCurrency !== null && $targetCurrency !== '') {
+                    $converted = CurrencyHelper::convertAmount($amount, $orderCurrency, $targetCurrency);
+                    $hotelTotal += ($converted !== null) ? (float) $converted : $amount;
+                } else {
+                    $hotelTotal += $amount;
+                }
+
+                $rooms = $item['rooms'] ?? [];
+                if (! is_array($rooms)) {
+                    continue;
+                }
+
+                foreach ($rooms as $room) {
+                    if (! is_array($room)) {
+                        continue;
+                    }
+
+                    $noOfRooms = max(1, (int) ($room['number_of_rooms'] ?? $room['no_of_room'] ?? 1));
+                    $totalRooms += $noOfRooms;
+
+                    $beds = isset($room['beds']) && is_array($room['beds']) ? $room['beds'] : [];
+                    if (! empty($beds) && is_array($beds[0] ?? null)) {
+                        $headCountPerRoom = max($headCountPerRoom, max(1, (int) ($beds[0]['head_count'] ?? $beds[0]['headCount'] ?? 1)));
+                    } else {
+                        $selected = (int) ($room['selected_persons'] ?? $room['selectedPersons'] ?? 0);
+                        $headCountPerRoom = max($headCountPerRoom, max(1, $selected > 0 ? $selected : 1));
+                    }
+                }
+            }
+        }
+
+        if ($hotelTotal <= 0 || $totalRooms <= 0) {
+            return null;
+        }
+
+        if ($headCountPerRoom <= 0) {
+            $headCountPerRoom = 1;
+        }
+
+        $divisor = $totalRooms * $headCountPerRoom;
+        $perPax = $hotelTotal / max(1, $divisor);
+
+        return [
+            'per_pax' => ceil($perPax),
+            'rooms' => $totalRooms,
+            'head_count' => $headCountPerRoom,
+            'hotel_total' => ceil($hotelTotal),
+        ];
+    }
+
+    /**
+     * Night count for a hotel order item (bookingDate range, else tour dates).
+     */
+    protected static function resolveHotelOrderNightCount(array $item, $tour = null): int
+    {
+        $bookingDate = $item['bookingDate'] ?? null;
+        if (is_array($bookingDate) && count($bookingDate) === 2) {
+            try {
+                $start = Carbon::parse($bookingDate[0]);
+                $end = Carbon::parse($bookingDate[1]);
+
+                return max(1, $start->diffInDays($end));
+            } catch (\Throwable $e) {
+                // fall through
+            }
+        }
+
+        if ($tour && ! empty($tour->check_in_time) && ! empty($tour->check_out_time)) {
+            try {
+                $start = Carbon::parse($tour->check_in_time);
+                $end = Carbon::parse($tour->check_out_time);
+
+                return max(1, $start->diffInDays($end));
+            } catch (\Throwable $e) {
+                // fall through
+            }
+        }
+
+        return 1;
     }
 
     /**
@@ -3030,6 +5760,8 @@ class CommonHelper
             str_contains($country, 'thailand') => 'THB',
             str_contains($country, 'malaysia') => 'MYR',
             str_contains($country, 'indonesia') => 'IDR',
+            str_contains($country, 'vietnam') || str_contains($country, 'viet nam') => 'VND',
+            str_contains($country, 'philippines') => 'PHP',
             str_contains($country, 'united arab') || str_contains($country, 'dubai') => 'AED',
             default => 'SGD',
         };
@@ -3038,7 +5770,7 @@ class CommonHelper
     /**
      * Send welcome email to agency when first DMC selects them
      * Date: Current
-     * 
+     *
      * @param int $agencyId - Agency ID
      * @param int $dmcId - DMC ID that selected the agency
      * @return bool|string - true on success, error message on failure
@@ -3083,14 +5815,14 @@ class CommonHelper
             // Send the email
             try {
                 Mail::to($agency->email)->send(new DmcMail($html, $subject));
-                
+               
                 // Log successful email sending
                 Log::info("Agency welcome email sent successfully", [
                     'agency_id' => $agencyId,
                     'agency_email' => $agency->email,
                     'dmc_id' => $dmcId
                 ]);
-                
+               
                 return true;
             } catch (\Exception $e) {
                 Log::error("Failed to send agency welcome email", [
@@ -3116,7 +5848,7 @@ class CommonHelper
     /**
      * Send partnership invitation email to agency when additional DMC selects them
      * Date: Current
-     * 
+     *
      * @param int $agencyId - Agency ID
      * @param int $dmcId - DMC ID that selected the agency
      * @return bool|string - true on success, error message on failure
@@ -3150,7 +5882,7 @@ class CommonHelper
             ];
 
             // Email subject
-            $subject = "🌍 You've Been Invited to Partner with {$dmcName} on Travclicks";
+            $subject = "ðŸŒ You've Been Invited to Partner with {$dmcName} on Travclicks";
 
             // Render the email template
             try {
@@ -3166,7 +5898,7 @@ class CommonHelper
             // Send the email
             try {
                 Mail::to($agency->email)->send(new DmcMail($html, $subject));
-                
+               
                 // Log successful email sending
                 Log::info("Agency partnership email sent successfully", [
                     'agency_id' => $agencyId,
@@ -3174,7 +5906,7 @@ class CommonHelper
                     'dmc_id' => $dmcId,
                     'dmc_name' => $dmcName
                 ]);
-                
+               
                 return true;
             } catch (\Exception $e) {
                 Log::error("Failed to send agency partnership email", [
@@ -3211,7 +5943,7 @@ class CommonHelper
     /**
      * Send negotiation update email to agent
      * Date: Current
-     * 
+     *
      * @param int $agentId - Agent ID
      * @param int $tourId - Tour ID
      * @param string $tourDisplayId - Tour Display ID
@@ -3243,7 +5975,7 @@ class CommonHelper
             if (!$dmcId && isset($negotiationData['tour'])) {
                 $dmcId = $negotiationData['tour']->dmc_id ?? null;
             }
-            
+           
             $dmc = User::where('userId', $dmcId)->first();
             $dmcName = $dmc ? ($dmc->company_name ?? $dmc->name ?? 'DMC') : 'DMC';
             $dmcLogo = $dmc ? ($dmc->logo ?? null) : null;
@@ -3278,7 +6010,7 @@ class CommonHelper
             ];
 
             // Email subject
-            $subject = "💰 Price Negotiation Submitted - Tour {$tourDisplayId}";
+            $subject = "ðŸ’° Price Negotiation Submitted - Tour {$tourDisplayId}";
 
             // Render the email template
             try {
@@ -3295,7 +6027,7 @@ class CommonHelper
             // Send the email
             try {
                 Mail::to($agent->email)->send(new DmcMail($html, $subject));
-                
+               
                 // Log successful email sending
                 Log::info("Negotiation email sent successfully", [
                     'agent_id' => $agentId,
@@ -3304,7 +6036,7 @@ class CommonHelper
                     'tour_display_id' => $tourDisplayId,
                     'negotiated_amount' => $negotiationData['negotiated_amount'] ?? 0
                 ]);
-                
+               
                 return true;
             } catch (\Exception $e) {
                 Log::error("Failed to send negotiation email", [
@@ -3335,8 +6067,8 @@ class CommonHelper
         }
 
         // Currency handling
-        // Base currency is what prices are stored in (default SGD as per requirement)
-        $baseCurrency = strtoupper($tour->currency ?? 'SGD');
+        // Base currency = tour DMC currency (e.g. VND for a Vietnam DMC), not a hardcoded SGD.
+        $baseCurrency = self::resolveTourDisplayCurrency($tour);
         $selectedCurrency = $targetCurrency ? strtoupper($targetCurrency) : $baseCurrency;
         $exchangeRate = 1.0;
 
@@ -3346,7 +6078,7 @@ class CommonHelper
                 $exchangeRate = (float) $rate;
             }
         }
-        
+       
         $orders = Order::where('tour_id', $tourId)
             ->where('status', 1)
             ->orderBy('booking_id')
@@ -3372,7 +6104,7 @@ class CommonHelper
             'postal_pin' => 'N/A',
             'company_name' => 'N/A',
         ];
-        
+       
         if (!empty($tour->dmc_id)) {
             $dmcUser = User::where('userId', $tour->dmc_id)->first();
             if ($dmcUser) {
@@ -3391,7 +6123,7 @@ class CommonHelper
                     'postal_pin' => 'N/A', // Postal/Pin - can be added to User model if needed
                     'company_name' => $dmcUser->company_name ?? 'N/A',
                 ];
-                
+               
                 // Convert logo URL to base64 for PDF display
                 if (!empty($logoUrl)) {
                     try {
@@ -3410,7 +6142,7 @@ class CommonHelper
                             ];
                             $mimeType = $mimeMap[$extension] ?? 'image/png';
                         }
-                        
+                       
                         // Try using Laravel HTTP client first
                         $response = Http::timeout(10)->get($logoUrl);
                         if ($response->successful()) {
@@ -3514,40 +6246,40 @@ class CommonHelper
             if (is_string($orderData)) {
                 $orderData = json_decode($orderData, true);
             }
-            
+           
             if (is_array($orderData) && !empty($orderData)) {
                 $firstItem = is_array($orderData[0]) ? $orderData[0] : $orderData;
-                
+               
                 // Extract guest information
                 $bookingDetails['lead_guest_name'] = $firstItem['fullName'] ?? $firstItem['name'] ?? 'N/A';
                 $bookingDetails['email'] = $firstItem['email'] ?? 'N/A';
                 $bookingDetails['gender'] = $firstItem['gender'] ?? 'N/A';
                 $bookingDetails['passenger_type'] = $firstItem['passenger_type'] ?? 'N/A';
                 $bookingDetails['salutation'] = $firstItem['salutation'] ?? 'N/A';
-                
+               
                 // Format phone number with country code if available
                 $phone = $firstItem['phone'] ?? 'N/A';
                 $bookingDetails['phone'] = $phone;
-                
-                
+               
+               
                 // Combine address1 and address2 for full address
                 $address1 = $firstItem['address1'] ?? '';
                 $address2 = $firstItem['address2'] ?? '';
                 if (!empty($address1) || !empty($address2)) {
                     $bookingDetails['address'] = trim($address1 . ' ' . $address2);
                 }
-                
+               
                 // State
                 $bookingDetails['city'] = $firstItem['state'] ?? 'N/A';
-                
+               
                 // Postal/Zip code
                 $bookingDetails['postal_code'] = $firstItem['zip'] ?? 'N/A';
             }
         }
-        
+       
         // Initialize passengers array
         $allPassengers = [];
-        
+       
         // Extract passengers from orders if available
         if ($orders->count() > 0) {
             foreach ($orders as $order) {
@@ -3555,10 +6287,10 @@ class CommonHelper
                 if (is_string($orderData)) {
                     $orderData = json_decode($orderData, true);
                 }
-                
+               
                 if (is_array($orderData) && !empty($orderData)) {
                     $orderItem = is_array($orderData[0]) ? $orderData[0] : $orderData;
-                    
+                   
                     // Check if this order has passengers array
                     if (isset($orderItem['passengers']) && is_array($orderItem['passengers'])) {
                         foreach ($orderItem['passengers'] as $passenger) {
@@ -3570,7 +6302,7 @@ class CommonHelper
                 }
             }
         }
-        
+       
         // Extract main guest from mainguest column
         if (!empty($tour->mainguest)) {
             try {
@@ -3605,7 +6337,7 @@ class CommonHelper
                     if (empty($bookingDetails['postal_code']) && !empty($mainguestData['zip'])) {
                         $bookingDetails['postal_code'] = $mainguestData['zip'];
                     }
-                    
+                   
                     // Add main guest to passengers array
                     $mainGuest = [
                         'salutation' => $mainguestData['salutation'] ?? 'Mr',
@@ -3632,7 +6364,7 @@ class CommonHelper
                 ]);
             }
         }
-        
+       
         // Extract additional guests from additionalguest column
         if (!empty($tour->additionalguest)) {
             try {
@@ -3691,7 +6423,7 @@ class CommonHelper
                 ]);
             }
         }
-        
+       
         // Remove duplicate passengers (by name and email)
         $uniquePassengers = [];
         $seenPassengers = [];
@@ -3702,7 +6434,7 @@ class CommonHelper
                 $uniquePassengers[] = $passenger;
             }
         }
-        
+       
         // Add passengers to bookingDetails
         if (!empty($uniquePassengers)) {
             $bookingDetails['passengers'] = $uniquePassengers;
@@ -3732,7 +6464,9 @@ class CommonHelper
         $tourPrices = self::calculateTourPrices($tourId);
         // Format hotels for Excel-like display
         $hotelOptions = self::formatHotelsForPdf($orders, $tour, $tourPrices);
-        
+        // Native country/currency totals from orders.country + orders.currency
+        $countryQuotationGroups = self::buildCountryQuotationGroups($orders, $tour);
+       
         // Get DMC ID - first try from tour, otherwise from current user
         $dmcIdForBankDetails = null;
         if (!empty($tour->dmc_id)) {
@@ -3744,18 +6478,18 @@ class CommonHelper
                 $dmcIdForBankDetails = self::getDmcId($currentUser);
             }
         }
-        
+       
         // Fetch bank details from bank_details table based on DMC ID
         $bankDetails = [];
         $termsAndConditions = '';
         $paymentTerms = [];
-        
+       
         if ($dmcIdForBankDetails) {
             $bankDetailRecord = BankDetail::where('dmc_id', $dmcIdForBankDetails)
                 ->where('is_active', 1)
                 ->orderBy('created_at', 'desc')
                 ->first();
-            
+           
             if ($bankDetailRecord) {
                 // Extract bank details
                 $bankDetails = [
@@ -3768,10 +6502,10 @@ class CommonHelper
                     'branch_code' => $bankDetailRecord->branch_code ?? '',
                     'aba_routing' => $bankDetailRecord->aba_routing ?? '',
                 ];
-                
+               
                 // Extract terms and conditions
                 $termsAndConditions = $bankDetailRecord->terms_and_conditions ?? '';
-                
+               
                 // Extract payment terms (already cast as array in model)
                 $paymentTerms = $bankDetailRecord->payment_terms ?? [];
                 if (is_string($paymentTerms)) {
@@ -3782,7 +6516,7 @@ class CommonHelper
                 }
             }
         }
-        
+       
         // Fallback to DMC user bank_details if bank_details table record not found
         if (empty($bankDetails) && $dmcUser && isset($dmcUser->bank_details)) {
             $bankDetailsData = is_string($dmcUser->bank_details) ? json_decode($dmcUser->bank_details, true) : $dmcUser->bank_details;
@@ -3790,10 +6524,10 @@ class CommonHelper
                 $bankDetails = $bankDetailsData;
             }
         }
-        
+       
         // Exclusions (can be extended to fetch from database if needed)
         $exclusions = '';
-        
+       
         try {
             // Configure DomPDF options to work without GD if possible
             //$pdf = Pdf::loadView('single-tour-package.pdf-itinerary', [
@@ -3811,6 +6545,8 @@ class CommonHelper
                 'travelDetails' => $travelDetails,
                 'tourPrices' => $tourPrices,
                 'hotelOptions' => $hotelOptions,
+                'countryQuotationGroups' => $countryQuotationGroups,
+                'orders' => $orders,
                 'bankDetails' => $bankDetails,
                 'termsAndConditions' => $termsAndConditions,
                 'exclusions' => $exclusions,
@@ -3822,7 +6558,7 @@ class CommonHelper
                 'logoType' => $logoType,
                 'user_agency' => $userAgencyForHeader,
             ]);
-            
+           
             $pdf->setPaper('a4');
             $pdf->setOption('enable-php', false);
             $pdf->setOption('isHtml5ParserEnabled', true);
@@ -3839,7 +6575,7 @@ class CommonHelper
                 Log::warning('PDF generation failed with logo, retrying without logo', [
                     'error' => $e->getMessage()
                 ]);
-                
+               
                 // Retry without logo
                 //$pdf = Pdf::loadView('single-tour-package.pdf-itinerary', [
                 $pdf = Pdf::loadView($viewName, [
@@ -3856,6 +6592,8 @@ class CommonHelper
                     'travelDetails' => $travelDetails,
                     'tourPrices' => $tourPrices,
                     'hotelOptions' => $hotelOptions,
+                    'countryQuotationGroups' => $countryQuotationGroups,
+                    'orders' => $orders,
                     'bankDetails' => $bankDetails,
                     'termsAndConditions' => $termsAndConditions,
                     'exclusions' => $exclusions,
@@ -3867,7 +6605,7 @@ class CommonHelper
                     'logoType' => $logoType,
                     'user_agency' => $userAgencyForHeader,
                 ]);
-                
+               
                 $pdf->setPaper('a4');
                 $pdf->setOption('enable-php', false);
                 $pdf->setOption('isHtml5ParserEnabled', true);
@@ -3879,7 +6617,7 @@ class CommonHelper
 
                 return $pdf->download("tour-quotation.pdf");
             }
-            
+           
             // Re-throw if it's a different error
             throw $e;
         }
@@ -3921,7 +6659,7 @@ class CommonHelper
             'postal_pin' => 'N/A',
             'company_name' => 'N/A',
         ];
-        
+       
         if (!empty($tour->dmc_id)) {
             $dmcUser = User::where('userId', $tour->dmc_id)->first();
             if ($dmcUser) {
@@ -3940,7 +6678,7 @@ class CommonHelper
                     'postal_pin' => 'N/A',
                     'company_name' => $dmcUser->company_name ?? 'N/A',
                 ];
-                
+               
                 // Convert logo URL to base64 for display
                 if (!empty($logoUrl)) {
                     try {
@@ -3958,7 +6696,7 @@ class CommonHelper
                             ];
                             $mimeType = $mimeMap[$extension] ?? 'image/png';
                         }
-                        
+                       
                         $response = Http::timeout(10)->get($logoUrl);
                         if ($response->successful()) {
                             $imageContent = $response->body();
@@ -4000,7 +6738,7 @@ class CommonHelper
             $agent = Agent::with('agency')->where('agent_id', $tour->agent_id)->first();
             if ($agent) {
                 $agency = $agent->agency;
-                
+               
                 $agentDetails = [
                     'name' => ($agency && $agency->agency_name) ? $agency->agency_name : ($agent->name ?? 'N/A'),
                     'address' => ($agency && $agency->address) ? $agency->address : 'N/A',
@@ -4039,28 +6777,28 @@ class CommonHelper
             if (is_string($orderData)) {
                 $orderData = json_decode($orderData, true);
             }
-            
+           
             if (is_array($orderData) && !empty($orderData)) {
                 $firstItem = is_array($orderData[0]) ? $orderData[0] : $orderData;
-                
+               
                 $bookingDetails['lead_guest_name'] = $firstItem['fullName'] ?? $firstItem['name'] ?? 'N/A';
                 $bookingDetails['email'] = $firstItem['email'] ?? 'N/A';
                 $bookingDetails['gender'] = $firstItem['gender'] ?? 'N/A';
                 $bookingDetails['passenger_type'] = $firstItem['passenger_type'] ?? 'N/A';
                 $bookingDetails['salutation'] = $firstItem['salutation'] ?? 'N/A';
                 $bookingDetails['phone'] = $firstItem['phone'] ?? 'N/A';
-                
+               
                 $address1 = $firstItem['address1'] ?? '';
                 $address2 = $firstItem['address2'] ?? '';
                 if (!empty($address1) || !empty($address2)) {
                     $bookingDetails['address'] = trim($address1 . ' ' . $address2);
                 }
-                
+               
                 $bookingDetails['city'] = $firstItem['state'] ?? 'N/A';
                 $bookingDetails['postal_code'] = $firstItem['zip'] ?? 'N/A';
             }
         }
-        
+       
         // If passenger details are still empty, try to get from tour's mainguest column
         if (($bookingDetails['lead_guest_name'] === 'N/A' || empty($bookingDetails['lead_guest_name'])) && !empty($tour->mainguest)) {
             try {
@@ -4126,7 +6864,8 @@ class CommonHelper
         // Calculate tour prices
         $tourPrices = self::calculateTourPrices($tourId);
         $hotelOptions = self::formatHotelsForPdf($orders, $tour, $tourPrices);
-        
+        $countryQuotationGroups = self::buildCountryQuotationGroups($orders, $tour);
+       
         // Get DMC ID - first try from tour, otherwise from current user
         $dmcIdForBankDetails = null;
         if (!empty($tour->dmc_id)) {
@@ -4138,18 +6877,18 @@ class CommonHelper
                 $dmcIdForBankDetails = self::getDmcId($currentUser);
             }
         }
-        
+       
         // Fetch bank details from bank_details table based on DMC ID
         $bankDetails = [];
         $termsAndConditions = '';
         $paymentTerms = [];
-        
+       
         if ($dmcIdForBankDetails) {
             $bankDetailRecord = BankDetail::where('dmc_id', $dmcIdForBankDetails)
                 ->where('is_active', 1)
                 ->orderBy('created_at', 'desc')
                 ->first();
-            
+           
             if ($bankDetailRecord) {
                 // Extract bank details
                 $bankDetails = [
@@ -4162,10 +6901,10 @@ class CommonHelper
                     'branch_code' => $bankDetailRecord->branch_code ?? '',
                     'aba_routing' => $bankDetailRecord->aba_routing ?? '',
                 ];
-                
+               
                 // Extract terms and conditions
                 $termsAndConditions = $bankDetailRecord->terms_and_conditions ?? '';
-                
+               
                 // Extract payment terms (already cast as array in model)
                 $paymentTerms = $bankDetailRecord->payment_terms ?? [];
                 if (is_string($paymentTerms)) {
@@ -4176,7 +6915,7 @@ class CommonHelper
                 }
             }
         }
-        
+       
         // Fallback to DMC user bank_details if bank_details table record not found
         if (empty($bankDetails) && $dmcUser && isset($dmcUser->bank_details)) {
             $bankDetailsData = is_string($dmcUser->bank_details) ? json_decode($dmcUser->bank_details, true) : $dmcUser->bank_details;
@@ -4184,10 +6923,10 @@ class CommonHelper
                 $bankDetails = $bankDetailsData;
             }
         }
-        
+       
         // Exclusions (can be extended to fetch from database if needed)
         $exclusions = '';
-        
+       
         return [
             'tour' => $tour,
             'servicesByDate' => $servicesByDate,
@@ -4202,6 +6941,8 @@ class CommonHelper
             'travelDetails' => $travelDetails,
             'tourPrices' => $tourPrices,
             'hotelOptions' => $hotelOptions,
+            'countryQuotationGroups' => $countryQuotationGroups,
+            'orders' => $orders,
             'bankDetails' => $bankDetails,
             'termsAndConditions' => $termsAndConditions,
             'exclusions' => $exclusions,
@@ -4211,7 +6952,7 @@ class CommonHelper
 
     /**
      * Calculate single sharing and double sharing prices for a tour
-     * 
+     *
      * @param int|string $tourId - Can be tour_id (integer) or display_id (string like "DMC-ORD3107")
      * @return array ['single_sharing' => float, 'double_sharing' => float, 'triple_sharing' => float]
      */
@@ -4225,13 +6966,17 @@ class CommonHelper
             // It's a tour_id, find tour by tour_id
             $tour = Tour::where('tour_id', $tourId)->first();
         }
-        
+       
         if (!$tour) {
             return [
                 'single_sharing' => 0,
                 'double_sharing' => 0,
                 'triple_sharing' => 0,
                 'baby_cot_sharing' => 0,
+                'other_services_single' => 0,
+                'other_services_double' => 0,
+                'country_sharing' => [],
+                'hotel_price_options' => [],
                 'segregated' => [
                     'hotel' => ['single' => 0, 'double' => 0, 'triple' => 0, 'baby_cot' => 0],
                     'attraction' => ['single' => 0, 'double' => 0],
@@ -4284,8 +7029,12 @@ class CommonHelper
         $otherServiceSingle = 0.0;
         $otherServiceDouble = 0.0;
         // Track child-specific pricing component across attraction/restaurant services
-        $totalChildComponent = 0; // Sum of child unit prices (attraction + restaurant + …)
-        
+        $totalChildComponent = 0; // Sum of child unit prices (attraction + restaurant + â€¦)
+
+        // Country + currency trackers (native amounts; no FX mix of SGD/IDR/etc.)
+        $countryOtherBuckets = []; // key => ['country','currency','single','double']
+        $fallbackCurrency = strtoupper(trim((string) ($tour->currency ?? 'SGD'))) ?: 'SGD';
+       
         // Segregated prices by service type
         $segregatedPrices = [
             'hotel' => ['single' => 0, 'double' => 0, 'triple' => 0, 'baby_cot' => 0],
@@ -4300,6 +7049,38 @@ class CommonHelper
             'other' => ['single' => 0, 'double' => 0],
         ];
 
+        // Per-service lines for quotation price breakdown (non-hotel, non-supplement)
+        $servicePriceLines = [];
+        $appendServicePriceLine = function (
+            string $type,
+            array $item,
+            float $singleSharing,
+            float $doubleSharing,
+            float $childUnitPrice = 0.0,
+            bool $isSupplementRow = false
+        ) use (&$servicePriceLines): void {
+            if ($isSupplementRow) {
+                return;
+            }
+
+            $normalizedType = strtolower(str_replace(' ', '_', trim($type)));
+            if ($normalizedType === 'hotel') {
+                return;
+            }
+
+            if ($singleSharing <= 0 && $doubleSharing <= 0 && $childUnitPrice <= 0) {
+                return;
+            }
+
+            $servicePriceLines[] = [
+                'label' => self::resolveOrderItemPriceLabel($type, $item),
+                'type' => $normalizedType,
+                'single' => $singleSharing,
+                'double' => $doubleSharing,
+                'child_unit' => $childUnitPrice,
+            ];
+        };
+
         // Supplements: services with "supplement": true (excluded from main total).
         // Non-hotel supplement rows expose full line booking total; hotel supplements use stay totals per rooming.
         $supplements = [];
@@ -4310,13 +7091,13 @@ class CommonHelper
         $hotelCount = 0;
         // Track which hotel occupancies are actually booked on this tour
         $bookedHotelOccupancies = ['single' => false, 'double' => false, 'triple' => false];
-        
+       
         // Merge hotel rows: same hotel_id + same date range => one hotel bucket.
         // Each bucket stores per-head price for single/double/triple once (no multiplication when multiple orders exist).
         $hotelBuckets = [];
         // Store display/meta for each grouped hotel key
         $hotelBucketMeta = [];
-        
+       
         // Normalize booking date range to group same hotel orders together
         $getHotelBookingRangeLabel = function (array $item) use ($tour): string {
             $bookingDate = $item['bookingDate'] ?? null;
@@ -4329,7 +7110,7 @@ class CommonHelper
             } catch (\Throwable $e) {
                 // ignore
             }
-            
+           
             // Fallback to tour dates
             try {
                 if (!empty($tour->check_in_time) && !empty($tour->check_out_time)) {
@@ -4340,7 +7121,7 @@ class CommonHelper
             } catch (\Throwable $e) {
                 // ignore
             }
-            
+           
             return '';
         };
 
@@ -4354,6 +7135,32 @@ class CommonHelper
                 continue;
             }
 
+            $orderCountry = is_string($order->country ?? null) ? trim((string) $order->country) : '';
+            $orderCurrency = self::resolveOrderDisplayCurrency($order, $fallbackCurrency);
+            if ($orderCountry === '') {
+                $orderCountry = $orderCurrency !== '' ? $orderCurrency : 'Other';
+            }
+            if ($orderCurrency === '') {
+                $orderCurrency = $fallbackCurrency;
+            }
+            $orderCurrency = strtoupper($orderCurrency);
+            $countryPriceKey = mb_strtolower($orderCountry) . '|' . $orderCurrency;
+            if (!isset($countryOtherBuckets[$countryPriceKey])) {
+                $countryOtherBuckets[$countryPriceKey] = [
+                    'country' => $orderCountry,
+                    'currency' => $orderCurrency,
+                    'single' => 0.0,
+                    'double' => 0.0,
+                ];
+            }
+            $trackCountryOther = function (float $single, float $double) use (&$countryOtherBuckets, $countryPriceKey): void {
+                if (!isset($countryOtherBuckets[$countryPriceKey])) {
+                    return;
+                }
+                $countryOtherBuckets[$countryPriceKey]['single'] += $single;
+                $countryOtherBuckets[$countryPriceKey]['double'] += $double;
+            };
+
             $items = isset($rawData[0]) ? $rawData : [$rawData];
             $type = strtolower($order->type ?? '');
             $babyCotPrice = null;
@@ -4366,7 +7173,7 @@ class CommonHelper
                 if ($type === 'hotel') {
                     $hotelCount++;
                     $babyCotPrice = 0;
-                    
+                   
                     // Fetch hotel details early to use name as key
                     $hotelId = $item['hotelDetails']['hotel_id'] ?? $item['hotelDetails']['hotelId'] ?? $item['hotel_id'] ?? $item['hotelId'] ?? null;
                     $hotelName = $item['hotelDetails']['hotel_name'] ?? $item['hotelName'] ?? $item['name'] ?? null;
@@ -4413,9 +7220,11 @@ class CommonHelper
                             'hotel_name' => $hotelName,
                             'date_range' => $rangeLabel,
                             'display_name' => $rangeLabel ? ($hotelName . ' (' . $rangeLabel . ')') : $hotelName,
+                            'country' => $orderCountry,
+                            'currency' => $orderCurrency,
                         ];
                     }
-                    
+                   
                     if (!isset($segregatedPrices[$currentHotelKey])) {
                         $segregatedPrices[$currentHotelKey] = [
                             'single' => 0,
@@ -4442,7 +7251,7 @@ class CommonHelper
                     if (!empty($hotelOccupancy)) {
                         $bookedHotelOccupancies[$hotelOccupancy] = true;
                     }
-                    
+                   
                     // Check for direct totalPrice and head_count in JSON (e.g. from enquiry)
                     // We only use this to override SINGLE price when exactly 1 person;
                     // double/triple prices always come from room/hotel tables so they stay consistent.
@@ -4459,7 +7268,7 @@ class CommonHelper
                                 }
                             }
                         }
-                        
+                       
                         // If no headcount from beds, try fallback to top-level fields
                         if ($totalHeadCount == 0) {
                             $totalHeadCount = floatval($item['pax'] ?? $item['adults'] ?? $item['adultCount'] ?? 0);
@@ -4470,7 +7279,7 @@ class CommonHelper
                             $manualSinglePrice = floatval($directTotalPrice);
                         }
                     }
-                    
+                   
                     // Hotel pricing calculation with date-based weekday/weekend check
                     $singleWeekdayPrice = null;
                     $singleWeekendPrice = null;
@@ -4483,14 +7292,14 @@ class CommonHelper
                         foreach ($item['rooms'] as $roomData) {
                             $roomtype = $roomData['room_type'] ?? $roomData['roomType'] ?? null;
                             $roomIdFromJson = $roomData['room_id'] ?? $roomData['roomId'] ?? null;
-                            
+                           
                             // Try to fetch room from database first - must match both room_id and hotel_id (more reliable than room_type)
                             if ($roomIdFromJson && $hotelId) {
                                 try {
                                     // First try to get hotel_id from hotel_unique_id
                                     $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
                                     $dbHotelId = $hotel ? $hotel->hotel_unique_id : $hotelId;
-                                    
+                                   
                                     $roomRecord = Room::where('room_id', $roomIdFromJson)
                                         ->where('hotel_id', $dbHotelId)
                                         ->where('status', 1)
@@ -4526,7 +7335,7 @@ class CommonHelper
                                     ]);
                                 }
                             }
-                            
+                           
                             // Fallback: Get prices from room data in item
                             $weekdayPrice = $roomData['weekday_price'] ?? $roomData['weekdayPrice'] ?? null;
                             $weekendPrice = $roomData['weekend_price'] ?? $roomData['weekendPrice'] ?? null;
@@ -4581,13 +7390,13 @@ class CommonHelper
                     // Get booking dates
                     $bookingDates = [];
                     $bookingDate = $item['bookingDate'] ?? null;
-                    
+                   
                     if ($bookingDate) {
                         if (is_array($bookingDate) && count($bookingDate) === 2) {
                             try {
                                 $start = Carbon::parse($bookingDate[0]);
                                 $end = Carbon::parse($bookingDate[1]);
-                                
+                               
                                 // Generate all dates in the booking period (excluding checkout day)
                                 while ($start->lt($end)) {
                                     $bookingDates[] = $start->copy();
@@ -4650,31 +7459,31 @@ class CommonHelper
                     $hotelDoubleTotal = 0;
                     $hotelTripleTotal = 0;
                     $extraBedTotal = 0; // total extra bed cost across all nights
-                    
+                   
                     // Get extra bed price from beds table if available
                     $extraBedWeekdayPrice = null;
                     $extraBedWeekendPrice = null;
                     $roomIdForBed = null;
-                    
+                   
                     // Try to get room_id from roomRecord to check for extra bed
                     if (!empty($item['rooms']) && is_array($item['rooms'])) {
                         foreach ($item['rooms'] as $roomData) {
                             $roomId = $roomData['room_id'] ?? $roomData['roomId'] ?? null;
-                            
+                           
                             if ($roomId && $hotelId) {
                                 try {
                                     $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
                                     $dbHotelId = $hotel ? $hotel->hotel_unique_id : $hotelId;
-                                    
+                                   
                                     $roomRecord = Room::where('room_id', $roomId)
                                         ->where('hotel_id', $dbHotelId)
                                         ->where('status', 1)
                                         ->first();
                                     if ($roomRecord && $roomRecord->room_id) {
                                         $roomIdForBed = $roomRecord->room_id;
-                                        
+                                       
                                         // Check beds table for extra_bed
-                                        
+                                       
                                         $bedRecord = Bed::where('room_id', $roomIdForBed)
                                             ->where('extra_bed', true)
                                             ->where('is_active', 1)
@@ -4684,7 +7493,7 @@ class CommonHelper
                                             $extraBedPrice = floatval($bedRecord->extra_bed_price);
                                             $extraBedWeekdayPrice = $extraBedPrice;
                                             $extraBedWeekendPrice = $extraBedPrice;
-                                            
+                                           
                                             Log::info('Extra bed found for room', [
                                                 'room_id' => $roomIdForBed,
                                                 'extra_bed_price' => $extraBedPrice
@@ -4693,7 +7502,7 @@ class CommonHelper
                                         if ($bedRecord && $bedRecord->baby_cot_price !== null) {
                                             $babyCotPrice = floatval($bedRecord->baby_cot_price);
                                         }
-                                        
+                                       
                                         // If we found the room, break
                                         if ($roomIdForBed) {
                                             break;
@@ -4709,7 +7518,7 @@ class CommonHelper
                             }
                         }
                     }
-                    
+                   
                     // Debug logging
                     Log::info('Hotel price calculation', [
                         'hotel_id' => $hotelId,
@@ -4726,7 +7535,7 @@ class CommonHelper
                         $dayName = $date->format('l'); // Full day name (Monday, Tuesday, etc.)
                         $isWeekend = in_array($dayName, $weekendDays);
                         $dateString = $date->format('Y-m-d');
-                        
+                       
                         // Priority-based pricing: Check rates table first
                         $ratePrice = null;
                         $rateSingleWeekdayPrice = null;
@@ -4734,7 +7543,7 @@ class CommonHelper
                         $rateDoubleWeekdayPrice = null;
                         $rateDoubleWeekendPrice = null;
                         $rateEventType = null;
-                        
+                       
                         if ($hotelId) {
                             try {
                                 // Query rates for this hotel and date with priority order
@@ -4750,10 +7559,10 @@ class CommonHelper
                                         END
                                     ")
                                     ->first();
-                                
+                               
                                 if ($rate) {
                                     $rateEventType = $rate->event_type;
-                                    
+                                   
                                     if ($rate->event_type == 'Blackout Date') {
                                         // Blackout Date: Use rate->price (first priority)
                                         $ratePrice = floatval($rate->price ?? 0);
@@ -4767,11 +7576,11 @@ class CommonHelper
                                         $rateSingleWeekdayPrice = $rate->weekday_price ? floatval($rate->weekday_price) : null;
                                         $rateSingleWeekendPrice = $rate->weekend_price ? floatval($rate->weekend_price) : null;
                                         // Check if double prices exist (they might not be in all migrations)
-                                        $rateDoubleWeekdayPrice = (isset($rate->double_weekday_price) && $rate->double_weekday_price !== null && $rate->double_weekday_price !== '') 
-                                            ? floatval($rate->double_weekday_price) / 2 
+                                        $rateDoubleWeekdayPrice = (isset($rate->double_weekday_price) && $rate->double_weekday_price !== null && $rate->double_weekday_price !== '')
+                                            ? floatval($rate->double_weekday_price) / 2
                                             : null;
-                                        $rateDoubleWeekendPrice = (isset($rate->double_weekend_price) && $rate->double_weekend_price !== null && $rate->double_weekend_price !== '') 
-                                            ? floatval($rate->double_weekend_price) / 2 
+                                        $rateDoubleWeekendPrice = (isset($rate->double_weekend_price) && $rate->double_weekend_price !== null && $rate->double_weekend_price !== '')
+                                            ? floatval($rate->double_weekend_price) / 2
                                             : null;
                                     }
                                     // Fair Date is handled as additional price, skip for now as per priority
@@ -4784,7 +7593,7 @@ class CommonHelper
                                 ]);
                             }
                         }
-                        
+                       
                         // Determine per-night price ONLY from room/hotel data (ignore rates)
                         // Single: weekday/weekend single prices
                         // Double: weekday/weekend double prices (already stored per-head: double_* / 2 above)
@@ -4809,8 +7618,8 @@ class CommonHelper
 
                         // Accumulate extra bed total per night (if available)
                         if ($extraBedWeekdayPrice !== null) {
-                            $extraBedPriceToAdd = $isWeekend 
-                                ? ($extraBedWeekendPrice ?? $extraBedWeekdayPrice) 
+                            $extraBedPriceToAdd = $isWeekend
+                                ? ($extraBedWeekendPrice ?? $extraBedWeekdayPrice)
                                 : ($extraBedWeekdayPrice ?? $extraBedWeekendPrice);
 
                             if ($extraBedPriceToAdd !== null) {
@@ -4880,7 +7689,7 @@ class CommonHelper
                         }
                         // Single/double/triple prices come from the room's own pricing data
                         // (weekday_price, double_weekday_price, extra_bed_price), not from the occupancy
-                        // of this specific order. So fill each slot from ANY order — first non-null wins.
+                        // of this specific order. So fill each slot from ANY order â€” first non-null wins.
                         if ($hotelBuckets[$currentHotelKey]['single'] === null && $hotelSingleTotal > 0) {
                             $hotelBuckets[$currentHotelKey]['single'] = (float)$hotelSingleTotal;
                         }
@@ -4911,12 +7720,12 @@ class CommonHelper
                     if ($totalPrice !== null) {
                         $totalPriceFloat = floatval($totalPrice);
                         $normalizedType = strtolower($type ?? '');
-                        
+                       
                         // Handle attraction and restaurant
                         //
                         // Per-pax resolution priority (per-adult unit price):
-                        //   1. Explicit JSON per-pax fields (adultPrice / adult_price)  ← user override
-                        //   2. Derived from the booking's own totalPrice                ← what the user actually saved
+                        //   1. Explicit JSON per-pax fields (adultPrice / adult_price)  â† user override
+                        //   2. Derived from the booking's own totalPrice                â† what the user actually saved
                         //   3. Catalog default (ticket_details for attraction, meals table for restaurant)
                         //
                         // The booking's totalPrice is authoritative because it represents what the user
@@ -4929,7 +7738,7 @@ class CommonHelper
                             $adultCount = floatval($item['adultCount'] ?? 0);
                             $childCount = floatval($item['childCount'] ?? 0);
 
-                            // (1) Explicit JSON per-pax (user override) — highest priority
+                            // (1) Explicit JSON per-pax (user override) â€” highest priority
                             $jsonAdultPrice = null;
                             $jsonChildPrice = null;
                             if (isset($item['adultPrice']) && $item['adultPrice'] !== '') {
@@ -4943,7 +7752,7 @@ class CommonHelper
                                 $jsonChildPrice = floatval($item['child_price']);
                             }
 
-                            // (3) Catalog defaults — used only as a last resort
+                            // (3) Catalog defaults â€” used only as a last resort
                             $catalogAdultPrice = null;
                             $catalogChildPrice = null;
                             if (isset($item['ticket_details']['adult_price']) && $item['ticket_details']['adult_price'] !== '') {
@@ -5007,8 +7816,8 @@ class CommonHelper
                                 $childUnitPrice = 0;
                             }
 
-                            // Adult per pax → main totals + segregated (with hotel and other services).
-                            // Child per pax → child_sharing only (never mixed into single/double).
+                            // Adult per pax â†’ main totals + segregated (with hotel and other services).
+                            // Child per pax â†’ child_sharing only (never mixed into single/double).
                             $singleSharing = 0;
                             if ($adultCount >= 1) {
                                 if ($adultUnitPrice > 0) {
@@ -5039,69 +7848,105 @@ class CommonHelper
                             if (!$isSupplement) {
                                 $otherServiceSingle += $singleSharing;
                                 $otherServiceDouble += $doubleSharing;
+                                $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
+                                $appendServicePriceLine(
+                                    $type,
+                                    $item,
+                                    (float) $singleSharing,
+                                    (float) $doubleSharing,
+                                    (float) ($childUnitPrice ?? 0),
+                                    $isSupplement
+                                );
                             }
                         }
                         // Handle entry_port and exit_port
                         elseif ($normalizedType === 'entry_port' || $normalizedType === 'exit_port') {
                             // Calculate per adult price: totalPrice / Adults
                             $adultCount = floatval($item['adult'] ?? $item['adults'] ?? $item['adultCount'] ?? 0);
-                            
+                           
                             if ($adultCount > 0) {
                                 $singleSharing = $totalPriceFloat / $adultCount;
                             } else {
                                 // Fallback if no adult count found, use total price as single sharing
                                 $singleSharing = $totalPriceFloat;
                             }
-                            
+                           
                             // Double sharing: same as single (per-person price)
                             $doubleSharing = $singleSharing;
 
                             if (!$isSupplement) {
                                 $otherServiceSingle += $singleSharing;
                                 $otherServiceDouble += $doubleSharing;
+                                $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
+                                $appendServicePriceLine(
+                                    $type,
+                                    $item,
+                                    (float) $singleSharing,
+                                    (float) $doubleSharing,
+                                    0.0,
+                                    $isSupplement
+                                );
                             }
                         }
                         // Handle travel_point, travel_hourly, local_transport
                         elseif (in_array($normalizedType, ['travel_point', 'travel_hourly', 'local_transport'])) {
                             // Calculate per adult price: totalPrice / Adults
                             $adultCount = floatval($item['adult'] ?? $item['adults'] ?? $item['adultCount'] ?? 0);
-                            
+                           
                             if ($adultCount > 0) {
                                 $singleSharing = $totalPriceFloat / $adultCount;
                             } else {
                                 // Fallback if no adult count found or 0, use total price as single sharing (divide by 1)
                                 $singleSharing = $totalPriceFloat;
                             }
-                            
+                           
                             // Double sharing: same as single (per-person price)
                             $doubleSharing = $singleSharing;
 
                             if (!$isSupplement) {
                                 $otherServiceSingle += $singleSharing;
                                 $otherServiceDouble += $doubleSharing;
+                                $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
+                                $appendServicePriceLine(
+                                    $type,
+                                    $item,
+                                    (float) $singleSharing,
+                                    (float) $doubleSharing,
+                                    0.0,
+                                    $isSupplement
+                                );
                             }
                         }
                         // Handle guide: per adult price (totalPrice / Adults)
                         elseif ($normalizedType === 'guide') {
                             $adultCount = floatval($item['adult'] ?? $item['adults'] ?? $item['adultCount'] ?? 0);
-                            
+                           
                             if ($adultCount > 0) {
                                 $singleSharing = $totalPriceFloat / $adultCount;
                             } else {
                                 $singleSharing = $totalPriceFloat;
                             }
-                            
+                           
                             $doubleSharing = $singleSharing;
 
                             if (!$isSupplement) {
                                 $otherServiceSingle += $singleSharing;
                                 $otherServiceDouble += $doubleSharing;
+                                $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
+                                $appendServicePriceLine(
+                                    $type,
+                                    $item,
+                                    (float) $singleSharing,
+                                    (float) $doubleSharing,
+                                    0.0,
+                                    $isSupplement
+                                );
                             }
                         }
                         // Default calculation for other service types
                         else {
                             // Get pax count
-                            $pax = $item['pax'] 
+                            $pax = $item['pax']
                                 ?? (($item['adult'] ?? 0) + ($item['child'] ?? 0) + ($item['infant'] ?? 0))
                                 ?? (($item['adultCount'] ?? 0) + ($item['childCount'] ?? 0) + ($item['seniorCount'] ?? 0))
                                 ?? null;
@@ -5115,10 +7960,19 @@ class CommonHelper
 
                             // Double sharing: total / 2 (per person for 2 people)
                             $doubleSharing = $totalPriceFloat;
-                            
+                           
                             if (!$isSupplement) {
                                 $otherServiceSingle += $singleSharing;
                                 $otherServiceDouble += $doubleSharing;
+                                $trackCountryOther((float)$singleSharing, (float)$doubleSharing);
+                                $appendServicePriceLine(
+                                    $type,
+                                    $item,
+                                    (float) $singleSharing,
+                                    (float) $doubleSharing,
+                                    0.0,
+                                    $isSupplement
+                                );
                             }
                         }
 
@@ -5187,8 +8041,8 @@ class CommonHelper
                 $supplements[] = $row;
             }
         }
-        
-        // Add merged hotel buckets once (prevents 3× multiplication when same hotel/date has multiple orders)
+       
+        // Add merged hotel buckets once (prevents 3Ã— multiplication when same hotel/date has multiple orders)
         $hotelSingle = 0.0;
         $hotelDouble = 0.0;
         $hotelTriple = 0.0;
@@ -5223,7 +8077,7 @@ class CommonHelper
 
         // Final per-head totals (supplements excluded).
         // Other-service prices (attraction, restaurant, transfers, etc.) are per-pax amounts
-        // that don't depend on room occupancy — a guest in a triple room still consumes the
+        // that don't depend on room occupancy â€” a guest in a triple room still consumes the
         // same attractions/meals as anyone else, so the same per-pax other-services cost
         // applies to triple sharing too. (otherServiceSingle == otherServiceDouble for these.)
         $totalSingleSharing = $hotelSingle + $otherServiceSingle;
@@ -5241,9 +8095,106 @@ class CommonHelper
                 'hotel_name' => $meta['hotel_name'] ?? null,
                 'date_range' => $meta['date_range'] ?? null,
                 'display_name' => $meta['display_name'] ?? ($meta['hotel_name'] ?? $hotelKey),
+                'country' => $meta['country'] ?? null,
+                'currency' => $meta['currency'] ?? null,
                 'single' => ceil((float)($bucket['single'] ?? 0) * $hotelFactor),
                 'double' => ceil((float)($bucket['double'] ?? 0) * $hotelFactor),
                 'triple' => ceil((float)($bucket['triple'] ?? 0) * $hotelFactor),
+            ];
+        }
+
+        // Country-wise single/double/triple (same formula as overall, native currency per country)
+        $countryHotelBuckets = [];
+        foreach ($hotelBuckets as $hotelKey => $bucket) {
+            if (!is_array($bucket)) continue;
+            $meta = $hotelBucketMeta[$hotelKey] ?? [];
+            $cName = trim((string) ($meta['country'] ?? ''));
+            $cCurr = strtoupper(trim((string) ($meta['currency'] ?? $fallbackCurrency)));
+            if ($cName === '') {
+                $cName = $cCurr !== '' ? $cCurr : 'Other';
+            }
+            if ($cCurr === '') {
+                $cCurr = $fallbackCurrency;
+            }
+            $ck = mb_strtolower($cName) . '|' . $cCurr;
+            if (!isset($countryHotelBuckets[$ck])) {
+                $countryHotelBuckets[$ck] = [
+                    'country' => $cName,
+                    'currency' => $cCurr,
+                    'single' => 0.0,
+                    'double' => 0.0,
+                    'triple' => 0.0,
+                ];
+            }
+            $countryHotelBuckets[$ck]['single'] += (float) ($bucket['single'] ?? 0);
+            $countryHotelBuckets[$ck]['double'] += (float) ($bucket['double'] ?? 0);
+            $countryHotelBuckets[$ck]['triple'] += (float) ($bucket['triple'] ?? 0);
+        }
+
+        $allCountryKeys = array_values(array_unique(array_merge(
+            array_keys($countryHotelBuckets),
+            array_keys($countryOtherBuckets)
+        )));
+
+        $preferredCountryOrder = [];
+        $destinationRaw = (string) ($tour->destination ?? '');
+        if ($destinationRaw !== '') {
+            foreach (preg_split('/\s*,\s*/', $destinationRaw) ?: [] as $part) {
+                $part = trim((string) preg_replace('/\s*\([^)]*\)\s*/', '', $part));
+                $part = trim((string) preg_replace('/\[[^\]]*\]/', '', $part));
+                if ($part !== '') {
+                    $preferredCountryOrder[mb_strtolower($part)] = $part;
+                }
+            }
+        }
+
+        usort($allCountryKeys, function ($a, $b) use ($preferredCountryOrder, $countryHotelBuckets, $countryOtherBuckets) {
+            $aCountry = $countryHotelBuckets[$a]['country'] ?? ($countryOtherBuckets[$a]['country'] ?? $a);
+            $bCountry = $countryHotelBuckets[$b]['country'] ?? ($countryOtherBuckets[$b]['country'] ?? $b);
+            $aPos = array_key_exists(mb_strtolower($aCountry), $preferredCountryOrder)
+                ? array_search(mb_strtolower($aCountry), array_keys($preferredCountryOrder), true)
+                : PHP_INT_MAX;
+            $bPos = array_key_exists(mb_strtolower($bCountry), $preferredCountryOrder)
+                ? array_search(mb_strtolower($bCountry), array_keys($preferredCountryOrder), true)
+                : PHP_INT_MAX;
+            if ($aPos === $bPos) {
+                return strcasecmp($a, $b);
+            }
+            return $aPos <=> $bPos;
+        });
+
+        $countrySharing = [];
+        foreach ($allCountryKeys as $ck) {
+            $hotelRow = $countryHotelBuckets[$ck] ?? [
+                'country' => $countryOtherBuckets[$ck]['country'] ?? 'Other',
+                'currency' => $countryOtherBuckets[$ck]['currency'] ?? $fallbackCurrency,
+                'single' => 0.0,
+                'double' => 0.0,
+                'triple' => 0.0,
+            ];
+            $otherRow = $countryOtherBuckets[$ck] ?? [
+                'single' => 0.0,
+                'double' => 0.0,
+            ];
+
+            $cHotelSingle = (float) $hotelRow['single'] * $hotelFactor;
+            $cHotelDouble = (float) $hotelRow['double'] * $hotelFactor;
+            $cHotelTriple = (float) $hotelRow['triple'] * $hotelFactor;
+            $cOtherSingle = (float) $otherRow['single'] * $otherFactor;
+            $cOtherDouble = (float) $otherRow['double'] * $otherFactor;
+
+            $countrySharing[] = [
+                'key' => $ck,
+                'country' => $hotelRow['country'],
+                'currency' => strtoupper((string) $hotelRow['currency']),
+                'hotel_single' => ceil($cHotelSingle),
+                'hotel_double' => ceil($cHotelDouble),
+                'hotel_triple' => ceil($cHotelTriple),
+                'other_services_single' => ceil($cOtherSingle),
+                'other_services_double' => ceil($cOtherDouble),
+                'single_sharing' => ceil($cHotelSingle + $cOtherSingle),
+                'double_sharing' => ceil($cHotelDouble + $cOtherDouble),
+                'triple_sharing' => ($cHotelTriple > 0) ? ceil($cHotelTriple + $cOtherSingle) : 0,
             ];
         }
 
@@ -5289,6 +8240,16 @@ class CommonHelper
             return $row;
         }, $supplements);
 
+        $servicePriceLinesFormatted = array_values(array_map(function (array $line) use ($otherFactor) {
+            return [
+                'label' => $line['label'] ?? 'Service',
+                'type' => $line['type'] ?? 'other',
+                'single' => ceil((float) ($line['single'] ?? 0) * $otherFactor),
+                'double' => ceil((float) ($line['double'] ?? 0) * $otherFactor),
+                'child_unit' => ceil((float) ($line['child_unit'] ?? 0) * $otherFactor),
+            ];
+        }, $servicePriceLines));
+
         return [
             // Per-head totals (hotel + other services, supplements excluded)
             'single_sharing'       => ceil($totalSingleSharing),
@@ -5296,9 +8257,13 @@ class CommonHelper
             'triple_sharing'       => ceil($totalTripleSharing),
             // Hotel-wise per-head prices (each hotel separately, for rooming scenarios)
             'hotel_price_options'  => $hotelPriceOptions,
+            // Per-service lines for segregated quotation breakdown
+            'service_price_lines'  => $servicePriceLinesFormatted,
             // Other services per-head total (non-hotel, non-supplement)
             'other_services_single' => ceil($otherServiceSingle),
             'other_services_double' => ceil($otherServiceDouble),
+            // Country + currency wise single/double/triple (native amounts)
+            'country_sharing'      => $countrySharing,
             // Supplements (hotel + other services marked supplement=true)
             'supplements'          => $supplementsFormatted,
             'supplyments'          => $supplementsFormatted,
@@ -5399,11 +8364,11 @@ class CommonHelper
         uksort($grouped, function ($a, $b) use ($serviceOrder) {
             $orderA = $serviceOrder[strtolower($a)] ?? 999;
             $orderB = $serviceOrder[strtolower($b)] ?? 999;
-            
+           
             if ($orderA === $orderB) {
                 return strcmp($a, $b);
             }
-            
+           
             return $orderA <=> $orderB;
         });
 
@@ -5632,12 +8597,12 @@ class CommonHelper
                                 ]);
                             }
                         }
-                        
+                       
                         // Fallback to bed_type if bed_id lookup fails
                         if ($bedType === 'Bed' && !empty($bed['bed_type'])) {
                             $bedType = self::friendlyLabel($bed['bed_type'], 'Bed');
                         }
-                        
+                       
                         $bedSummary[] = [
                             'type' => $bedType,
                             'occupancy' => $bed['head_count'] ?? null,
@@ -5732,19 +8697,19 @@ class CommonHelper
                     $transferWay = ucwords(str_replace('-', ' ', $wayRaw));
                 }
             }
-            
+           
             // Get vehicle details (from transfer_options.vehicle_details or direct item)
             $vehicleDetailsFromOptions = $transferOptions['vehicle_details'] ?? null;
-            
+           
             $vehicleType = null;
             $seatingCapacity = null;
             $vehicleNumber = null;
             $vehicleBrand = null;
-            
+           
             // Try to fetch from Vehicle model - check jobsheet first, then fallback to vehicles_id
             $vehicleRecord = null;
             $vehicleId = null;
-            
+           
             // Check jobsheet first if order and tour are available
             if ($order && $tour && !empty($order->booking_id)) {
                 try {
@@ -5766,7 +8731,7 @@ class CommonHelper
                     ]);
                 }
             }
-            
+           
             // Fallback to vehicles_id from item if no jobsheet vehicle found
             if (!$vehicleRecord && !empty($item['vehicles_id'])) {
                 try {
@@ -5778,20 +8743,20 @@ class CommonHelper
                     // If Vehicle model not found, continue without it
                 }
             }
-            
+           
             if ($vehicleRecord) {
                 $vehicleType = $vehicleRecord->vehicle_type ?? null;
                 $seatingCapacity = $vehicleRecord->sitting_capacity ?? $vehicleRecord->seating_capacity ?? $vehicleRecord->max_passenger_capacity ?? null;
                 $vehicleNumber = $vehicleRecord->vehicle_plate_no ?? null;
                 $vehicleBrand = $vehicleRecord->vehicle_model ?? $vehicleRecord->vehicle_name ?? null;
             }
-            
+           
             // Get from transfer_options.vehicle_details if available
             if ($vehicleDetailsFromOptions && is_array($vehicleDetailsFromOptions)) {
                 $vehicleType = $vehicleType ?? $vehicleDetailsFromOptions['vehicle_type'] ?? null;
                 $seatingCapacity = $seatingCapacity ?? $vehicleDetailsFromOptions['seating_capacity'] ?? null;
             }
-            
+           
             // Parse vehicles_name if it contains type and seating info (e.g., "Jaguar F-Pace (SUV) - 7 seats")
             $vehiclesName = $item['vehicles_name'] ?? null;
             if ($vehiclesName && (!$vehicleType || !$seatingCapacity)) {
@@ -5803,13 +8768,13 @@ class CommonHelper
                     $seatingCapacity = $seatingCapacity ?? $seatMatch[1];
                 }
             }
-            
+           
             // Fallback to direct item fields
             $vehicleType = $vehicleType ?? $item['vehicle_type'] ?? null;
             $seatingCapacity = $seatingCapacity ?? $item['seating_capacity'] ?? null;
             $vehicleNumber = $vehicleNumber ?? $item['vehicle_number'] ?? $item['vehicleNumber'] ?? null;
             $vehicleBrand = $vehicleBrand ?? $item['vehicle_brand'] ?? $item['vehicleBrand'] ?? $item['vehicle_model'] ?? null;
-            
+           
             // Format Vehicle Type / Seater
             $vehicleTypeSeater = '';
             if ($vehicleType && $seatingCapacity) {
@@ -5821,7 +8786,7 @@ class CommonHelper
             } else {
                 $vehicleTypeSeater = 'N/A';
             }
-            
+           
             $vehicleDetails = [
                 'name' => $vehiclesName,
                 'type' => $item['type'] ?? null,
@@ -5846,12 +8811,12 @@ class CommonHelper
             $adultCount = $item['adultCount'] ?? $item['adult'] ?? 0;
             $childCount = $item['childCount'] ?? $item['child'] ?? 0;
             $seniorCount = $item['seniorCount'] ?? $item['senior'] ?? 0;
-            
+           
             // Extract transfer options - prioritize transfer_options over Selection
             $transferOptions = $item['transfer_options'] ?? null;
             $transferRequired = 'N/A';
             $transferType = 'N/A';
-            
+           
             if ($transferOptions) {
                 // Get transfer_required from transfer_options
                 if (isset($transferOptions['transfer_required'])) {
@@ -5862,7 +8827,7 @@ class CommonHelper
                     $transferType = $transferOptions['type'];
                 }
             }
-            
+           
             $transportNote = null;
             if ($transferRequired === 'No') {
                 $transportNote = 'Transport not included';
@@ -5921,7 +8886,7 @@ class CommonHelper
             // Restaurant uses "infants" in some payloads (older payloads may use seniorCount)
             $infantCount = $item['infants'] ?? $item['infantCount'] ?? $item['infant'] ?? 0;
             $seniorCount = $item['seniorCount'] ?? $item['senior'] ?? 0;
-            
+           
             $mealItems = [];
             if (!empty($item['MealDescription']) && is_array($item['MealDescription'])) {
                 foreach ($item['MealDescription'] as $mealItem) {
@@ -5935,12 +8900,12 @@ class CommonHelper
                     }
                 }
             }
-            
+           
             // Extract transfer options
             $transferOptions = $item['transfer_options'] ?? null;
             $transferRequired = 'N/A';
             $transferType = 'N/A';
-            
+           
             if ($transferOptions) {
                 // Get transfer_required from transfer_options
                 if (isset($transferOptions['transfer_required'])) {
@@ -5967,7 +8932,7 @@ class CommonHelper
                     'cost' => $transferOptions['cost'] ?? null,
                 ];
             }
-            
+           
             // Clean mealSpecificType to remove emojis and special characters
             $mealSpecificType = $item['mealSpecificType'] ?? null;
             if ($mealSpecificType) {
@@ -5976,7 +8941,7 @@ class CommonHelper
                 $mealSpecificType = preg_replace('/[^\x20-\x7E]/u', '', $mealSpecificType);
                 $mealSpecificType = trim($mealSpecificType); // Remove leading/trailing whitespace
             }
-            
+           
             $restaurantDetails = [
                 'ticket_name' => $item['ticketName'] ?? null,
                 'adult_count' => $adultCount > 0 ? $adultCount : null,
@@ -6003,7 +8968,7 @@ class CommonHelper
             if (!is_array($languages)) {
                 $languages = [];
             }
-            
+           
             // Format languages as comma-separated string for Language Proficiency
             $languageProficiency = '';
             if (!empty($languages)) {
@@ -6029,7 +8994,7 @@ class CommonHelper
             if ($totalExperience !== null) {
                 $totalExperience = $totalExperience . ' years';
             }
-            
+           
             $guideDetails = [
                 'guide_name' => $guide->name ?? null,
                 'language_proficiency' => $languageProficiency ?: 'N/A',
@@ -6044,6 +9009,23 @@ class CommonHelper
             'type' => $serviceType,
             'title' => $title,
             'subtitle' => $location,
+            'country' => (function () use ($order, $item) {
+                $country = '';
+                if (is_object($order) && !empty($order->country)) {
+                    $country = trim((string) $order->country);
+                }
+                if ($country === '' && !empty($item['country']) && is_string($item['country'])) {
+                    $country = trim($item['country']);
+                }
+                if ($country === '' && !empty($item['hotelDetails']['country']) && is_string($item['hotelDetails']['country'])) {
+                    $country = trim($item['hotelDetails']['country']);
+                }
+                return $country !== '' ? $country : null;
+            })(),
+            'currency' => self::resolveOrderDisplayCurrency(
+                $order,
+                (is_object($tour) && !empty($tour->currency)) ? (string) $tour->currency : 'SGD'
+            ),
             'time' => $time,
             'pax' => $pax,
             'adult_count' => (is_numeric($adultCountStd) && (float)$adultCountStd > 0) ? (int)$adultCountStd : null,
@@ -6072,19 +9054,19 @@ class CommonHelper
     protected static function serviceIcon($type)
     {
         $map = [
-            'hotel' => '🏨',
-            'guide' => '👤',
-            'restaurant' => '🍽️',
-            'attraction' => '🎯',
-            'entry_port' => '✈️',
-            'exit_port' => '🛫',
-            'travel_point' => '🚐',
-            'travel_hourly' => '🚗',
-            'local_transport' => '🚕',
+            'hotel' => 'ðŸ ¨',
+            'guide' => 'ðŸ‘¤',
+            'restaurant' => 'ðŸ ½ï¸ ',
+            'attraction' => 'ðŸŽ¯',
+            'entry_port' => 'âœˆï¸ ',
+            'exit_port' => 'ðŸ›«',
+            'travel_point' => 'ðŸš ',
+            'travel_hourly' => 'ðŸš—',
+            'local_transport' => 'ðŸš•',
         ];
 
         $key = strtolower($type ?? '');
-        return $map[$key] ?? '🧭';
+        return $map[$key] ?? 'ðŸ§­';
     }
 
     protected static function friendlyLabel($value, $fallback = 'N/A')
@@ -6098,6 +9080,139 @@ class CommonHelper
         }
 
         return $value;
+    }
+
+    /**
+     * Group booked order totals by orders.country + orders.currency (native amounts, no FX).
+     * Used by quotation PDF so Singapore shows SGD and Indonesia shows IDR clearly.
+     *
+     * @param  \Illuminate\Support\Collection|array  $orders
+     * @return array<int, array{key:string,country:string,currency:string,hotel_total:float,other_total:float,total:float,order_count:int}>
+     */
+    protected static function buildCountryQuotationGroups($orders, $tour = null): array
+    {
+        $isPro = (int) (is_object($tour) ? ($tour->is_pro ?? 0) : 0);
+        $fallbackCurrency = (is_object($tour) && !empty($tour->currency))
+            ? strtoupper(trim((string) $tour->currency))
+            : 'SGD';
+
+        $groups = [];
+        foreach ($orders as $order) {
+            if ((int) ($order->status ?? 0) !== 1) {
+                continue;
+            }
+
+            $country = is_string($order->country ?? null) ? trim((string) $order->country) : '';
+            $currency = self::resolveOrderDisplayCurrency($order, $fallbackCurrency);
+            if ($country === '') {
+                $country = $currency !== '' ? $currency : 'Other';
+            }
+            if ($currency === '') {
+                $currency = $fallbackCurrency;
+            }
+
+            $amount = self::extractOrderGrossAmount($order, $isPro);
+            if ($amount <= 0) {
+                continue;
+            }
+
+            $key = mb_strtolower($country) . '|' . strtoupper($currency);
+            if (!isset($groups[$key])) {
+                $groups[$key] = [
+                    'key' => $key,
+                    'country' => $country,
+                    'currency' => strtoupper($currency),
+                    'hotel_total' => 0.0,
+                    'other_total' => 0.0,
+                    'total' => 0.0,
+                    'order_count' => 0,
+                ];
+            }
+
+            $type = strtolower(str_replace(' ', '_', (string) ($order->type ?? '')));
+            if ($type === 'hotel') {
+                $groups[$key]['hotel_total'] += $amount;
+            } else {
+                $groups[$key]['other_total'] += $amount;
+            }
+            $groups[$key]['total'] += $amount;
+            $groups[$key]['order_count']++;
+        }
+
+        // Prefer tour destination order
+        $preferred = [];
+        $destinationRaw = is_object($tour) ? (string) ($tour->destination ?? '') : '';
+        if ($destinationRaw !== '') {
+            foreach (preg_split('/\s*,\s*/', $destinationRaw) ?: [] as $part) {
+                $part = trim((string) preg_replace('/\s*\([^)]*\)\s*/', '', $part));
+                $part = trim((string) preg_replace('/\[[^\]]*\]/', '', $part));
+                if ($part !== '') {
+                    $preferred[mb_strtolower($part)] = $part;
+                }
+            }
+        }
+
+        $list = array_values($groups);
+        usort($list, function ($a, $b) use ($preferred) {
+            $aKey = mb_strtolower($a['country']);
+            $bKey = mb_strtolower($b['country']);
+            $aPos = array_key_exists($aKey, $preferred) ? array_search($aKey, array_keys($preferred), true) : PHP_INT_MAX;
+            $bPos = array_key_exists($bKey, $preferred) ? array_search($bKey, array_keys($preferred), true) : PHP_INT_MAX;
+            if ($aPos === $bPos) {
+                return strcasecmp($a['country'] . $a['currency'], $b['country'] . $b['currency']);
+            }
+            return $aPos <=> $bPos;
+        });
+
+        return $list;
+    }
+
+    /**
+     * Sum native sell amount for one order (same rules as negotiation gross).
+     */
+    protected static function extractOrderGrossAmount($order, int $isPro = 0): float
+    {
+        $data = is_string($order->data ?? null) ? json_decode($order->data, true) : ($order->data ?? null);
+        if (!is_array($data)) {
+            return 0.0;
+        }
+
+        $items = isset($data[0]) ? $data : [$data];
+        $orderType = $order->type ?? '';
+        $total = 0.0;
+
+        foreach ($items as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+            $transferPrice = 0.0;
+            if ($orderType !== 'hotel' && isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
+                if ($isPro === 1 && isset($item['transfer_options']['totalPrice'])) {
+                    $transferPrice = (float) $item['transfer_options']['totalPrice'];
+                } else {
+                    $transferPrice = (float) $item['transfer_options']['cost'];
+                }
+            }
+
+            $guidePrice = 0.0;
+            if (isset($item['guide_options']) && is_array($item['guide_options'])) {
+                $gv = $item['guide_options']['total_price']
+                    ?? $item['guide_options']['cost']
+                    ?? $item['guide_options']['Cost']
+                    ?? $item['guide_options']['sell']
+                    ?? $item['guide_options']['Sell']
+                    ?? 0;
+                if ($gv > 0) {
+                    $guidePrice = (float) $gv;
+                }
+            }
+
+            $total += $itemPrice + $transferPrice + $guidePrice;
+        }
+
+        return $total;
     }
 
     /**
@@ -6169,7 +9284,16 @@ class CommonHelper
                                     }
                                 }
                             } else {
-                                $totalSingleRooms += $noOfRooms;
+                                $selectedPersons = (int) ($room['selected_persons'] ?? $room['selectedPersons'] ?? 0);
+                                if ($selectedPersons === 3) {
+                                    $totalTripleRooms += $noOfRooms;
+                                } elseif ($selectedPersons === 2) {
+                                    $totalDoubleRooms += $noOfRooms;
+                                } elseif ($selectedPersons === 1) {
+                                    $totalSingleRooms += $noOfRooms;
+                                } else {
+                                    $totalSingleRooms += $noOfRooms;
+                                }
                             }
                         }
                     }
@@ -6235,7 +9359,16 @@ class CommonHelper
                                     }
                                 }
                             } else {
-                                $roomSingleCount = $noOfRooms;
+                                $selectedPersons = (int) ($firstRoom['selected_persons'] ?? $firstRoom['selectedPersons'] ?? 0);
+                                if ($selectedPersons === 3) {
+                                    $roomTripleCount += $noOfRooms;
+                                } elseif ($selectedPersons === 2) {
+                                    $roomDoubleCount += $noOfRooms;
+                                } elseif ($selectedPersons === 1) {
+                                    $roomSingleCount += $noOfRooms;
+                                } else {
+                                    $roomSingleCount += $noOfRooms;
+                                }
                             }
                             $totalSingleRooms += $roomSingleCount;
                             $totalDoubleRooms += $roomDoubleCount;
@@ -6269,6 +9402,23 @@ class CommonHelper
                     'option_number' => $hotelIndex++,
                     'hotel_name' => $hotelName,
                     'hotel_category' => $hotelCategory,
+                    'country' => (function () use ($order, $item) {
+                        $country = '';
+                        if (is_object($order) && !empty($order->country)) {
+                            $country = trim((string) $order->country);
+                        }
+                        if ($country === '' && !empty($item['country']) && is_string($item['country'])) {
+                            $country = trim($item['country']);
+                        }
+                        if ($country === '' && !empty($item['hotelDetails']['country']) && is_string($item['hotelDetails']['country'])) {
+                            $country = trim($item['hotelDetails']['country']);
+                        }
+                        return $country !== '' ? $country : null;
+                    })(),
+                    'currency' => self::resolveOrderDisplayCurrency(
+                        $order,
+                        (is_object($tour) && !empty($tour->currency)) ? (string) $tour->currency : 'SGD'
+                    ),
                     // Keep raw rooms payload so email template can extract beds[*].head_count
                     'rooms' => is_array($rooms) ? $rooms : [],
                     'adult_price' => isset($adultPrice) && is_numeric($adultPrice) ? number_format($adultPrice, 2) : ($adultPrice ?? 'N/A'),
@@ -6345,7 +9495,7 @@ class CommonHelper
     {
         $hotelId = $item['hotelDetails']['hotel_id'] ?? $item['hotelDetails']['hotelId'] ?? $item['hotel_id'] ?? $item['hotelId'] ?? null;
         $weekendDays = ['Saturday', 'Sunday']; // Default fallback
-        
+       
         // Get weekend days from hotel
         if ($hotelId) {
             try {
@@ -6369,19 +9519,19 @@ class CommonHelper
         $singleWeekendPrice = null;
         $doubleWeekdayPrice = null;
         $doubleWeekendPrice = null;
-        
+       
         $roomtype = $room['room_type'] ?? $room['roomType'] ?? null;
-        
+       
         if ($roomtype && $hotelId) {
             try {
                 $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
                 $dbHotelId = $hotel ? $hotel->hotel_unique_id : $hotelId;
-                
+               
                 $roomRecord = Room::where('room_type', $roomtype)
                     ->where('hotel_id', $dbHotelId)
                     ->where('status', 1)
                     ->first();
-                
+               
                 if ($roomRecord) {
                     if ($roomRecord->weekday_price !== null && $roomRecord->weekday_price !== '') {
                         $singleWeekdayPrice = floatval($roomRecord->weekday_price);
@@ -6434,13 +9584,13 @@ class CommonHelper
         // Get booking dates
         $bookingDates = [];
         $bookingDate = $item['bookingDate'] ?? null;
-        
+       
         if ($bookingDate) {
             if (is_array($bookingDate) && count($bookingDate) === 2) {
                 try {
                     $start = Carbon::parse($bookingDate[0]);
                     $end = Carbon::parse($bookingDate[1]);
-                    
+                   
                     while ($start->lt($end)) {
                         $bookingDates[] = $start->copy();
                         $start->addDay();
@@ -6496,22 +9646,22 @@ class CommonHelper
         $totalSinglePrice = 0;
         $totalDoublePrice = 0;
         $totalTriplePrice = 0;
-        
+       
         // Get extra bed price for triple sharing
         $extraBedWeekdayPrice = null;
         $extraBedWeekendPrice = null;
-        
+       
         $roomId = $room['room_id'] ?? $room['roomId'] ?? null;
         if ($roomId && $hotelId) {
             try {
                 $hotel = Hotel::where('hotel_unique_id', $hotelId)->first();
                 $dbHotelId = $hotel ? $hotel->hotel_unique_id : $hotelId;
-                
+               
                 $roomRecord = Room::where('room_id', $roomId)
                     ->where('hotel_id', $dbHotelId)
                     ->where('status', 1)
                     ->first();
-                    
+                   
                 if ($roomRecord && $roomRecord->room_id) {
                     $bedRecord = Bed::where('room_id', $roomRecord->room_id)
                         ->where('extra_bed', true)
@@ -6532,7 +9682,7 @@ class CommonHelper
             $dayName = $date->format('l');
             $isWeekend = in_array($dayName, $weekendDays);
             $dateString = $date->format('Y-m-d');
-            
+           
             // Check rates table
             $ratePrice = null;
             $rateSingleWeekdayPrice = null;
@@ -6540,7 +9690,7 @@ class CommonHelper
             $rateDoubleWeekdayPrice = null;
             $rateDoubleWeekendPrice = null;
             $rateEventType = null;
-            
+           
             if ($hotelId) {
                 try {
                     $rate = Rate::where('hotel_id', $hotelId)
@@ -6555,10 +9705,10 @@ class CommonHelper
                             END
                         ")
                         ->first();
-                    
+                   
                     if ($rate) {
                         $rateEventType = $rate->event_type;
-                        
+                       
                         if ($rate->event_type == 'Blackout Date') {
                             $ratePrice = floatval($rate->price ?? 0);
                             $rateSingleWeekdayPrice = $ratePrice;
@@ -6568,11 +9718,11 @@ class CommonHelper
                         } elseif ($rate->event_type == 'Season') {
                             $rateSingleWeekdayPrice = $rate->weekday_price ? floatval($rate->weekday_price) : null;
                             $rateSingleWeekendPrice = $rate->weekend_price ? floatval($rate->weekend_price) : null;
-                            $rateDoubleWeekdayPrice = (isset($rate->double_weekday_price) && $rate->double_weekday_price !== null && $rate->double_weekday_price !== '') 
-                                ? floatval($rate->double_weekday_price) / 2 
+                            $rateDoubleWeekdayPrice = (isset($rate->double_weekday_price) && $rate->double_weekday_price !== null && $rate->double_weekday_price !== '')
+                                ? floatval($rate->double_weekday_price) / 2
                                 : null;
-                            $rateDoubleWeekendPrice = (isset($rate->double_weekend_price) && $rate->double_weekend_price !== null && $rate->double_weekend_price !== '') 
-                                ? floatval($rate->double_weekend_price) / 2 
+                            $rateDoubleWeekendPrice = (isset($rate->double_weekend_price) && $rate->double_weekend_price !== null && $rate->double_weekend_price !== '')
+                                ? floatval($rate->double_weekend_price) / 2
                                 : null;
                         }
                     }
@@ -6580,11 +9730,11 @@ class CommonHelper
                     // Ignore errors
                 }
             }
-            
+           
             // Determine price to use
             $singlePriceToAdd = null;
             $doublePriceToAdd = null;
-            
+           
             if ($rateEventType == 'Blackout Date' && $ratePrice !== null) {
                 $singlePriceToAdd = $ratePrice;
                 $doublePriceToAdd = $ratePrice;
@@ -6603,25 +9753,25 @@ class CommonHelper
                 $singlePriceToAdd = $singleWeekdayPrice ?? $singleWeekendPrice;
                 $doublePriceToAdd = $doubleWeekdayPrice ?? $doubleWeekendPrice;
             }
-            
+           
             if ($singlePriceToAdd !== null) {
                 $totalSinglePrice += $singlePriceToAdd;
             }
             if ($doublePriceToAdd !== null) {
                 $totalDoublePrice += $doublePriceToAdd;
             }
-            
+           
             // Triple = double + extra bed
             if ($doublePriceToAdd !== null && $extraBedWeekdayPrice !== null) {
-                $extraBedPriceToAdd = $isWeekend 
-                    ? ($extraBedWeekendPrice ?? $extraBedWeekdayPrice) 
+                $extraBedPriceToAdd = $isWeekend
+                    ? ($extraBedWeekendPrice ?? $extraBedWeekdayPrice)
                     : ($extraBedWeekdayPrice ?? $extraBedWeekendPrice);
                 $totalTriplePrice += $doublePriceToAdd + $extraBedPriceToAdd;
             }
         }
-        
+       
         $totalNights = count($bookingDates);
-        
+       
         return [
             'single_total' => $totalSinglePrice,
             'double_total' => $totalDoublePrice,
@@ -6663,7 +9813,7 @@ class CommonHelper
      * @param string|null           $paymentType
      * @return void
      */
-    public static function appendTourStatusTrack(\App\Models\Tour $tour, ?string $fromStatus, string $toStatus, $changedAt = null, $amount = null, $comment = null, $actualAmount = null, ?string $changedByName = null, $changedByUserId = null, ?string $action = null, ?string $serviceType = null, $serviceId = null, ?string $serviceName = null, $sgdAmount = null, ?string $selectedCurrency = null, $paymentDate = null, ?string $paymentType = null): void
+    public static function appendTourStatusTrack(\App\Models\Tour $tour, ?string $fromStatus, string $toStatus, $changedAt = null, $amount = null, $comment = null, $actualAmount = null, ?string $changedByName = null, $changedByUserId = null, ?string $action = null, ?string $serviceType = null, $serviceId = null, ?string $serviceName = null, $sgdAmount = null, ?string $selectedCurrency = null, $paymentDate = null, ?string $paymentType = null, $offers = null, ?string $confirmCurrency = null): void
     {
         try {
             $changedAt = $changedAt ?? now();
@@ -6714,6 +9864,20 @@ class CommonHelper
             }
             if ($paymentType !== null && $paymentType !== '') {
                 $entryExtra['payment_type'] = (string) $paymentType;
+            }
+            if (!empty($offers)) {
+                if (is_array($offers)) {
+                    // Store full negotiation offers list (one or more country/currency rows)
+                    $entryExtra['offers'] = array_values($offers);
+                } elseif (is_string($offers)) {
+                    $decodedOffers = json_decode($offers, true);
+                    $entryExtra['offers'] = is_array($decodedOffers) ? array_values($decodedOffers) : $offers;
+                } else {
+                    $entryExtra['offers'] = $offers;
+                }
+            }
+            if ($confirmCurrency !== null && $confirmCurrency !== '') {
+                $entryExtra['confirm_currency'] = strtoupper(trim((string) $confirmCurrency));
             }
 
             if ($fromIsNull) {
@@ -6788,9 +9952,11 @@ class CommonHelper
      * @param string|null           $selectedCurrency
      * @param \Carbon\Carbon|string|null $paymentDate
      * @param string|null           $paymentType
+     * @param array|string|null     $offers  full negotiation offers list (country/currency/amount/etc.)
+     * @param string|null           $confirmCurrency  currency selected when confirming tour
      * @return void
      */
-    public static function appendTourStatusTrackById(int $tourId, ?string $fromStatus, string $toStatus, $changedAt = null, $amount = null, $comment = null, $actualAmount = null, ?string $changedByName = null, $changedByUserId = null, ?string $action = null, ?string $serviceType = null, $serviceId = null, ?string $serviceName = null, $sgdAmount = null, ?string $selectedCurrency = null, $paymentDate = null, ?string $paymentType = null): void
+    public static function appendTourStatusTrackById(int $tourId, ?string $fromStatus, string $toStatus, $changedAt = null, $amount = null, $comment = null, $actualAmount = null, ?string $changedByName = null, $changedByUserId = null, ?string $action = null, ?string $serviceType = null, $serviceId = null, ?string $serviceName = null, $sgdAmount = null, ?string $selectedCurrency = null, $paymentDate = null, ?string $paymentType = null, $offers = null, ?string $confirmCurrency = null): void
     {
         $tour = \App\Models\Tour::where('tour_id', $tourId)->first();
 
@@ -6803,7 +9969,7 @@ class CommonHelper
             return;
         }
 
-        self::appendTourStatusTrack($tour, $fromStatus, $toStatus, $changedAt, $amount, $comment, $actualAmount, $changedByName, $changedByUserId, $action, $serviceType, $serviceId, $serviceName, $sgdAmount, $selectedCurrency, $paymentDate, $paymentType);
+        self::appendTourStatusTrack($tour, $fromStatus, $toStatus, $changedAt, $amount, $comment, $actualAmount, $changedByName, $changedByUserId, $action, $serviceType, $serviceId, $serviceName, $sgdAmount, $selectedCurrency, $paymentDate, $paymentType, $offers, $confirmCurrency);
     }
 
     /**
@@ -6969,6 +10135,1213 @@ class CommonHelper
         }
     }
 
+    /**
+     * ISO codes available for invoice currency selection / conversion.
+     *
+     * @return array<int, string>
+     */
+    public static function getInvoiceAvailableCurrencies(): array
+    {
+        return [
+            'SGD', 'USD', 'EUR', 'GBP', 'INR', 'AUD', 'NZD', 'CAD', 'CHF', 'JPY', 'CNY',
+            'HKD', 'TWD', 'KRW', 'THB', 'MYR', 'IDR', 'PHP', 'VND', 'AED', 'SAR', 'QAR',
+            'KWD', 'BHD', 'OMR', 'ZAR', 'NGN', 'EGP', 'KES', 'GHS', 'MAD', 'BRL', 'ARS',
+            'CLP', 'COP', 'PEN', 'MXN', 'RUB', 'UAH', 'TRY', 'ILS', 'PLN', 'CZK', 'HUF',
+            'RON', 'SEK', 'NOK', 'DKK', 'ISK', 'BGN', 'HRK', 'PKR', 'LKR', 'BDT', 'MVR',
+            'KZT', 'DOP', 'JMD',
+        ];
+    }
+
+    /**
+     * Currencies for payment modal dropdowns: invoice list + any codes from countries table.
+     *
+     * @return array<int, string>
+     */
+    public static function getPaymentAvailableCurrencies(): array
+    {
+        $codes = self::getInvoiceAvailableCurrencies();
+
+        $countryCurrencies = Country::query()
+            ->whereNotNull('currency')
+            ->where('currency', '!=', '')
+            ->distinct()
+            ->pluck('currency');
+
+        foreach ($countryCurrencies as $raw) {
+            $raw = trim((string) $raw);
+            if ($raw === '') {
+                continue;
+            }
+
+            $upper = strtoupper($raw);
+            if (strlen($upper) === 3 && ctype_alpha($upper)) {
+                $codes[] = $upper;
+                continue;
+            }
+
+            $normalized = CurrencyHelper::normalizeCurrencyToCode($raw, $codes, '');
+            if ($normalized !== '' && strlen($normalized) === 3) {
+                $codes[] = $normalized;
+            }
+        }
+
+        $codes = array_values(array_unique(array_map(
+            static fn ($code) => strtoupper(trim((string) $code)),
+            $codes
+        )));
+        sort($codes);
+
+        return $codes;
+    }
+
+    /**
+     * Resolve DMC / tour currency for invoices (e.g. VND for Vietnam DMC).
+     */
+    public static function resolveDmcCurrencyForInvoice(?User $dmc, ?Tour $tour = null): string
+    {
+        $available = self::getInvoiceAvailableCurrencies();
+
+        if ($dmc && trim((string) ($dmc->currency ?? '')) !== '') {
+            return CurrencyHelper::normalizeCurrencyToCode($dmc->currency, $available, 'SGD');
+        }
+
+        if ($tour && trim((string) ($tour->currency ?? '')) !== '') {
+            return CurrencyHelper::normalizeCurrencyToCode($tour->currency, $available, 'SGD');
+        }
+
+        if ($dmc && trim((string) ($dmc->country ?? '')) !== '') {
+            $country = Country::where('name', $dmc->country)->first();
+            if ($country && trim((string) ($country->currency ?? '')) !== '') {
+                return CurrencyHelper::normalizeCurrencyToCode($country->currency, $available, 'SGD');
+            }
+        }
+
+        if ($tour) {
+            return self::resolveTourEmailCurrency($tour, $dmc);
+        }
+
+        return 'SGD';
+    }
+
+    /**
+     * Tour display/base currency for quotation & itinerary PDFs (e.g. VND for Vietnam DMC).
+     * Prefers the tour's DMC currency, then tour currency, then DMC country currency.
+     */
+    public static function resolveTourDisplayCurrency(Tour $tour): string
+    {
+        $dmc = null;
+        if (!empty($tour->dmc_id)) {
+            $dmc = User::where('userId', $tour->dmc_id)->first();
+        }
+
+        return self::resolveDmcCurrencyForInvoice($dmc, $tour);
+    }
+
+    /**
+     * Invoice display base currency: prefer DMC country currency over legacy SGD default.
+     */
+    public static function resolveInvoiceBaseCurrency(Invoice $invoice): string
+    {
+        $invoice->loadMissing(['tour', 'dmc']);
+
+        $dmc = $invoice->dmc;
+        if (!$dmc && $invoice->dmc_id) {
+            $dmc = User::where('userId', $invoice->dmc_id)->first();
+        }
+
+        $fromDmc = self::resolveDmcCurrencyForInvoice($dmc, $invoice->tour);
+        $stored = strtoupper(trim((string) ($invoice->base_currency ?? '')));
+        $available = self::getInvoiceAvailableCurrencies();
+
+        if ($stored !== '' && $stored !== 'SGD') {
+            return CurrencyHelper::normalizeCurrencyToCode($stored, $available, $fromDmc);
+        }
+
+        return $fromDmc;
+    }
+
+    /**
+     * Selected invoice display currency (query param or invoice DMC base).
+     */
+    public static function getInvoiceSelectedCurrency($requested, Invoice $invoice): string
+    {
+        $available = self::getInvoiceAvailableCurrencies();
+        $default = self::resolveInvoiceBaseCurrency($invoice);
+        $selected = strtoupper(trim((string) ($requested ?? $default)));
+
+        if ($selected === '') {
+            $selected = $default;
+        }
+
+        return in_array($selected, $available, true) ? $selected : $default;
+    }
+
+    /**
+     * Build currency conversion map keyed by invoice base currency.
+     * Prefers negotiated / final display amount (incl. third-party negotiation_details).
+     *
+     * @return array<string, float>
+     */
+    public static function buildInvoiceCurrencyConversion(Invoice $invoice, string $selectedCurrency): array
+    {
+        $baseCurrency = self::resolveInvoiceBaseCurrency($invoice);
+        $selectedCurrency = strtoupper($selectedCurrency);
+
+        $tour = $invoice->tour;
+        $tourStatus = $tour->tour_status ?? '';
+        $statusesWithTax = ['Confirmed', 'Definite', 'Actual'];
+        $shouldShowTax = in_array($tourStatus, $statusesWithTax, true);
+
+        $notes = is_string($invoice->notes) ? json_decode($invoice->notes, true) : ($invoice->notes ?? []);
+        $baseAmount = $notes['base_amount'] ?? ($invoice->getNegotiatedAmount() ?? ($invoice->total_amount ?? 0));
+        $gstAmount = (float) ($invoice->gst_amount ?? 0);
+        $finalPrice = (float) $baseAmount + $gstAmount;
+        $outstandingBalance = (float) ($invoice->outstanding_balance ?? 0);
+
+        $amountInBase = $shouldShowTax && $outstandingBalance > 0
+            ? (float) $outstandingBalance
+            : (float) $finalPrice;
+        $amountCurrency = $baseCurrency;
+
+        if (self::isInvoiceThirdPartyEnabled($invoice)) {
+            $neg = self::sumNegotiationDetailsInCurrency($invoice, $selectedCurrency, $baseCurrency);
+            $summary = self::buildThirdPartyInvoiceSummary($invoice, $neg, $selectedCurrency, $baseCurrency);
+            $amountInSelected = $shouldShowTax
+                ? max(0, (float) $summary['outstandingBalance'])
+                : (float) $summary['finalPrice'];
+
+            return self::buildInvoiceCurrencyConversionFromAmount(
+                $amountInSelected,
+                $selectedCurrency,
+                $baseCurrency,
+                $selectedCurrency
+            );
+        }
+
+        return self::buildInvoiceCurrencyConversionFromAmount(
+            $amountInBase,
+            $amountCurrency,
+            $baseCurrency,
+            $selectedCurrency
+        );
+    }
+
+    /**
+     * Exchange rate from invoice base currency to selected currency.
+     */
+    public static function getInvoiceExchangeRate(string $baseCurrency, string $selectedCurrency, array $currencyConversion): float
+    {
+        $baseCurrency = strtoupper($baseCurrency);
+        $selectedCurrency = strtoupper($selectedCurrency);
+
+        if ($selectedCurrency === $baseCurrency) {
+            return 1.0;
+        }
+
+        $baseAmount = $currencyConversion[$baseCurrency] ?? 0;
+        $convertedAmount = $currencyConversion[$selectedCurrency] ?? null;
+
+        if ($baseAmount > 0 && $convertedAmount !== null && $convertedAmount > 0) {
+            return (float) $convertedAmount / (float) $baseAmount;
+        }
+
+        $rate = CurrencyHelper::getExchangeRate($baseCurrency, $selectedCurrency);
+
+        if ($rate !== null && $rate > 0) {
+            return (float) $rate;
+        }
+
+        $converted = CurrencyHelper::convertAmount(1, $baseCurrency, $selectedCurrency);
+
+        return ($converted !== null && $converted > 0) ? (float) $converted : 0.0;
+    }
+
+    public static function shouldShowInvoiceCurrencyConversion(string $baseCurrency, string $selectedCurrency, array $currencyConversion): bool
+    {
+        if (strtoupper($selectedCurrency) === strtoupper($baseCurrency)) {
+            return false;
+        }
+
+        $convertedAmount = $currencyConversion[strtoupper($selectedCurrency)] ?? null;
+
+        return $convertedAmount !== null && (float) $convertedAmount > 0;
+    }
+
+    /**
+     * Dual-currency price string for invoice PDFs (base + converted when selected differs).
+     */
+    public static function formatInvoiceDualPrice($amount, string $baseCurrency, string $selectedCurrency, float $exchangeRate): string
+    {
+        if (!is_numeric($amount)) {
+            return '0.00';
+        }
+
+        $amt = (float) $amount;
+        $baseCurrency = strtoupper($baseCurrency);
+        $selectedCurrency = strtoupper($selectedCurrency);
+
+        if ($selectedCurrency === $baseCurrency) {
+            return number_format(round($amt, 2), 2);
+        }
+
+        $converted = CurrencyHelper::convertAmount($amt, $baseCurrency, $selectedCurrency);
+        if ($converted === null && $exchangeRate > 0 && $exchangeRate !== 1.0) {
+            $converted = $amt * $exchangeRate;
+        }
+
+        if ($converted === null) {
+            return self::formatMoneyAdaptive($amt) . ' ' . $baseCurrency;
+        }
+
+        return self::formatMoneyAdaptive($amt) . ' ' . $baseCurrency
+            . ' (' . self::formatMoneyAdaptive($converted) . ' ' . $selectedCurrency . ')';
+    }
+
+    /**
+     * Format a monetary value with adaptive precision so small converted
+     * amounts (e.g. 60 IDR = 0.0048 AUD) do not collapse to "0.00".
+     */
+    public static function formatMoneyAdaptive($value): string
+    {
+        if (!is_numeric($value)) {
+            return '0.00';
+        }
+
+        $value = (float) $value;
+        $abs = abs($value);
+
+        if ($abs == 0.0) {
+            return '0.00';
+        }
+
+        if ($abs >= 0.01) {
+            $decimals = 2;
+        } elseif ($abs >= 0.0001) {
+            $decimals = 4;
+        } else {
+            $decimals = 6;
+        }
+
+        return number_format(round($value, $decimals), $decimals);
+    }
+
+    /**
+     * Whether the invoice DMC has third-party multi-country currency display enabled.
+     */
+    public static function isInvoiceThirdPartyEnabled(Invoice $invoice): bool
+    {
+        $invoice->loadMissing(['dmc', 'tour']);
+        $dmc = $invoice->dmc;
+        if (!$dmc && $invoice->dmc_id) {
+            $dmc = User::where('userId', $invoice->dmc_id)->first();
+        }
+        if (!$dmc && $invoice->tour) {
+            $dmcId = $invoice->tour->dmcId ?? $invoice->tour->dmc_id ?? null;
+            if ($dmcId) {
+                $dmc = User::where('userId', $dmcId)->first();
+            }
+        }
+
+        $flag = strtolower(trim((string) ($dmc->thirdparty_enabled ?? 'no')));
+
+        return in_array($flag, ['yes', '1', 'true'], true);
+    }
+
+    /**
+     * Detect multi-country / multi-city booking from tour orders (and invoice item geo).
+     *
+     * @return array{is_multi: bool, countries: list<string>, cities: list<string>, currencies: list<string>}
+     */
+    public static function detectInvoiceMultiGeo(Invoice $invoice): array
+    {
+        $invoice->loadMissing(['items', 'tour']);
+        $countries = [];
+        $cities = [];
+        $currencies = [];
+
+        if ($invoice->tour_id) {
+            $orders = Order::where('tour_id', $invoice->tour_id)->whereNull('deleted_at')->get();
+            $base = self::resolveInvoiceBaseCurrency($invoice);
+            foreach ($orders as $order) {
+                $payload = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                if (!is_array($payload)) {
+                    continue;
+                }
+                $bookings = (isset($payload[0]) && is_array($payload[0])) ? $payload : [$payload];
+                foreach ($bookings as $booking) {
+                    if (!is_array($booking)) {
+                        continue;
+                    }
+                    $geo = self::extractInvoiceItemGeo($order, $booking, $base);
+                    if ($geo['country'] !== '') {
+                        $countries[mb_strtolower($geo['country'])] = $geo['country'];
+                    }
+                    if ($geo['city'] !== '') {
+                        $cities[mb_strtolower($geo['city'])] = $geo['city'];
+                    }
+                    if ($geo['currency'] !== '') {
+                        $currencies[strtoupper($geo['currency'])] = strtoupper($geo['currency']);
+                    }
+                }
+            }
+        }
+
+        if ($invoice->items) {
+            foreach ($invoice->items as $item) {
+                $sd = is_string($item->service_details ?? null)
+                    ? (json_decode($item->service_details, true) ?: [])
+                    : ($item->service_details ?? []);
+                if (!is_array($sd)) {
+                    continue;
+                }
+                $c = trim((string) ($sd['country'] ?? ''));
+                $city = trim((string) ($sd['city'] ?? ''));
+                $cur = strtoupper(trim((string) ($sd['currency'] ?? '')));
+                if ($c !== '') {
+                    $countries[mb_strtolower($c)] = $c;
+                }
+                if ($city !== '') {
+                    $cities[mb_strtolower($city)] = $city;
+                }
+                if ($cur !== '') {
+                    $currencies[$cur] = $cur;
+                }
+            }
+        }
+
+        $countryList = array_values($countries);
+        $cityList = array_values($cities);
+        $currencyList = array_values($currencies);
+
+        return [
+            'is_multi' => count($countryList) > 1 || count($cityList) > 1 || count($currencyList) > 1,
+            'countries' => $countryList,
+            'cities' => $cityList,
+            'currencies' => $currencyList,
+        ];
+    }
+
+    /**
+     * Build a currency conversion map from a display amount already expressed in $amountCurrency.
+     * Used so the conversion box matches Final Price / Outstanding shown on the invoice.
+     *
+     * @return array<string, float>
+     */
+    public static function buildInvoiceCurrencyConversionFromAmount(
+        float $amount,
+        string $amountCurrency,
+        string $baseCurrency,
+        string $selectedCurrency
+    ): array {
+        $amountCurrency = strtoupper(trim($amountCurrency)) ?: 'SGD';
+        $baseCurrency = strtoupper(trim($baseCurrency)) ?: $amountCurrency;
+        $selectedCurrency = strtoupper(trim($selectedCurrency)) ?: $baseCurrency;
+
+        $conversion = [];
+
+        $inBase = self::convertInvoiceAmountToSelected($amount, $amountCurrency, $baseCurrency, $baseCurrency);
+        $conversion[$baseCurrency] = $inBase;
+
+        if ($selectedCurrency !== $baseCurrency) {
+            $inSelected = self::convertInvoiceAmountToSelected($amount, $amountCurrency, $selectedCurrency, $baseCurrency);
+            $conversion[$selectedCurrency] = $inSelected;
+        }
+
+        return $conversion;
+    }
+
+    /**
+     * Extract country / city / currency for an invoice line from order + booking JSON.
+     *
+     * @param  \App\Models\Order|object|null  $order
+     * @param  array<string, mixed>  $booking
+     * @return array{country: string, city: string, currency: string}
+     */
+    public static function extractInvoiceItemGeo($order, array $booking = [], ?string $fallbackCurrency = null): array
+    {
+        $fallbackCurrency = strtoupper(trim((string) ($fallbackCurrency ?: 'SGD'))) ?: 'SGD';
+        $country = '';
+        $city = '';
+
+        if (is_object($order)) {
+            $country = trim((string) ($order->country ?? ''));
+        }
+
+        if ($country === '' && !empty($booking['country']) && is_string($booking['country'])) {
+            $country = trim($booking['country']);
+        }
+
+        $cityCandidates = [
+            $booking['city'] ?? null,
+            $booking['hotelDetails']['city'] ?? null,
+            $booking['AttractionCity'] ?? null,
+            $booking['city_name'] ?? null,
+        ];
+        foreach ($cityCandidates as $candidate) {
+            if (is_string($candidate) && trim($candidate) !== '') {
+                $city = trim(explode(',', $candidate)[0]);
+                break;
+            }
+        }
+
+        if ($city === '') {
+            $location = $booking['hotelDetails']['location'] ?? ($booking['location'] ?? null);
+            if (is_string($location) && trim($location) !== '') {
+                $city = trim(explode(',', $location)[0]);
+            }
+        }
+
+        $currency = self::resolveOrderDisplayCurrency($order, $fallbackCurrency);
+        if ($currency === $fallbackCurrency && !empty($booking['currency']) && is_string($booking['currency'])) {
+            $currency = strtoupper(trim($booking['currency'])) ?: $currency;
+        }
+
+        return [
+            'country' => $country,
+            'city' => $city,
+            'currency' => $currency,
+        ];
+    }
+
+    /**
+     * Resolve native currency stored on an invoice item (service_details).
+     */
+    public static function resolveInvoiceItemCurrency($item, string $fallbackCurrency): string
+    {
+        $fallbackCurrency = strtoupper(trim($fallbackCurrency)) ?: 'SGD';
+        $sd = [];
+        if (is_object($item)) {
+            $sd = is_string($item->service_details ?? null)
+                ? (json_decode($item->service_details, true) ?: [])
+                : ($item->service_details ?? []);
+        } elseif (is_array($item)) {
+            $sd = $item['service_details'] ?? $item;
+        }
+
+        if (!is_array($sd)) {
+            return $fallbackCurrency;
+        }
+
+        $raw = trim((string) ($sd['currency'] ?? ''));
+        if ($raw === '') {
+            return $fallbackCurrency;
+        }
+
+        return strtoupper($raw);
+    }
+
+    /**
+     * Format a line amount that lives in the booking's own currency for third-party invoices.
+     * Same currency as selected → plain number; otherwise "AMT CUR (CONV SELECTED)".
+     */
+    public static function formatInvoiceItemPrice($amount, ?string $itemCurrency, string $selectedCurrency, string $baseCurrency): string
+    {
+        if (!is_numeric($amount)) {
+            return '0.00';
+        }
+
+        $amt = (float) $amount;
+        $itemCurrency = strtoupper(trim((string) ($itemCurrency ?: $baseCurrency))) ?: strtoupper($baseCurrency);
+        $selectedCurrency = strtoupper(trim($selectedCurrency)) ?: $itemCurrency;
+        $baseCurrency = strtoupper(trim($baseCurrency)) ?: $selectedCurrency;
+
+        if ($itemCurrency === $selectedCurrency) {
+            return self::formatMoneyAdaptive($amt) . ' ' . $itemCurrency;
+        }
+
+        $converted = CurrencyHelper::convertAmount($amt, $itemCurrency, $selectedCurrency);
+        if ($converted === null) {
+            return self::formatMoneyAdaptive($amt) . ' ' . $itemCurrency;
+        }
+
+        return self::formatMoneyAdaptive($amt) . ' ' . $itemCurrency
+            . ' (' . self::formatMoneyAdaptive($converted) . ' ' . $selectedCurrency . ')';
+    }
+
+    /**
+     * Convert an amount from item/native currency into the selected display currency.
+     */
+    public static function convertInvoiceAmountToSelected($amount, ?string $fromCurrency, string $selectedCurrency, string $baseCurrency): float
+    {
+        $amt = is_numeric($amount) ? (float) $amount : 0.0;
+        $from = strtoupper(trim((string) ($fromCurrency ?: $baseCurrency))) ?: strtoupper($baseCurrency);
+        $to = strtoupper(trim($selectedCurrency)) ?: $from;
+
+        if ($from === $to) {
+            return $amt;
+        }
+
+        $converted = CurrencyHelper::convertAmount($amt, $from, $to);
+
+        return $converted !== null ? (float) $converted : $amt;
+    }
+
+    /**
+     * Group invoice items by country + city for third-party multi-country display.
+     *
+     * @param  \Illuminate\Support\Collection|array  $items
+     * @return list<array{key: string, country: string, city: string, currency: string, items: \Illuminate\Support\Collection}>
+     */
+    public static function groupInvoiceItemsByGeo($items, string $fallbackCurrency = 'SGD'): array
+    {
+        $collection = $items instanceof \Illuminate\Support\Collection
+            ? $items
+            : collect($items);
+
+        $groups = [];
+        foreach ($collection as $item) {
+            $sd = is_object($item)
+                ? (is_string($item->service_details ?? null) ? (json_decode($item->service_details, true) ?: []) : ($item->service_details ?? []))
+                : [];
+            if (!is_array($sd)) {
+                $sd = [];
+            }
+
+            $country = trim((string) ($sd['country'] ?? ''));
+            $city = trim((string) ($sd['city'] ?? ''));
+            $currency = strtoupper(trim((string) ($sd['currency'] ?? $fallbackCurrency))) ?: $fallbackCurrency;
+            $key = mb_strtolower($country . '|' . $city . '|' . $currency);
+
+            if (!isset($groups[$key])) {
+                $groups[$key] = [
+                    'key' => $key,
+                    'country' => $country,
+                    'city' => $city,
+                    'currency' => $currency,
+                    'items' => collect(),
+                ];
+            }
+            $groups[$key]['items']->push($item);
+        }
+
+        return array_values($groups);
+    }
+
+    /**
+     * Section title: "Hotel Service(India, Kolkata)" when third-party geo is present.
+     */
+    public static function invoiceServiceSectionTitle(string $singular, string $plural, array $geoGroup, bool $isThirdParty): string
+    {
+        if (!$isThirdParty) {
+            return $plural;
+        }
+
+        $parts = array_values(array_filter([
+            trim((string) ($geoGroup['country'] ?? '')),
+            trim((string) ($geoGroup['city'] ?? '')),
+        ], static fn ($v) => $v !== ''));
+
+        if ($parts === []) {
+            return $plural;
+        }
+
+        return $singular . '(' . implode(', ', $parts) . ')';
+    }
+
+    /**
+     * Latest enquiry_comments negotiation_details rows for a tour.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function getInvoiceNegotiationDetails(Invoice $invoice): array
+    {
+        $enquiry = \App\Models\Enquiry::where('tour_id', $invoice->tour_id)
+            ->whereNotNull('negotiation_details')
+            ->orderByDesc('enquiry_id')
+            ->orderByDesc('created_at')
+            ->first();
+
+        if (!$enquiry) {
+            return [];
+        }
+
+        $raw = $enquiry->negotiation_details;
+        if (is_string($raw)) {
+            $raw = json_decode($raw, true);
+        }
+        if (!is_array($raw)) {
+            return [];
+        }
+
+        $rows = [];
+        foreach ($raw as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $currency = strtoupper(trim((string) ($row['currency'] ?? '')));
+            if ($currency === '') {
+                continue;
+            }
+            $rows[] = [
+                'country' => trim((string) ($row['country'] ?? '')),
+                'currency' => $currency,
+                'amount' => (float) ($row['amount'] ?? 0),
+                'actual_amount' => (float) ($row['actual_amount'] ?? ($row['gross'] ?? ($row['amount'] ?? 0))),
+                'gross' => (float) ($row['gross'] ?? ($row['actual_amount'] ?? ($row['amount'] ?? 0))),
+                'target_currency' => strtoupper(trim((string) ($row['target_currency'] ?? ''))),
+                'conversion_rate' => (float) ($row['conversion_rate'] ?? 0),
+                'converted_amount' => isset($row['converted_amount']) ? (float) $row['converted_amount'] : null,
+                'converted_actual_amount' => isset($row['converted_actual_amount']) ? (float) $row['converted_actual_amount'] : null,
+                'converted_gross' => isset($row['converted_gross']) ? (float) $row['converted_gross'] : null,
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Convert one negotiation_details row field into selected currency.
+     * Prefer stored converted_* / conversion_rate (same as Add Payment modal).
+     */
+    public static function convertNegotiationRowAmountToSelected(
+        array $row,
+        float $nativeAmount,
+        ?float $storedConverted,
+        string $selectedCurrency,
+        string $baseCurrency
+    ): float {
+        $selectedCurrency = strtoupper($selectedCurrency);
+        $baseCurrency = strtoupper($baseCurrency);
+        $fromCurrency = strtoupper(trim((string) ($row['currency'] ?? $baseCurrency)));
+        $targetCurrency = strtoupper(trim((string) ($row['target_currency'] ?? '')));
+        $rate = (float) ($row['conversion_rate'] ?? 0);
+
+        // Already stored in selected / target currency at confirm time.
+        if ($storedConverted !== null) {
+            if ($targetCurrency !== '' && $targetCurrency === $selectedCurrency) {
+                return (float) $storedConverted;
+            }
+            if ($targetCurrency !== '' && $targetCurrency === $baseCurrency && $selectedCurrency === $baseCurrency) {
+                return (float) $storedConverted;
+            }
+            // Stored converted is in target; convert target → selected if needed.
+            if ($targetCurrency !== '' && $targetCurrency !== $selectedCurrency) {
+                return self::convertInvoiceAmountToSelected($storedConverted, $targetCurrency, $selectedCurrency, $baseCurrency);
+            }
+        }
+
+        if ($fromCurrency === $selectedCurrency) {
+            return (float) $nativeAmount;
+        }
+
+        if ($rate > 0 && $targetCurrency !== '' && $targetCurrency === $selectedCurrency) {
+            return round(max(0, $nativeAmount) * $rate, 2);
+        }
+
+        if ($rate > 0 && $targetCurrency !== '' && $targetCurrency === $baseCurrency && $selectedCurrency !== $baseCurrency) {
+            $inBase = round(max(0, $nativeAmount) * $rate, 2);
+
+            return self::convertInvoiceAmountToSelected($inBase, $baseCurrency, $selectedCurrency, $baseCurrency);
+        }
+
+        return self::convertInvoiceAmountToSelected($nativeAmount, $fromCurrency, $selectedCurrency, $baseCurrency);
+    }
+
+    /**
+     * Sum negotiation_details into selected currency (payment-modal aligned).
+     *
+     * @return array{actual: float, negotiated: float, discount: float, rows: list<array<string, mixed>>}
+     */
+    public static function sumNegotiationDetailsInCurrency(Invoice $invoice, string $selectedCurrency, string $baseCurrency): array
+    {
+        $selectedCurrency = strtoupper($selectedCurrency);
+        $baseCurrency = strtoupper($baseCurrency);
+        $details = self::getInvoiceNegotiationDetails($invoice);
+        $rows = [];
+        $actual = 0.0;
+        $negotiated = 0.0;
+
+        if ($details !== []) {
+            foreach ($details as $row) {
+                $actualSel = self::convertNegotiationRowAmountToSelected(
+                    $row,
+                    (float) $row['actual_amount'],
+                    $row['converted_actual_amount'],
+                    $selectedCurrency,
+                    $baseCurrency
+                );
+                $negSel = self::convertNegotiationRowAmountToSelected(
+                    $row,
+                    (float) $row['amount'],
+                    $row['converted_amount'],
+                    $selectedCurrency,
+                    $baseCurrency
+                );
+                $discountSel = $actualSel - $negSel;
+                $actual += $actualSel;
+                $negotiated += $negSel;
+                $rows[] = array_merge($row, [
+                    'actual_selected' => $actualSel,
+                    'negotiated_selected' => $negSel,
+                    'discount' => (float) $row['actual_amount'] - (float) $row['amount'],
+                    'discount_selected' => $discountSel,
+                ]);
+            }
+
+            // Match Add Payment modal: ceil country totals into tour/display currency.
+            $actual = (float) ceil($actual);
+            $negotiated = (float) ceil($negotiated);
+
+            return [
+                'actual' => $actual,
+                'negotiated' => $negotiated,
+                'discount' => $actual - $negotiated,
+                'rows' => $rows,
+            ];
+        }
+
+        $fallbackActual = self::sumInvoiceItemsInSelectedCurrency($invoice->items ?? [], $selectedCurrency, $baseCurrency);
+        $fallbackNeg = (float) ($invoice->getNegotiatedAmount() ?? 0);
+        $fallbackNegSelected = $fallbackNeg > 0
+            ? self::convertInvoiceAmountToSelected($fallbackNeg, $baseCurrency, $selectedCurrency, $baseCurrency)
+            : $fallbackActual;
+        $fallbackActual = (float) ceil($fallbackActual);
+        $fallbackNegSelected = (float) ceil($fallbackNegSelected);
+
+        return [
+            'actual' => $fallbackActual,
+            'negotiated' => $fallbackNegSelected,
+            'discount' => $fallbackActual - $fallbackNegSelected,
+            'rows' => [],
+        ];
+    }
+
+    /**
+     * Recalculate VAT/GST on Last Negotiated Amount (same TaxHelper path as Add Payment).
+     *
+     * @return array{total_tax: float, breakdown: array<string, float>}
+     */
+    public static function calculateInvoiceTaxOnNegotiatedAmount(Invoice $invoice, float $negotiatedAmount): array
+    {
+        $invoice->loadMissing(['tour']);
+        $tour = $invoice->tour;
+        if (!$tour) {
+            return ['total_tax' => 0.0, 'breakdown' => []];
+        }
+
+        $tourStatus = $tour->tour_status ?? '';
+        $statusesWithTax = ['Confirmed', 'Definite', 'Actual'];
+        if (!in_array($tourStatus, $statusesWithTax, true)) {
+            return ['total_tax' => 0.0, 'breakdown' => []];
+        }
+
+        $base = (float) ceil(max(0, $negotiatedAmount));
+        $persons = (int) (($tour->adult ?? 0) + ($tour->child ?? 0));
+        $days = TaxHelper::calculateDays($tour->check_in_time, $tour->check_out_time);
+        $taxResult = TaxHelper::calculateTourTaxes($base, $tour->taxes, $persons, $days);
+
+        return [
+            'total_tax' => (float) ($taxResult['total_tax'] ?? 0),
+            'breakdown' => $taxResult['breakdown'] ?? [],
+        ];
+    }
+
+    /**
+     * Resolve tour currency used when payment_details.amount was stored.
+     */
+    public static function resolveTourPaymentCurrency(Invoice $invoice, string $fallbackCurrency): string
+    {
+        $invoice->loadMissing(['tour']);
+        $tour = $invoice->tour;
+        $fallbackCurrency = strtoupper(trim($fallbackCurrency)) ?: 'SGD';
+        if (!$tour) {
+            return $fallbackCurrency;
+        }
+
+        foreach ([
+            $tour->enquiry_currency ?? null,
+            $tour->user_currency ?? null,
+            $tour->currency ?? null,
+        ] as $candidate) {
+            $code = strtoupper(trim((string) $candidate));
+            if ($code !== '') {
+                return $code;
+            }
+        }
+
+        return $fallbackCurrency;
+    }
+
+    /**
+     * Sum active tour payments into a target currency.
+     * Always respects payment_details.currency (e.g. USD paid → convert to selected IDR).
+     *
+     * - original_amount + currency = what the client paid
+     * - amount = tour-currency equivalent only when it differs from original (converted at payment time)
+     */
+    public static function sumTourPaymentsInCurrency(Invoice $invoice, string $selectedCurrency, string $baseCurrency): float
+    {
+        $invoice->loadMissing(['tour']);
+        $selectedCurrency = strtoupper(trim($selectedCurrency)) ?: 'SGD';
+        $baseCurrency = strtoupper(trim($baseCurrency)) ?: $selectedCurrency;
+        $tour = $invoice->tour;
+        $tourCurrency = self::resolveTourPaymentCurrency($invoice, $baseCurrency);
+
+        $raw = $tour->payment_details ?? null;
+        if (is_string($raw)) {
+            $raw = json_decode($raw, true);
+        }
+
+        if (!is_array($raw) || $raw === []) {
+            return self::convertInvoiceAmountToSelected(
+                (float) ($invoice->payment_received ?? 0),
+                $tourCurrency,
+                $selectedCurrency,
+                $baseCurrency
+            );
+        }
+
+        $total = 0.0;
+        foreach ($raw as $payment) {
+            if (!is_array($payment)) {
+                continue;
+            }
+            if (!isset($payment['status']) || (int) $payment['status'] !== 1) {
+                continue;
+            }
+
+            $payCurrency = strtoupper(trim((string) ($payment['currency'] ?? '')));
+            $amountField = isset($payment['amount']) ? (float) $payment['amount'] : 0.0;
+            $hasOriginal = array_key_exists('original_amount', $payment)
+                && $payment['original_amount'] !== null
+                && $payment['original_amount'] !== '';
+            $originalAmount = $hasOriginal ? (float) $payment['original_amount'] : null;
+            $exchangeRate = (float) ($payment['exchange_rate'] ?? 0);
+
+            // amount was converted into tour currency at payment time
+            $amountIsTourConverted = $payCurrency !== ''
+                && $payCurrency !== $tourCurrency
+                && $originalAmount !== null
+                && abs($amountField - $originalAmount) > 0.009
+                && ($exchangeRate > 0 && abs($exchangeRate - 1.0) > 0.0000001);
+
+            // Selected = tour currency and we have a real tour-currency amount → use it
+            if ($selectedCurrency === $tourCurrency && $amountField > 0 && (
+                $amountIsTourConverted
+                || $payCurrency === ''
+                || $payCurrency === $tourCurrency
+            )) {
+                $total += $amountField;
+                continue;
+            }
+
+            // Otherwise always convert from the currency the client paid in
+            $fromCurrency = $payCurrency !== '' ? $payCurrency : $tourCurrency;
+            $fromAmount = $originalAmount !== null ? $originalAmount : $amountField;
+
+            if ($fromCurrency === $selectedCurrency) {
+                $total += $fromAmount;
+                continue;
+            }
+
+            $total += self::convertInvoiceAmountToSelected(
+                $fromAmount,
+                $fromCurrency,
+                $selectedCurrency,
+                $baseCurrency
+            );
+        }
+
+        return $total;
+    }
+
+    /**
+     * Build third-party invoice summary totals aligned with Add Payment modal.
+     *
+     * @return array{
+     *   actualAmount: float,
+     *   negotiatedAmount: float,
+     *   baseAmount: float,
+     *   discount: float,
+     *   gstAmount: float,
+     *   taxBreakdown: array<string, float>,
+     *   finalPrice: float,
+     *   paymentReceived: float,
+     *   outstandingBalance: float
+     * }
+     */
+    public static function buildThirdPartyInvoiceSummary(
+        Invoice $invoice,
+        array $thirdPartyNegotiation,
+        string $selectedCurrency,
+        string $baseCurrency
+    ): array {
+        $selectedCurrency = strtoupper($selectedCurrency);
+        $baseCurrency = strtoupper($baseCurrency);
+
+        $actualAmount = (float) ($thirdPartyNegotiation['actual'] ?? 0);
+        $negotiatedAmount = (float) ($thirdPartyNegotiation['negotiated'] ?? 0);
+        $discount = $actualAmount - $negotiatedAmount;
+
+        $tax = self::calculateInvoiceTaxOnNegotiatedAmount($invoice, $negotiatedAmount);
+        $gstAmount = (float) ($tax['total_tax'] ?? 0);
+        $taxBreakdown = $tax['breakdown'] ?? [];
+
+        // Never treat payment_received as DMC base currency — use payment_details currencies.
+        $paymentReceived = self::sumTourPaymentsInCurrency($invoice, $selectedCurrency, $baseCurrency);
+
+        $finalPrice = $negotiatedAmount + $gstAmount;
+        $outstandingBalance = $finalPrice - $paymentReceived;
+
+        return [
+            'actualAmount' => $actualAmount,
+            'negotiatedAmount' => $negotiatedAmount,
+            'baseAmount' => $negotiatedAmount,
+            'discount' => $discount,
+            'gstAmount' => $gstAmount,
+            'taxBreakdown' => $taxBreakdown,
+            'finalPrice' => $finalPrice,
+            'paymentReceived' => $paymentReceived,
+            'outstandingBalance' => $outstandingBalance,
+        ];
+    }
+
+    /**
+     * Sum invoice item totals converted into selected currency (third-party mode).
+     *
+     * @param  \Illuminate\Support\Collection|array  $items
+     */
+    public static function sumInvoiceItemsInSelectedCurrency($items, string $selectedCurrency, string $baseCurrency): float
+    {
+        $total = 0.0;
+        $collection = $items instanceof \Illuminate\Support\Collection ? $items : collect($items);
+        foreach ($collection as $item) {
+            $itemCurrency = self::resolveInvoiceItemCurrency($item, $baseCurrency);
+            $amount = is_object($item) ? (float) ($item->total_price ?? 0) : (float) ($item['total_price'] ?? 0);
+            $total += self::convertInvoiceAmountToSelected($amount, $itemCurrency, $selectedCurrency, $baseCurrency);
+        }
+
+        return $total;
+    }
+
+    /**
+     * Backfill country/city/currency onto invoice items from live tour orders (existing invoices).
+     */
+    public static function enrichInvoiceItemsWithOrderGeo(Invoice $invoice): void
+    {
+        $invoice->loadMissing(['items', 'tour']);
+        if (!$invoice->tour_id || !$invoice->items || $invoice->items->isEmpty()) {
+            return;
+        }
+
+        $orders = \App\Models\Order::where('tour_id', $invoice->tour_id)->whereNull('deleted_at')->get();
+        if ($orders->isEmpty()) {
+            return;
+        }
+
+        $baseCurrency = self::resolveInvoiceBaseCurrency($invoice);
+        $pool = [];
+        foreach ($orders as $order) {
+            $payload = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+            if (!is_array($payload)) {
+                continue;
+            }
+            $bookings = (isset($payload[0]) && is_array($payload[0])) ? $payload : [$payload];
+            foreach ($bookings as $booking) {
+                if (!is_array($booking)) {
+                    continue;
+                }
+                $geo = self::extractInvoiceItemGeo($order, $booking, $baseCurrency);
+                $nameHints = array_filter([
+                    $booking['hotelDetails']['hotel_name'] ?? null,
+                    $booking['AttractionName'] ?? null,
+                    $booking['restaurantName'] ?? null,
+                    $booking['guide_name'] ?? null,
+                    $booking['itemName'] ?? ($booking['item_name'] ?? null),
+                    $booking['vehicles_name'] ?? ($booking['vehicle_name'] ?? null),
+                ]);
+                $pool[] = [
+                    'type' => (string) ($order->type ?? ''),
+                    'geo' => $geo,
+                    'hints' => array_map(static fn ($h) => mb_strtolower(trim((string) $h)), $nameHints),
+                ];
+            }
+        }
+
+        foreach ($invoice->items as $item) {
+            $sd = is_string($item->service_details) ? (json_decode($item->service_details, true) ?: []) : ($item->service_details ?? []);
+            if (!is_array($sd)) {
+                $sd = [];
+            }
+            if (!empty($sd['currency']) && (!empty($sd['country']) || !empty($sd['city']))) {
+                continue;
+            }
+
+            $type = (string) ($item->item_type ?? '');
+            $desc = mb_strtolower(trim((string) ($item->description ?? '')));
+            $matched = null;
+            foreach ($pool as $entry) {
+                if ($entry['type'] !== $type && !($type === 'local_transport' && $entry['type'] === 'local_transfer')) {
+                    continue;
+                }
+                foreach ($entry['hints'] as $hint) {
+                    if ($hint !== '' && ($desc === $hint || str_contains($desc, $hint) || str_contains($hint, $desc))) {
+                        $matched = $entry['geo'];
+                        break 2;
+                    }
+                }
+                if ($matched === null && $entry['type'] === $type) {
+                    $matched = $entry['geo'];
+                }
+            }
+
+            if ($matched === null) {
+                continue;
+            }
+
+            $sd['country'] = $sd['country'] ?? $matched['country'];
+            $sd['city'] = $sd['city'] ?? $matched['city'];
+            $sd['currency'] = $sd['currency'] ?? $matched['currency'];
+            $item->service_details = $sd;
+        }
+    }
+
+    /**
+     * Display currency for a single order row (all service modals).
+     * Always prefer this order's orders.currency / orders.country for its tour_id + booking_id.
+     * Do not force the DMC/page currency when the order has its own country/currency.
+     *
+     * @param  \App\Models\Order|object|array|null  $order
+     */
+    public static function resolveOrderDisplayCurrency($order, ?string $fallback = null): string
+    {
+        $fallback = strtoupper(trim((string) ($fallback ?: 'SGD'))) ?: 'SGD';
+        if ($order === null) {
+            return $fallback;
+        }
+
+        $rawCurrency = null;
+        $countryName = '';
+        $payload = null;
+
+        if (is_object($order)) {
+            $rawCurrency = isset($order->currency) ? trim((string) $order->currency) : '';
+            $countryName = isset($order->country) ? trim((string) $order->country) : '';
+            $payload = $order->data ?? null;
+        } elseif (is_array($order)) {
+            $rawCurrency = isset($order['currency']) ? trim((string) $order['currency']) : '';
+            $countryName = isset($order['country']) ? trim((string) $order['country']) : '';
+            $payload = $order['data'] ?? $order;
+        }
+
+        if (is_string($payload)) {
+            $decoded = json_decode($payload, true);
+            $payload = is_array($decoded) ? $decoded : null;
+        }
+        if (is_array($payload)) {
+            $first = (isset($payload[0]) && is_array($payload[0])) ? $payload[0] : $payload;
+            if ($rawCurrency === '' && is_array($first)) {
+                foreach (['currency', 'currency_code'] as $key) {
+                    if (!empty($first[$key]) && is_string($first[$key])) {
+                        $rawCurrency = trim($first[$key]);
+                        break;
+                    }
+                }
+            }
+            if ($countryName === '' && is_array($first) && !empty($first['country']) && is_string($first['country'])) {
+                $countryName = trim($first['country']);
+            }
+        }
+
+        // Broad display allow-list (not limited to payment currencies)
+        $displayCodes = array_values(array_unique(array_merge(
+            self::getPaymentAvailableCurrencies(),
+            [
+                'SGD', 'USD', 'EUR', 'GBP', 'INR', 'IDR', 'VND', 'THB', 'MYR', 'AUD', 'AED',
+                'PHP', 'JPY', 'CNY', 'HKD', 'KRW', 'TWD', 'NZD', 'CAD', 'CHF', 'SAR', 'QAR',
+                'BDT', 'LKR', 'PKR', 'NPR', 'MMK', 'KHR', 'LAK', 'BND',
+            ]
+        )));
+
+        $toCode = static function (?string $raw) use ($displayCodes): string {
+            $raw = trim((string) $raw);
+            if ($raw === '') {
+                return '';
+            }
+            $upper = strtoupper($raw);
+            if (strlen($upper) === 3 && ctype_alpha($upper)) {
+                return $upper;
+            }
+
+            return CurrencyHelper::normalizeCurrencyToCode($raw, $displayCodes, '');
+        };
+
+        // 1) orders.currency column (this booking_id row)
+        $code = $toCode($rawCurrency);
+        if ($code !== '') {
+            return $code;
+        }
+
+        // 2) orders.country → countries.currency
+        if ($countryName !== '') {
+            $country = Country::query()
+                ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($countryName)])
+                ->first(['name', 'currency']);
+            $code = $toCode($country->currency ?? null);
+            if ($code !== '') {
+                return $code;
+            }
+        }
+
+        return $fallback;
+    }
+
+    /**
+     * Human-readable meal plan label from hotel rooms/beds JSON.
+     * Prefer selectedMeals[].type, then mealTypes entries (string or {type}).
+     *
+     * @param  array|null  $rooms
+     */
+    public static function resolveHotelMealPlanLabel($rooms): string
+    {
+        if (!is_array($rooms) || count($rooms) === 0) {
+            return 'Room Only';
+        }
+
+        $firstRoom = $rooms[0] ?? null;
+        if (!is_array($firstRoom)) {
+            return 'Room Only';
+        }
+
+        $beds = $firstRoom['beds'] ?? null;
+        if (!is_array($beds) || count($beds) === 0) {
+            return 'Room Only';
+        }
+
+        $firstBed = $beds[0] ?? null;
+        if (!is_array($firstBed)) {
+            return 'Room Only';
+        }
+
+        $selected = $firstBed['selectedMeals'] ?? null;
+        if (is_array($selected) && count($selected) > 0) {
+            $labels = [];
+            foreach ($selected as $meal) {
+                if (is_string($meal) && trim($meal) !== '') {
+                    $labels[] = trim($meal);
+                } elseif (is_array($meal) && !empty($meal['type'])) {
+                    $labels[] = trim((string) $meal['type']);
+                }
+            }
+            if (count($labels) > 0) {
+                return implode(', ', $labels);
+            }
+        }
+
+        $mealTypes = $firstBed['mealTypes'] ?? null;
+        if (is_array($mealTypes) && count($mealTypes) > 0) {
+            $first = reset($mealTypes);
+            if (is_string($first) && trim($first) !== '') {
+                return trim($first);
+            }
+            if (is_array($first) && !empty($first['type'])) {
+                return trim((string) $first['type']);
+            }
+        }
+
+        return 'Room Only';
+    }
+
     // Get DMC Dynamic Currency
     public static function getDmcCurrencyByCountry()
     {
@@ -6983,8 +11356,8 @@ class CommonHelper
         switch ($user->role_id) {
 
             case 1: // Admin
-            case 20: 
-                return 'SGD'; 
+            case 20:
+                return 'SGD';
 
             case 11: // DMC
                 $dmc_id = $user->userId;
@@ -7046,7 +11419,7 @@ class CommonHelper
             case 114:
             case 117:
             case 120:
-            
+           
                 $sales_manager = User::where('userId', $user->created_by)->first();
                 $sales_head = User::where('userId', $sales_manager?->created_by)->first();
                 $dmc_id = $sales_head?->created_by;
@@ -7069,7 +11442,7 @@ class CommonHelper
 
         // Get currency from countries table using country name
         $country = Country::where('name', $dmc->country)->first();
-        
+       
 
         return $country->currency ?? 'SGD';
     }
@@ -7155,5 +11528,99 @@ class CommonHelper
             'persons' => $persons,
             'days' => $days,
         ];
+    }
+
+    /**
+     * Gross tour amount (sum of booked service sell prices) used by the negotiation modals.
+     * Mirrors the inline calculation in the new-enquiries / follow-ups blades so the value stored
+     * at negotiation time matches what those lists display. Hotels use pickup/item total only
+     * (transport is already included); other services add transfer + guide prices.
+     *
+     * @param  \App\Models\Tour|int  $tour
+     */
+    public static function calculateTourGrossAmount($tour): float
+    {
+        if (is_numeric($tour)) {
+            $tour = Tour::where('tour_id', (int) $tour)->first();
+        }
+        if (!$tour) {
+            return 0.0;
+        }
+
+        $isPro = (int) ($tour->is_pro ?? 0);
+        $bookings = Order::where('tour_id', $tour->tour_id)->get();
+
+        $total = 0.0;
+        foreach ($bookings as $booking) {
+            $total += self::calculateOrderGrossAmount($booking, $isPro);
+        }
+
+        return (float) ceil($total);
+    }
+
+    /**
+     * One order's contribution to the tour gross, unrounded.
+     *
+     * Split out of calculateTourGrossAmount so anything that needs the value of a
+     * single service (such as topping up a negotiated enquiry) uses the identical
+     * formula and can never drift from the tour total.
+     *
+     * @param  \App\Models\Order|null  $order
+     * @param  int|null  $isPro  tours.is_pro; looked up from the order's tour when omitted
+     */
+    public static function calculateOrderGrossAmount($order, ?int $isPro = null): float
+    {
+        if (!$order) {
+            return 0.0;
+        }
+        if (!in_array((int) $order->status, [1, 3], true)) {
+            return 0.0;
+        }
+
+        $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+        if (!is_array($data)) {
+            return 0.0;
+        }
+
+        if ($isPro === null) {
+            $tour = Tour::where('tour_id', $order->tour_id)->first();
+            $isPro = (int) ($tour->is_pro ?? 0);
+        }
+
+        $orderType = $order->type ?? '';
+        $total = 0.0;
+        foreach ($data as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+
+            // Hotel: pickup total only - do NOT add transfer (transport added automatically).
+            $transferPrice = 0.0;
+            if ($orderType !== 'hotel' && isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
+                if ($isPro === 1 && isset($item['transfer_options']['totalPrice'])) {
+                    $transferPrice = (float) $item['transfer_options']['totalPrice'];
+                } else {
+                    $transferPrice = (float) $item['transfer_options']['cost'];
+                }
+            }
+
+            $guidePrice = 0.0;
+            if (isset($item['guide_options']) && is_array($item['guide_options'])) {
+                $gv = $item['guide_options']['total_price']
+                    ?? $item['guide_options']['cost']
+                    ?? $item['guide_options']['Cost']
+                    ?? $item['guide_options']['sell']
+                    ?? $item['guide_options']['Sell']
+                    ?? 0;
+                if ($gv > 0) {
+                    $guidePrice = (float) $gv;
+                }
+            }
+
+            $total += $itemPrice + $transferPrice + $guidePrice;
+        }
+
+        return $total;
     }
 }

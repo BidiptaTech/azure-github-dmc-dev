@@ -1000,6 +1000,11 @@
         .quotation-passenger-table td:nth-child(6) {
             text-align: left;
         }
+        .api-footnote {
+            margin-top: 10px;
+            font-size: 9.5px;
+            color: #5c3317;
+        }
     </style>
 </head>
 <body>
@@ -2137,6 +2142,9 @@
         </table>
             </div>
     
+            <div class="api-footnote">
+                <strong>Note:</strong> Please note that currency conversion is based on market rate and is subject to change at the time of payment.
+            </div>
             </div>
 </body>
 </html>

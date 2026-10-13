@@ -45,7 +45,7 @@
     // Summary chips
     $paxCount     = $bd['pax_count']   ?? $bd['total_pax'] ?? null;
     $totalPrice   = $bd['total_price'] ?? null;
-    $currency     = $bd['currency']    ?? 'SGD';
+    $currency     = ($currency ?? null) ?: ($bd['currency'] ?? 'SGD');
     $startDate    = $travelDates['start_date']    ?? null;
     $endDate      = $travelDates['end_date']      ?? null;
     $durationDays = $travelDates['duration_days'] ?? (count($allDates) > 0 ? count($allDates) : null);

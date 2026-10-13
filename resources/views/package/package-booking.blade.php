@@ -10,9 +10,9 @@
                 <h4 class="fw-bold mb-1"><i class="ri-suitcase-line me-2 text-primary"></i>Package Booking</h4>
                 <p class="text-muted mb-0">Choose booking criteria, load a package, then modify services.</p>
             </div>
-            <a href="{{ route('packages.index') }}" class="btn btn-outline-secondary">
+            {{-- <a href="{{ route('packages.index') }}" class="btn btn-outline-secondary">
                 <i class="ri-arrow-left-line me-1"></i>Back
-            </a>
+            </a> --}}
         </div>
 
         <form action="{{ route('packages.booking.store') }}" method="POST" id="package-booking-form">
@@ -25,7 +25,7 @@
                     <div class="row g-3">
                         <div class="col-md-4">
                             <label class="form-label">Travel Start Date <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control" id="travel_start_date" name="travel_start_date" required min="{{ date('Y-m-d') }}" value="{{ old('travel_start_date') }}">
+                            <input type="date" class="form-control" id="travel_start_date" name="travel_start_date" required min="{{ now()->addDay()->format('Y-m-d') }}" value="{{ old('travel_start_date') }}">
                         </div>
                         <div class="col-md-2">
                             <label class="form-label">Pax <span class="text-danger">*</span></label>
@@ -1366,7 +1366,7 @@
         }
 
         function money(v) {
-            return 'SGD ' + numVal(v).toFixed(2);
+            return @json($currency ?? 'SGD') + ' ' + numVal(v).toFixed(2);
         }
 
         function parseIsoDate(dateStr) {

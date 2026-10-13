@@ -87,46 +87,17 @@
         $currentUser = auth()->user();
         $currentUserId = $currentUser->userId;
         $currentUserRole = $currentUser->role_id;
+        $displayCurrency = strtoupper(trim((string) ($currentUser->currency ?? 'SGD')));
         
-        // Determine DMC ID based on role hierarchy (same as controller logic)
-        $dmcId = null;
+        // Resolve the DMC through the same helper the controller uses. Re-implementing the role hierarchy
+        // here only covered roles 11/33/34/37/38/124/125, so every other role family (35, 36, 74-78,
+        // 128-138, agent logins, ...) fell through to null. That left $dmcUser null and silently disabled
+        // everything gated on the DMC's flags — the zone_on "Local Transfer" option, price_hide, and the
+        // dmc_id posted with the form.
+        $dmcId = \App\Helpers\CommonHelper::getDmcId($currentUser);
         $dmcUser = null;
         $isPointToPoint = false;
-        
-        if($currentUserRole == 11){
-            $dmcId = $currentUser->userId;
-        }elseif(in_array($currentUserRole, [33, 34])){
-            $user = \App\Models\User::where('userId', $currentUser->userId)->first();
-            $dmcId = $user->created_by;
-        }elseif(in_array($currentUserRole, [37, 124])){
-            $dmcIds = $currentUser->created_by;
-            $user = \App\Models\User::where('userId', $dmcIds)->first();
-            if($user) {
-                $dmcId = $user->created_by;
-            } else {
-                // Fallback: if user not found, try direct created_by
-                $dmcId = $currentUser->created_by;
-            }
-        }elseif(in_array($currentUserRole, [38, 125])){
-            $dmcIds = $currentUser->created_by;
-            $user = \App\Models\User::where('userId', $dmcIds)->first();
-            if($user) {
-                $dmcIdss = $user->created_by;
-                $user = \App\Models\User::where('userId', $dmcIdss)->first();
-                if($user) {
-                    $dmcId = $user->created_by;
-                } else {
-                    // Fallback: if second user not found, use first user's created_by
-                    $dmcId = $dmcIds;
-                }
-            } else {
-                // Fallback: if first user not found, use direct created_by
-                $dmcId = $currentUser->created_by;
-            }
-        }else{
-            $dmcId = null;
-        }
-        
+
         // Get DMC user information
         if ($dmcId) {
             $dmcUser = \App\Models\User::where('userId', $dmcId)->first();
@@ -151,12 +122,17 @@
             $createdBy = $currentUserId; // Operation Manager is the current user
         }
         $hasNegotiationHistory = isset($tour) && $tour ? \DB::table('enquiry_comments')->where('tour_id', $tour->tour_id)->whereNull('deleted_at')->exists() : false;
+        $isActualTourStatus = isset($tour) && $tour
+            && strtolower(trim((string) ($tour->tour_status ?? ''))) === 'actual';
+        $actualRemoveServiceTooltip = "Services can't be removed in Actual Status.";
     @endphp
     
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <script>
         window.hasNegotiationHistory = @json($hasNegotiationHistory);
         window.removeServicePageTourStatus = @json(isset($tour) && $tour ? ($tour->tour_status ?? '') : '');
+        window.isActualTourStatus = @json($isActualTourStatus);
+        window.__displayCurrency = @json($displayCurrency);
 
         window.isRoomBreakfastIncluded = function(room) {
             if (!room) return false;
@@ -202,6 +178,50 @@
 
         .pac-item-selected {
             background-color: #e3f2fd;
+        }
+
+        /* City-aware Places suggestions (selected City dropdown respected) */
+        .gmaps-city-suggestions {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: calc(100% + 2px);
+            z-index: 10050;
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            max-height: 260px;
+            overflow-y: auto;
+            display: none;
+        }
+        .gmaps-city-suggestions.is-open {
+            display: block;
+        }
+        .gmaps-city-suggestion-item {
+            padding: 8px 12px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            font-size: 0.875rem;
+            line-height: 1.35;
+        }
+        .gmaps-city-suggestion-item:last-child {
+            border-bottom: none;
+        }
+        .gmaps-city-suggestion-item:hover,
+        .gmaps-city-suggestion-item.is-active {
+            background-color: #e3f2fd;
+        }
+        .gmaps-city-suggestion-item .main-text {
+            font-weight: 600;
+            color: #212529;
+        }
+        .gmaps-city-suggestion-item .secondary-text {
+            color: #6c757d;
+            font-size: 0.8rem;
+        }
+        body.gmaps-city-suggest-open .pac-container {
+            display: none !important;
         }
 
         .location-input {
@@ -1237,14 +1257,6 @@
                             @endphp
 
                             <div class="row g-2 align-items-start tour-header-compact">
-                                <!-- Reference Number -->
-                                <div class="col-md-4">
-                                    <label for="reference_number" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
-                                        <i class="ri-hashtag me-1" style="color: #667eea;"></i>Reference Number
-                                    </label>
-                                    <input type="text" name="reference_number" id="reference_number" class="form-control modern-input" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;" placeholder="Enter reference number" value="{{ old('reference_number', $tour->reference_id ?? '') }}" readonly>
-                                </div>
-
                                 <input type="hidden" name="display_id" id="display_id" value="{{ $tour->display_id ?? '' }}">
                                 <input type="hidden" id="tour_id" name="tour_id" value="{{ $tour->tour_id ?? '' }}">
 
@@ -1264,7 +1276,8 @@
                                         <i class="ri-calendar-line me-1" style="color: #667eea;"></i>Travel Dates
                                     </label>
                                     <input type="text" class="form-control modern-input" id="travel_dates_range" autocomplete="off"
-                                        placeholder="Select dates" style="height: 40px;" readonly>
+                                        placeholder="Select dates" style="height: 40px;" readonly
+                                        @if($isActualTourStatus) disabled title="Travel dates can't be changed in Actual Status." @endif>
 
                                     {{-- Keep original fields for submission + JS dependencies --}}
                                     <input type="date" class="form-control modern-input d-none" name="start_date" id="start_date"
@@ -1273,14 +1286,16 @@
                                                 ? (is_string($tour->check_in_time) ? date('Y-m-d', strtotime($tour->check_in_time)) : $tour->check_in_time->format('Y-m-d'))
                                                 : ''
                                         }}"
-                                        min="{{ date('Y-m-d') }}">
+                                        min="{{ date('Y-m-d') }}"
+                                        @if($isActualTourStatus) readonly @endif>
                                     <input type="date" class="form-control modern-input d-none" name="end_date" id="end_date"
                                         value="{{
                                             $tour->check_out_time
                                                 ? (is_string($tour->check_out_time) ? date('Y-m-d', strtotime($tour->check_out_time)) : $tour->check_out_time->format('Y-m-d'))
                                                 : ''
                                         }}"
-                                        min="{{ $tour->check_in_time ? (is_string($tour->check_in_time) ? date('Y-m-d', strtotime($tour->check_in_time)) : $tour->check_in_time->format('Y-m-d')) : date('Y-m-d') }}">
+                                        min="{{ $tour->check_in_time ? (is_string($tour->check_in_time) ? date('Y-m-d', strtotime($tour->check_in_time)) : $tour->check_in_time->format('Y-m-d')) : date('Y-m-d') }}"
+                                        @if($isActualTourStatus) readonly @endif>
                                 </div>
 
                                 <!-- Guests -->
@@ -1465,7 +1480,7 @@
                                 @php
                                     $isNewEnquiry = trim(strtolower($tour->tour_status ?? '')) === 'new enquiry';
                                 @endphp
-                                <div class="col-md-2" id="discountAmountCol">
+                                <div class="col-md-2 {{ (old('city_type', $tour->city_type ?? 'single') === 'multi') ? 'd-none' : '' }}" id="discountAmountCol">
                                     <label for="discount_price" class="form-label fw-semibold mb-2" style="color: #495057; font-size: 0.875rem;">
                                         <i class="ri-price-tag-3-line me-1" style="color: #667eea;"></i>Discount Amount
                                     </label>
@@ -1483,7 +1498,7 @@
                                             @unless($isNewEnquiry) disabled title="Discount can only be edited when the tour status is New Enquiry" @endunless
                                         >
                                         <span class="input-group-text fw-semibold" style="height: 40px; border-radius: 0 8px 8px 0; font-size: 0.8rem; background:#f8f9fa; color:#495057;">
-                                            {{ strtoupper(Auth::user()->currency ?? 'SGD') }}
+                                            {{ $displayCurrency }}
                                         </span>
                                     </div>
                                     @unless($isNewEnquiry)
@@ -1628,6 +1643,7 @@
                                     // Default JSON payloads so controller always receives valid JSON when checked
                                     $childWithBedJson = $childWithBedData ? json_encode($childWithBedData) : json_encode(['enabled' => true]);
                                     $childWithoutBedJson = $childWithoutBedData ? json_encode($childWithoutBedData) : json_encode(['enabled' => true]);
+                                    $allowChildHotelPricing = ((int)($tour->child ?? 0) + (int)($tour->infant ?? 0)) > 0;
                                     
                                     if (!empty($rooms) && is_array($rooms)) {
                                         $firstRoom = $rooms[0] ?? [];
@@ -1642,15 +1658,27 @@
                                             $bedType = $firstBed['bed_type'] ?? '';
                                             $numberOfPersons = $firstBed['head_count'] ?? $firstBed['max_occupancy'] ?? 0;
                                             
-                                            // Get meal plan
+                                            // Get meal plan (create stores string values; some payloads wrap type in an object)
                                             $mealTypes = $firstBed['mealTypes'] ?? [];
                                             if (!empty($mealTypes) && is_array($mealTypes)) {
                                                 $mealPlan = $mealTypes[0] ?? '';
                                             } elseif (isset($firstBed['selectedMeals']) && is_array($firstBed['selectedMeals'])) {
                                                 $firstMeal = reset($firstBed['selectedMeals']);
-                                                $mealPlan = $firstMeal['type'] ?? '';
+                                                $mealPlan = is_array($firstMeal) ? ($firstMeal['type'] ?? '') : $firstMeal;
                                             }
                                         }
+                                        if ($mealPlan === '' && !empty($firstRoom['meal_plan'])) {
+                                            $mealPlan = $firstRoom['meal_plan'];
+                                        }
+                                    }
+                                    if (is_array($mealPlan)) {
+                                        $mealPlan = $mealPlan['type'] ?? $mealPlan['value'] ?? reset($mealPlan) ?? '';
+                                        if (is_array($mealPlan)) {
+                                            $mealPlan = '';
+                                        }
+                                    }
+                                    if ($mealPlan === '' && !empty($hotelInfo['meal_plan'])) {
+                                        $mealPlan = $hotelInfo['meal_plan'];
                                     }
 
                                     // Normalize meal plan for <select> values (JS/API use snake_case e.g. room_only)
@@ -1699,7 +1727,8 @@
                                         data-update-url="{{ route('edit-tour.update-hotel', $hotelOrder->booking_id) }}"
                                         data-service-start="{{ $checkInValue }}"
                                         data-service-end="{{ $checkOutValue }}"
-                                        data-service-city="{{ $hotelDetails['location'] ?? '' }}"
+                                        data-service-city="{{ $hotelDetails['location'] ?? ($hotelDetails['city'] ?? '') }}"
+                                        data-service-country="{{ $hotelOrder->country ?? ($hotelDetails['country'] ?? ($hotelInfo['country'] ?? '')) }}"
                                     >
                                         @csrf
                                         <input type="hidden" name="type" value="hotel">
@@ -1714,12 +1743,20 @@
                                                 <div class="text-end">
                                                     <span class="d-block text-muted small">Total Price</span>
                                                     <span class="fw-bold text-success" style="font-size: 1.05rem;" id="hotel_header_total_{{ $hotelOrder->booking_id }}">
-                                                        {{ $tour->currency ?? '$' }} {{ number_format((float)$totalPrice, 2, '.', ',') }}
+                                                        {{ $displayCurrency }} {{ number_format((float)$totalPrice, 2, '.', ',') }}
                                                     </span>
                                                 </div>
+                                                @if($isActualTourStatus)
+                                                <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                        <i class="ri-delete-bin-line"></i>
+                                                    </button>
+                                                </span>
+                                                @else
                                                 <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeHotelService({{ $hotelOrder->booking_id }})">
                                                     <i class="ri-delete-bin-line"></i>
                                                 </button>
+                                                @endif
                                             </div>
                                         </div>
                                         @if(!empty($rooms) && is_array($rooms))
@@ -1851,7 +1888,7 @@
                                                     <div class="col-md-6">
                                                         <label class="form-label fw-semibold">Estimated Price</label>
                                                         <div class="input-group">
-                                                            <span class="input-group-text">{{ $tour->currency ?? '$' }}</span>
+                                                            <span class="input-group-text">{{ $displayCurrency }}</span>
                                                             <input type="number" min="0" step="0.01" class="form-control" name="hotel_transport_price_{{ $hotelOrder->booking_id }}" id="hotel_transport_price_{{ $hotelOrder->booking_id }}" placeholder="0.00" value="{{ number_format((float)$transportPrice, 2, '.', '') }}" data-original-price="{{ $transportReturn ? number_format((float)$transportPrice / 2, 2, '.', '') : number_format((float)$transportPrice, 2, '.', '') }}">
                                                         </div>
                                                         <small class="text-muted">Optional, can be adjusted later.</small>
@@ -1978,22 +2015,13 @@
                                                                         const sampleRoom = dmcFilteredRooms.find(room => room.room_type === roomType);
                                                                         
                                                                         if (sampleRoom) {
-                                                                            // Get number of persons for pricing
-                                                                            const numberOfPersonsInput = document.getElementById('number_of_persons_{{ $hotelOrder->booking_id }}');
-                                                                            const numberOfPersons = numberOfPersonsInput ? parseInt(numberOfPersonsInput.value) || 1 : 1;
-                                                                            const isSingleOccupancy = numberOfPersons <= 1;
-                                                                            
-                                                                            // Determine price based on occupancy
-                                                                            let price = 0;
-                                                                            if (isSingleOccupancy) {
-                                                                                price = parseFloat(sampleRoom.weekday_price || 0);
-                                                                            } else {
-                                                                                price = parseFloat(sampleRoom.double_weekday_price || sampleRoom.weekday_price || 0);
-                                                                            }
-                                                                            
+                                                                            const stayTotal = typeof computeRoomTypeStayTotal_{{ $hotelOrder->booking_id }} === 'function'
+                                                                                ? computeRoomTypeStayTotal_{{ $hotelOrder->booking_id }}(sampleRoom)
+                                                                                : 0;
+
                                                                             const option = document.createElement('option');
                                                                             option.value = roomType;
-                                                                            option.textContent = price > 0 ? `${roomType} - $${price.toFixed(2)}` : roomType;
+                                                                            option.textContent = stayTotal > 0 ? `${roomType} - ${window.__displayCurrency} ${stayTotal.toFixed(2)}` : roomType;
                                                                             option.dataset.roomId = sampleRoom.room_id;
                                                                             option.dataset.weekdayPrice = sampleRoom.weekday_price || 0;
                                                                             option.dataset.weekendPrice = sampleRoom.weekend_price || 0;
@@ -2011,7 +2039,7 @@
                                                                                     loadBedTypesForRoom_{{ $hotelOrder->booking_id }}(roomType);
                                                                                     updateHotelPrice_{{ $hotelOrder->booking_id }}();
                                                                                     updateHotelChildPricingVisibility_{{ $hotelOrder->booking_id }}(roomType);
-                                                                                    updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();
+                                                                                    updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);
                                                                                 }, 100);
                                                                             }
                                                                             roomTypeSelect.appendChild(option);
@@ -2019,6 +2047,9 @@
                                                                     });
                                                                     
                                                                     roomTypeSelect.disabled = false;
+                                                                    if (typeof window.refreshSelect2 === 'function') {
+                                                                        window.refreshSelect2(roomTypeSelect);
+                                                                    }
                                                                     console.log(`Loaded ${roomTypes.length} room types for hotel ${hotelId}`);
                                                                     
                                                                     // Update price grid if room type is already selected
@@ -2027,7 +2058,7 @@
                                                                             if (typeof window.updateEditHotelSupplementBreakfastVisibility === 'function') {
                                                                                 window.updateEditHotelSupplementBreakfastVisibility({{ $hotelOrder->booking_id }}, existingRoomType);
                                                                             }
-                                                                            updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();
+                                                                            updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);
                                                                         }, 200);
                                                                     }
                                                                 } else {
@@ -2114,14 +2145,14 @@
                                                                         if (bed.extra_bed) {
                                                                             bedTypeText += ` + Extra Bed`;
                                                                             if (bed.extra_bed_price) {
-                                                                                bedTypeText += ` ($${bed.extra_bed_price})`;
+                                                                                bedTypeText += ` (${window.__displayCurrency} ${bed.extra_bed_price})`;
                                                                             }
                                                                         }
                                                                         
                                                                         if (bed.baby_cot) {
                                                                             bedTypeText += ` + Baby Cot`;
                                                                             if (bed.baby_cot_price) {
-                                                                                bedTypeText += ` ($${bed.baby_cot_price})`;
+                                                                                bedTypeText += ` (${window.__displayCurrency} ${bed.baby_cot_price})`;
                                                                             }
                                                                         }
                                                                         
@@ -2151,12 +2182,15 @@
                                                                     });
                                                                     
                                                                     bedTypeSelect.disabled = false;
+                                                                    if (typeof window.refreshSelect2 === 'function') {
+                                                                        window.refreshSelect2(bedTypeSelect);
+                                                                    }
                                                                     console.log(`Loaded ${data.beds.length} bed types for room type ${roomType}`);
 
                                                                     setTimeout(() => {
                                                                         try {
                                                                             updatePaxInfo_{{ $hotelOrder->booking_id }}(document.getElementById('number_of_persons_{{ $hotelOrder->booking_id }}')?.value);
-                                                                            updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(false);
+                                                                            updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);
                                                                         } catch (e) {}
                                                                     }, 150);
                                                                     
@@ -2198,8 +2232,10 @@
                                                     
                                                     function loadMealPlansForBed_{{ $hotelOrder->booking_id }}(bedDataOrRoom) {
                                                         const mealPlanSelect = document.getElementById('meal_plan_{{ $hotelOrder->booking_id }}');
-                                                        const roomData = window.roomData_{{ $hotelOrder->booking_id }} || [];
+                                                        const rawRoomData = window.roomData_{{ $hotelOrder->booking_id }} || [];
+                                                        const roomData = Array.isArray(rawRoomData) ? rawRoomData : Object.values(rawRoomData || {});
                                                         const bedTypeSelect = document.getElementById('bed_type_{{ $hotelOrder->booking_id }}');
+                                                        const savedMeal = (mealPlanSelect && mealPlanSelect.getAttribute('data-saved-meal')) || @json($mealPlanSelectValue ?? ($mealPlan ?? ''));
                                                         
                                                         console.log('Loading meal plans for booking {{ $hotelOrder->booking_id }}', bedDataOrRoom);
                                                         
@@ -2210,22 +2246,24 @@
                                                         // First, try to get room from selected bed
                                                         if (bedTypeSelect && bedTypeSelect.value) {
                                                             const selectedBedOption = bedTypeSelect.options[bedTypeSelect.selectedIndex];
-                                                            if (selectedBedOption && selectedBedOption.dataset.roomId) {
-                                                                const roomId = selectedBedOption.dataset.roomId;
-                                                                room = roomData.find(r => r.room_id == roomId);
+                                                            if (selectedBedOption && (selectedBedOption.dataset.roomId || selectedBedOption.getAttribute('data-room-id'))) {
+                                                                const roomId = selectedBedOption.dataset.roomId || selectedBedOption.getAttribute('data-room-id');
+                                                                room = roomData.find(r => String(r.room_id) === String(roomId) || String(r.id) === String(roomId));
                                                                 
                                                                 // Get max occupancy from bed data
-                                                                const bedData = JSON.parse(selectedBedOption.dataset.bed || '{}');
-                                                                maxOccupancy = bedData.max_occupancy || null;
+                                                                try {
+                                                                    const bedData = JSON.parse(selectedBedOption.dataset.bed || '{}');
+                                                                    maxOccupancy = bedData.max_occupancy || bedData.base_max_occupancy || null;
+                                                                } catch (e) {}
                                                             }
                                                         }
                                                         
                                                         // If no room from bed, try from passed parameter
                                                         if (!room && bedDataOrRoom) {
-                                                            if (bedDataOrRoom.room_id) {
-                                                                room = roomData.find(r => r.room_id == bedDataOrRoom.room_id);
-                                                            } else if (bedDataOrRoom.room_type) {
+                                                            if (bedDataOrRoom.breakfast !== undefined || bedDataOrRoom.lunch !== undefined || bedDataOrRoom.room_type) {
                                                                 room = bedDataOrRoom;
+                                                            } else if (bedDataOrRoom.room_id) {
+                                                                room = roomData.find(r => String(r.room_id) === String(bedDataOrRoom.room_id)) || bedDataOrRoom;
                                                             }
                                                         }
                                                         
@@ -2242,8 +2280,19 @@
                                                         
                                                         if (!room) {
                                                             console.log('No room found for meal plans');
-                                                            mealPlanSelect.innerHTML = '<option value="">Select room type first</option>';
-                                                            mealPlanSelect.disabled = true;
+                                                            if (savedMeal) {
+                                                                mealPlanSelect.innerHTML = '<option value="">Select meal plan</option>';
+                                                                const savedOpt = document.createElement('option');
+                                                                savedOpt.value = savedMeal;
+                                                                savedOpt.textContent = savedMeal.replace(/_/g, ' ').replace('bed & breakfast', 'room with breakfast');
+                                                                savedOpt.selected = true;
+                                                                mealPlanSelect.appendChild(savedOpt);
+                                                                mealPlanSelect.disabled = false;
+                                                                if (typeof window.refreshSelect2 === 'function') window.refreshSelect2(mealPlanSelect);
+                                                            } else {
+                                                                mealPlanSelect.innerHTML = '<option value="">Select room type first</option>';
+                                                                mealPlanSelect.disabled = true;
+                                                            }
                                                             return;
                                                         }
                                                         
@@ -2402,13 +2451,24 @@
                                                             });
                                                             
                                                             mealPlanSelect.disabled = false;
+                                                            if (existingMealPlan && !mealPlanSelected) {
+                                                                const extra = document.createElement('option');
+                                                                extra.value = existingMealPlan;
+                                                                extra.textContent = String(existingMealPlan).replace(/_/g, ' ');
+                                                                extra.selected = true;
+                                                                mealPlanSelected = true;
+                                                                mealPlanSelect.appendChild(extra);
+                                                            }
+                                                            if (typeof window.refreshSelect2 === 'function') {
+                                                                window.refreshSelect2(mealPlanSelect);
+                                                            }
                                                             console.log(`Loaded ${mealPlans.length} meal plan options dynamically from room data with pax info`);
                                                             if (existingMealPlan && mealPlanSelected) {
                                                                 console.log(`Meal plan "${existingMealPlan}" was automatically selected`);
                                                                 // Auto-update hotel price grid so meal price appears on initial load
                                                                 setTimeout(() => {
                                                                     try {
-                                                                        updateHotelPriceGrid_{{ $hotelOrder->booking_id }}();
+                                                                        updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);
                                                                     } catch (e) {
                                                                         console.error('Error updating hotel price grid after meal plan auto-select:', e);
                                                                     }
@@ -2435,7 +2495,7 @@
                                                             if (maxOccupancy && paxInfoEl) {
                                                                 let info = `Max occupancy: ${maxOccupancy} pax`;
                                                                 if (bedData.extra_bed && bedData.extra_bed_price) {
-                                                                    info += ` | Extra bed: $${parseFloat(bedData.extra_bed_price).toFixed(2)}/night`;
+                                                                    info += ` | Extra bed: ${window.__displayCurrency} ${parseFloat(bedData.extra_bed_price).toFixed(2)}/night`;
                                                                 } else if (bedData.extra_bed) {
                                                                     info += ' | Extra bed available';
                                                                 }
@@ -2492,20 +2552,25 @@
                                                                     : (parseInt(bedData.max_occupancy, 10) || 0);
                                                                 const pax = parseInt(paxValue, 10) || 0;
                                                                 const extraBedPrice = parseFloat(bedData.extra_bed_price) || 0;
-                                                                const maxWithExtra = bedData.extra_bed ? maxOccupancy + 1 : maxOccupancy;
+                                                                const extraBedEnabled = !!(bedData.extra_bed) && extraBedPrice > 0;
+                                                                const bookedHeadCount = typeof getEditHotelBookedHeadCount_{{ $hotelOrder->booking_id }} === 'function'
+                                                                    ? getEditHotelBookedHeadCount_{{ $hotelOrder->booking_id }}()
+                                                                    : 0;
+                                                                const occupancyBaseline = Math.max(maxOccupancy, bookedHeadCount > 0 ? bookedHeadCount : 0);
+                                                                const maxWithExtra = extraBedEnabled ? occupancyBaseline + 1 : occupancyBaseline;
 
                                                                 if (maxOccupancy) {
                                                                     let info = `Max occupancy: ${maxOccupancy} pax`;
-                                                                    if (bedData.extra_bed && extraBedPrice > 0) {
-                                                                        info += ` | Extra bed: $${extraBedPrice.toFixed(2)}/night`;
+                                                                    if (extraBedEnabled) {
+                                                                        info += ` | Extra bed: ${window.__displayCurrency} ${extraBedPrice.toFixed(2)}/night`;
                                                                     } else if (bedData.extra_bed) {
                                                                         info += ' | Extra bed available';
                                                                     }
                                                                     if (pax > maxWithExtra) {
                                                                         paxInfoEl.textContent = `Warning: Exceeds max ${maxWithExtra} pax (incl. extra bed)`;
                                                                         paxInfoEl.style.color = '#dc3545';
-                                                                    } else if (pax > maxOccupancy && bedData.extra_bed) {
-                                                                        paxInfoEl.textContent = info + ` — extra bed applies (${pax - maxOccupancy} person)`;
+                                                                    } else if (pax > occupancyBaseline && extraBedEnabled) {
+                                                                        paxInfoEl.textContent = info + ` — extra bed applies (${pax - occupancyBaseline} person)`;
                                                                         paxInfoEl.style.color = '#d97706';
                                                                     } else {
                                                                         paxInfoEl.textContent = info;
@@ -2568,6 +2633,9 @@
                                                             if (chkCnb) chkCnb.checked = false;
                                                             if (labelCwb) labelCwb.textContent = '';
                                                             if (labelCnb) labelCnb.textContent = '';
+                                                            if (typeof window.updateEditHotelChildCheckboxEnabledState === 'function') {
+                                                                window.updateEditHotelChildCheckboxEnabledState();
+                                                            }
                                                             return;
                                                         }
 
@@ -2579,6 +2647,9 @@
                                                             if (chkCnb) chkCnb.checked = false;
                                                             if (labelCwb) labelCwb.textContent = '';
                                                             if (labelCnb) labelCnb.textContent = '';
+                                                            if (typeof window.updateEditHotelChildCheckboxEnabledState === 'function') {
+                                                                window.updateEditHotelChildCheckboxEnabledState();
+                                                            }
                                                             return;
                                                         }
 
@@ -2589,10 +2660,10 @@
                                                         wrapCnb.style.display = cnbPrice > 0 ? 'block' : 'none';
 
                                                         if (labelCwb) {
-                                                            labelCwb.textContent = cwbPrice > 0 ? '($' + cwbPrice.toFixed(2) + ')' : '';
+                                                            labelCwb.textContent = cwbPrice > 0 ? '(' + window.__displayCurrency + ' ' + cwbPrice.toFixed(2) + ')' : '';
                                                         }
                                                         if (labelCnb) {
-                                                            labelCnb.textContent = cnbPrice > 0 ? '($' + cnbPrice.toFixed(2) + ')' : '';
+                                                            labelCnb.textContent = cnbPrice > 0 ? '(' + window.__displayCurrency + ' ' + cnbPrice.toFixed(2) + ')' : '';
                                                         }
 
                                                         // Restore initial checked state if price is available, otherwise uncheck
@@ -2613,6 +2684,10 @@
                                                                 chkCnb.checked = true;
                                                             }
                                                         }
+
+                                                        if (typeof window.updateEditHotelChildCheckboxEnabledState === 'function') {
+                                                            window.updateEditHotelChildCheckboxEnabledState();
+                                                        }
                                                     }
                                                     
                                                     if (typeof window.getEditBaseMaxOccupancyFromBedData !== 'function') {
@@ -2629,6 +2704,23 @@
                                                         };
                                                     }
 
+                                                    function getEditHotelBookedHeadCount_{{ $hotelOrder->booking_id }}() {
+                                                        const originalJsonEl = document.getElementById('original_rooms_json_{{ $hotelOrder->booking_id }}');
+                                                        if (originalJsonEl && originalJsonEl.value) {
+                                                            try {
+                                                                const orig = JSON.parse(originalJsonEl.value);
+                                                                const firstRoom = Array.isArray(orig) ? orig[0] : orig;
+                                                                const firstBed = (firstRoom && firstRoom.beds && firstRoom.beds[0]) ? firstRoom.beds[0] : {};
+                                                                const headCount = parseInt(firstBed.head_count, 10) || 0;
+                                                                if (headCount > 0) {
+                                                                    return headCount;
+                                                                }
+                                                            } catch (e) { /* ignore */ }
+                                                        }
+                                                        const paxInput = document.getElementById('number_of_persons_{{ $hotelOrder->booking_id }}');
+                                                        return paxInput ? (parseInt(paxInput.value, 10) || 0) : 0;
+                                                    }
+
                                                     function getEditHotelBedContext_{{ $hotelOrder->booking_id }}() {
                                                         let maxOccupancy = 0;
                                                         let extraBedPrice = 0;
@@ -2641,26 +2733,18 @@
                                                                     const bedData = JSON.parse(selectedOption.dataset.bed || '{}');
                                                                     maxOccupancy = window.getEditBaseMaxOccupancyFromBedData(bedData);
                                                                     extraBedPrice = parseFloat(bedData.extra_bed_price) || 0;
-                                                                    extraBedAvailable = !!(bedData.extra_bed);
+                                                                    extraBedAvailable = !!(bedData.extra_bed) && extraBedPrice > 0;
                                                                 } catch (e) { /* ignore */ }
                                                             }
                                                         }
-                                                        if (extraBedPrice <= 0 || maxOccupancy <= 0) {
+                                                        if (maxOccupancy <= 0) {
                                                             const originalJsonEl = document.getElementById('original_rooms_json_{{ $hotelOrder->booking_id }}');
                                                             if (originalJsonEl && originalJsonEl.value) {
                                                                 try {
                                                                     const orig = JSON.parse(originalJsonEl.value);
                                                                     const firstRoom = Array.isArray(orig) ? orig[0] : orig;
                                                                     const firstBed = (firstRoom && firstRoom.beds && firstRoom.beds[0]) ? firstRoom.beds[0] : {};
-                                                                    if (maxOccupancy <= 0) {
-                                                                        maxOccupancy = window.getEditBaseMaxOccupancyFromBedData(firstBed);
-                                                                    }
-                                                                    if (extraBedPrice <= 0) {
-                                                                        extraBedPrice = parseFloat(firstBed.extra_bed_price) || 0;
-                                                                    }
-                                                                    if (!extraBedAvailable) {
-                                                                        extraBedAvailable = !!(firstBed.extra_bed);
-                                                                    }
+                                                                    maxOccupancy = window.getEditBaseMaxOccupancyFromBedData(firstBed);
                                                                 } catch (e) { /* ignore */ }
                                                             }
                                                         }
@@ -2672,10 +2756,12 @@
                                                         const pax = parseInt(numberOfPersons, 10) || 1;
                                                         const rooms = parseInt(numberOfRooms, 10) || 1;
                                                         const nights = parseInt(numberOfNights, 10) || 1;
-                                                        if (!ctx.extraBedAvailable || ctx.extraBedPrice <= 0 || pax <= ctx.maxOccupancy) {
+                                                        const bookedHeadCount = getEditHotelBookedHeadCount_{{ $hotelOrder->booking_id }}();
+                                                        const occupancyBaseline = Math.max(ctx.maxOccupancy, bookedHeadCount > 0 ? bookedHeadCount : 0);
+                                                        if (!ctx.extraBedAvailable || ctx.extraBedPrice <= 0 || pax <= occupancyBaseline) {
                                                             return { extraPersons: 0, total: 0, perNightRate: ctx.extraBedPrice };
                                                         }
-                                                        const extraPersons = pax - ctx.maxOccupancy;
+                                                        const extraPersons = pax - occupancyBaseline;
                                                         return {
                                                             extraPersons,
                                                             perNightRate: ctx.extraBedPrice,
@@ -2683,9 +2769,91 @@
                                                         };
                                                     }
 
-                                                    // Function to update hotel price breakdown grid (syncInput=true updates Total Price field from calculation)
+                                                    function getHotelStayNightInfo_{{ $hotelOrder->booking_id }}() {
+                                                        const formDiv = document.querySelector('.hotel-edit-form[data-update-url*="{{ $hotelOrder->booking_id }}"]');
+                                                        const checkInInput = formDiv ? formDiv.querySelector('input[name="check_in_date"]') : null;
+                                                        const checkOutInput = formDiv ? formDiv.querySelector('input[name="check_out_date"]') : null;
+                                                        const weekendDays = window.hotelWeekendDays_{{ $hotelOrder->booking_id }} || ['Saturday', 'Sunday'];
+                                                        let weekdayNights = 0;
+                                                        let weekendNights = 0;
+                                                        let nights = 0;
+                                                        if (checkInInput && checkOutInput && checkInInput.value && checkOutInput.value) {
+                                                            const checkIn = new Date(checkInInput.value);
+                                                            const checkOut = new Date(checkOutInput.value);
+                                                            for (let d = new Date(checkIn); d < checkOut; d.setDate(d.getDate() + 1)) {
+                                                                nights++;
+                                                                const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
+                                                                const isWeekend = weekendDays.some(function(w) { return String(w).toLowerCase() === dayName.toLowerCase(); });
+                                                                if (isWeekend) weekendNights++; else weekdayNights++;
+                                                            }
+                                                        }
+                                                        if (nights <= 0) {
+                                                            nights = 1;
+                                                            weekdayNights = 1;
+                                                        }
+                                                        return { nights, weekdayNights, weekendNights };
+                                                    }
+
+                                                    function computeRoomTypeStayTotal_{{ $hotelOrder->booking_id }}(sampleRoom) {
+                                                        if (!sampleRoom) return 0;
+                                                        const numberOfRoomsInput = document.getElementById('number_of_rooms_{{ $hotelOrder->booking_id }}');
+                                                        const numberOfPersonsInput = document.getElementById('number_of_persons_{{ $hotelOrder->booking_id }}');
+                                                        const numberOfRooms = parseInt(numberOfRoomsInput ? numberOfRoomsInput.value : '1', 10) || 1;
+                                                        const numberOfPersons = parseInt(numberOfPersonsInput ? numberOfPersonsInput.value : '1', 10) || 1;
+                                                        const isSingleOccupancy = numberOfPersons <= 1;
+                                                        const weekdayPricePerNight = isSingleOccupancy
+                                                            ? parseFloat(sampleRoom.weekday_price || 0)
+                                                            : parseFloat(sampleRoom.double_weekday_price || sampleRoom.weekday_price || 0);
+                                                        const weekendPricePerNight = isSingleOccupancy
+                                                            ? parseFloat(sampleRoom.weekend_price || sampleRoom.weekday_price || 0)
+                                                            : parseFloat(sampleRoom.double_weekend_price || sampleRoom.double_weekday_price || sampleRoom.weekday_price || 0);
+                                                        const info = getHotelStayNightInfo_{{ $hotelOrder->booking_id }}();
+                                                        let roomSubtotal = (weekdayPricePerNight * info.weekdayNights + weekendPricePerNight * info.weekendNights) * numberOfRooms;
+                                                        if (roomSubtotal === 0 && info.nights >= 1) {
+                                                            roomSubtotal = weekdayPricePerNight * info.nights * numberOfRooms;
+                                                        }
+                                                        const extraBedCalc = calculateEditHotelExtraBedCost_{{ $hotelOrder->booking_id }}(numberOfPersons, numberOfRooms, info.nights);
+                                                        return roomSubtotal + extraBedCalc.total;
+                                                    }
+
+                                                    function refreshRoomTypeStayPriceLabels_{{ $hotelOrder->booking_id }}(selectedTotal) {
+                                                        const roomTypeSelect = document.getElementById('room_type_{{ $hotelOrder->booking_id }}');
+                                                        if (!roomTypeSelect) return;
+                                                        const roomData = window.roomData_{{ $hotelOrder->booking_id }} || [];
+                                                        const currencyLabel = '{{ trim($displayCurrency) }}';
+                                                        Array.from(roomTypeSelect.options).forEach(function(opt) {
+                                                            if (!opt.value) return;
+                                                            let amount = 0;
+                                                            if (opt.selected && typeof selectedTotal === 'number' && selectedTotal > 0) {
+                                                                amount = selectedTotal;
+                                                            } else {
+                                                                const sampleRoom = roomData.find(function(r) { return r.room_type === opt.value; });
+                                                                amount = computeRoomTypeStayTotal_{{ $hotelOrder->booking_id }}(sampleRoom);
+                                                            }
+                                                            opt.textContent = amount > 0
+                                                                ? (opt.value + ' - ' + currencyLabel + ' ' + amount.toFixed(2))
+                                                                : opt.value;
+                                                        });
+                                                        const selectedOpt = roomTypeSelect.options[roomTypeSelect.selectedIndex];
+                                                        if (selectedOpt && window.jQuery) {
+                                                            const $sel = window.jQuery(roomTypeSelect);
+                                                            if ($sel.data('select2')) {
+                                                                const rendered = $sel.next('.select2-container').find('.select2-selection__rendered');
+                                                                if (rendered.length) {
+                                                                    rendered.text(selectedOpt.textContent);
+                                                                    rendered.attr('title', selectedOpt.textContent);
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+
+                                                    // Function to update hotel price breakdown grid (always syncs Total Price / header / room-type label)
                                                     function updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(syncInput) {
-                                                        syncInput = syncInput === true;
+                                                        syncInput = true;
+                                                        // Keep helper-engine totals after Get Price until the user changes details.
+                                                        if (window.hotelPricedByHelper && window.hotelPricedByHelper[{{ $hotelOrder->booking_id }}]) {
+                                                            return;
+                                                        }
                                                         // If the booking was changed and not re-priced via "Get Price", keep it at 0.
                                                         if (window.hotelNeedsGetPrice && window.hotelNeedsGetPrice[{{ $hotelOrder->booking_id }}]) {
                                                             if (typeof window.zeroOutHotelBookingPrice === 'function') {
@@ -2734,7 +2902,7 @@
                                                         
                                                         if (!selectedRoom || !selectedRoomType) {
                                                             gridBody.innerHTML = '<div class="text-muted text-center py-2" style="font-size: 0.75rem;">Select room type to see price breakdown</div>';
-                                                            grandTotalEl.textContent = '$0.00';
+                                                            grandTotalEl.textContent = window.__displayCurrency + ' 0.00';
                                                             return;
                                                         }
                                                         
@@ -2867,11 +3035,11 @@
                                                         // Room price row - show weekday/weekend breakdown when applicable
                                                         let roomLabel = '';
                                                         if (weekendNights > 0 && weekdayNights > 0) {
-                                                            roomLabel = `${weekdayNights} weekday${weekdayNights > 1 ? 's' : ''} @ $${weekdayPricePerNight.toFixed(2)}/night, ${weekendNights} weekend${weekendNights > 1 ? 's' : ''} @ $${weekendPricePerNight.toFixed(2)}/night`;
+                                                            roomLabel = `${weekdayNights} weekday${weekdayNights > 1 ? 's' : ''} @ ${window.__displayCurrency} ${weekdayPricePerNight.toFixed(2)}/night, ${weekendNights} weekend${weekendNights > 1 ? 's' : ''} @ ${window.__displayCurrency} ${weekendPricePerNight.toFixed(2)}/night`;
                                                         } else if (weekendNights > 0) {
-                                                            roomLabel = `${weekendNights} weekend${weekendNights > 1 ? 's' : ''} @ $${weekendPricePerNight.toFixed(2)}/night`;
+                                                            roomLabel = `${weekendNights} weekend${weekendNights > 1 ? 's' : ''} @ ${window.__displayCurrency} ${weekendPricePerNight.toFixed(2)}/night`;
                                                         } else {
-                                                            roomLabel = (numberOfNights === 1 ? '1 weekday' : `${numberOfNights} weekday${numberOfNights > 1 ? 's' : ''}`) + ` @ $${weekdayPricePerNight.toFixed(2)}/night`;
+                                                            roomLabel = (numberOfNights === 1 ? '1 weekday' : `${numberOfNights} weekday${numberOfNights > 1 ? 's' : ''}`) + ` @ ${window.__displayCurrency} ${weekdayPricePerNight.toFixed(2)}/night`;
                                                         }
                                                         roomLabel += ` x ${numberOfRooms} room${numberOfRooms > 1 ? 's' : ''}`;
                                                         gridHTML += `<div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.75rem;">
@@ -2879,17 +3047,17 @@
                                                                 <i class="ri-hotel-line me-2" style="font-size: 1rem; color: #dc2626;"></i>
                                                                 <span style="color: #475569;"><strong>Room Price:</strong></span>
                                                             </div>
-                                                            <span style="color: #1e293b; font-weight: 500;">$${roomSubtotal.toFixed(2)} <small class="text-muted">(${roomLabel})</small></span>
+                                                            <span style="color: #1e293b; font-weight: 500;">${window.__displayCurrency} ${roomSubtotal.toFixed(2)} <small class="text-muted">(${roomLabel})</small></span>
                                                         </div>`;
 
                                                         if (extraBedSubtotal > 0) {
-                                                            const ebLabel = `${extraBedCalc.extraPersons} extra person${extraBedCalc.extraPersons > 1 ? 's' : ''} @ $${extraBedCalc.perNightRate.toFixed(2)}/night x ${numberOfNights} night${numberOfNights > 1 ? 's' : ''} x ${numberOfRooms} room${numberOfRooms > 1 ? 's' : ''}`;
+                                                            const ebLabel = `${extraBedCalc.extraPersons} extra person${extraBedCalc.extraPersons > 1 ? 's' : ''} @ ${window.__displayCurrency} ${extraBedCalc.perNightRate.toFixed(2)}/night x ${numberOfNights} night${numberOfNights > 1 ? 's' : ''} x ${numberOfRooms} room${numberOfRooms > 1 ? 's' : ''}`;
                                                             gridHTML += `<div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.75rem;">
                                                                 <div class="d-flex align-items-center">
                                                                     <i class="ri-hotel-bed-line me-2" style="font-size: 1rem; color: #d97706;"></i>
                                                                     <span style="color: #475569;"><strong>Extra Bed Cost:</strong></span>
                                                                 </div>
-                                                                <span style="color: #1e293b; font-weight: 500;">$${extraBedSubtotal.toFixed(2)} <small class="text-muted">(${ebLabel})</small></span>
+                                                                <span style="color: #1e293b; font-weight: 500;">${window.__displayCurrency} ${extraBedSubtotal.toFixed(2)} <small class="text-muted">(${ebLabel})</small></span>
                                                             </div>`;
                                                         }
                                                         
@@ -2902,7 +3070,7 @@
                                                                     <i class="ri-restaurant-line me-2" style="font-size: 1rem; color: #2563eb;"></i>
                                                                     <span style="color: #475569;"><strong>Meal Cost:</strong></span>
                                                                 </div>
-                                                                <span style="color: #1e293b; font-weight: 500;">$${mealPlanSubtotal.toFixed(2)}</span>
+                                                                <span style="color: #1e293b; font-weight: 500;">${window.__displayCurrency} ${mealPlanSubtotal.toFixed(2)}</span>
                                                             </div>`;
                                                         } else if (supplementBreakfastIncludedGrid && selectedMealPlan && selectedMealPlan.includes('breakfast')) {
                                                             gridHTML += `<div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.75rem;">
@@ -2922,7 +3090,7 @@
                                                                     <i class="ri-user-smile-line me-2" style="font-size: 1rem; color: #2563eb;"></i>
                                                                     <span style="color: #475569;"><strong>Child with Bed:</strong></span>
                                                                 </div>
-                                                                <span style="color: #1e293b; font-weight: 500;">$${childWithBedSubtotal.toFixed(2)}</span>
+                                                                <span style="color: #1e293b; font-weight: 500;">${window.__displayCurrency} ${childWithBedSubtotal.toFixed(2)}</span>
                                                             </div>`;
                                                         }
                                                         
@@ -2934,52 +3102,30 @@
                                                                     <i class="ri-user-line me-2" style="font-size: 1rem; color: #2563eb;"></i>
                                                                     <span style="color: #475569;"><strong>Child without Bed:</strong></span>
                                                                 </div>
-                                                                <span style="color: #1e293b; font-weight: 500;">$${childWithoutBedSubtotal.toFixed(2)}</span>
+                                                                <span style="color: #1e293b; font-weight: 500;">${window.__displayCurrency} ${childWithoutBedSubtotal.toFixed(2)}</span>
                                                             </div>`;
                                                         }
                                                         
                                                         gridBody.innerHTML = gridHTML;
                                                         
-                                                        // Calculate and display grand total
+                                                        // Calculate and display the same grand total everywhere
                                                         const grandTotal = roomSubtotal + extraBedSubtotal + mealPlanSubtotal + childWithBedSubtotal + childWithoutBedSubtotal;
-                                                        const currencyLabel = '{{ trim($tour->currency ?? "$") }}';
-                                                        grandTotalEl.textContent = currencyLabel + ' ' + grandTotal.toFixed(2);
-                                                        
-                                                        const totalPriceInput = document.getElementById('total_price_{{ $hotelOrder->booking_id }}');
-                                                        const headerTotalEl = document.getElementById('hotel_header_total_{{ $hotelOrder->booking_id }}');
-                                                        const dbTotal = totalPriceInput ? (parseFloat(totalPriceInput.dataset.dbTotal) || 0) : 0;
-                                                        let displayTotal = grandTotal;
-
-                                                        if (totalPriceInput) {
-                                                            const currentVal = parseFloat(totalPriceInput.value) || 0;
-                                                            const hasSavedCustom = dbTotal > 0 && Math.abs(dbTotal - grandTotal) > 0.009;
-                                                            const isManual = totalPriceInput.dataset.manualEdit === 'true';
-
-                                                            if (syncInput && grandTotal > 0) {
-                                                                totalPriceInput.value = grandTotal.toFixed(2);
-                                                                displayTotal = grandTotal;
-                                                                totalPriceInput.dataset.manualEdit = 'false';
-                                                            } else if (isManual) {
-                                                                displayTotal = currentVal > 0 ? currentVal : dbTotal;
-                                                            } else if (hasSavedCustom) {
-                                                                totalPriceInput.value = dbTotal.toFixed(2);
-                                                                displayTotal = dbTotal;
-                                                                totalPriceInput.dataset.manualEdit = 'true';
-                                                            } else if (grandTotal > 0) {
-                                                                totalPriceInput.value = grandTotal.toFixed(2);
-                                                                displayTotal = grandTotal;
-                                                            } else {
-                                                                displayTotal = currentVal || dbTotal;
-                                                            }
+                                                        if (typeof window.syncHotelBookingPriceDisplays === 'function') {
+                                                            window.syncHotelBookingPriceDisplays({{ $hotelOrder->booking_id }}, grandTotal);
+                                                        } else {
+                                                            const currencyLabel = '{{ trim($displayCurrency) }}';
+                                                            grandTotalEl.textContent = currencyLabel + ' ' + grandTotal.toFixed(2);
                                                         }
-
-                                                        if (headerTotalEl && displayTotal > 0) {
-                                                            headerTotalEl.textContent = currencyLabel + ' ' + displayTotal.toFixed(2);
-                                                        }
+                                                        try {
+                                                            refreshRoomTypeStayPriceLabels_{{ $hotelOrder->booking_id }}(grandTotal);
+                                                        } catch (e) {}
                                                     }
                                                     
                                                     // Function to update hotel price based on room type and number of rooms
                                                     function updateHotelPrice_{{ $hotelOrder->booking_id }}(forceUpdate = false) {
+                                                        if (window.hotelPricedByHelper && window.hotelPricedByHelper[{{ $hotelOrder->booking_id }}] && !forceUpdate) {
+                                                            return;
+                                                        }
                                                         // If the booking was changed and not re-priced via "Get Price", keep it at 0.
                                                         if (window.hotelNeedsGetPrice && window.hotelNeedsGetPrice[{{ $hotelOrder->booking_id }}]) {
                                                             if (typeof window.zeroOutHotelBookingPrice === 'function') {
@@ -2987,101 +3133,15 @@
                                                             }
                                                             return;
                                                         }
-                                                        const roomTypeSelect = document.getElementById('room_type_{{ $hotelOrder->booking_id }}');
-                                                        const numberOfRoomsInput = document.getElementById('number_of_rooms_{{ $hotelOrder->booking_id }}');
                                                         const priceInput = document.getElementById('total_price_{{ $hotelOrder->booking_id }}');
-                                                        const numberOfPersonsInput = document.getElementById('number_of_persons_{{ $hotelOrder->booking_id }}');
-                                                        
-                                                        if (!roomTypeSelect || !numberOfRoomsInput || !priceInput) {
+                                                        if (priceInput && priceInput.dataset.manualEdit === 'true' && !forceUpdate) {
                                                             return;
                                                         }
-                                                        
-                                                        // Check if price was manually edited - if so, don't auto-update (unless forced)
-                                                        if (priceInput.dataset.manualEdit === 'true' && !forceUpdate) {
-                                                            return;
-                                                        }
-                                                        
-                                                        // Preserve existing price value on initial load if it's already set and valid (from database)
-                                                        // Only auto-calculate if the current value is 0 or empty, or if forceUpdate is true
-                                                        const currentPrice = parseFloat(priceInput.value) || 0;
-                                                        if (!forceUpdate && currentPrice > 0 && priceInput.dataset.preservedFromDb !== 'true') {
-                                                            // Mark as preserved from database to prevent overwriting on initial load
-                                                            priceInput.dataset.preservedFromDb = 'true';
-                                                            return;
-                                                        }
-                                                        
-                                                        // If forceUpdate is true (user changed pax/dates/rooms), recalculate and sync input
-                                                        if (forceUpdate) {
+                                                        if (forceUpdate && priceInput) {
                                                             priceInput.dataset.preservedFromDb = 'false';
                                                             priceInput.dataset.manualEdit = 'false';
                                                         }
-                                                        
-                                                        const selectedRoomType = roomTypeSelect.value;
-                                                        const numberOfRooms = parseInt(numberOfRoomsInput.value) || 1;
-                                                        const numberOfPersons = parseInt(numberOfPersonsInput.value) || 1;
-                                                        
-                                                        // Get room data
-                                                        const roomData = window.roomData_{{ $hotelOrder->booking_id }};
-                                                        if (!roomData || !selectedRoomType) {
-                                                            return;
-                                                        }
-                                                        
-                                                        // Find the selected room type
-                                                        const selectedRoom = roomData.find(room => room.room_type === selectedRoomType);
-                                                        if (!selectedRoom) {
-                                                            return;
-                                                        }
-                                                        
-                                                        const isSingleOccupancy = numberOfPersons <= 1;
-                                                        const weekdayPricePerNight = isSingleOccupancy 
-                                                            ? parseFloat(selectedRoom.weekday_price || 0) 
-                                                            : parseFloat(selectedRoom.double_weekday_price || selectedRoom.weekday_price || 0);
-                                                        const weekendPricePerNight = isSingleOccupancy 
-                                                            ? parseFloat(selectedRoom.weekend_price || selectedRoom.weekday_price || 0) 
-                                                            : parseFloat(selectedRoom.double_weekend_price || selectedRoom.double_weekday_price || selectedRoom.weekday_price || 0);
-                                                        
-                                                        const formDiv = document.querySelector('.hotel-edit-form[data-update-url*="{{ $hotelOrder->booking_id }}"]');
-                                                        let totalPrice = 0;
-                                                        let nightCount = 0;
-                                                        if (formDiv) {
-                                                            const checkInInput = formDiv.querySelector('input[name="check_in_date"]');
-                                                            const checkOutInput = formDiv.querySelector('input[name="check_out_date"]');
-                                                            if (checkInInput && checkOutInput && checkInInput.value && checkOutInput.value) {
-                                                                const checkIn = new Date(checkInInput.value);
-                                                                const checkOut = new Date(checkOutInput.value);
-                                                                const weekendDays = window.hotelWeekendDays_{{ $hotelOrder->booking_id }} || ['Saturday', 'Sunday'];
-                                                                for (let d = new Date(checkIn); d < checkOut; d.setDate(d.getDate() + 1)) {
-                                                                    nightCount++;
-                                                                    const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
-                                                                    const isWeekend = weekendDays.some(function(w) { return String(w).toLowerCase() === dayName.toLowerCase(); });
-                                                                    totalPrice += (isWeekend ? weekendPricePerNight : weekdayPricePerNight) * numberOfRooms;
-                                                                }
-                                                            }
-                                                        }
-                                                        if (totalPrice === 0 && nightCount === 0) {
-                                                            totalPrice = weekdayPricePerNight * 1 * numberOfRooms;
-                                                            nightCount = 1;
-                                                        }
-                                                        const extraBedCalc = calculateEditHotelExtraBedCost_{{ $hotelOrder->booking_id }}(numberOfPersons, numberOfRooms, nightCount || 1);
-                                                        totalPrice += extraBedCalc.total;
-                                                        
-                                                        if (forceUpdate && totalPrice > 0) {
-                                                            priceInput.value = totalPrice.toFixed(2);
-                                                        } else {
-                                                            const dbTotal = parseFloat(priceInput.dataset.dbTotal) || 0;
-                                                            const hasSavedCustom = dbTotal > 0 && Math.abs(dbTotal - totalPrice) > 0.009;
-                                                            if (!hasSavedCustom && priceInput.dataset.manualEdit !== 'true') {
-                                                                if (totalPrice > 0) {
-                                                                    priceInput.value = totalPrice.toFixed(2);
-                                                                } else if (currentPrice === 0) {
-                                                                    priceInput.value = '0.00';
-                                                                }
-                                                            } else if (dbTotal > 0 && priceInput.dataset.manualEdit !== 'true') {
-                                                                priceInput.value = dbTotal.toFixed(2);
-                                                            }
-                                                        }
-                                                        
-                                                        updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(forceUpdate);
+                                                        updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);
                                                     }
                                                     
                                                     // Track manual price edits - attach event listener immediately
@@ -3090,10 +3150,8 @@
                                                         if (priceInput) {
                                                             // Mark as manually edited when user types
                                                             function syncHotelHeaderTotal_{{ $hotelOrder->booking_id }}() {
-                                                                const headerEl = document.getElementById('hotel_header_total_{{ $hotelOrder->booking_id }}');
-                                                                const val = parseFloat(priceInput.value) || parseFloat(priceInput.dataset.dbTotal) || 0;
-                                                                if (headerEl && val > 0) {
-                                                                    headerEl.textContent = '{{ trim($tour->currency ?? "$") }} ' + val.toFixed(2);
+                                                                if (typeof window.syncHotelBookingPriceDisplays === 'function') {
+                                                                    window.syncHotelBookingPriceDisplays({{ $hotelOrder->booking_id }}, priceInput.value);
                                                                 }
                                                             }
 
@@ -3122,7 +3180,7 @@
                                                             }
                                                         }
                                                         setTimeout(() => {
-                                                            try { updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(); } catch (e) {}
+                                                            try { updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true); } catch (e) {}
                                                         }, 600);
 
                                                         if (typeof window.setHotelSaveBlocked === 'function') {
@@ -3196,10 +3254,10 @@
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-restaurant-line me-1 text-success"></i>Meal Plan</label>
-                                                <select class="form-select border-2" style="height: 35px;" name="meal_plan" id="meal_plan_{{ $hotelOrder->booking_id }}" onchange="updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);">
+                                                <select class="form-select border-2" style="height: 35px;" name="meal_plan" id="meal_plan_{{ $hotelOrder->booking_id }}" data-saved-meal="{{ $mealPlanSelectValue ?? $mealPlan }}" onchange="updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);">
                                                     <option value="">Select Meal Plan</option>
                                                     @if($mealPlan)
-                                                        <option value="{{ $mealPlanSelectValue ?? $mealPlan }}" selected>{{ $mealPlan }}</option>
+                                                        <option value="{{ $mealPlanSelectValue ?? $mealPlan }}" selected>{{ is_string($mealPlan) ? $mealPlan : ($mealPlanSelectValue ?? 'Saved meal plan') }}</option>
                                                     @endif
                                                 </select>
                                             </div>
@@ -3221,6 +3279,7 @@
                                                         id="child_with_bed_{{ $hotelOrder->booking_id }}"
                                                         value="{{ $childWithBedJson }}"
                                                         {{ $childWithBedEnabled ? 'checked' : '' }}
+                                                        @if(!$allowChildHotelPricing) disabled @endif
                                                         onchange="updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);"
                                                     >
                                                     <label class="form-check-label" for="child_with_bed_{{ $hotelOrder->booking_id }}">
@@ -3241,6 +3300,7 @@
                                                         id="child_without_bed_{{ $hotelOrder->booking_id }}"
                                                         value="{{ $childWithoutBedJson }}"
                                                         {{ $childWithoutBedEnabled ? 'checked' : '' }}
+                                                        @if(!$allowChildHotelPricing) disabled @endif
                                                         onchange="updateHotelPriceGrid_{{ $hotelOrder->booking_id }}(true);"
                                                     >
                                                     <label class="form-check-label" for="child_without_bed_{{ $hotelOrder->booking_id }}">
@@ -3248,18 +3308,23 @@
                                                     </label>
                                                 </div>
                                             </div>
+                                            <div class="col-12 hotel-child-pricing-guest-hint-wrap" id="hotel_child_pricing_guest_hint_{{ $hotelOrder->booking_id }}" style="display: none;">
+                                                <small class="text-muted" style="font-size: 0.75rem;">
+                                                    <i class="ri-information-line me-1"></i>Please add child first (select children or infants in Guests).
+                                                </small>
+                                            </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2">
                                                     <i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price
                                                 </label>
                                                 <div class="input-group">
-                                                    <span class="input-group-text border-2" style="height: 35px; line-height: 35px;">$</span>
+                                                    <span class="input-group-text border-2" style="height: 35px; line-height: 35px;">{{ $displayCurrency }}</span>
                                                     <input type="number" class="form-control border-2" name="total_price" style="height: 35px;" id="total_price_{{ $hotelOrder->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" data-manual-edit="false" data-db-total="{{ number_format((float)$totalPrice, 2, '.', '') }}">
                                                     <button type="button" class="btn d-flex align-items-center get-hotel-price-btn" id="get_price_btn_{{ $hotelOrder->booking_id }}" style="height: 35px; border-radius: 0 6px 6px 0; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border: none; color: #ffffff; font-size: 0.75rem; font-weight: 500; padding: 0 10px; white-space: nowrap;" onclick="getHotelHelperPriceForBooking({{ $hotelOrder->booking_id }}, this)" data-bs-toggle="tooltip" data-bs-placement="top" title="Click here to get the price">
                                                         <i class="ri-money-dollar-circle-line me-1"></i> Get Price
                                                     </button>
                                                 </div>
-                                                <small class="text-muted d-block mt-2" style="font-size: 0.7rem; line-height: 1.7; word-wrap: break-word;">Price per room &amp; rooms</small>
+                                                <small class="text-muted d-block mt-2" style="font-size: 0.7rem; line-height: 1.7; word-wrap: break-word;">Total for all rooms, nights &amp; extra beds</small>
                                             </div>
                                         </div>
                                         
@@ -3304,7 +3369,7 @@
                                                         <div class="border-top pt-2 mt-2" style="border-color: #93c5fd !important;">
                                                             <div class="d-flex justify-content-between align-items-center">
                                                                 <span class="fw-bold" style="font-size: 0.8rem; color: #1e40af;">Total:</span>
-                                                                <span class="fw-bold" style="font-size: 0.9rem; color: #198754;" id="hotel_grand_total_{{ $hotelOrder->booking_id }}">$0.00</span>
+                                                                <span class="fw-bold" style="font-size: 0.9rem; color: #198754;" id="hotel_grand_total_{{ $hotelOrder->booking_id }}">{{ $displayCurrency }} 0.00</span>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -3478,9 +3543,22 @@
                                                 $pickupDate = $pickupDateRaw;
                                             }
                                         }
-                                        $vehicleName = $transportData['vehicles_name'] ?? '';
+                                        $vehicleName = $transportData['vehicles_name'] ?? $transportData['vehicle_name'] ?? '';
+                                        $vehicleSavedId = $transportData['vehicles_id'] ?? $transportData['vehicle_id'] ?? '';
                                         $vehicleType = $transportData['type'] ?? '';
                                         $passengers = $transportData['passengers'] ?? '';
+                                        $seatingCapacityStored = (int) ($transportData['seating_capacity'] ?? 0);
+                                        $tourPax = max(1, (int) (($tour->adult ?? 0) + ($tour->child ?? 0)));
+                                        if ($passengers === '' || $passengers === null) {
+                                            $passengers = $tourPax;
+                                        }
+                                        $bookedVehicles = (int) ($transportData['booked_vehicles'] ?? $transportData['vehicle_count'] ?? 0);
+                                        if ($bookedVehicles <= 0 && $seatingCapacityStored > 0 && (int) $passengers > 0) {
+                                            $bookedVehicles = (int) ceil((int) $passengers / $seatingCapacityStored);
+                                        }
+                                        if ($bookedVehicles <= 0) {
+                                            $bookedVehicles = 1;
+                                        }
                                         $availableVehicles = $vehicles ?? collect();
                                         $transportRemarks = $transportData['remarks'] ?? '';
                                         $transportSupplement = ($transportData['supplement'] ?? $transportData['is_supplement'] ?? false);
@@ -3492,9 +3570,17 @@
                                         <div class="d-flex justify-content-between align-items-center mb-3">
                                             <h6 class="mb-0 fw-bold text-primary"><i class="ri-login-circle-line me-2"></i>Entry Port Transfer #{{ $index + 1 }}</h6>
                                             <div class="d-flex gap-2">
+                                                @if($isActualTourStatus)
+                                                <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                        <i class="ri-delete-bin-line"></i> Remove
+                                                    </button>
+                                                </span>
+                                                @else
                                                 <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                     <i class="ri-delete-bin-line"></i> Remove
                                                 </button>
+                                                @endif
                                             </div>
                                         </div>
                                         <div class="row g-3">
@@ -3504,10 +3590,10 @@
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-success"></i>City</label>
-                                                <select class="form-select border-2 arrival-zone-select" id="arrival_city_{{ $order->booking_id }}" style="height: 35px;" name="city" onchange="fetchArrivalVehiclesForRow({{ $order->booking_id }}); updateArrivalRowPrice({{ $order->booking_id }});">
+                                                <select class="form-select border-2 arrival-zone-select" id="arrival_city_{{ $order->booking_id }}" style="height: 35px;" name="city" onchange="loadArrivalRowCountryPorts({{ $order->booking_id }}); fetchArrivalVehiclesForRow({{ $order->booking_id }}); updateArrivalRowPrice({{ $order->booking_id }});">
                                                     <option value="">Select city</option>
                                                     @foreach($cities as $city)
-                                                        <option value="{{ $city->name }}" {{ $city->name == $cityValue ? 'selected' : '' }}>{{ $city->name }}</option>
+                                                        <option value="{{ $city->name }}" data-country="{{ $city->country ?? '' }}" {{ $city->name == $cityValue ? 'selected' : '' }}>{{ $city->name }}</option>
                                                     @endforeach
                                                     @if($cityValue && !$cities->contains('name', $cityValue))
                                                         <option value="{{ $cityValue }}" selected>{{ $cityValue }}</option>
@@ -3577,7 +3663,7 @@
                                             <div class="col-md-4">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-car-line me-1 text-info"></i>Vehicle</label>
                                                 @php $vehicleMatched = false; @endphp
-                                                <select class="form-select border-2 arrival-vehicle-select" id="arrival_vehicle_{{ $order->booking_id }}" style="height: 35px;" name="vehicle_name" onchange="updateArrivalRowPrice({{ $order->booking_id }});">
+                                                <select class="form-select border-2 arrival-vehicle-select" id="arrival_vehicle_{{ $order->booking_id }}" style="height: 35px;" name="vehicle_name" data-saved-vehicle="{{ $vehicleName }}" data-saved-vehicle-id="{{ $vehicleSavedId }}" onchange="updateArrivalRowPrice({{ $order->booking_id }});">
                                                     <option value="">{{ $vehicleName ? 'Select vehicle' : 'Select vehicle (change pickup/dropoff to load)' }}</option>
                                                     @foreach($availableVehicles as $vehicleOption)
                                                         @php
@@ -3587,7 +3673,7 @@
                                                             $priv = $vehicleOption->private_price ?? $vehicleOption->private ?? '';
                                                             $shared = $vehicleOption->shared_price ?? $vehicleOption->shared ?? '';
                                                         @endphp
-                                                        <option value="{{ $vehicleDisplayName }}" data-private-price="{{ $priv }}" data-shared-price="{{ $shared }}" {{ $isSelected ? 'selected' : '' }}>
+                                                        <option value="{{ $vehicleDisplayName }}" data-private-price="{{ $priv }}" data-shared-price="{{ $shared }}" data-seating-capacity="{{ $vehicleOption->seating_capacity ?? '' }}" {{ $isSelected ? 'selected' : '' }}>
                                                             {{ $vehicleDisplayName }}
                                                             @if(!empty($vehicleOption->vehicle_type))
                                                                 ({{ $vehicleOption->vehicle_type }})
@@ -3607,7 +3693,15 @@
                                                     <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
                                                 </select>
                                             </div>
-                                            <div class="col-md-4">
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-line me-1 text-secondary"></i>Passengers</label>
+                                                <input type="number" class="form-control border-2" id="arrival_passengers_{{ $order->booking_id }}" style="height: 35px;" min="1" value="{{ (int) $passengers }}" readonly>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label fw-semibold text-muted mb-2"><i class="ri-car-line me-1 text-info"></i>Booked Vehicles</label>
+                                                <input type="number" class="form-control border-2" id="arrival_booked_vehicles_{{ $order->booking_id }}" style="height: 35px;" min="1" value="{{ $bookedVehicles }}" readonly>
+                                            </div>
+                                            <div class="col-md-3">
                                                 <label class="form-label fw-semibold text-muted mb-2"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
                                                 <input type="number" class="form-control border-2" id="arrival_total_price_{{ $order->booking_id }}" style="height: 35px;" name="total_price" step="0.01" min="0" value="{{ number_format((float)($transportData['totalPrice'] ?? $transportData['price'] ?? 0), 2, '.', '') }}" placeholder="0.00" readonly>
                                             </div>
@@ -3761,7 +3855,15 @@
                                                     $bookingDate = $bookingDateRaw;
                                                 }
                                             }
-                                            $timeSlot = $payload['visitTime'] ?? 'N/A';
+                                            $timeSlot = $payload['visitTime']
+                                                ?? $payload['time_slot']
+                                                ?? $payload['visit_time']
+                                                ?? $payload['time']
+                                                ?? '';
+                                            $timeSlot = is_string($timeSlot) ? trim($timeSlot) : '';
+                                            if ($timeSlot === '' || strcasecmp($timeSlot, 'N/A') === 0) {
+                                                $timeSlot = '';
+                                            }
                                             $ticket = $payload['ticketName'] ?? 'N/A';
                                             $adultCount = $payload['adultCount'] ?? 0;
                                             $childCount = $payload['childCount'] ?? 0;
@@ -3819,16 +3921,44 @@
                                             $guideTotalPrice = $guideOptions['total_price'] ?? 0;
                                             $attractionRemarks = $payload['remarks'] ?? $attractionNotes ?? '';
                                             $attractionSupplement = ($payload['supplement'] ?? $payload['is_supplement'] ?? false);
+
+                                            $serviceCity = trim((string) ($payload['city'] ?? $payload['AttractionCity'] ?? $payload['attraction_city'] ?? $payload['location'] ?? ''));
+                                            $serviceCountry = trim((string) ($order->country ?? $payload['country'] ?? ''));
+                                            if (($serviceCity === '' || $serviceCountry === '') && !empty($payload['AttractionId'] ?? $payload['attraction_id'] ?? null)) {
+                                                $attractionIdLookup = $payload['AttractionId'] ?? $payload['attraction_id'];
+                                                $masterAttraction = collect($attractions ?? [])->first(function ($a) use ($attractionIdLookup, $attractionName) {
+                                                    if ($attractionIdLookup !== null && $attractionIdLookup !== '') {
+                                                        return (string) ($a->attraction_id ?? $a->id ?? '') === (string) $attractionIdLookup;
+                                                    }
+                                                    return strcasecmp((string) ($a->name ?? ''), (string) $attractionName) === 0;
+                                                });
+                                                if ($masterAttraction) {
+                                                    if ($serviceCity === '') {
+                                                        $serviceCity = trim((string) ($masterAttraction->location ?? $masterAttraction->city ?? ''));
+                                                    }
+                                                    if ($serviceCountry === '') {
+                                                        $serviceCountry = trim((string) ($masterAttraction->country ?? ''));
+                                                    }
+                                                }
+                                            }
                                         @endphp
-                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white attraction-edit-form" data-service-date="{{ $bookingDate }}" data-update-url="{{ route('edit-tour.update-attraction', $order->booking_id) }}" onsubmit="updateExistingAttraction(event, {{ $order->booking_id }})">
+                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white attraction-edit-form" data-service-date="{{ $bookingDate }}" data-service-city="{{ $serviceCity }}" data-service-country="{{ $serviceCountry }}" data-update-url="{{ route('edit-tour.update-attraction', $order->booking_id) }}" onsubmit="updateExistingAttraction(event, {{ $order->booking_id }})">
                                             @csrf
                                             <input type="hidden" name="type" value="attraction">
                                             <div class="d-flex justify-content-between align-items-center mb-3">
                                                 <h6 class="mb-0 fw-bold text-danger"><i class="ri-ticket-line me-2"></i>Attraction Booking #{{ $index + 1 }}</h6>
                                                 <div class="d-flex gap-2">
+                                                    @if($isActualTourStatus)
+                                                    <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                        <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                            <i class="ri-delete-bin-line"></i> Remove
+                                                        </button>
+                                                    </span>
+                                                    @else
                                                     <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeAttractionService({{ $order->booking_id }})">
                                                         <i class="ri-delete-bin-line"></i> Remove
                                                     </button>
+                                                    @endif
                                                 </div>
                                             </div>
                                         
@@ -3836,30 +3966,121 @@
                                             <div class="row g-3">
                                                 <div class="col-md-4">
                                                     <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-primary"></i>Attraction Name</label>
-                                                    <select class="form-select border-2" style="height: 35px;" name="attraction_name" id="attraction_name_{{ $order->booking_id }}" onchange="populateTicketFromAttraction(this, 'ticket_name_{{ $order->booking_id }}')" required>
+                                                    <select class="form-select border-2 attraction-name-select" style="height: 35px;" name="attraction_name" id="attraction_name_{{ $order->booking_id }}" onchange="populateTicketFromAttraction(this, 'ticket_name_{{ $order->booking_id }}'); handleAttractionBundleSelection(this, {{ $order->booking_id }})" required>
                                                         <option value="">Select Attraction</option>
                                                         @php
-                                                            $tourCountry = $tour->destination ?? '';
-                                                            $filteredAttractions = collect($attractions ?? [])->filter(function($attraction) use ($tourCountry) {
-                                                                // Check if attraction has country field directly
-                                                                if (isset($attraction->country) && $attraction->country == $tourCountry) {
+                                                            // tour->destination can be a single country ("Singapore") or, for multi-city
+                                                            // tours, a comma-separated list ("Singapore, India"). Comparing the whole
+                                                            // string against one attraction's country never matched on multi-city tours,
+                                                            // which emptied this list and (further down) broke ticket price lookups —
+                                                            // parse it into individual country names instead.
+                                                            $tourDestinationCountries = \App\Helpers\CommonHelper::parseTourDestinationCountries($tour->destination ?? '');
+                                                            $filteredAttractions = collect($attractions ?? [])->filter(function($attraction) use ($tourDestinationCountries) {
+                                                                if (empty($tourDestinationCountries)) {
                                                                     return true;
                                                                 }
-                                                                // If no country filter available, include all attractions
-                                                                return empty($tourCountry);
+                                                                $attractionCountry = $attraction->country ?? '';
+                                                                foreach ($tourDestinationCountries as $country) {
+                                                                    if ($attractionCountry !== '' && strcasecmp($attractionCountry, $country) === 0) {
+                                                                        return true;
+                                                                    }
+                                                                }
+                                                                return false;
+                                                            })->unique(function ($attraction) {
+                                                                return \App\Helpers\CommonHelper::normalizeServiceLabel(
+                                                                    \App\Helpers\CommonHelper::attractionDisplayLabel($attraction)
+                                                                );
+                                                            })->values();
+                                                            $packagedAttractionList = collect($packagedAttractions ?? []);
+                                                            $attractionIdLookup = $payload['AttractionId'] ?? $payload['attraction_id'] ?? null;
+                                                            $matchedAttraction = \App\Helpers\CommonHelper::matchAttractionFromList(
+                                                                $filteredAttractions,
+                                                                $attractionName,
+                                                                $attractionIdLookup
+                                                            );
+                                                            $matchedBundle = $packagedAttractionList->first(function($bundle) use ($attractionName) {
+                                                                return ($bundle->name ?? '') === $attractionName
+                                                                    || ('bundle_' . ($bundle->package_attraction_id ?? '')) === $attractionName;
                                                             });
+                                                            // Prefer the catalog attraction when AI sent "Name - Location"
+                                                            if ($matchedAttraction) {
+                                                                $matchedBundle = null;
+                                                            }
+                                                            $isBundleSelected = (bool) $matchedBundle;
+                                                            $bundleTicketName = $matchedBundle->name ?? $attractionName;
+                                                            $isGenericTicket = !$ticket || in_array(strtolower(trim((string) $ticket)), ['n/a', 'general ticket'], true);
+                                                            // Prefer saved ticket; for bundles fall back to attraction/bundle name
+                                                            $displayTicket = !$isGenericTicket
+                                                                ? $ticket
+                                                                : ($isBundleSelected ? $bundleTicketName : null);
                                                         @endphp
                                                         @foreach($filteredAttractions as $attraction)
-                                                            <option value="{{ $attraction->name }}" {{ $attractionName == $attraction->name ? 'selected' : '' }} 
+                                                            @php
+                                                                $isThisAttractionSelected = !$isBundleSelected && $matchedAttraction
+                                                                    && (string) ($matchedAttraction->attraction_id ?? '') === (string) ($attraction->attraction_id ?? '')
+                                                                    && (string) ($matchedAttraction->attraction_id ?? '') !== '';
+                                                                if (!$isThisAttractionSelected && !$isBundleSelected && $matchedAttraction) {
+                                                                    $isThisAttractionSelected = ((string) ($matchedAttraction->name ?? '') === (string) ($attraction->name ?? ''));
+                                                                }
+                                                                if (!$isThisAttractionSelected && !$isBundleSelected && !$matchedAttraction) {
+                                                                    $isThisAttractionSelected = ($attractionName == $attraction->name);
+                                                                }
+                                                            @endphp
+                                                            <option value="{{ $attraction->name }}" {{ $isThisAttractionSelected ? 'selected' : '' }} 
                                                                 data-attraction-id="{{ $attraction->attraction_id ?? '' }}"
-                                                                data-attraction-data="{{ json_encode($attraction) }}">
+                                                                data-attraction-data="{{ json_encode(\App\Helpers\CommonHelper::attractionSelectPayload($attraction)) }}">
                                                                 {{ $attraction->name }}
-                                                                @if(isset($attraction->location))
+                                                                @if(isset($attraction->location) && $attraction->location !== '')
                                                                     - {{ $attraction->location }}
                                                                 @endif
                                                             </option>
                                                         @endforeach
-                                                        @if($attractionName && !$filteredAttractions->pluck('name')->contains($attractionName))
+                                                        @foreach($packagedAttractionList as $bundle)
+                                                            @php
+                                                                $bundleValue = 'bundle_' . $bundle->package_attraction_id;
+                                                                $bundleSelected = $isBundleSelected && (
+                                                                    ($matchedBundle->package_attraction_id ?? null) == $bundle->package_attraction_id
+                                                                    || $attractionName === $bundle->name
+                                                                );
+                                                                $bundleDisplayName = trim((string) ($bundle->name ?? ''));
+                                                                $duplicatesRegularAttraction = !$bundleSelected && $filteredAttractions->contains(function ($a) use ($bundleDisplayName) {
+                                                                    $name = trim((string) ($a->name ?? ''));
+                                                                    $label = \App\Helpers\CommonHelper::attractionDisplayLabel($a);
+                                                                    return strcasecmp($name, $bundleDisplayName) === 0
+                                                                        || strcasecmp($label, $bundleDisplayName) === 0;
+                                                                });
+                                                            @endphp
+                                                            @continue($duplicatesRegularAttraction)
+                                                            @php
+                                                                $bundleData = [
+                                                                    'name' => $bundle->name,
+                                                                    'package_attraction_id' => $bundle->package_attraction_id,
+                                                                    'adult_price' => $bundle->adult_price,
+                                                                    'child_price' => $bundle->child_price,
+                                                                    'senior_price' => $bundle->senior_citizen_price,
+                                                                    'vehicle_included' => (bool) $bundle->vehicle_included,
+                                                                    'guide_included' => (bool) $bundle->guide_included,
+                                                                    'is_bundle' => true,
+                                                                    'tickets' => [[
+                                                                        'name' => $bundle->name,
+                                                                        'ticket_name' => $bundle->name,
+                                                                        'adult_price' => $bundle->adult_price,
+                                                                        'child_price' => $bundle->child_price,
+                                                                        'senior_price' => $bundle->senior_citizen_price,
+                                                                    ]],
+                                                                ];
+                                                            @endphp
+                                                            <option value="{{ $bundleValue }}"
+                                                                {{ $bundleSelected ? 'selected' : '' }}
+                                                                data-is-bundle="1"
+                                                                data-vehicle-included="{{ $bundle->vehicle_included ? '1' : '0' }}"
+                                                                data-guide-included="{{ $bundle->guide_included ? '1' : '0' }}"
+                                                                data-attraction-id="{{ $bundleValue }}"
+                                                                data-attraction-data="{{ json_encode($bundleData) }}">
+                                                                {{ $bundle->name }}
+                                                            </option>
+                                                        @endforeach
+                                                        @if($attractionName && $attractionName !== 'N/A' && !$isBundleSelected && !$matchedAttraction)
                                                             <option value="{{ $attractionName }}" selected>{{ $attractionName }}</option>
                                                         @endif
                                                     </select>
@@ -3869,27 +4090,57 @@
                                                     <select class="form-select border-2" style="height: 35px;" name="ticket_name" id="ticket_name_{{ $order->booking_id }}" required onchange="updateAttractionRowPrice({{ $order->booking_id }})">
                                                         <option value="">Select Ticket</option>
                                                         @php
-                                                            $selectedAttractionForTicket = $attractionName ? collect($filteredAttractions)->first(function($a) use ($attractionName) { return ($a->name ?? '') == $attractionName; }) : null;
-                                                            $selectedTicketData = null;
-                                                            if ($selectedAttractionForTicket && isset($selectedAttractionForTicket->tickets) && is_array($selectedAttractionForTicket->tickets) && $ticket && $ticket != 'N/A') {
-                                                                foreach ($selectedAttractionForTicket->tickets as $tk) {
-                                                                    $tkName = (is_array($tk) ? ($tk['name'] ?? $tk['ticket_name'] ?? $tk['ticket_id'] ?? '') : ($tk->name ?? $tk->ticket_name ?? $tk->ticket_id ?? ''));
-                                                                    if ($tkName === $ticket) { $selectedTicketData = $tk; break; }
+                                                            $selectedAttractionForTicket = $matchedAttraction ?: ($attractionName ? collect($filteredAttractions)->first(function($a) use ($attractionName) { return ($a->name ?? '') == $attractionName; }) : null);
+                                                            $catalogTickets = [];
+                                                            if ($isBundleSelected && $matchedBundle) {
+                                                                $catalogTickets = [[
+                                                                    'name' => $bundleTicketName,
+                                                                    'adult_price' => $matchedBundle->adult_price,
+                                                                    'child_price' => $matchedBundle->child_price,
+                                                                    'senior_price' => $matchedBundle->senior_citizen_price,
+                                                                ]];
+                                                            } elseif ($selectedAttractionForTicket) {
+                                                                $catalogTickets = collect($selectedAttractionForTicket->tickets ?? [])->all();
+                                                            }
+                                                            $matchedTicketName = null;
+                                                            foreach ($catalogTickets as $tk) {
+                                                                $tkName = (is_array($tk) ? ($tk['name'] ?? $tk['ticket_name'] ?? $tk['ticket_id'] ?? '') : ($tk->name ?? $tk->ticket_name ?? $tk->ticket_id ?? ''));
+                                                                if ($displayTicket && strcasecmp(trim((string) $tkName), trim((string) $displayTicket)) === 0) {
+                                                                    $matchedTicketName = $tkName;
+                                                                    break;
                                                                 }
                                                             }
-                                                            $adultP = $selectedTicketData ? (is_array($selectedTicketData) ? ($selectedTicketData['adult_price'] ?? $selectedTicketData['price'] ?? 0) : ($selectedTicketData->adult_price ?? $selectedTicketData->price ?? 0)) : 0;
-                                                            $childP = $selectedTicketData ? (is_array($selectedTicketData) ? ($selectedTicketData['child_price'] ?? 0) : ($selectedTicketData->child_price ?? 0)) : 0;
-                                                            $seniorP = $selectedTicketData ? (is_array($selectedTicketData) ? ($selectedTicketData['senior_price'] ?? $selectedTicketData['adult_price'] ?? $selectedTicketData['price'] ?? 0) : ($selectedTicketData->senior_price ?? $selectedTicketData->adult_price ?? $selectedTicketData->price ?? 0)) : 0;
+                                                            if (!$matchedTicketName && count($catalogTickets) > 0) {
+                                                                $firstTk = $catalogTickets[0];
+                                                                $matchedTicketName = is_array($firstTk) ? ($firstTk['name'] ?? $firstTk['ticket_name'] ?? '') : ($firstTk->name ?? $firstTk->ticket_name ?? '');
+                                                            }
                                                         @endphp
-                                                        @if($ticket && $ticket != 'N/A')
-                                                            <option value="{{ $ticket }}" selected
-                                                                @if($selectedTicketData)
+                                                        @forelse($catalogTickets as $tk)
+                                                            @php
+                                                                $tkName = is_array($tk) ? ($tk['name'] ?? $tk['ticket_name'] ?? $tk['ticket_id'] ?? '') : ($tk->name ?? $tk->ticket_name ?? $tk->ticket_id ?? '');
+                                                                $adultP = is_array($tk) ? ($tk['adult_price'] ?? $tk['price'] ?? 0) : ($tk->adult_price ?? $tk->price ?? 0);
+                                                                $childP = is_array($tk) ? ($tk['child_price'] ?? 0) : ($tk->child_price ?? 0);
+                                                                $seniorP = is_array($tk)
+                                                                    ? ($tk['senior_price'] ?? $tk['senior_adult_price'] ?? $tk['adult_price'] ?? $tk['price'] ?? 0)
+                                                                    : ($tk->senior_price ?? $tk->senior_adult_price ?? $tk->adult_price ?? $tk->price ?? 0);
+                                                                $isTicketSelected = $matchedTicketName && strcasecmp(trim((string) $tkName), trim((string) $matchedTicketName)) === 0;
+                                                            @endphp
+                                                            @if($tkName !== '')
+                                                                @php
+                                                                    $tkId = is_array($tk) ? ($tk['ticket_id'] ?? '') : ($tk->ticket_id ?? '');
+                                                                @endphp
+                                                                <option value="{{ $tkName }}" {{ $isTicketSelected ? 'selected' : '' }}
+                                                                    data-ticket-id="{{ $tkId }}"
                                                                     data-adult-price="{{ number_format((float)$adultP, 2, '.', '') }}"
                                                                     data-child-price="{{ number_format((float)$childP, 2, '.', '') }}"
                                                                     data-senior-price="{{ number_format((float)$seniorP, 2, '.', '') }}"
-                                                                @endif
-                                                            >{{ $ticket }}</option>
-                                                        @endif
+                                                                >{{ $tkName }}</option>
+                                                            @endif
+                                                        @empty
+                                                            @if($displayTicket)
+                                                                <option value="{{ $displayTicket }}" selected>{{ $displayTicket }}</option>
+                                                            @endif
+                                                        @endforelse
                                                     </select>
                                                     <small class="text-muted d-block mt-1">Select an attraction to see available tickets</small>
                                                 </div>
@@ -3905,109 +4156,49 @@
                                                             // Find the selected attraction to populate time slots from database
                                                             $selectedAttraction = null;
                                                             $timeSlotsFound = false;
-                                                            if ($attractionName) {
+                                                            if ($matchedAttraction) {
+                                                                $selectedAttraction = $matchedAttraction;
+                                                            } elseif ($attractionName) {
                                                                 $selectedAttraction = collect($filteredAttractions)->first(function($attraction) use ($attractionName) {
                                                                     return $attraction->name == $attractionName;
                                                                 });
                                                             }
+                                                            $catalogTimeSlots = $selectedAttraction
+                                                                ? \App\Helpers\CommonHelper::attractionTimeSlots($selectedAttraction)
+                                                                : [];
+                                                            // If saved visitTime is missing/placeholder, prefer first catalog slot
+                                                            if ($catalogTimeSlots !== [] && $timeSlot === '') {
+                                                                $timeSlot = (string) ($catalogTimeSlots[0]['slot'] ?? '');
+                                                            }
                                                         @endphp
-                                                        @if($selectedAttraction && isset($selectedAttraction->time_slots) && is_array($selectedAttraction->time_slots) && count($selectedAttraction->time_slots) > 0)
+                                                        @if($catalogTimeSlots !== [])
                                                             @php $timeSlotsFound = true; @endphp
-                                                            @foreach($selectedAttraction->time_slots as $slotData)
+                                                            @foreach($catalogTimeSlots as $slotData)
                                                                 @php
                                                                     $slotValue = $slotData['slot'] ?? ($slotData['open'] ?? '');
-                                                                    $slotText = $slotData['slot'] ?? ($slotData['open'] . (isset($slotData['close']) ? ' - ' . $slotData['close'] : ''));
-                                                                    $isSelected = ($slotValue == $timeSlot || $slotText == $timeSlot);
+                                                                    $slotText = $slotData['slot'] ?? (($slotData['open'] ?? '') . (isset($slotData['close']) ? ' - ' . $slotData['close'] : ''));
+                                                                    $isSelected = ($slotValue == $timeSlot || $slotText == $timeSlot || ($timeSlot !== '' && str_contains((string) $slotValue, $timeSlot)));
                                                                 @endphp
                                                                 <option value="{{ $slotValue }}" {{ $isSelected ? 'selected' : '' }}>
                                                                     {{ $slotText }}
                                                                 </option>
                                                             @endforeach
-                                                        @elseif($selectedAttraction && $selectedAttraction->open_time && $selectedAttraction->close_time)
-                                                            @php $timeSlotsFound = true; @endphp
-                                                            @php
-                                                                // Parse open_time from database (can be JSON array or string)
-                                                                $openTimes = [];
-                                                                if (is_array($selectedAttraction->open_time)) {
-                                                                    $openTimes = $selectedAttraction->open_time;
-                                                                } elseif (is_string($selectedAttraction->open_time)) {
-                                                                    $decoded = json_decode($selectedAttraction->open_time, true);
-                                                                    $openTimes = is_array($decoded) ? $decoded : [$selectedAttraction->open_time];
-                                                                }
-                                                                
-                                                                // Parse close_time from database (can be JSON array or string)
-                                                                $closeTimes = [];
-                                                                if (is_array($selectedAttraction->close_time)) {
-                                                                    $closeTimes = $selectedAttraction->close_time;
-                                                                } elseif (is_string($selectedAttraction->close_time)) {
-                                                                    $decoded = json_decode($selectedAttraction->close_time, true);
-                                                                    $closeTimes = is_array($decoded) ? $decoded : [$selectedAttraction->close_time];
-                                                                }
-                                                            @endphp
-                                                            @if(!empty($openTimes) && !empty($closeTimes))
-                                                                @foreach($openTimes as $index => $openTime)
-                                                                    @php
-                                                                        $closeTime = $closeTimes[$index] ?? ($closeTimes[0] ?? '');
-                                                                        if ($openTime && $closeTime) {
-                                                                            $slotValue = $openTime . ' - ' . $closeTime;
-                                                                            $isSelected = ($slotValue == $timeSlot || str_contains($slotValue, $timeSlot));
-                                                                    } else {
-                                                                        continue;
-                                                                    }
-                                                                    @endphp
-                                                                    <option value="{{ $slotValue }}" {{ $isSelected ? 'selected' : '' }}>
-                                                                        {{ $slotValue }}
-                                                                    </option>
-                                                                @endforeach
-                                                            @endif
                                                         @endif
                                                         @if(!$timeSlotsFound)
                                                             <option value="" disabled>Select an attraction to see available time slots</option>
                                                         @endif
                                                         @php
-                                                            // Add current time slot as option if it doesn't match any existing options
-                                                            if ($timeSlot && $timeSlot != 'N/A') {
+                                                            // Preserve saved time when it is not in catalog options
+                                                            if ($timeSlot !== '') {
                                                                 $timeSlotExists = false;
-                                                                // Check if time slot already exists in options
-                                                                if ($selectedAttraction && isset($selectedAttraction->time_slots) && is_array($selectedAttraction->time_slots)) {
-                                                                    foreach($selectedAttraction->time_slots as $slotData) {
-                                                                        $slotValue = $slotData['slot'] ?? ($slotData['open'] ?? '');
-                                                                        $slotText = $slotData['slot'] ?? ($slotData['open'] . (isset($slotData['close']) ? ' - ' . $slotData['close'] : ''));
-                                                                        if ($slotValue == $timeSlot || $slotText == $timeSlot) {
-                                                                            $timeSlotExists = true;
-                                                                            break;
-                                                                        }
-                                                                    }
-                                                                } elseif ($selectedAttraction && $selectedAttraction->open_time && $selectedAttraction->close_time) {
-                                                                    // Parse open_time and close_time from database
-                                                                    $openTimes = [];
-                                                                    if (is_array($selectedAttraction->open_time)) {
-                                                                        $openTimes = $selectedAttraction->open_time;
-                                                                    } elseif (is_string($selectedAttraction->open_time)) {
-                                                                        $decoded = json_decode($selectedAttraction->open_time, true);
-                                                                        $openTimes = is_array($decoded) ? $decoded : [$selectedAttraction->open_time];
-                                                                    }
-                                                                    
-                                                                    $closeTimes = [];
-                                                                    if (is_array($selectedAttraction->close_time)) {
-                                                                        $closeTimes = $selectedAttraction->close_time;
-                                                                    } elseif (is_string($selectedAttraction->close_time)) {
-                                                                        $decoded = json_decode($selectedAttraction->close_time, true);
-                                                                        $closeTimes = is_array($decoded) ? $decoded : [$selectedAttraction->close_time];
-                                                                    }
-                                                                    
-                                                                    foreach($openTimes as $index => $openTime) {
-                                                                        $closeTime = $closeTimes[$index] ?? ($closeTimes[0] ?? '');
-                                                                        if ($openTime && $closeTime) {
-                                                                            $slotValue = $openTime . ' - ' . $closeTime;
-                                                                            if ($slotValue == $timeSlot || str_contains($slotValue, $timeSlot)) {
-                                                                                $timeSlotExists = true;
-                                                                                break;
-                                                                            }
-                                                                        }
+                                                                foreach ($catalogTimeSlots as $slotData) {
+                                                                    $slotValue = $slotData['slot'] ?? ($slotData['open'] ?? '');
+                                                                    $slotText = $slotData['slot'] ?? (($slotData['open'] ?? '') . (isset($slotData['close']) ? ' - ' . $slotData['close'] : ''));
+                                                                    if ($slotValue == $timeSlot || $slotText == $timeSlot || str_contains((string) $slotValue, $timeSlot)) {
+                                                                        $timeSlotExists = true;
+                                                                        break;
                                                                     }
                                                                 }
-                                                                // If current time slot doesn't exist in database options, add it to preserve the value
                                                                 if (!$timeSlotExists) {
                                                                     echo '<option value="' . htmlspecialchars($timeSlot) . '" selected>' . htmlspecialchars($timeSlot) . '</option>';
                                                                 }
@@ -4187,7 +4378,7 @@
                                                     <div class="col-md-3">
                                                         <label class="form-label fw-semibold text-muted mb-2">Estimated Price</label>
                                                         <div class="input-group">
-                                                            <span class="input-group-text" style="height: 35px;">{{ $tour->currency ?? '$' }}</span>
+                                                            <span class="input-group-text" style="height: 35px;">{{ $displayCurrency }}</span>
                                                             <input type="number" min="0" step="0.01" class="form-control border-2" style="height: 35px;" name="attraction_transport_price_{{ $order->booking_id }}" id="attraction_transport_price_{{ $order->booking_id }}" placeholder="0.00" value="{{ number_format((float)$transportPrice, 2, '.', '') }}" data-original-price="{{ $transportReturn ? number_format((float)$transportPrice / 2, 2, '.', '') : number_format((float)$transportPrice, 2, '.', '') }}">
                                                         </div>
                                                         <small class="text-muted d-block mt-2">Optional, can be adjusted later.</small>
@@ -4294,7 +4485,7 @@
                                                     <div class="col-md-6">
                                                         <label class="form-label small fw-semibold mb-1">Guide Price</label>
                                                         <div class="position-relative">
-                                                            <span class="position-absolute" style="left: 10px; top: 50%; transform: translateY(-50%); z-index: 5; color: #6c757d; font-weight: 500;">{{ $tour->currency ?? '$' }}</span>
+                                                            <span class="position-absolute" style="left: 10px; top: 50%; transform: translateY(-50%); z-index: 5; color: #6c757d; font-weight: 500;">{{ $displayCurrency }}</span>
                                                             <input type="number" min="0" step="0.01" class="form-control form-control-sm" name="attraction_guide_price_{{ $order->booking_id }}" id="attraction_guide_price_{{ $order->booking_id }}" placeholder="0.00" value="{{ $guideTotalPrice > 0 ? number_format((float)$guideTotalPrice, 2, '.', '') : '' }}" readonly style="padding-left: 30px;">
                                                         </div>
                                                         <small class="text-muted" style="font-size: 0.75rem; line-height: 1.2;">
@@ -4410,16 +4601,53 @@
                                             }
                                             $guideRemarks = $payload['remarks'] ?? $guideNotes ?? '';
                                             $guideSupplement = ($payload['supplement'] ?? $payload['is_supplement'] ?? false);
+
+                                            $serviceCity = trim((string) ($payload['city'] ?? ''));
+                                            $serviceCountry = trim((string) ($order->country ?? $payload['country'] ?? ''));
+                                            // entrypickup is often "City, (Country)"
+                                            if ($serviceCity === '' && !empty($payload['entrypickup'])) {
+                                                $entryPickup = trim((string) $payload['entrypickup']);
+                                                if (preg_match('/^([^,(]+)/', $entryPickup, $m)) {
+                                                    $serviceCity = trim($m[1]);
+                                                }
+                                            }
+                                            if (($serviceCity === '' || $serviceCountry === '') && !empty($payload['guide_id'] ?? null)) {
+                                                $guideIdLookup = $payload['guide_id'];
+                                                $masterGuide = collect($guides ?? [])->first(function ($g) use ($guideIdLookup) {
+                                                    return (string) ($g->guide_id ?? $g->id ?? '') === (string) $guideIdLookup;
+                                                });
+                                                if ($masterGuide) {
+                                                    if ($serviceCity === '') {
+                                                        $guideCityVal = $masterGuide->city ?? null;
+                                                        if (is_object($guideCityVal)) {
+                                                            $serviceCity = trim((string) ($guideCityVal->name ?? ''));
+                                                        } else {
+                                                            $serviceCity = trim((string) ($guideCityVal ?? ''));
+                                                        }
+                                                    }
+                                                    if ($serviceCountry === '') {
+                                                        $serviceCountry = trim((string) ($masterGuide->country ?? ''));
+                                                    }
+                                                }
+                                            }
                                         @endphp
-                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white guide-edit-form" data-service-date="{{ $pickupDate }}" data-update-url="{{ route('edit-tour.update-guide', $order->booking_id) }}" onsubmit="updateExistingGuide(event, {{ $order->booking_id }})">
+                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white guide-edit-form" data-service-date="{{ $pickupDate }}" data-service-city="{{ $serviceCity }}" data-service-country="{{ $serviceCountry }}" data-update-url="{{ route('edit-tour.update-guide', $order->booking_id) }}" onsubmit="updateExistingGuide(event, {{ $order->booking_id }})">
                                             @csrf
                                             <input type="hidden" name="type" value="guide">
                                             <div class="d-flex justify-content-between align-items-center mb-3">
                                                 <h6 class="mb-0 fw-bold text-info"><i class="ri-user-star-line me-2"></i>Tour Guide Booking #{{ $index + 1 }}</h6>
                                                 <div class="d-flex gap-2">
+                                                    @if($isActualTourStatus)
+                                                    <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                        <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                            <i class="ri-delete-bin-line"></i> Remove
+                                                        </button>
+                                                    </span>
+                                                    @else
                                                     <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeGuideService({{ $order->booking_id }})">
                                                         <i class="ri-delete-bin-line"></i> Remove
                                                     </button>
+                                                    @endif
                                                 </div>
                                             </div>
                                             <div class="row g-3">
@@ -4627,35 +4855,170 @@
                                             
                                             // Extract transport options
                                             $transferOptions = $payload['transfer_options'] ?? [];
-                                            $transferRequired = isset($transferOptions['transfer_required']) && $transferOptions['transfer_required'] === true;
+                                            $transferRequiredRaw = $transferOptions['transfer_required'] ?? $transferOptions['required'] ?? false;
+                                            $transferRequired = filter_var($transferRequiredRaw, FILTER_VALIDATE_BOOLEAN)
+                                                || in_array(strtolower(trim((string) $transferRequiredRaw)), ['1', 'yes', 'true', 'on'], true);
                                             $transportType = $transferOptions['type'] ?? '';
                                             
                                             // Get vehicle name from vehicle_details or vehicle_id/vehicle_name
                                             $vehicleDetails = $transferOptions['vehicle_details'] ?? [];
-                                            $transportVehicle = $vehicleDetails['vehicle_name'] ?? $transferOptions['vehicle_name'] ?? $transferOptions['vehicle_id'] ?? '';
-                                            $transportVehicleId = $transferOptions['vehicle_id'] ?? '';
+                                            $transportVehicle = $vehicleDetails['vehicle_name']
+                                                ?? $transferOptions['vehicle_name']
+                                                ?? '';
+                                            $transportVehicleId = (string) ($transferOptions['vehicle_id']
+                                                ?? $vehicleDetails['vehicle_id']
+                                                ?? '');
+                                            if ($transportVehicle === '' && $transportVehicleId !== '') {
+                                                $transportVehicle = $transportVehicleId;
+                                            }
+                                            // AI orders often store vehicles.id (numeric) without vehicle_name — resolve for display.
+                                            if ($transportVehicleId !== '' || $transportVehicle !== '') {
+                                                $resolvedVehicle = \App\Models\Vehicle::withTrashed()
+                                                    ->where(function ($q) use ($transportVehicleId, $transportVehicle) {
+                                                        if ($transportVehicleId !== '') {
+                                                            $q->where('vehicle_id', $transportVehicleId);
+                                                            if (ctype_digit((string) $transportVehicleId)) {
+                                                                $q->orWhere('id', (int) $transportVehicleId);
+                                                            }
+                                                        }
+                                                        if ($transportVehicle !== '' && $transportVehicle !== $transportVehicleId && !ctype_digit((string) $transportVehicle)) {
+                                                            $q->orWhereRaw('LOWER(TRIM(vehicle_name)) = ?', [strtolower(trim($transportVehicle))]);
+                                                        }
+                                                    })
+                                                    ->orderByRaw('CASE WHEN deleted_at IS NULL THEN 0 ELSE 1 END')
+                                                    ->first(['id', 'vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity', 'dmc_id', 'deleted_at']);
+                                                if ($resolvedVehicle && $resolvedVehicle->deleted_at) {
+                                                    $dmcForVehicle = (int) ($resolvedVehicle->dmc_id ?? 0);
+                                                    $activeReplacement = \App\Models\Vehicle::query()
+                                                        ->whereNull('deleted_at')
+                                                        ->when($dmcForVehicle > 0, function ($q) use ($dmcForVehicle) {
+                                                            $q->where(function ($qq) use ($dmcForVehicle) {
+                                                                $qq->where('dmc_id', $dmcForVehicle)
+                                                                    ->orWhere('dmc_id', (string) $dmcForVehicle)
+                                                                    ->orWhereRaw('CAST(dmc_id AS TEXT) = ?', [(string) $dmcForVehicle]);
+                                                            });
+                                                        })
+                                                        ->orderBy('id')
+                                                        ->first(['id', 'vehicle_id', 'vehicle_name', 'vehicle_type', 'seating_capacity']);
+                                                    if ($activeReplacement) {
+                                                        $resolvedVehicle = $activeReplacement;
+                                                    }
+                                                }
+                                                if ($resolvedVehicle) {
+                                                    $transportVehicleId = (string) ($resolvedVehicle->vehicle_id ?? $resolvedVehicle->id ?? $transportVehicleId);
+                                                    $resolvedName = trim((string) ($resolvedVehicle->vehicle_name ?? ''));
+                                                    if ($resolvedName === '') {
+                                                        $resolvedName = trim((string) ($resolvedVehicle->vehicle_type ?? ''));
+                                                    }
+                                                    if ($resolvedName !== '' && !(ctype_digit($resolvedName) && $resolvedName === $transportVehicleId)) {
+                                                        $transportVehicle = $resolvedName;
+                                                    }
+                                                    if (empty($vehicleDetails) || !is_array($vehicleDetails)) {
+                                                        $vehicleDetails = [];
+                                                    }
+                                                    $vehicleDetails['vehicle_id'] = $transportVehicleId;
+                                                    $vehicleDetails['vehicle_name'] = $transportVehicle;
+                                                    $vehicleDetails['seating_capacity'] = $vehicleDetails['seating_capacity']
+                                                        ?? $resolvedVehicle->seating_capacity
+                                                        ?? '';
+                                                }
+                                            }
                                             
-                                            // Get destination from pickup_location_name or destination
-                                            $transportDestination = $transferOptions['pickup_location_name'] ?? $transferOptions['destination'] ?? '';
-                                            $transportDestinationId = $transferOptions['pickup_location_id'] ?? '';
+                                            // Destination / drop-off (edit form "Destination" = drop-off from restaurant)
+                                            $transportDestination = trim((string) (
+                                                $transferOptions['destination']
+                                                ?? $transferOptions['pickup_location_name']
+                                                ?? $transferOptions['drop_location_label']
+                                                ?? $transferOptions['drop_location']
+                                                ?? $transferOptions['pickup_location_label']
+                                                ?? ''
+                                            ));
+                                            $transportDestinationId = (string) (
+                                                $transferOptions['pickup_location_id']
+                                                ?? $transferOptions['destination_id']
+                                                ?? $transferOptions['drop_location_id']
+                                                ?? $transferOptions['drop_location_value']
+                                                ?? $transferOptions['pickup_location_value']
+                                                ?? ''
+                                            );
+                                            if (str_contains($transportDestinationId, ':')) {
+                                                $transportDestinationId = trim((string) substr($transportDestinationId, strpos($transportDestinationId, ':') + 1));
+                                            }
                                             
                                             $transportSeats = $vehicleDetails['seating_capacity'] ?? $transferOptions['seats'] ?? '';
                                             $transportPassengers = $transferOptions['passengers'] ?? '';
-                                            $transportPrice = $transferOptions['cost'] ?? $transferOptions['price'] ?? 0;
+                                            $transportPrice = $transferOptions['cost'] ?? $transferOptions['price'] ?? $transferOptions['transfer_price'] ?? 0;
                                             $transportWay = $transferOptions['way'] ?? 'One Way';
                                             $transportReturn = ($transportWay === 'Two Way');
                                             $restaurantRemarks = $payload['remarks'] ?? $restaurantNotes ?? '';
                                             $restaurantSupplement = ($payload['supplement'] ?? $payload['is_supplement'] ?? false);
+
+                                            $restaurantTransportDestMatches = static function ($name, $id = '') use ($transportDestination, $transportDestinationId): bool {
+                                                $name = trim((string) $name);
+                                                $id = trim((string) $id);
+                                                $savedId = trim((string) $transportDestinationId);
+                                                $savedName = trim((string) $transportDestination);
+                                                if ($savedId !== '' && $id !== '' && (string) $savedId === (string) $id) {
+                                                    return true;
+                                                }
+                                                if ($savedName !== '' && $name !== '') {
+                                                    if (strcasecmp($savedName, $name) === 0) {
+                                                        return true;
+                                                    }
+                                                    if (stripos($savedName, $name) === 0 || stripos($name, $savedName) === 0) {
+                                                        return true;
+                                                    }
+                                                }
+                                                return false;
+                                            };
+
+                                            // Geo for multi-city segment filtering (prefer order columns, then JSON, then master restaurant)
+                                            $serviceCity = trim((string) ($payload['city'] ?? $payload['location'] ?? ''));
+                                            $serviceCountry = trim((string) ($order->country ?? $payload['country'] ?? ''));
+                                            if ($serviceCity === '' || $serviceCountry === '') {
+                                                $restaurantIdLookup = $payload['restaurantId'] ?? $payload['restaurant_id'] ?? null;
+                                                $masterRestaurant = collect($restaurants ?? [])->first(function ($r) use ($restaurantIdLookup, $restaurantName) {
+                                                    if ($restaurantIdLookup !== null && $restaurantIdLookup !== '') {
+                                                        return (string) ($r->restaurant_id ?? $r->id ?? '') === (string) $restaurantIdLookup;
+                                                    }
+                                                    return strcasecmp((string) ($r->name ?? ''), (string) $restaurantName) === 0;
+                                                });
+                                                if ($masterRestaurant) {
+                                                    if ($serviceCity === '') {
+                                                        $serviceCity = trim((string) ($masterRestaurant->city ?? ''));
+                                                    }
+                                                    if ($serviceCountry === '') {
+                                                        $serviceCountry = trim((string) ($masterRestaurant->country ?? ''));
+                                                    }
+                                                }
+                                            }
+                                            if ($serviceCity === '' && $serviceCountry !== '' && isset($cities)) {
+                                                // Only auto-fill city when exactly one city maps to this country in the tour city list
+                                                $citiesForCountry = collect($cities)->filter(function ($c) use ($serviceCountry) {
+                                                    return strcasecmp((string) ($c->country ?? ''), $serviceCountry) === 0;
+                                                });
+                                                if ($citiesForCountry->count() === 1) {
+                                                    $serviceCity = trim((string) ($citiesForCountry->first()->name ?? ''));
+                                                }
+                                            }
                                         @endphp
-                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white restaurant-edit-form" data-service-date="{{ $bookingDate }}" data-update-url="{{ route('edit-tour.update-restaurant', $order->booking_id) }}" onsubmit="updateExistingRestaurant(event, {{ $order->booking_id }})">
+                                        <form class="service-item mb-3 p-3 border rounded shadow-sm bg-white restaurant-edit-form" data-service-date="{{ $bookingDate }}" data-service-city="{{ $serviceCity }}" data-service-country="{{ $serviceCountry }}" data-update-url="{{ route('edit-tour.update-restaurant', $order->booking_id) }}" onsubmit="updateExistingRestaurant(event, {{ $order->booking_id }})">
                                             @csrf
                                             <input type="hidden" name="type" value="restaurant">
                                             <div class="d-flex justify-content-between align-items-center mb-3">
                                                 <h6 class="mb-0 fw-bold text-success"><i class="ri-restaurant-line me-2"></i>Restaurant Booking #{{ $index + 1 }}</h6>
                                                 <div class="d-flex gap-2">
+                                                    @if($isActualTourStatus)
+                                                    <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                        <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                            <i class="ri-delete-bin-line"></i> Remove
+                                                        </button>
+                                                    </span>
+                                                    @else
                                                     <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeRestaurantService({{ $order->booking_id }})">
                                                         <i class="ri-delete-bin-line"></i> Remove
                                                     </button>
+                                                    @endif
                                                 </div>
                                             </div>
                                             
@@ -4671,23 +5034,49 @@
                                                                 foreach ($multiRestaurants as $mr) {
                                                                     $mrValue = 'multi_restaurant_' . $mr->id;
                                                                     $mrPrice = $mr->adult_price ?? $mr->price ?? 0;
-                                                                    $mrCurrency = $mr->currency ?? 'SGD';
+                                                                    $mrCurrency = $mr->currency ?? $displayCurrency;
                                                                     $mrName = $mr->package_name ?? 'Multi Restaurant Package';
                                                                     $isSelected = ($restaurantName === $mrName || strpos($restaurantName, 'Multi Restaurant') !== false);
                                                                     if ($isSelected) $multiRestaurantSelected = true;
                                                                     echo '<option value="' . htmlspecialchars($mrValue) . '" ' . ($isSelected ? 'selected' : '') . ' data-multi-restaurant-id="' . $mr->id . '" data-adult-price="' . htmlspecialchars((string)$mrPrice) . '">' . htmlspecialchars($mrName) . '</option>';
                                                                 }
                                                             }
-                                                            
-                                                            $tourCountry = $tour->destination ?? '';
-                                                            $filteredRestaurants = collect($restaurants ?? [])->filter(function($restaurant) use ($tourCountry) {
-                                                                // Check if restaurant has country field directly
-                                                                if (isset($restaurant->country) && $restaurant->country == $tourCountry) {
+
+                                                            // Multi-city destination is often a CSV ("Singapore, Indonesia") — match any country
+                                                            $tourDestinationCountries = \App\Helpers\CommonHelper::parseTourDestinationCountries($tour->destination ?? '');
+                                                            $allRestaurantsList = collect($restaurants ?? []);
+                                                            $filteredRestaurants = $allRestaurantsList->filter(function ($restaurant) use ($tourDestinationCountries) {
+                                                                if (empty($tourDestinationCountries)) {
                                                                     return true;
                                                                 }
-                                                                // If no country filter available, include all restaurants
-                                                                return empty($tourCountry);
+                                                                $restaurantCountry = trim((string) ($restaurant->country ?? ''));
+                                                                if ($restaurantCountry === '') {
+                                                                    return true;
+                                                                }
+                                                                foreach ($tourDestinationCountries as $country) {
+                                                                    if (strcasecmp($restaurantCountry, (string) $country) === 0) {
+                                                                        return true;
+                                                                    }
+                                                                }
+                                                                return false;
                                                             });
+
+                                                            // Keep the booked restaurant visible even if country filter missed it
+                                                            $selectedRestaurantMaster = null;
+                                                            if ($restaurantName && !$multiRestaurantSelected) {
+                                                                $selectedRestaurantMaster = $allRestaurantsList->first(function ($r) use ($restaurantName, $payload) {
+                                                                    $rid = $payload['restaurantId'] ?? $payload['restaurant_id'] ?? null;
+                                                                    if ($rid !== null && $rid !== '' && (string) ($r->restaurant_id ?? $r->id ?? '') === (string) $rid) {
+                                                                        return true;
+                                                                    }
+                                                                    return strcasecmp((string) ($r->name ?? ''), (string) $restaurantName) === 0;
+                                                                });
+                                                                if ($selectedRestaurantMaster && !$filteredRestaurants->contains(function ($r) use ($selectedRestaurantMaster) {
+                                                                    return (string) ($r->restaurant_id ?? $r->id ?? '') === (string) ($selectedRestaurantMaster->restaurant_id ?? $selectedRestaurantMaster->id ?? '');
+                                                                })) {
+                                                                    $filteredRestaurants = $filteredRestaurants->push($selectedRestaurantMaster)->values();
+                                                                }
+                                                            }
                                                         @endphp
                                                         @foreach($filteredRestaurants as $restaurant)
                                                             <option value="{{ $restaurant->name }}" {{ $restaurantName == $restaurant->name && !$multiRestaurantSelected ? 'selected' : '' }} 
@@ -4703,7 +5092,11 @@
                                                             </option>
                                                         @endforeach
                                                         @if($restaurantName && !$filteredRestaurants->pluck('name')->contains($restaurantName) && !$multiRestaurantSelected)
-                                                            <option value="{{ $restaurantName }}" selected>{{ $restaurantName }}</option>
+                                                            <option value="{{ $restaurantName }}" selected
+                                                                data-restaurant-id="{{ $payload['restaurantId'] ?? $payload['restaurant_id'] ?? ($selectedRestaurantMaster->restaurant_id ?? '') }}"
+                                                                @if($selectedRestaurantMaster) data-restaurant-data="{{ json_encode($selectedRestaurantMaster) }}" @endif>
+                                                                {{ $restaurantName }}
+                                                            </option>
                                                         @endif
                                                     </select>
                                                 </div>
@@ -4802,46 +5195,68 @@
                                                             $destHotels = $hotels ?? collect();
                                                             $destAttractions = $attractions ?? collect();
                                                             $destRestaurants = $restaurants ?? collect();
+                                                            $restaurantDestMatched = false;
                                                         @endphp
-                                                        <select class="form-select border-2 restaurant-transport-destination-select" style="height: 35px;" name="restaurant_transport_destination_{{ $order->booking_id }}" id="restaurant_transport_destination_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
+                                                        <select class="form-select border-2 restaurant-transport-destination-select" style="height: 35px;" name="restaurant_transport_destination_{{ $order->booking_id }}" id="restaurant_transport_destination_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" data-saved-destination="{{ $transportDestination }}" data-saved-destination-id="{{ $transportDestinationId }}" data-saved-vehicle-id="{{ $transportVehicleId }}" data-saved-vehicle-name="{{ $transportVehicle }}">
                                                             <option value="">Search & select destination</option>
                                                             <optgroup label="Hotels">
                                                                 @foreach($destHotels as $h)
+                                                                    @php
+                                                                        $isDestSelected = $restaurantTransportDestMatches($h->name ?? '', $h->hotel_unique_id ?? '');
+                                                                        $restaurantDestMatched = $restaurantDestMatched || $isDestSelected;
+                                                                    @endphp
                                                                     <option value="{{ $h->name ?? '' }}" 
                                                                             data-destination-id="{{ $h->hotel_unique_id ?? '' }}" 
                                                                             data-destination-type="hotel" 
-                                                                            {{ ($transportDestination === ($h->name ?? '')) ? 'selected' : '' }}>
+                                                                            {{ $isDestSelected ? 'selected' : '' }}>
                                                                         {{ $h->name ?? '' }}
                                                                     </option>
                                                                 @endforeach
                                                             </optgroup>
                                                             <optgroup label="Attractions">
                                                                 @foreach($destAttractions as $a)
+                                                                    @php
+                                                                        $isDestSelected = $restaurantTransportDestMatches($a->name ?? '', $a->attraction_id ?? '');
+                                                                        $restaurantDestMatched = $restaurantDestMatched || $isDestSelected;
+                                                                    @endphp
                                                                     <option value="{{ $a->name ?? '' }}" 
                                                                             data-destination-id="{{ $a->attraction_id ?? '' }}" 
                                                                             data-destination-type="attraction" 
-                                                                            {{ ($transportDestination === ($a->name ?? '')) ? 'selected' : '' }}>
+                                                                            {{ $isDestSelected ? 'selected' : '' }}>
                                                                         {{ $a->name ?? '' }}
                                                                     </option>
                                                                 @endforeach
                                                             </optgroup>
                                                             <optgroup label="Restaurants">
                                                                 @foreach($destRestaurants as $r)
+                                                                    @php
+                                                                        $isDestSelected = $restaurantTransportDestMatches($r->name ?? '', $r->restaurant_id ?? '');
+                                                                        $restaurantDestMatched = $restaurantDestMatched || $isDestSelected;
+                                                                    @endphp
                                                                     <option value="{{ $r->name ?? '' }}" 
                                                                             data-destination-id="{{ $r->restaurant_id ?? '' }}" 
                                                                             data-destination-type="restaurant" 
-                                                                            {{ ($transportDestination === ($r->name ?? '')) ? 'selected' : '' }}>
+                                                                            {{ $isDestSelected ? 'selected' : '' }}>
                                                                         {{ $r->name ?? '' }}
                                                                     </option>
                                                                 @endforeach
                                                             </optgroup>
+                                                            @if($transportDestination && !$restaurantDestMatched)
+                                                                <option value="{{ $transportDestination }}"
+                                                                        data-destination-id="{{ $transportDestinationId }}"
+                                                                        data-destination-type="hotel"
+                                                                        selected>
+                                                                    {{ $transportDestination }}
+                                                                </option>
+                                                            @endif
                                                         </select>
                                                     </div>
                                                     <div class="col-md-3">
                                                         <label class="form-label fw-semibold text-muted mb-2">Vehicle (by country)</label>
-                                                        <select class="form-select border-2 restaurant-transport-vehicle-select" style="height: 35px;" name="restaurant_transport_vehicle_{{ $order->booking_id }}" id="restaurant_transport_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}">
+                                                        @php $restaurantVehicleMatched = false; @endphp
+                                                        <select class="form-select border-2 restaurant-transport-vehicle-select" style="height: 35px;" name="restaurant_transport_vehicle_{{ $order->booking_id }}" id="restaurant_transport_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" data-saved-vehicle-id="{{ $transportVehicleId }}" data-saved-vehicle-name="{{ $transportVehicle }}">
                                                             <option value="">{{ $transportDestination ? 'Select vehicle' : 'Select destination first' }}</option>
-                                                            @if($transportDestination)
+                                                            @if($transportDestination || $transportVehicleId || $transportVehicle)
                                                                 @if($filteredVehicles && count($filteredVehicles) > 0)
                                                                     @foreach($filteredVehicles as $vehicle)
                                                                         @php
@@ -4849,21 +5264,30 @@
                                                                             $vehicleId = $vehicle->vehicle_id ?? '';
                                                                             $vehicleType = $vehicle->vehicle_type ?? '';
                                                                             $seatingCapacity = $vehicle->seating_capacity ?? '';
-                                                                            // Match by vehicle_id for proper mapping
-                                                                            $isSelected = ($transportVehicleId == $vehicleId || 
-                                                                                           $transportVehicleId == (string)$vehicleId ||
-                                                                                           ($transportVehicle && ($transportVehicle == $vehicleId || $transportVehicle == (string)$vehicleId)));
+                                                                            $isSelected = ($transportVehicleId !== '' && (
+                                                                                    (string) $transportVehicleId === (string) $vehicleId
+                                                                                ))
+                                                                                || ($transportVehicle !== '' && (
+                                                                                    strcasecmp((string) $transportVehicle, (string) $vehicleName) === 0
+                                                                                    || (string) $transportVehicle === (string) $vehicleId
+                                                                                ));
+                                                                            $restaurantVehicleMatched = $restaurantVehicleMatched || $isSelected;
                                                                         @endphp
                                                                         <option value="{{ $vehicleId }}" data-vehicle-id="{{ $vehicleId }}" data-vehicle-name="{{ $vehicleName }}" data-seating-capacity="{{ $seatingCapacity }}" {{ $isSelected ? 'selected' : '' }}>
                                                                             {{ $vehicleName }}
-                                                                            @if($isSelected)
-                                                                                ({{ $vehicleName }})
-                                                                            @endif
                                                                             @if($seatingCapacity)
                                                                                 - {{ $seatingCapacity }} seats
                                                                             @endif
                                                                         </option>
                                                                     @endforeach
+                                                                @endif
+                                                                @if(($transportVehicleId || $transportVehicle) && !$restaurantVehicleMatched)
+                                                                    <option value="{{ $transportVehicleId !== '' ? $transportVehicleId : $transportVehicle }}"
+                                                                            data-vehicle-id="{{ $transportVehicleId }}"
+                                                                            data-vehicle-name="{{ $transportVehicle !== '' ? $transportVehicle : $transportVehicleId }}"
+                                                                            selected>
+                                                                        {{ $transportVehicle !== '' ? $transportVehicle : $transportVehicleId }}
+                                                                    </option>
                                                                 @endif
                                                             @endif
                                                         </select>
@@ -4871,6 +5295,8 @@
                                                             // Ensure selected vehicle is displayed and Select2 is initialized
                                                             $(document).ready(function() {
                                                                 const vehicleSelect = $('#restaurant_transport_vehicle_{{ $order->booking_id }}');
+                                                                const destinationSelect = $('#restaurant_transport_destination_{{ $order->booking_id }}');
+                                                                const savedVehicleId = String(vehicleSelect.data('saved-vehicle-id') || destinationSelect.data('saved-vehicle-id') || '').trim();
                                                                 
                                                                 // Set selected value if exists
                                                                 const selectedOption = vehicleSelect.find('option[selected]');
@@ -4879,6 +5305,8 @@
                                                                     if (selectedValue) {
                                                                         vehicleSelect.val(selectedValue);
                                                                     }
+                                                                } else if (savedVehicleId) {
+                                                                    vehicleSelect.val(savedVehicleId);
                                                                 }
                                                                 
                                                                 // Initialize Select2 if not already initialized
@@ -4886,6 +5314,7 @@
                                                                     if (window.initializeAllSelect2) {
                                                                         setTimeout(function() {
                                                                             window.initializeAllSelect2(vehicleSelect.parent());
+                                                                            window.initializeAllSelect2(destinationSelect.parent());
                                                                         }, 200);
                                                                     }
                                                                 }
@@ -4896,7 +5325,7 @@
                                                     <div class="col-md-3">
                                                         <label class="form-label fw-semibold text-muted mb-2">Estimated Price</label>
                                                         <div class="input-group">
-                                                            <span class="input-group-text" style="height: 35px;">{{ $tour->currency ?? '$' }}</span>
+                                                            <span class="input-group-text" style="height: 35px;">{{ $displayCurrency }}</span>
                                                             <input type="number" min="0" step="0.01" class="form-control border-2" style="height: 35px;" name="restaurant_transport_price_{{ $order->booking_id }}" id="restaurant_transport_price_{{ $order->booking_id }}" placeholder="0.00" value="{{ number_format((float)$transportPrice, 2, '.', '') }}" data-original-price="{{ $transportReturn ? number_format((float)$transportPrice / 2, 2, '.', '') : number_format((float)$transportPrice, 2, '.', '') }}">
                                                         </div>
                                                         <small class="text-muted d-block mt-2">Optional, can be adjusted later.</small>
@@ -5011,9 +5440,17 @@
                                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                                         <h6 class="mb-0 fw-bold text-warning"><i class="ri-time-line me-2"></i>Hourly Transport #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
+                                                            @if($isActualTourStatus)
+                                                            <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                                <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                                    <i class="ri-delete-bin-line"></i> Remove
+                                                                </button>
+                                                            </span>
+                                                            @else
                                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                                 <i class="ri-delete-bin-line"></i> Remove
                                                             </button>
+                                                            @endif
                                                         </div>
                                                     </div>
                                                     <div class="row g-3">
@@ -5137,9 +5574,17 @@
                                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                                         <h6 class="mb-0 fw-bold text-info"><i class="ri-map-pin-2-line me-2"></i>Point-to-Point Transport #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
+                                                            @if($isActualTourStatus)
+                                                            <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                                <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                                    <i class="ri-delete-bin-line"></i> Remove
+                                                                </button>
+                                                            </span>
+                                                            @else
                                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                                 <i class="ri-delete-bin-line"></i> Remove
                                                             </button>
+                                                            @endif
                                                         </div>
                                                     </div>
                                                     <div class="row g-3">
@@ -5312,9 +5757,17 @@
                                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                                         <h6 class="mb-0 fw-bold text-secondary"><i class="ri-taxi-line me-2"></i>Local Transport #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
+                                                            @if($isActualTourStatus)
+                                                            <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                                <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                                    <i class="ri-delete-bin-line"></i> Remove
+                                                                </button>
+                                                            </span>
+                                                            @else
                                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                                 <i class="ri-delete-bin-line"></i> Remove
                                                             </button>
+                                                            @endif
                                                         </div>
                                                     </div>
                                                     <div class="row g-3">
@@ -5519,10 +5972,6 @@
                                     </div>
                                 </div>
                             </div>
-                            
-                            
-
-                            
 
                             <!-- Departure Transport Services Section -->
                             <div class="service-section mb-3">
@@ -5552,9 +6001,22 @@
                                                     $pickupLocation = $transportData['exitpickup'] ?? $transportData['entrypickup'] ?? '';
                                                     $dropoffLocation = $transportData['exitdropoff'] ?? $transportData['entrydropoff'] ?? '';
                                                     $pickupTime = $transportData['entrytime'] ?? $transportData['exittime'] ?? $transportData['exitpickuptime'] ?? '';
-                                                    $vehicleName = $transportData['vehicles_name'] ?? '';
+                                                    $vehicleName = $transportData['vehicles_name'] ?? $transportData['vehicle_name'] ?? '';
+                                                    $vehicleSavedId = $transportData['vehicles_id'] ?? $transportData['vehicle_id'] ?? '';
                                                     $vehicleType = $transportData['type'] ?? '';
                                                     $passengers = $transportData['passengers'] ?? '';
+                                                    $seatingCapacityStored = (int) ($transportData['seating_capacity'] ?? 0);
+                                                    $tourPax = max(1, (int) (($tour->adult ?? 0) + ($tour->child ?? 0)));
+                                                    if ($passengers === '' || $passengers === null) {
+                                                        $passengers = $tourPax;
+                                                    }
+                                                    $bookedVehicles = (int) ($transportData['booked_vehicles'] ?? $transportData['vehicle_count'] ?? 0);
+                                                    if ($bookedVehicles <= 0 && $seatingCapacityStored > 0 && (int) $passengers > 0) {
+                                                        $bookedVehicles = (int) ceil((int) $passengers / $seatingCapacityStored);
+                                                    }
+                                                    if ($bookedVehicles <= 0) {
+                                                        $bookedVehicles = 1;
+                                                    }
                                                     $totalPrice = $transportData['totalPrice'] ?? $transportData['price'] ?? 0;
                                                     $availableVehicles = $vehicles ?? collect();
                                                     $transportRemarks = $transportData['remarks'] ?? '';
@@ -5576,9 +6038,17 @@
                                                     <div class="d-flex justify-content-between align-items-center mb-3">
                                                         <h6 class="mb-0 fw-bold text-danger"><i class="ri-logout-circle-line me-2"></i>Departure Transfer #{{ $index + 1 }}</h6>
                                                         <div class="d-flex gap-2">
+                                                            @if($isActualTourStatus)
+                                                            <span class="d-inline-block" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="{{ $actualRemoveServiceTooltip }}">
+                                                                <button type="button" class="btn btn-sm btn-outline-danger" disabled style="pointer-events: none;" aria-disabled="true">
+                                                                    <i class="ri-delete-bin-line"></i> Remove
+                                                                </button>
+                                                            </span>
+                                                            @else
                                                             <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeTransportService({{ $order->booking_id }})">
                                                                 <i class="ri-delete-bin-line"></i> Remove
                                                             </button>
+                                                            @endif
                                                         </div>
                                                     </div>
                                                     <div class="row g-3">
@@ -5588,10 +6058,10 @@
                                                         </div>
                                                         <div class="col-md-3">
                                                             <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-success"></i>City</label>
-                                                            <select class="form-select border-2" style="height: 35px;" name="city">
+                                                            <select class="form-select border-2" id="departure_city_{{ $order->booking_id }}" style="height: 35px;" name="city" onchange="loadDepartureRowCountryPorts({{ $order->booking_id }});">
                                                                 <option value="">Select city</option>
                                                                 @foreach($cities as $city)
-                                                                    <option value="{{ $city->name }}" {{ $city->name == $cityValue ? 'selected' : '' }}>{{ $city->name }}</option>
+                                                                    <option value="{{ $city->name }}" data-country="{{ $city->country ?? '' }}" {{ $city->name == $cityValue ? 'selected' : '' }}>{{ $city->name }}</option>
                                                                 @endforeach
                                                                 @if($cityValue && !$cities->contains('name', $cityValue))
                                                                     <option value="{{ $cityValue }}" selected>{{ $cityValue }}</option>
@@ -5631,7 +6101,7 @@
                                                         </div>
                                                         <div class="col-md-3">
                                                             <label class="form-label fw-semibold text-muted mb-2"><i class="ri-map-pin-line me-1 text-danger"></i>Drop Off Location</label>
-                                                            <select class="form-select border-2 departure-dropoff-location" style="height: 35px;" name="dropoff_location" data-booking-id="{{ $order->booking_id }}" onchange="updateDepartureVehicles({{ $order->booking_id }})">
+                                                            <select class="form-select border-2 departure-dropoff-location" id="departure_dropoff_{{ $order->booking_id }}" style="height: 35px;" name="dropoff_location" data-booking-id="{{ $order->booking_id }}" onchange="updateDepartureVehicles({{ $order->booking_id }})">
                                                                 <option value="">Select dropoff port</option>
                                                                 @foreach($ports as $port)
                                                                     <option value="{{ $port->port_name }}" 
@@ -5697,7 +6167,7 @@
                                                         <div class="col-md-4">
                                                             <label class="form-label fw-semibold text-muted mb-2"><i class="ri-car-line me-1 text-info"></i>Vehicle</label>
                                                             @php $vehicleMatched = false; @endphp
-                                                            <select class="form-select border-2 departure-vehicle-select" style="height: 35px;" name="vehicle_name" id="departure_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" onchange="updateDepartureServiceType({{ $order->booking_id }})"> 
+                                                            <select class="form-select border-2 departure-vehicle-select" style="height: 35px;" name="vehicle_name" id="departure_vehicle_{{ $order->booking_id }}" data-booking-id="{{ $order->booking_id }}" data-saved-vehicle="{{ $vehicleName }}" data-saved-vehicle-id="{{ $vehicleSavedId }}" onchange="updateDepartureServiceType({{ $order->booking_id }})"> 
                                                                 <option value="">{{ $vehicleName ? 'Select vehicle' : 'Select vehicle' }}</option>
                                                                 @foreach($availableVehicles as $vehicleOption)
                                                                     @php
@@ -5710,6 +6180,7 @@
                                                                             data-private-price="{{ $vehicleOption->base_price ?? $vehicleOption->private_price ?? 0 }}"
                                                                             data-shared-price="{{ $vehicleOption->sharable_base_price ?? $vehicleOption->shared_price ?? 0 }}"
                                                                             data-sharable="{{ $vehicleOption->sharable ?? 0 }}"
+                                                                            data-seating-capacity="{{ $vehicleOption->seating_capacity ?? '' }}"
                                                                             {{ $isSelected ? 'selected' : '' }}>
                                                                         {{ $vehicleDisplayName }}
                                                                         @if(!empty($vehicleOption->vehicle_type))
@@ -5730,7 +6201,15 @@
                                                                 <option value="Shared" {{ strtolower($vehicleType) === 'shared' ? 'selected' : '' }}>Shared</option>
                                                             </select>
                                                         </div>
-                                                        <div class="col-md-4">
+                                                        <div class="col-md-3">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-user-line me-1 text-secondary"></i>Passengers</label>
+                                                            <input type="number" class="form-control border-2" id="departure_passengers_{{ $order->booking_id }}" style="height: 35px;" min="1" value="{{ (int) $passengers }}" readonly>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label class="form-label fw-semibold text-muted mb-2"><i class="ri-car-line me-1 text-info"></i>Booked Vehicles</label>
+                                                            <input type="number" class="form-control border-2" id="departure_booked_vehicles_{{ $order->booking_id }}" style="height: 35px;" min="1" value="{{ $bookedVehicles }}" readonly>
+                                                        </div>
+                                                        <div class="col-md-3">
                                                             <label class="form-label fw-semibold text-muted mb-2"><i class="ri-money-dollar-circle-line me-1 text-success"></i>Total Price</label>
                                                             <input type="number" class="form-control border-2 departure-total-price" style="height: 35px;" name="total_price" id="departure_price_{{ $order->booking_id }}" step="0.01" min="0" value="{{ number_format((float)$totalPrice, 2, '.', '') }}" placeholder="0.00" readonly>
                                                         </div>
@@ -5837,19 +6316,23 @@
                                                 </div>
                                                 <div class="col-md-3">
                                                     <label class="form-label mb-1" style="font-size: 0.8rem;">Email</label>
-                                                    <input type="email" class="form-control form-control-sm" id="customerEmail" name="customer_email" placeholder="Enter email" value="{{ $customer_info['email'] ?? '' }}" style="font-size: 0.85rem;">
+                                                    @php $leadGuestEmail = trim((string) ($customer_info['email'] ?? '')); @endphp
+                                                    <input type="email" class="form-control form-control-sm" id="customerEmail" name="customer_email" placeholder="Enter email" value="{{ $leadGuestEmail }}" @if($leadGuestEmail !== '') readonly @endif style="font-size: 0.85rem;{{ $leadGuestEmail !== '' ? ' background-color: #e9ecef;' : '' }}">
                                                 </div>
                                                 <div class="col-md-2">
                                                     <label class="form-label mb-1" style="font-size: 0.8rem;">Country Code</label>
                                                     @php
-                                                        $tourCountryForCode = $countries->firstWhere('name', $tour->destination ?? '');
+                                                        $allCountriesForCode = \App\Models\Country::query()
+                                                            ->orderBy('name')
+                                                            ->get(['name', 'country_code']);
+                                                        $tourCountryForCode = $allCountriesForCode->firstWhere('name', $tour->destination ?? '');
                                                         $defaultCountryCode = $customer_info['countryCode'] ?? ($tourCountryForCode->country_code ?? '');
                                                     @endphp
                                                     <select class="form-select form-select-sm" id="customerCountryCode" name="customer_country_code" style="font-size: 0.85rem;">
                                                         <option value="">Select</option>
-                                                        @foreach($countries as $country)
+                                                        @foreach($allCountriesForCode as $country)
                                                             @if(!empty($country->country_code))
-                                                                <option value="{{ $country->country_code }}" {{ $defaultCountryCode == $country->country_code ? 'selected' : '' }}>{{ $country->name }} ({{ $country->country_code }})</option>
+                                                                <option value="{{ $country->country_code }}" {{ (string) $defaultCountryCode === (string) $country->country_code ? 'selected' : '' }}>{{ $country->name }} ({{ $country->country_code }})</option>
                                                             @endif
                                                         @endforeach
                                                     </select>
@@ -5975,7 +6458,8 @@
                                                                 </div>
                                                                 <div class="col-md-4">
                                                                     <label class="form-label fw-semibold">Email</label>
-                                                                    <input type="email" class="form-control guest-email" name="additional_guests[{{ $index }}][email]" value="{{ $guest['email'] ?? '' }}" placeholder="Enter email">
+                                                                    @php $additionalGuestEmail = trim((string) ($guest['email'] ?? '')); @endphp
+                                                                    <input type="email" class="form-control guest-email" name="additional_guests[{{ $index }}][email]" value="{{ $additionalGuestEmail }}" placeholder="Enter email" @if($additionalGuestEmail !== '') readonly @endif @if($additionalGuestEmail !== '') style="background-color: #e9ecef;" @endif
                                                                 </div>
                                                                 @if(in_array($tour->tour_status ?? '', ['Definite', 'Actual']))
                                                                     <div class="col-md-4">
@@ -6426,16 +6910,16 @@
                                     </h6>
                                     <div class="d-flex justify-content-between align-items-center mb-2">
                                         <span class="text-muted" style="font-size: 0.8rem;">Base Price</span>
-                                        <span class="fw-bold" id="price_base_amount" style="color: #495057; font-size: 0.85rem;">$0.00</span>
+                                        <span class="fw-bold" id="price_base_amount" style="color: #495057; font-size: 0.85rem;">{{ $displayCurrency }} 0.00</span>
                                     </div>
                                     <div class="d-flex justify-content-between align-items-center mb-2" id="price_surcharge_row" style="display: none;">
                                         <span class="text-muted" style="font-size: 0.8rem;">Night Surcharge</span>
-                                        <span class="fw-bold text-warning" id="price_surcharge_amount" style="font-size: 0.85rem;">$0.00</span>
+                                        <span class="fw-bold text-warning" id="price_surcharge_amount" style="font-size: 0.85rem;">{{ $displayCurrency }} 0.00</span>
                                     </div>
                                     <hr class="my-2" style="border-color: #e9ecef;">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <span class="fw-bold" style="color: #495057; font-size: 0.9rem;">Total Price</span>
-                                        <span class="fw-bold" id="price_total_amount" style="color: #fda085; font-size: 1.1rem;">$0.00</span>
+                                        <span class="fw-bold" id="price_total_amount" style="color: #fda085; font-size: 1.1rem;">{{ $displayCurrency }} 0.00</span>
                                     </div>
                                 </div>
                             </div>
@@ -6454,8 +6938,8 @@
 </div>
 
 <!-- Hotel Booking Modal -->
-<div class="modal fade" id="hotelBookingModal" tabindex="-1" aria-labelledby="hotelBookingModalLabel" aria-hidden="true" data-currency="{{ $tour->currency ?? '$' }}">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
+<div class="modal fade" id="hotelBookingModal" tabindex="-1" aria-labelledby="hotelBookingModalLabel" aria-hidden="true" data-currency="{{ $displayCurrency }}">
+    <div class="modal-dialog modal-dialog-centered modal-lg" style="max-width: 960px;">
         <div class="modal-content border-0" style="border-radius: 12px; overflow: hidden; box-shadow: 0 10px 40px rgba(0,0,0,0.15);">
             <div class="modal-header text-white border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 0.75rem 1rem;">
                 <div class="d-flex align-items-center">
@@ -6468,7 +6952,7 @@
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" style="opacity: 0.9; font-size: 0.75rem;"></button>
             </div>
-            <div class="modal-body text-start" style="padding: 0.6rem 0.75rem; background: #ffffff; max-height: 72vh; overflow-y: auto;">
+            <div class="modal-body text-start" style="padding: 0.85rem 1rem; background: #ffffff; max-height: 80vh; overflow-y: auto;">
                 <form id="hotelBookingForm" class="text-start">
                     @csrf
                     <input type="hidden" id="modal_tour_id" name="tour_id">
@@ -6509,20 +6993,20 @@
                                     </div>
                                     <div class="col-6">
                                         <label for="hotel_select" class="form-label fw-semibold mb-0 text-start" style="color: #495057; font-size: 0.7rem;"><i class="ri-building-line me-1" style="color: #667eea;"></i>Hotel</label>
-                                        <select class="form-select modern-select" id="hotel_select" name="hotel_id" onchange="loadRoomsForSelectedHotel(this.value)" disabled>
+                                        <select class="form-select modern-select" id="hotel_select" name="hotel_id" data-no-select2="true" onchange="loadRoomsForSelectedHotel(this.value)" disabled>
                                             <option value="">Select city first</option>
                                         </select>
                                         <small class="text-muted d-block text-start" id="hotel_loading_status" style="font-size: 0.65rem;"><span id="hotel_count_display">0</span> found</small>
                                     </div>
                                     <div class="col-6">
                                         <label for="room_type" class="form-label fw-semibold mb-0 text-start" style="color: #495057; font-size: 0.7rem;">Room Type</label>
-                                        <select class="form-select modern-select" id="room_type" name="room_type" onchange="loadBedsForSelectedRoom(this.value); updateHotelModalPrice();" disabled>
+                                        <select class="form-select modern-select" id="room_type" name="room_type" data-no-select2="true" onchange="loadBedsForSelectedRoom(this.value)" disabled>
                                             <option value="">Select hotel</option>
                                         </select>
                                     </div>
                                     <div class="col-6">
                                         <label for="bed_type" class="form-label fw-semibold mb-0 text-start" style="color: #495057; font-size: 0.7rem;">Bed Type</label>
-                                        <select class="form-select modern-select" id="bed_type" name="bed_type" onchange="updateBedPricingAndMealPlans(); updateHotelModalPrice();" disabled>
+                                        <select class="form-select modern-select" id="bed_type" name="bed_type" data-no-select2="true" onchange="updateBedPricingAndMealPlans()" disabled>
                                             <option value="">Select room</option>
                                         </select>
                                         <small class="text-success d-block text-start" style="font-size: 0.6rem;"><span id="bed_occupancy_info">Max: 2</span></small>
@@ -6541,16 +7025,21 @@
                                     <div class="col-6" id="child_with_bed_wrap_modal" style="display: none;">
                                         <label class="form-label fw-semibold mb-0 d-block text-start" style="color: #495057; font-size: 0.7rem;"><i class="ri-user-smile-line me-1 text-info"></i>Child w/ bed<small class="text-muted" id="child_with_bed_price_label_modal"></small></label>
                                         <div class="form-check form-check-inline">
-                                            <input class="form-check-input" type="checkbox" name="child_with_bed" id="child_with_bed_modal" onchange="updateHotelModalPrice();">
+                                            <input class="form-check-input" type="checkbox" name="child_with_bed" id="child_with_bed_modal" disabled onchange="updateHotelModalPrice();">
                                             <label class="form-check-label" for="child_with_bed_modal" style="font-size: 0.7rem;">Yes</label>
                                         </div>
                                     </div>
                                     <div class="col-6" id="child_without_bed_wrap_modal" style="display: none;">
                                         <label class="form-label fw-semibold mb-0 d-block text-start" style="color: #495057; font-size: 0.7rem;"><i class="ri-user-line me-1 text-warning"></i>Child no bed<small class="text-muted" id="child_without_bed_price_label_modal"></small></label>
                                         <div class="form-check form-check-inline">
-                                            <input class="form-check-input" type="checkbox" name="child_without_bed" id="child_without_bed_modal" onchange="updateHotelModalPrice();">
+                                            <input class="form-check-input" type="checkbox" name="child_without_bed" id="child_without_bed_modal" disabled onchange="updateHotelModalPrice();">
                                             <label class="form-check-label" for="child_without_bed_modal" style="font-size: 0.7rem;">Yes</label>
                                         </div>
+                                    </div>
+                                    <div class="col-12 hotel-child-pricing-guest-hint-wrap" id="hotel_child_pricing_guest_hint_modal" style="display: none;">
+                                        <small class="text-muted" style="font-size: 0.7rem;">
+                                            <i class="ri-information-line me-1"></i>Please add child first (select children or infants in Guests).
+                                        </small>
                                     </div>
                                     <div class="col-6">
                                         <label for="number_of_rooms_modal" class="form-label fw-semibold mb-0 text-start" style="color: #495057; font-size: 0.7rem;">Rooms</label>
@@ -6560,7 +7049,7 @@
                                         <label for="total_price_modal" class="form-label fw-semibold mb-0 d-block text-start" style="color: #495057; font-size: 0.7rem;">Total Price</label>
                                         <div class="d-flex align-items-center flex-nowrap text-start" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #10b981; border-radius: 6px; padding: 0.375rem 0.5rem 0.375rem 0.75rem; height: 38px;">
                                             <i class="ri-money-dollar-circle-line me-1" style="color: #059669; font-size: 0.9rem;"></i>
-                                            <span class="fw-bold flex-grow-1 text-truncate" id="total_price_modal_display" style="font-size: 0.8rem; color: #059669;">$0.00</span>
+                                            <span class="fw-bold flex-grow-1 text-truncate" id="total_price_modal_display" style="font-size: 0.8rem; color: #059669;">{{ $displayCurrency }} 0.00</span>
                                             <button type="button" class="btn d-flex align-items-center flex-shrink-0 ms-2" style="height: 28px; border-radius: 6px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); border: none; color: #ffffff; font-size: 0.7rem; font-weight: 500; padding: 0 10px; white-space: nowrap;" onclick="getHotelHelperPriceForModal(this)" title="Get rate-aware price">
                                                 <i class="ri-refresh-line me-1"></i> Get Price
                                             </button>
@@ -6602,7 +7091,7 @@
                                 <div id="hotel_modal_price_grid" class="mt-2 rounded text-start" style="display: none; background: #f0fdf4; border: 1px solid #bbf7d0; padding: 0.5rem 0.6rem; border-radius: 6px;">
                                     <label class="form-label fw-semibold mb-1 text-start d-block" style="color: #059669; font-size: 0.7rem;"><i class="ri-price-tag-3-line me-1"></i>Breakdown</label>
                                     <div id="hotel_modal_price_grid_content" style="color: #374151; font-size: 0.75rem; line-height: 1.4;"></div>
-                                    <div class="border-top mt-2 pt-2 fw-bold d-flex justify-content-between align-items-center" style="font-size: 0.8rem; color: #059669;"><span>Total</span><span id="hotel_modal_price_grid_total">$0.00</span></div>
+                                    <div class="border-top mt-2 pt-2 fw-bold d-flex justify-content-between align-items-center" style="font-size: 0.8rem; color: #059669;"><span>Total</span><span id="hotel_modal_price_grid_total">{{ $displayCurrency }} 0.00</span></div>
                                 </div>
                             </div>
                         </div>
@@ -6714,7 +7203,7 @@
                                 <div class="col-md-6">
                                     <label class="form-label fw-semibold">Estimated Price</label>
                                     <div class="input-group input-group-sm">
-                                        <span class="input-group-text">{{ $tour->currency ?? '$' }}</span>
+                                        <span class="input-group-text">{{ $displayCurrency }}</span>
                                         <input type="number" min="0" step="0.01" class="form-control form-control-sm" name="modal_hotel_transport_price" id="modal_hotel_transport_price" placeholder="0.00" data-original-price="">
                                     </div>
                                     <small class="text-muted">Optional, can be adjusted later.</small>
@@ -6751,9 +7240,11 @@
                 <button type="button" class="btn" data-bs-dismiss="modal" style="height: 36px; border-radius: 8px; border: 1px solid #dee2e6; background: #ffffff; color: #495057; padding: 0.375rem 1rem; font-weight: 500; font-size: 0.8rem; transition: all 0.2s;">
                     Cancel
                 </button>
-                <button type="button" class="btn text-white" id="proceed_hotel_btn" onclick="proceedToHotelSelection()" disabled style="height: 36px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; padding: 0.375rem 1rem; font-weight: 500; font-size: 0.8rem; transition: all 0.2s; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);">
-                    <i class="ri-check-line me-1"></i>Book Hotels
-                </button>
+                <span class="d-inline-block" tabindex="0" id="proceed_hotel_wrap" title="Please click Get Price before booking">
+                    <button type="button" class="btn text-white" id="proceed_hotel_btn" onclick="proceedToHotelSelection()" disabled style="height: 36px; border-radius: 8px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; padding: 0.375rem 1rem; font-weight: 500; font-size: 0.8rem; transition: all 0.2s; box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);">
+                        <i class="ri-check-line me-1"></i>Book Hotels
+                    </button>
+                </span>
             </div>
         </div>
     </div>
@@ -7031,7 +7522,7 @@
                                             <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Transport Price</label>
                                             <div class="input-group" style="height: 36px;">
                                                 <span class="input-group-text bg-white border border-end-0 text-muted fw-semibold" style="font-size: 0.8rem;  height: 36px;">
-                                                    {{ $tour->currency ?? '$' }}
+                                                    {{ $displayCurrency }}
                                                 </span>
                                                 <input type="number" min="0" step="0.01" class="form-control border border-start-0" name="modal_restaurant_transport_price" id="modal_restaurant_transport_price" placeholder="0.00" data-original-price="" data-zone-mapped="false" style="font-size: 0.8rem; height: 36px; font-weight: 500;">
                                             </div>
@@ -7524,7 +8015,7 @@
                             <label for="modal_attraction_select" class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                 <i class="ri-ticket-2-line me-1" style="color: #fa709a;"></i>Attraction
                             </label>
-                            <select class="form-select modern-select" id="modal_attraction_select" name="attraction_id" required data-no-select2="true" style="height: 36px; font-size: 0.8rem;">
+                            <select class="form-select modern-select attraction-name-select" id="modal_attraction_select" name="attraction_id" required style="height: 36px; font-size: 0.8rem;">
                                 <option value="">Search Attraction</option>
                             </select>
                             <small class="form-text text-muted" style="font-size: 0.7rem; margin-top: 0.2rem; display: block;">
@@ -7752,7 +8243,7 @@
                                         <div class="col-md-4" style="display: none;">
                                             <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Guide Price</label>
                                             <div class="position-relative">
-                                                <span class="position-absolute" style="left: 10px; top: 50%; transform: translateY(-50%); z-index: 5; color: #6c757d; font-weight: 500;">{{ $tour->currency ?? '$' }}</span>
+                                                <span class="position-absolute" style="left: 10px; top: 50%; transform: translateY(-50%); z-index: 5; color: #6c757d; font-weight: 500;">{{ $displayCurrency }}</span>
                                                 <input type="number" min="0" step="0.01" class="form-control modern-input" name="modal_attraction_guide_price" id="modal_attraction_guide_price" placeholder="0.00" readonly style="padding-left: 30px; height: 36px; font-size: 0.8rem;">
                                             </div>
                                             <small class="text-muted" style="font-size: 0.7rem; margin-top: 0.2rem; display: block;">
@@ -7885,7 +8376,7 @@
                                             <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">Transport Price</label>
                                             <div class="input-group" style="height: 36px;">
                                                 <span class="input-group-text bg-white border border-end-0 text-muted fw-semibold" style="font-size: 0.8rem; height: 36px;">
-                                                    {{ $tour->currency ?? '$' }}
+                                                    {{ $displayCurrency }}
                                                 </span>
                                                 <input type="number" min="0" step="0.01" class="form-control border border-start-0" name="modal_attraction_transport_price" id="modal_attraction_transport_price" placeholder="0.00" data-original-price="" style="font-size: 0.8rem; height: 36px; font-weight: 500;" readonly>
                                             </div>
@@ -7940,7 +8431,7 @@
                                         </div>
                                         <div class="d-flex justify-content-between align-items-center rounded px-3 py-2" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
                                             <span class="fw-bold text-white d-flex align-items-center" style="font-size: 0.95rem;"><i class="ri-calculator-line me-2"></i>Total Price</span>
-                                            <span class="fw-bold text-white" id="modal_attraction_total_price_display" style="font-size: 1.1rem;">{{ $tour->currency ?? '$' }} 0.00</span>
+                                            <span class="fw-bold text-white" id="modal_attraction_total_price_display" style="font-size: 1.1rem;">{{ $displayCurrency }} 0.00</span>
                                         </div>
                                     </div>
                                 </div>
@@ -8214,7 +8705,7 @@
                                 <select class="form-select modern-select" id="modal_entryport_transport_city" name="city" style="height: 36px; font-size: 0.8rem;">
                                     <option value="">Select city</option>
                                     @foreach($cities as $city)
-                                    <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}">{{ $city->name }}</option>
+                                    <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}" data-country="{{ $city->country ?? '' }}">{{ $city->name }}</option>
                                     @endforeach
                                 </select>
                             </div>
@@ -8291,7 +8782,7 @@
                                 <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                     <i class="ri-calendar-line me-1" style="color: #667eea;"></i>Pick Up Date
                                 </label>
-                                <input type="date" class="form-control modern-input" id="modal_transport_pickup_date" name="pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" readonly disabled style="height: 36px; font-size: 0.8rem;">
+                                <input type="date" class="form-control modern-input" id="modal_transport_pickup_date" name="pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" min="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" max="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" style="height: 36px; font-size: 0.8rem;">
                             </div>
                             <div class="col-md-6 col-lg-2">
                                 <label class="form-label fw-semibold mb-1 d-block" style="color: #495057; font-size: 0.75rem;">
@@ -8352,7 +8843,7 @@
                                             </label>
                                             <div class="input-group" style="height: 36px;">
                                                 <span class="input-group-text bg-white border border-end-0 text-muted fw-semibold" style="font-size: 0.8rem; height: 36px;">
-                                                    {{ $tour->currency ?? '$' }}
+                                                    {{ $displayCurrency }}
                                                 </span>
                                                 <input type="number" 
                                                        class="form-control border border-start-0" 
@@ -8410,7 +8901,7 @@
                                             </div>
                                             <div class="d-flex justify-content-between align-items-center pt-2 border-top border-1">
                                                 <span class="text-muted" style="font-size: 0.7rem;">Total Price</span>
-                                                <span class="fw-bold" id="transport_total_price_display" style="font-size: 1.25rem; color: #10b981;">SGD 0.00</span>
+                                                <span class="fw-bold" id="transport_total_price_display" style="font-size: 1.25rem; color: #10b981;">{{ $displayCurrency }} 0.00</span>
                                             </div>
                                         </div>
                                         
@@ -8476,7 +8967,7 @@
                                     <i class="ri-time-line me-1" style="color: #f59e0b;"></i>Hourly
                                 </label>
                             </div>
-                            @if(isset($dmcUser->zone_on) && $dmcUser->zone_on != 0)
+                            @if(isset($UserDmc->zone_on) && $UserDmc->zone_on != 0)
                             <div class="form-check">
                                 <input class="form-check-input transport-service-type" type="radio" name="service_type_selection" id="local_transfer_service_type_local" value="local_transfer" onchange="handleLocalTransferServiceTypeChange('local_transfer')">
                                 <label class="form-check-label fw-semibold" for="local_transfer_service_type_local" style="font-size: 0.8rem; color: #10b981;">
@@ -8593,7 +9084,7 @@
                             <!-- Point To Point Fields (Hidden Initially) -->
                             <div class="col-12">
                                 <div id="point_to_point_fields" class="row g-2 point-to-point-fields d-none">
-                                    <div class="col-md-6 col-lg-3">
+                                    <div class="col-md-6 col-lg-4">
                                         <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                             <i class="ri-map-pin-line me-1" style="color: #10b981;"></i>Pick Up Location
                                         </label>
@@ -8604,7 +9095,7 @@
                                             <input type="hidden" name="point_pickup_place_id" id="local_transfer_point_pickup_place_id">
                                         </div>
                                     </div>
-                                    <div class="col-md-6 col-lg-3">
+                                    <div class="col-md-6 col-lg-4">
                                         <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
                                             <i class="ri-map-pin-line me-1" style="color: #ef4444;"></i>Drop Off Location
                                         </label>
@@ -8629,13 +9120,8 @@
                                         </div>
                                         <input type="hidden" name="point_pickup_time" id="local_transfer_point_pickup_time">
                                     </div>
-                                    <div class="col-md-6 col-lg-2">
-                                        <label class="form-label fw-semibold mb-1" style="color: #495057; font-size: 0.75rem;">
-                                            <i class="ri-calendar-line me-1" style="color: #667eea;"></i>Pick Up Date
-                                        </label>
-                                        <input type="date" class="form-control modern-input" id="local_transfer_point_pickup_date_display" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" autocomplete="off" style="height: 36px; font-size: 0.8rem;" min="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}" max="{{ \Carbon\Carbon::parse($tour->check_out_time)->format('Y-m-d') }}" onchange="syncPointToPointPickupDateFromDisplay()">
-                                        <input type="hidden" name="point_pickup_date" id="local_transfer_point_pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}">
-                                    </div>
+                                    {{-- Pick up date is not chosen here: the transfer defaults to the tour start date. --}}
+                                    <input type="hidden" name="point_pickup_date" id="local_transfer_point_pickup_date" value="{{ \Carbon\Carbon::parse($tour->check_in_time)->format('Y-m-d') }}">
                                     <div class="col-md-6 col-lg-2">
                                         <label class="form-label fw-semibold mb-1 d-block" style="color: #495057; font-size: 0.75rem;">
                                             &nbsp;
@@ -8774,7 +9260,7 @@
                                             </label>
                                             <div class="input-group" style="height: 36px;">
                                                 <span class="input-group-text bg-white border border-end-0 text-muted fw-semibold" style="font-size: 0.8rem; height: 36px;">
-                                                    {{ $tour->currency ?? '$' }}
+                                                    {{ $displayCurrency }}
                                                 </span>
                                                 <input type="number" 
                                                        class="form-control border border-start-0" 
@@ -8824,7 +9310,7 @@
                                             </div>
                                             <div class="d-flex justify-content-between align-items-center pt-2 border-top border-1">
                                                 <span class="text-muted" style="font-size: 0.7rem;">Total Price</span>
-                                                <span class="fw-bold" id="local_transfer_total_price_display" style="font-size: 1.25rem; color: #10b981;">SGD 0.00</span>
+                                                <span class="fw-bold" id="local_transfer_total_price_display" style="font-size: 1.25rem; color: #10b981;">{{ $displayCurrency }} 0.00</span>
                                             </div>
                                         </div>
                                         
@@ -8923,7 +9409,7 @@
                                             <select class="form-select border-2" id="modal_exitport_transport_city" name="city" style="padding-left: 45px;">
                                                 <option value="">Select city</option>
                                                 @foreach($cities as $city)
-                                                <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}">{{ $city->name }}</option>
+                                                <option value="{{ $city->name }}" data-city="{{ json_encode($city) }}" data-country="{{ $city->country ?? '' }}">{{ $city->name }}</option>
                                                 @endforeach
                                             </select>
                                             <i style="left: 15px; top: 50%; transform: translateY(-50%); z-index: 5;"></i>
@@ -9079,7 +9565,7 @@
                                     </label>
                                     <div class="input-group" style="height: 36px;">
                                         <span class="input-group-text bg-white border border-end-0 text-muted fw-semibold" style="font-size: 0.8rem; height: 36px;">
-                                            {{ $tour->currency ?? '$' }}
+                                            {{ $displayCurrency }}
                                         </span>
                                         <input type="number" 
                                                class="form-control border border-start-0" 
@@ -9174,14 +9660,14 @@
                     </div>
 
                     <input type="hidden" id="globalPaymentTourId" value="{{ $tour->tour_id ?? '' }}">
-                    <input type="hidden" id="globalPaymentCurrency" value="SGD">
+                    <input type="hidden" id="globalPaymentCurrency" value="{{ $displayCurrency }}">
                     <input type="hidden" id="globalPaymentExchangeRate" value="1">
                     <input type="hidden" id="globalPaymentAutoVerify" value="1">
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Amount</label>
                         <div class="input-group">
-                            <span class="input-group-text">{{ $tour->currency ?? '$' }}</span>
+                            <span class="input-group-text">{{ $displayCurrency }}</span>
                             <input type="number" step="0.01" min="0" class="form-control" id="globalPaymentAmount" name="payment_amount" readonly>
                         </div>
                         <small class="text-muted">Amount is auto-filled from the service price.</small>
@@ -9358,6 +9844,56 @@
         hiddenInput.value = `${hourStr}:${minStr} ` + (ampmSelect.value || 'AM');
     }
 
+    function vehicleMatchesSaved(vehicle, savedName, savedId) {
+        const name = String(vehicle.vehicle_name || vehicle.vehicle_id || '').trim();
+        const id = String(vehicle.vehicle_id || '').trim();
+        const saved = String(savedName || '').trim();
+        const savedIdStr = String(savedId || '').trim();
+        if (savedIdStr && id && String(savedIdStr) === String(id)) return true;
+        if (!saved || !name) return false;
+        const a = saved.toLowerCase();
+        const b = name.toLowerCase();
+        return a === b || a.indexOf(b) !== -1 || b.indexOf(a) !== -1;
+    }
+
+    function populateVehicleSelect(vehicleSelect, vehicles, savedName, savedId) {
+        if (!vehicleSelect) return false;
+        vehicleSelect.innerHTML = '<option value="">Select vehicle</option>';
+        let selected = false;
+        (vehicles || []).forEach(function (v) {
+            const name = v.vehicle_name || v.vehicle_id || 'Vehicle';
+            const info = name + (v.vehicle_type ? ' (' + v.vehicle_type + ')' : '') + (v.seating_capacity ? ' - ' + v.seating_capacity + ' seats' : '');
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = info;
+            opt.setAttribute('data-vehicle-id', v.vehicle_id || '');
+            opt.setAttribute('data-private-price', v.private_price || v.base_price || '');
+            opt.setAttribute('data-shared-price', v.shared_price || v.sharable_base_price || '');
+            opt.setAttribute('data-sharable', v.sharable || 0);
+            opt.setAttribute('data-seating-capacity', v.seating_capacity || '');
+            if (!selected && vehicleMatchesSaved(v, savedName, savedId)) {
+                opt.selected = true;
+                selected = true;
+            }
+            vehicleSelect.appendChild(opt);
+        });
+        if (!selected && savedName) {
+            const opt = document.createElement('option');
+            opt.value = savedName;
+            opt.textContent = savedName;
+            if (savedId) opt.setAttribute('data-vehicle-id', savedId);
+            opt.setAttribute('data-sharable', '3');
+            opt.selected = true;
+            selected = true;
+            vehicleSelect.appendChild(opt);
+        }
+        vehicleSelect.disabled = false;
+        if (typeof window.refreshSelect2 === 'function') {
+            window.refreshSelect2(vehicleSelect);
+        }
+        return selected;
+    }
+
     // Fetch zone-respected vehicles for one arrival row and populate vehicle dropdown; then update price.
     function fetchArrivalVehiclesForRow(bookingId) {
         const cityEl = document.getElementById('arrival_city_' + bookingId);
@@ -9373,9 +9909,10 @@
         const dropoffZoneId = dropoffOpt ? (dropoffOpt.getAttribute('data-zone-id') || dropoffOpt.value) : '';
         const pickupType = pickupOpt ? (pickupOpt.getAttribute('data-type') || 'Port') : 'Port';
         const dropoffType = dropoffOpt ? (dropoffOpt.getAttribute('data-type') || 'Hotel') : 'Hotel';
+        const savedName = vehicleSelect.getAttribute('data-saved-vehicle') || vehicleSelect.value || '';
+        const savedId = vehicleSelect.getAttribute('data-saved-vehicle-id') || '';
 
         if (!city || !pickupZoneId || !dropoffZoneId) {
-            vehicleSelect.innerHTML = '<option value="">Select vehicle (choose city, pickup & dropoff)</option>';
             return;
         }
 
@@ -9398,23 +9935,46 @@
         .then(r => r.ok ? r.json() : r.text().then(t => { throw new Error(t || r.status); }))
         .then(data => {
             if (data.success && data.vehicles && data.vehicles.length > 0) {
-                vehicleSelect.innerHTML = '<option value="">Select vehicle</option>';
-                data.vehicles.forEach(v => {
-                    const name = v.vehicle_name || v.vehicle_id || 'Vehicle';
-                    const info = name + (v.vehicle_type ? ' (' + v.vehicle_type + ')' : '');
-                    const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
-                    vehicleSelect.innerHTML += '<option value="' + esc(name) + '" data-private-price="' + (v.private_price || '') + '" data-shared-price="' + (v.shared_price || '') + '">' + esc(info) + '</option>';
-                });
-                updateArrivalRowPrice(bookingId);
+                populateVehicleSelect(vehicleSelect, data.vehicles, savedName, savedId);
+                const totalInput = document.getElementById('arrival_total_price_' + bookingId);
+                const savedTotal = totalInput ? totalInput.value : '';
+                if (vehicleSelect.value && (!savedTotal || parseFloat(savedTotal) === 0)) {
+                    updateArrivalRowPrice(bookingId);
+                }
+            } else if (savedName) {
+                populateVehicleSelect(vehicleSelect, [], savedName, savedId);
             } else {
                 vehicleSelect.innerHTML = '<option value="">No vehicles for this route</option>';
-                document.getElementById('arrival_total_price_' + bookingId).value = '0.00';
+                if (typeof window.refreshSelect2 === 'function') window.refreshSelect2(vehicleSelect);
             }
         })
         .catch(err => {
             console.warn('Arrival vehicles fetch failed:', err);
-            vehicleSelect.innerHTML = '<option value="">Error loading vehicles</option>';
+            if (savedName) {
+                populateVehicleSelect(vehicleSelect, [], savedName, savedId);
+            }
         });
+    }
+
+    function resolvePortBookedVehicleCount(prefix, bookingId, vehicleSelect) {
+        const passengersInput = document.getElementById(prefix + '_passengers_' + bookingId);
+        const bookedInput = document.getElementById(prefix + '_booked_vehicles_' + bookingId);
+        const passengers = parseInt(passengersInput?.value, 10) || 1;
+        const selectedOption = vehicleSelect?.options?.[vehicleSelect.selectedIndex];
+        const seatCapacity = parseInt(selectedOption?.getAttribute('data-seating-capacity') || '0', 10);
+        let bookedVehicles = 1;
+
+        if (seatCapacity > 0) {
+            bookedVehicles = Math.max(1, Math.ceil(passengers / seatCapacity));
+        } else if (bookedInput?.value) {
+            bookedVehicles = Math.max(1, parseInt(bookedInput.value, 10) || 1);
+        }
+
+        if (bookedInput) {
+            bookedInput.value = bookedVehicles;
+        }
+
+        return bookedVehicles;
     }
 
     function updateArrivalRowPrice(bookingId) {
@@ -9431,7 +9991,13 @@
         const privatePrice = parseFloat(opt.getAttribute('data-private-price')) || 0;
         const sharedPrice = parseFloat(opt.getAttribute('data-shared-price')) || 0;
         const serviceType = serviceSelect.value;
-        let total = serviceType === 'Private' ? privatePrice : (serviceType === 'Shared' ? sharedPrice : 0);
+        const bookedVehicles = resolvePortBookedVehicleCount('arrival', bookingId, vehicleSelect);
+        let total = 0;
+        if (serviceType === 'Private') {
+            total = privatePrice * bookedVehicles;
+        } else if (serviceType === 'Shared') {
+            total = sharedPrice;
+        }
         totalInput.value = total.toFixed(2);
     }
 
@@ -10360,6 +10926,8 @@
                     if (typeof updateMultiRestaurantPriceForEdit === 'function') {
                         updateMultiRestaurantPriceForEdit(bookingId);
                     }
+                } else if (typeof updateRestaurantPriceForEdit === 'function') {
+                    updateRestaurantPriceForEdit(bookingId);
                 }
             }
             
@@ -10525,7 +11093,12 @@
                         // Save the currently selected vehicle_id before replacing HTML
                         const previouslySelectedValue = vehicleSelect.val();
                         const previouslySelectedOption = vehicleSelect.find('option:selected');
-                        const previouslySelectedVehicleId = previouslySelectedOption.data('vehicle-id') || previouslySelectedOption.attr('value') || previouslySelectedValue;
+                        const previouslySelectedVehicleId = previouslySelectedOption.data('vehicle-id')
+                            || previouslySelectedOption.attr('value')
+                            || previouslySelectedValue
+                            || vehicleSelect.data('saved-vehicle-id')
+                            || destinationSelect.data('saved-vehicle-id')
+                            || '';
                         
                         vehicleSelect.html('<option value="">Select vehicle</option>');
                         
@@ -10568,6 +11141,17 @@
                             
                                 // Calculate price
                                 calculateRestaurantTransportPrice(bookingId);
+                            } else {
+                                // Keep saved vehicle visible even if zone API did not return it
+                                const savedName = String(vehicleSelect.data('saved-vehicle-name') || destinationSelect.data('saved-vehicle-name') || previouslySelectedVehicleId).trim();
+                                const fallback = $('<option></option>')
+                                    .val(String(previouslySelectedVehicleId))
+                                    .attr('data-vehicle-id', String(previouslySelectedVehicleId))
+                                    .attr('data-vehicle-name', savedName)
+                                    .prop('selected', true)
+                                    .text(savedName);
+                                vehicleSelect.append(fallback);
+                                vehicleSelect.val(String(previouslySelectedVehicleId));
                             }
                         }
                         // If no previous selection, don't auto-select - let user choose
@@ -10845,6 +11429,16 @@
                 const bookingId = destinationSelect.data('booking-id');
                 const selectedOption = destinationSelect.find('option:selected');
                 const vehicleSelect = $('#restaurant_transport_vehicle_' + bookingId);
+                const savedVehicleId = String(
+                    vehicleSelect.data('saved-vehicle-id')
+                    || destinationSelect.data('saved-vehicle-id')
+                    || ''
+                ).trim();
+                const savedVehicleName = String(
+                    vehicleSelect.data('saved-vehicle-name')
+                    || destinationSelect.data('saved-vehicle-name')
+                    || ''
+                ).trim();
                 
                 if (selectedOption.val() && selectedOption.val().trim()) {
                     // Check if vehicle select already has options from server-side rendering
@@ -10852,17 +11446,37 @@
                     
                     if (hasVehicleOptions) {
                         // Vehicles are already loaded from server, ensure selected value is displayed
-                        const selectedOption = vehicleSelect.find('option[selected]');
-                        if (selectedOption.length) {
-                            const selectedValue = selectedOption.attr('value');
+                        let selectedVehicleOption = vehicleSelect.find('option[selected]');
+                        if (!selectedVehicleOption.length && savedVehicleId) {
+                            selectedVehicleOption = vehicleSelect.find('option').filter(function() {
+                                return String($(this).val()) === savedVehicleId
+                                    || String($(this).data('vehicle-id') || '') === savedVehicleId;
+                            }).first();
+                        }
+                        if (selectedVehicleOption.length) {
+                            const selectedValue = selectedVehicleOption.attr('value');
                             if (selectedValue) {
-                                vehicleSelect.val(selectedValue);
+                                vehicleSelect.val(selectedValue).trigger('change.select2');
                             }
                         }
                     } else {
                         // No vehicles loaded yet, trigger the change event to load vehicles via AJAX
                         destinationSelect.trigger('change');
                     }
+                } else if (savedVehicleId || savedVehicleName) {
+                    // Destination option missing from list but vehicle was saved — keep showing it
+                    if (vehicleSelect.find('option').filter(function() {
+                        return String($(this).val()) === savedVehicleId || String($(this).data('vehicle-id') || '') === savedVehicleId;
+                    }).length === 0) {
+                        const opt = $('<option></option>')
+                            .val(savedVehicleId || savedVehicleName)
+                            .attr('data-vehicle-id', savedVehicleId)
+                            .attr('data-vehicle-name', savedVehicleName || savedVehicleId)
+                            .prop('selected', true)
+                            .text(savedVehicleName || savedVehicleId);
+                        vehicleSelect.append(opt);
+                    }
+                    vehicleSelect.val(savedVehicleId || savedVehicleName).trigger('change.select2');
                 } else {
                     // No destination selected, clear vehicle dropdown
                     if (vehicleSelect.length) {
@@ -11292,7 +11906,7 @@
             const needTransport = document.getElementById('modal_need_restaurant_transport');
             const transportPrice = (needTransport && needTransport.checked && transportEl.length) ? (parseFloat(transportEl.val()) || 0) : 0;
             const totalPrice = mealPrice + transportPrice;
-            const currency = '{{ $tour->currency ?? "$" }}';
+            const currency = '{{ $displayCurrency }}';
             
             $('#modal_restaurant_meal_price_display').text(currency + ' ' + mealPrice.toFixed(2));
             const breakdown = totalPriceEl && totalPriceEl.getAttribute('data-meal-breakdown');
@@ -11514,7 +12128,7 @@
 
         // Update attraction modal price grid: Ticket | Transport | Guide segments + Total (like reference image)
         function updateAttractionModalPriceGrid() {
-            const currency = '{{ $tour->currency ?? "$" }}';
+            const currency = '{{ $displayCurrency }}';
             const ticketPrice = parseFloat($('#modal_attraction_total_price').val()) || 0;
             const transportPrice = parseFloat($('#modal_attraction_transport_price').val()) || 0;
             const guidePrice = parseFloat($('#modal_attraction_guide_price').val()) || 0;
@@ -11633,6 +12247,13 @@
         initializeTravelDateRangePicker();
         initializeInlineTransportToggles();
         initializeTransportDynamicFeatures();
+        if (window.isActualTourStatus && typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+                if (!bootstrap.Tooltip.getInstance(el)) {
+                    new bootstrap.Tooltip(el);
+                }
+            });
+        }
         setTimeout(function() {
             if (typeof window.lockSingleCityFieldIfNeeded === 'function') {
                 window.lockSingleCityFieldIfNeeded();
@@ -11647,11 +12268,19 @@
 
         if (!rangeInput || !startDateInput || !endDateInput) return;
 
+        const lockTravelDates = !!window.isActualTourStatus;
+
         // If the date-range picker library isn't present, fall back to showing the two native date inputs.
         if (typeof $ === 'undefined' || !$.fn || typeof $.fn.daterangepicker === 'undefined' || typeof moment === 'undefined') {
             rangeInput.classList.add('d-none');
             startDateInput.classList.remove('d-none');
             endDateInput.classList.remove('d-none');
+            if (lockTravelDates) {
+                startDateInput.readOnly = true;
+                endDateInput.readOnly = true;
+                startDateInput.setAttribute('title', "Travel dates can't be changed in Actual Status.");
+                endDateInput.setAttribute('title', "Travel dates can't be changed in Actual Status.");
+            }
             return;
         }
 
@@ -11692,6 +12321,18 @@
         const initialStart = safeParseYmd(startDateInput.value) || today;
         const initialEnd = safeParseYmd(endDateInput.value) || initialStart;
         const minDate = initialStart && initialStart.isValid() && initialStart.isBefore(today) ? initialStart : today;
+
+        // Actual tours: show dates as read-only, do not open the picker.
+        if (lockTravelDates) {
+            setHiddenAndNotify(initialStart, initialEnd);
+            syncDisplayFromHidden();
+            rangeInput.readOnly = true;
+            rangeInput.disabled = true;
+            rangeInput.setAttribute('title', "Travel dates can't be changed in Actual Status.");
+            startDateInput.readOnly = true;
+            endDateInput.readOnly = true;
+            return;
+        }
 
         $(rangeInput).daterangepicker({
             autoUpdateInput: false,
@@ -11789,6 +12430,24 @@
     // Function to initialize Select2 on all select boxes
     function initializeAllSelect2(container = null) {
         const $container = container || $(document);
+        const bundleIconUrl = '{{ asset('assets/images/bundle-attraction-icon.png') }}';
+
+        window.formatAttractionBundleOption = function(option) {
+            if (!option.id || !option.element) {
+                return option.text;
+            }
+            if (option.element.dataset && option.element.dataset.isBundle === '1') {
+                const $wrapper = $('<span></span>');
+                $wrapper.append($('<img>', {
+                    src: bundleIconUrl,
+                    alt: 'Bundle',
+                    css: { width: '18px', height: '18px', 'margin-right': '6px', 'vertical-align': '-4px' }
+                }));
+                $wrapper.append(document.createTextNode(option.text));
+                return $wrapper;
+            }
+            return option.text;
+        };
         
         // Find all select boxes with form-select or form-control class that are not already initialized
         $container.find('select.form-select, select.form-control').each(function() {
@@ -11822,17 +12481,26 @@
             // Get the closest modal for dropdown parent (fixes z-index issues in modals)
             const $modal = $select.closest('.modal');
             const dropdownParent = $modal.length ? $modal : $('body');
+
+            const isAttractionSelect = $select.hasClass('attraction-name-select')
+                || id.indexOf('attraction_name_') === 0
+                || id === 'modal_attraction_select';
             
             // Initialize Select2
             // Note: Select2 automatically triggers native 'change' events, so onchange handlers will work
-            $select.select2({
+            const select2Options = {
                 theme: 'bootstrap-5',
                 placeholder: placeholder,
                 allowClear: !isMultiple && !$select.prop('required'),
                 width: '100%',
                 closeOnSelect: isMultiple ? false : true,
                 dropdownParent: dropdownParent
-            });
+            };
+            if (isAttractionSelect) {
+                select2Options.templateResult = window.formatAttractionBundleOption;
+                select2Options.templateSelection = window.formatAttractionBundleOption;
+            }
+            $select.select2(select2Options);
             
             // Mark as initialized to avoid re-initialization
             $select.attr('data-select2-initialized', 'true');
@@ -12126,11 +12794,45 @@
         initializeExistingAttractionTimeSlots();
     });
     
+    // AI/day-level names often arrive as "Name - Location". Map the selected
+    // option onto the catalog row that actually has tickets/time slots.
+    function resolveCatalogAttractionOption(attractionSelect) {
+        if (!attractionSelect || !attractionSelect.options) {
+            return null;
+        }
+        const selectedOption = attractionSelect.options[attractionSelect.selectedIndex];
+        if (selectedOption && selectedOption.getAttribute('data-attraction-data')) {
+            return selectedOption;
+        }
+        const normalize = (value) => (value || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        const selectedText = normalize((selectedOption && selectedOption.textContent) || '');
+        const selectedVal = normalize(attractionSelect.value || '');
+        if (!selectedText && !selectedVal) {
+            return selectedOption || null;
+        }
+        for (let i = 0; i < attractionSelect.options.length; i++) {
+            const opt = attractionSelect.options[i];
+            if (!opt.value || !opt.getAttribute('data-attraction-data')) {
+                continue;
+            }
+            const optText = normalize(opt.textContent);
+            const optVal = normalize(opt.value);
+            if (
+                (selectedText && (optText === selectedText || optVal === selectedText || selectedText.startsWith(optVal + ' - ')))
+                || (selectedVal && (optVal === selectedVal || optText === selectedVal || selectedVal.startsWith(optVal + ' - ')))
+            ) {
+                attractionSelect.selectedIndex = i;
+                return opt;
+            }
+        }
+        return selectedOption || null;
+    }
+
     // Function to populate time slot select from attraction data
     function populateTimeSlotFromAttraction(attractionSelect, timeSlotSelect, currentValue = '') {
         if (!attractionSelect || !timeSlotSelect) return;
         
-        const selectedOption = attractionSelect.options[attractionSelect.selectedIndex];
+        const selectedOption = resolveCatalogAttractionOption(attractionSelect);
         if (!selectedOption || !selectedOption.getAttribute('data-attraction-data')) {
             timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option>';
             return;
@@ -12148,7 +12850,7 @@
                     const slotText = timeSlot.slot || (timeSlot.open + (timeSlot.close ? ' - ' + timeSlot.close : ''));
                     timeOption.value = slotValue;
                     timeOption.textContent = slotText;
-                    if (currentValue && (slotValue === currentValue || slotText === currentValue)) {
+                    if (currentValue && (slotValue === currentValue || slotText === currentValue || (slotValue && slotValue.indexOf(currentValue) !== -1))) {
                         timeOption.selected = true;
                     }
                     timeSlotSelect.appendChild(timeOption);
@@ -12197,6 +12899,37 @@
                     });
                 }
             }
+
+            // Keep a non-catalog saved value visible/selected
+            const normalizedCurrent = (currentValue || '').trim();
+            if (normalizedCurrent && normalizedCurrent.toUpperCase() !== 'N/A') {
+                let matched = false;
+                for (let i = 0; i < timeSlotSelect.options.length; i++) {
+                    if (timeSlotSelect.options[i].selected && timeSlotSelect.options[i].value) {
+                        matched = true;
+                        break;
+                    }
+                }
+                if (!matched) {
+                    const keepOption = document.createElement('option');
+                    keepOption.value = normalizedCurrent;
+                    keepOption.textContent = normalizedCurrent;
+                    keepOption.selected = true;
+                    timeSlotSelect.appendChild(keepOption);
+                    matched = true;
+                }
+            }
+
+            // If still nothing selected, pick the first real slot
+            if (!timeSlotSelect.value) {
+                for (let i = 0; i < timeSlotSelect.options.length; i++) {
+                    const opt = timeSlotSelect.options[i];
+                    if (opt.value && !opt.disabled) {
+                        opt.selected = true;
+                        break;
+                    }
+                }
+            }
             
             // If no time slots found from database, show message
             if (timeSlotSelect.options.length === 1) {
@@ -12219,7 +12952,7 @@
         const ticketSelect = typeof ticketSelectId === 'string' ? document.getElementById(ticketSelectId) : ticketSelectId;
         if (!ticketSelect) return;
         
-        const selectedOption = attractionSelect.options[attractionSelect.selectedIndex];
+        const selectedOption = resolveCatalogAttractionOption(attractionSelect);
         if (!selectedOption || !selectedOption.getAttribute('data-attraction-data')) {
             ticketSelect.innerHTML = '<option value="">Select Ticket</option>';
             return;
@@ -12228,10 +12961,30 @@
         try {
             const attractionData = JSON.parse(selectedOption.getAttribute('data-attraction-data'));
             ticketSelect.innerHTML = '<option value="">Select Ticket</option>';
+
+            // Packaged attraction bundle: ticket uses the same name as the bundle
+            if (selectedOption.dataset.isBundle === '1' || attractionData.is_bundle) {
+                const bundleName = attractionData.name || selectedOption.textContent.trim();
+                const ticketOption = document.createElement('option');
+                ticketOption.value = bundleName;
+                ticketOption.textContent = bundleName;
+                ticketOption.dataset.adultPrice = attractionData.adult_price || 0;
+                ticketOption.dataset.childPrice = attractionData.child_price || 0;
+                ticketOption.dataset.seniorPrice = attractionData.senior_price || attractionData.senior_citizen_price || 0;
+                ticketOption.selected = true;
+                ticketSelect.appendChild(ticketOption);
+                return;
+            }
             
             // Populate tickets from attraction data
-            if (attractionData.tickets && Array.isArray(attractionData.tickets) && attractionData.tickets.length > 0) {
-                attractionData.tickets.forEach(ticket => {
+            let tickets = attractionData.tickets;
+            if (tickets && !Array.isArray(tickets) && typeof tickets === 'object') {
+                tickets = Object.values(tickets);
+            }
+            const genericTicket = !currentValue || ['n/a', 'general ticket', 'select ticket'].includes(String(currentValue).trim().toLowerCase());
+            if (tickets && Array.isArray(tickets) && tickets.length > 0) {
+                let matched = false;
+                tickets.forEach(ticket => {
                     const ticketOption = document.createElement('option');
                     // Use ticket name as value, or ticket_id if name is not available
                     const ticketValue = ticket.name || ticket.ticket_name || ticket.ticket_id || '';
@@ -12241,16 +12994,23 @@
                     // Price data for inline edit form total calculation
                     const adultPrice = parseFloat(ticket.adult_price ?? ticket.price ?? 0) || 0;
                     const childPrice = parseFloat(ticket.child_price ?? 0) || 0;
-                    const seniorPrice = parseFloat(ticket.senior_price ?? ticket.adult_price ?? ticket.price ?? 0) || 0;
+                    const seniorPrice = parseFloat(ticket.senior_price ?? ticket.senior_adult_price ?? ticket.adult_price ?? ticket.price ?? 0) || 0;
                     ticketOption.dataset.adultPrice = adultPrice;
                     ticketOption.dataset.childPrice = childPrice;
                     ticketOption.dataset.seniorPrice = seniorPrice;
+                    if (ticket.ticket_id !== undefined && ticket.ticket_id !== null) {
+                        ticketOption.dataset.ticketId = String(ticket.ticket_id);
+                    }
                     // Set selected if it matches current value
-                    if (currentValue && (ticketValue === currentValue || ticketText === currentValue)) {
+                    if (!genericTicket && currentValue && (ticketValue === currentValue || ticketText === currentValue)) {
                         ticketOption.selected = true;
+                        matched = true;
                     }
                     ticketSelect.appendChild(ticketOption);
                 });
+                if (!matched && ticketSelect.options.length > 1) {
+                    ticketSelect.selectedIndex = 1;
+                }
             } else {
                 // If no tickets found, show message
                 const noTicketOption = document.createElement('option');
@@ -12264,6 +13024,33 @@
             ticketSelect.innerHTML = '<option value="">Error loading tickets</option>';
         }
     }
+
+    // When a packaged attraction bundle is selected, auto-enable transport/guide toggles if included
+    window.handleAttractionBundleSelection = function(attractionSelect, bookingId) {
+        if (!attractionSelect) return;
+        const selectedOption = attractionSelect.options[attractionSelect.selectedIndex];
+        if (!selectedOption || selectedOption.dataset.isBundle !== '1') {
+            return;
+        }
+
+        if (selectedOption.dataset.vehicleIncluded === '1') {
+            const transportToggle = document.getElementById(`need_attraction_transport_${bookingId}`);
+            if (transportToggle && !transportToggle.checked) {
+                transportToggle.checked = true;
+                transportToggle.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+
+        if (selectedOption.dataset.guideIncluded === '1') {
+            const guideToggle = document.getElementById(`need_attraction_guide_${bookingId}`);
+            if (guideToggle && !guideToggle.checked) {
+                guideToggle.checked = true;
+                guideToggle.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+
+        updateAttractionRowPrice(bookingId);
+    };
     
     // Recalculate and set total price for one attraction edit row (bookingId)
     function updateAttractionRowPrice(bookingId) {
@@ -12360,7 +13147,7 @@
 
     // -------- Global Payment Gate (ALL service adds) --------
     const __tourStatus = @json($tour->tour_status ?? '');
-    const __tourCurrencySymbol = @json($tour->currency ?? '$');
+    const __tourCurrencySymbol = @json($displayCurrency);
     const __tourIdForPayment = @json($tour->tour_id ?? '');
     const __tourAddPaymentUrl = @json(isset($tour) && isset($tour->tour_id) ? route('tour.add-payment', $tour->tour_id) : '');
 
@@ -12498,7 +13285,7 @@
                     },
                     body: JSON.stringify({
                         payment_amount: safeAmount,
-                        currency: 'SGD',
+                        currency: @json($displayCurrency),
                         exchange_rate: 1,
                         payment_date: paymentDate,
                         payment_type: paymentType,
@@ -12572,6 +13359,36 @@
         });
     }
     // -------- End Global Payment Gate --------
+
+    /**
+     * Resolve city + country from a modal city <select> (data-country on the option).
+     * Multi-city tours must NOT use #user_country CSV as the order country.
+     */
+    window.resolveModalCityGeo = function(citySelectId) {
+        const el = document.getElementById(citySelectId);
+        if (!el) return { city: '', country: '' };
+        const city = (el.value || '').toString().trim();
+        let country = '';
+        try {
+            const opt = el.options && el.selectedIndex >= 0 ? el.options[el.selectedIndex] : null;
+            if (opt) {
+                country = (opt.getAttribute('data-country') || opt.dataset.country || '').toString().trim();
+            }
+        } catch (e) { /* ignore */ }
+        return { city: city, country: country };
+    };
+
+    /**
+     * Prefer modal city country; reject CSV / blank; fall back to hotel/attraction record country.
+     */
+    window.resolveServiceOrderCountry = function(preferredCountry, fallbackCountry) {
+        const clean = function(v) {
+            const s = (v == null ? '' : String(v)).trim();
+            if (!s || s.indexOf(',') !== -1) return '';
+            return s;
+        };
+        return clean(preferredCountry) || clean(fallbackCountry) || '';
+    };
     
     // Service addition functions
     function addHotelService() {
@@ -12866,6 +13683,18 @@
         if (confirmBtn) {
             confirmBtn.addEventListener('click', confirmAttractionSelection);
         }
+
+        // Guide/transport are optional add-ons for the attraction, but when the user turns
+        // one of them on, its own required fields should also gate the Confirm button.
+        ['modal_need_attraction_guide', 'modal_need_attraction_transport'].forEach(function (toggleId) {
+            const toggleEl = document.getElementById(toggleId);
+            if (toggleEl) toggleEl.addEventListener('change', validateAttractionForm);
+        });
+        ['modal_attraction_guide_language', 'modal_attraction_guide_name',
+         'modal_attraction_transport_destination', 'modal_attraction_transport_vehicle'].forEach(function (fieldId) {
+            const fieldEl = document.getElementById(fieldId);
+            if (fieldEl) fieldEl.addEventListener('change', validateAttractionForm);
+        });
         
         // Set date restrictions and default value (single-city uses tour range; multi-city uses active stay range)
         let startDate = document.getElementById('start_date').value;
@@ -12951,12 +13780,15 @@
         // For demo purposes, show sample attractions
         // In production, this would fetch from API
         const all_attractions = @json($attractions ?? []);
-        const normCity = (typeof normalizeCityText === 'function') ? normalizeCityText(city) : (city || '').trim();
+        const all_bundles = @json($packagedAttractions ?? []);
+        const cityKey = (typeof cityMatchKey === 'function')
+            ? cityMatchKey(city)
+            : (city || '').trim().toLowerCase();
         const attractions = all_attractions.filter(function(attraction) {
-            const loc = (typeof normalizeCityText === 'function')
-                ? normalizeCityText(attraction.location)
-                : (attraction.location || '').trim();
-            return loc === normCity;
+            const loc = (typeof cityMatchKey === 'function')
+                ? cityMatchKey(attraction.location)
+                : (attraction.location || '').trim().toLowerCase();
+            return loc === cityKey;
         });
         // Add attraction options
         attractions.forEach(attraction => {
@@ -12966,8 +13798,54 @@
             option.setAttribute('data-attraction', JSON.stringify(attraction));
             attractionSelect.appendChild(option);
         });
+
+        // Append packaged attraction bundles (shown with bundle icon)
+        const cityAttractionIds = attractions.map(a => parseInt(a.id || 0, 10)).filter(Boolean);
+        const cityAttractionUniqueIds = attractions.map(a => parseInt(a.attraction_id || 0, 10)).filter(Boolean);
+        const bundles = (all_bundles || []).filter(function(bundle) {
+            let bundledIds = [];
+            try {
+                bundledIds = Array.isArray(bundle.attractions)
+                    ? bundle.attractions
+                    : (typeof bundle.attractions === 'string' ? JSON.parse(bundle.attractions || '[]') : []);
+            } catch (e) {
+                bundledIds = [];
+            }
+            bundledIds = bundledIds.map(id => parseInt(id, 10));
+            return bundledIds.some(id => cityAttractionIds.includes(id) || cityAttractionUniqueIds.includes(id));
+        });
+
+        bundles.forEach(bundle => {
+            const option = document.createElement('option');
+            option.value = 'bundle_' + bundle.package_attraction_id;
+            option.textContent = bundle.name;
+            option.dataset.isBundle = '1';
+            option.dataset.vehicleIncluded = bundle.vehicle_included ? '1' : '0';
+            option.dataset.guideIncluded = bundle.guide_included ? '1' : '0';
+            option.setAttribute('data-attraction', JSON.stringify({
+                name: bundle.name,
+                package_attraction_id: bundle.package_attraction_id,
+                adult_price: bundle.adult_price,
+                child_price: bundle.child_price,
+                senior_price: bundle.senior_citizen_price,
+                vehicle_included: !!bundle.vehicle_included,
+                guide_included: !!bundle.guide_included,
+                is_bundle: true,
+                tickets: [{
+                    name: bundle.name,
+                    ticket_name: bundle.name,
+                    adult_price: bundle.adult_price,
+                    child_price: bundle.child_price,
+                    senior_price: bundle.senior_citizen_price
+                }],
+                master_image: '{{ asset('assets/images/bundle-attraction-icon.png') }}',
+                location: city,
+                category: 'Bundle'
+            }));
+            attractionSelect.appendChild(option);
+        });
         
-        attractionCount.textContent = attractions.length;
+        attractionCount.textContent = attractions.length + bundles.length;
         document.getElementById('modal_attraction_city').textContent = city;
         
         // Refresh Select2 if it's initialized
@@ -13031,6 +13909,64 @@
                 // if (priceRangeEl) priceRangeEl.textContent = attractionData.price_range || 'Price on request';
                 
                 console.log('Attraction selected:', attractionData);
+
+                // Packaged attraction bundle: same-name ticket + auto transfer/guide
+                if (selectedOption.dataset.isBundle === '1' || attractionData.is_bundle) {
+                    if (timeSlotSelect) {
+                        timeSlotSelect.innerHTML = '<option value="">Select Time Slot</option><option value="Full Day" selected>Full Day</option>';
+                    }
+                    if (ticketSelect) {
+                        ticketSelect.innerHTML = '<option value="">Select Ticket</option>';
+                        const ticketOption = document.createElement('option');
+                        // Bundle tickets don't have a real ticket_id — use the package id so
+                        // parseInt(ticketId) downstream still yields a valid number.
+                        const bundleTicketId = attractionData.package_attraction_id || 0;
+                        const bundleTicketData = {
+                            ticket_id: bundleTicketId,
+                            name: attractionData.name || '',
+                            adult_price: attractionData.adult_price || 0,
+                            child_price: attractionData.child_price || 0,
+                            senior_price: attractionData.senior_price || 0,
+                            description: attractionData.description || '',
+                            nri: attractionData.nri || 'residential'
+                        };
+                        ticketOption.value = bundleTicketId;
+                        ticketOption.textContent = attractionData.name;
+                        ticketOption.setAttribute('data-ticket', JSON.stringify(bundleTicketData));
+                        ticketOption.dataset.adultPrice = bundleTicketData.adult_price;
+                        ticketOption.dataset.childPrice = bundleTicketData.child_price;
+                        ticketOption.dataset.seniorPrice = bundleTicketData.senior_price;
+                        ticketOption.selected = true;
+                        ticketSelect.appendChild(ticketOption);
+                    }
+
+                    if (selectedOption.dataset.vehicleIncluded === '1' || attractionData.vehicle_included) {
+                        const transportToggle = document.getElementById('modal_need_attraction_transport');
+                        if (transportToggle && !transportToggle.checked) {
+                            transportToggle.checked = true;
+                            transportToggle.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    }
+                    if (selectedOption.dataset.guideIncluded === '1' || attractionData.guide_included) {
+                        const guideToggle = document.getElementById('modal_need_attraction_guide');
+                        if (guideToggle && !guideToggle.checked) {
+                            guideToggle.checked = true;
+                            guideToggle.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    }
+
+                    if (attractionDetailsContainer) {
+                        attractionDetailsContainer.style.display = 'block';
+                    }
+                    if (typeof onTicketSelection === 'function') {
+                        onTicketSelection();
+                    }
+                    if (typeof updateAttractionPricing === 'function') {
+                        updateAttractionPricing();
+                    }
+                    validateAttractionForm();
+                    return;
+                }
 
                 // Set Time Slot Options from attraction data
                 if (timeSlotSelect) {
@@ -13167,7 +14103,7 @@
         
         if (selectedOption && selectedOption.value) {
             try {
-                const ticketData = JSON.parse(selectedOption.getAttribute('data-ticket'));
+                const ticketData = JSON.parse(selectedOption.getAttribute('data-ticket')) || {};
                 
                 // Get guest data
                 const guestData = window.attractionModalGuestData || {
@@ -13228,11 +14164,31 @@
         
         let isValid = true;
         
-        // Check required fields
+        // Base requirements: always needed, regardless of the optional guide/transport toggles.
         if (!attractionSelect.value) isValid = false;
         if (!timeSlotSelect.value) isValid = false;
         if (!ticketSelect.value) isValid = false;
         if (!visitDateSelect.value) isValid = false;
+        
+        // Guide is optional — only require guide details when "Do you want a guide?" is Yes.
+        // When it's No, guide has no bearing on Confirm; only ticket + time (+ attraction/date) matter.
+        const needGuideToggle = document.getElementById('modal_need_attraction_guide');
+        if (needGuideToggle && needGuideToggle.checked) {
+            const guideLanguage = document.getElementById('modal_attraction_guide_language');
+            const guideName = document.getElementById('modal_attraction_guide_name');
+            if (!guideLanguage || !guideLanguage.value) isValid = false;
+            if (!guideName || !guideName.value) isValid = false;
+        }
+        
+        // Transport is optional — only require transport details when "Need transport?" is Yes.
+        // When it's No, transport has no bearing on Confirm; only ticket + time (+ attraction/date) matter.
+        const needTransportToggle = document.getElementById('modal_need_attraction_transport');
+        if (needTransportToggle && needTransportToggle.checked) {
+            const transportDestination = document.getElementById('modal_attraction_transport_destination');
+            const transportVehicle = document.getElementById('modal_attraction_transport_vehicle');
+            if (!transportDestination || !transportDestination.value) isValid = false;
+            if (!transportVehicle || !transportVehicle.value) isValid = false;
+        }
         
         confirmBtn.disabled = !isValid;
     }
@@ -13659,15 +14615,41 @@
     // Transport Modal Functions
     function showTransportSelectionModal(tourId, country, startDate, endDate, transportType = 'entry_port') {
         console.log('Showing transport selection modal with data:', { tourId, country, startDate, endDate, transportType });
+
+        // Multi-city: use the active city plan stay range (e.g. Bali 19–20, not overall tour 16–…)
+        let effectiveStartDate = startDate;
+        let effectiveEndDate = endDate;
+        try {
+            const mode = typeof getCurrentCityMode === 'function' ? getCurrentCityMode() : 'single';
+            if (mode === 'multi') {
+                const bundle = document.getElementById('segmentServicesBundle');
+                const seg = bundle ? bundle.closest('.segment') : null;
+                const segStart = seg ? (seg.querySelector('.start-date')?.value || '').trim() : '';
+                const segEnd = seg ? (seg.querySelector('.end-date')?.value || '').trim() : '';
+                if (segStart && segEnd) {
+                    effectiveStartDate = segStart;
+                    effectiveEndDate = segEnd;
+                }
+            }
+        } catch (e) { /* ignore */ }
         
         // Set hidden fields
         document.getElementById('modal_transport_tour_id').value = tourId;
         document.getElementById('modal_transport_country').value = country;
         document.getElementById('modal_transport_type').value = transportType;
         // City field removed
-        document.getElementById('modal_transport_start_date').value = startDate;
-        document.getElementById('modal_transport_end_date').value = endDate;
-        // Pickup date is now hardcoded and readonly in the HTML
+        document.getElementById('modal_transport_start_date').value = effectiveStartDate;
+        document.getElementById('modal_transport_end_date').value = effectiveEndDate;
+
+        // Arrival defaults to city start; departure defaults to city end; editable within stay dates
+        const pickupDateInput = document.getElementById('modal_transport_pickup_date');
+        if (pickupDateInput && effectiveStartDate && effectiveEndDate) {
+            pickupDateInput.min = effectiveStartDate;
+            pickupDateInput.max = effectiveEndDate;
+            pickupDateInput.value = (transportType === 'exit_port') ? effectiveEndDate : effectiveStartDate;
+            pickupDateInput.readOnly = false;
+            pickupDateInput.disabled = false;
+        }
         
         // Update modal title based on type
         const modalTitle = document.getElementById('transportSelectionModalLabel');
@@ -13713,6 +14695,14 @@
         // Initialize the transport modal with a slight delay to ensure DOM is ready
         setTimeout(() => {
             initializeTransportModal();
+            // Re-apply stay dates after modal init (in case anything reset the field)
+            if (pickupDateInput && effectiveStartDate && effectiveEndDate) {
+                pickupDateInput.min = effectiveStartDate;
+                pickupDateInput.max = effectiveEndDate;
+                if (!pickupDateInput.value || pickupDateInput.value < effectiveStartDate || pickupDateInput.value > effectiveEndDate) {
+                    pickupDateInput.value = (transportType === 'exit_port') ? effectiveEndDate : effectiveStartDate;
+                }
+            }
             // Set default pickup time to 09:00 AM using the new inputs
             const timeInput = document.getElementById('modal_transport_pickup_time_input');
             const ampmSelect = document.getElementById('modal_transport_pickup_time_ampm');
@@ -13869,57 +14859,6 @@
         if (typeof checkHourlyFormCompletion === 'function') checkHourlyFormCompletion();
     }
 
-    // Point To Point pickup date: display dd-mm-yyyy, submit Y-m-d
-    function parseDdMmYyyyToYmd(str) {
-        if (!str || typeof str !== 'string') return null;
-        const cleaned = str.trim().replace(/\s/g, '');
-        const parts = cleaned.split(/[-/.]/);
-        if (parts.length !== 3) return null;
-        const d = parseInt(parts[0], 10), m = parseInt(parts[1], 10), y = parseInt(parts[2], 10);
-        if (isNaN(d) || isNaN(m) || isNaN(y) || d < 1 || d > 31 || m < 1 || m > 12 || y < 1900 || y > 2100) return null;
-        const date = new Date(y, m - 1, d);
-        if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) return null;
-        return String(y) + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
-    }
-    function ymdToDdMmYyyy(ymd) {
-        if (!ymd || typeof ymd !== 'string') return '';
-        const match = ymd.match(/^(\d{4})-(\d{2})-(\d{2})/);
-        if (!match) return '';
-        return match[3] + '-' + match[2] + '-' + match[1];
-    }
-    function formatPointToPointPickupDateInput(el) {
-        if (!el || !el.value) return;
-        let v = el.value.replace(/\D/g, '');
-        if (v.length > 8) v = v.slice(0, 8);
-        if (v.length > 2) v = v.slice(0, 2) + '-' + v.slice(2);
-        if (v.length > 5) v = v.slice(0, 5) + '-' + v.slice(5);
-        el.value = v;
-    }
-    function syncPointToPointPickupDateFromDisplay() {
-        const display = document.getElementById('local_transfer_point_pickup_date_display');
-        const hidden = document.getElementById('local_transfer_point_pickup_date');
-        if (!display || !hidden) return;
-        // type="date" inputs use Y-m-d format natively
-        let ymd = display.value && display.value.match(/^\d{4}-\d{2}-\d{2}$/) ? display.value : parseDdMmYyyyToYmd(display.value);
-        const min = display.getAttribute('data-min') || display.min || '';
-        const max = display.getAttribute('data-max') || display.max || '';
-        if (ymd) {
-            if (min && ymd < min) { hidden.value = min; display.value = min; }
-            else if (max && ymd > max) { hidden.value = max; display.value = max; }
-            else { hidden.value = ymd; }
-        } else if (!display.value || display.value.trim() === '') {
-            hidden.value = '';
-        }
-        if (typeof checkLocalTransferFormCompletion === 'function') checkLocalTransferFormCompletion();
-    }
-    function syncPointToPointPickupDateToDisplay() {
-        const hidden = document.getElementById('local_transfer_point_pickup_date');
-        const display = document.getElementById('local_transfer_point_pickup_date_display');
-        if (!hidden || !display) return;
-        // type="date" inputs require Y-m-d format
-        display.value = (hidden.value && hidden.value.match(/^\d{4}-\d{2}-\d{2}$/)) ? hidden.value : ymdToDdMmYyyy(hidden.value);
-    }
-    
     function showLocalTransferSelectionModal(tourId, country, startDate, endDate, serviceType = null) {
         console.log('Showing local transfer selection modal with data:', { tourId, country, startDate, endDate, serviceType });
         
@@ -13994,7 +14933,6 @@
                             handleLocalTransferServiceTypeChange('hourly');
                         } else                         if (serviceType === 'travel_point' || serviceType === 'point_to_point') {
                             handleLocalTransferServiceTypeChange('point_to_point');
-                            syncPointToPointPickupDateToDisplay();
                         } else if (serviceType === 'local_transport' || serviceType === 'local_transfer') {
                             handleLocalTransferServiceTypeChange('local_transfer');
                         }
@@ -14200,25 +15138,25 @@
         
         // Local transfer search button is handled by onclick attribute
         
-        // Set default service type to 'point_to_point'
+        // Default to the zone based Local Transfer flow for a zone-enabled DMC, otherwise Point To Point.
+        const zoneStatus = {{ (int) ($UserDmc->zone_on ?? 0) }};
         const pointToPointRadio = document.getElementById('local_transfer_service_type_point');
-        if (pointToPointRadio) {
+        const localTransferRadio = document.getElementById('local_transfer_service_type_local');
+        if (zoneStatus != 0 && localTransferRadio) {
+            localTransferRadio.checked = true;
+            handleLocalTransferServiceTypeChange('local_transfer');
+        } else if (pointToPointRadio) {
             pointToPointRadio.checked = true;
             handleLocalTransferServiceTypeChange('point_to_point');
-            syncPointToPointPickupDateToDisplay();
+        } else if (localTransferRadio) {
+            localTransferRadio.checked = true;
+            handleLocalTransferServiceTypeChange('local_transfer');
         } else {
-            // Fallback: check if local transfer radio exists
-            const localTransferServiceType = document.getElementById('local_transfer_service_type_local');
-            if (localTransferServiceType) {
-                localTransferServiceType.checked = true;
-                handleLocalTransferServiceTypeChange('local_transfer');
-            } else {
-                // If neither exists, set default to point_to_point
-                window.currentLocalTransferServiceType = 'point_to_point';
-                const modalTitle = document.getElementById('localTransferSelectionModalLabel');
-                if (modalTitle) {
-                    modalTitle.textContent = 'Point To Point Service Selection';
-                }
+            // If neither exists, set default to point_to_point
+            window.currentLocalTransferServiceType = 'point_to_point';
+            const modalTitle = document.getElementById('localTransferSelectionModalLabel');
+            if (modalTitle) {
+                modalTitle.textContent = 'Point To Point Service Selection';
             }
         }
         
@@ -14279,6 +15217,26 @@
             dropoffZoneSelect.addEventListener('change', checkDropoffFormCompletion);
         }
         
+        const exitCitySelect = document.getElementById('modal_exitport_transport_city');
+        if (exitCitySelect && !exitCitySelect.dataset.cityChangeWired) {
+            exitCitySelect.dataset.cityChangeWired = '1';
+            exitCitySelect.addEventListener('change', function () {
+                if (typeof window.loadDropoffModalCountryPorts === 'function') {
+                    window.loadDropoffModalCountryPorts();
+                }
+            });
+            if (typeof jQuery !== 'undefined') {
+                jQuery(exitCitySelect).on('select2:select select2:change', function () {
+                    if (typeof window.loadDropoffModalCountryPorts === 'function') {
+                        window.loadDropoffModalCountryPorts();
+                    }
+                });
+            }
+        }
+        if (typeof window.loadDropoffModalCountryPorts === 'function') {
+            window.loadDropoffModalCountryPorts();
+        }
+
         const pickupTimeInput = document.getElementById('modal_dropoff_transport_pickup_time_input');
         if (pickupTimeInput) {
             pickupTimeInput.addEventListener('input', () => {
@@ -14336,6 +15294,127 @@
         });
     }
 
+    window.ALL_TOUR_PORTS = @json($ports ?? []);
+
+    function getCountryFromCitySelect(selectEl) {
+        if (!selectEl) return '';
+        const opt = selectEl.options[selectEl.selectedIndex];
+        if (!opt || !opt.value) return '';
+        let country = (opt.getAttribute('data-country') || '').toString().trim();
+        if (!country) {
+            try {
+                const cityData = JSON.parse(opt.getAttribute('data-city') || '{}');
+                country = (cityData.country || '').toString().trim();
+            } catch (e) { /* ignore */ }
+        }
+        return country;
+    }
+
+    function fillPortSelectOptions(selectEl, ports, options) {
+        if (!selectEl) return;
+        options = options || {};
+        const useName = !!options.useName;
+        const placeholder = options.placeholder || (useName ? 'Select pickup port' : 'Select location');
+        const selectedValue = String(options.selectedValue != null ? options.selectedValue : (selectEl.value || '')).trim();
+        const norm = function (s) { return String(s || '').trim().toLowerCase(); };
+        selectEl.innerHTML = '<option value="">' + placeholder + '</option>';
+        let matched = false;
+        (ports || []).forEach(function (port) {
+            const opt = document.createElement('option');
+            const portId = port.port_id || port.id || '';
+            const portName = port.port_name || '';
+            opt.value = useName ? portName : portId;
+            opt.textContent = portName;
+            opt.setAttribute('data-type', 'Port');
+            opt.setAttribute('data-zone-id', portId);
+            opt.setAttribute('data-port-id', portId);
+            opt.setAttribute('data-port', JSON.stringify(port));
+            const selectedNorm = norm(selectedValue);
+            const nameNorm = norm(portName);
+            const idNorm = norm(portId);
+            if (selectedValue && !matched && (
+                String(opt.value) === selectedValue ||
+                String(portName) === selectedValue ||
+                String(portId) === selectedValue ||
+                (selectedNorm && nameNorm && (selectedNorm === nameNorm || selectedNorm.indexOf(nameNorm) !== -1 || nameNorm.indexOf(selectedNorm) !== -1)) ||
+                (selectedNorm && idNorm && selectedNorm === idNorm)
+            )) {
+                opt.selected = true;
+                matched = true;
+            }
+            selectEl.appendChild(opt);
+        });
+        if (typeof window.refreshSelect2 === 'function') {
+            window.refreshSelect2(selectEl);
+        } else if (typeof jQuery !== 'undefined' && jQuery(selectEl).data('select2')) {
+            jQuery(selectEl).trigger('change.select2');
+        }
+    }
+
+    window.loadCountryPortsThen = function (cityName, country, cb) {
+        const done = typeof cb === 'function' ? cb : function () {};
+        const params = new URLSearchParams();
+        if (country) params.set('country_id', country);
+        if (cityName) params.set('city', cityName);
+        const fallback = function () {
+            const all = window.ALL_TOUR_PORTS || [];
+            const c = String(country || '').toLowerCase();
+            done(!c ? all : all.filter(function (p) {
+                return String(p.country || '').toLowerCase() === c;
+            }));
+        };
+        if (!cityName && !country) {
+            done([]);
+            return;
+        }
+        fetch('{{ route("fetch-ports-by-country-single-tour") }}?' + params.toString())
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                const ports = (data && data.ports) ? data.ports : [];
+                done(ports);
+            })
+            .catch(fallback);
+    };
+
+    window.loadArrivalRowCountryPorts = function (bookingId) {
+        const cityEl = document.getElementById('arrival_city_' + bookingId);
+        const pickupEl = document.getElementById('arrival_pickup_' + bookingId);
+        if (!cityEl || !pickupEl) return;
+        const selected = pickupEl.value;
+        window.loadCountryPortsThen(cityEl.value, getCountryFromCitySelect(cityEl), function (ports) {
+            fillPortSelectOptions(pickupEl, ports, { useName: true, placeholder: 'Select pickup port', selectedValue: selected });
+            if (typeof fetchArrivalVehiclesForRow === 'function') {
+                fetchArrivalVehiclesForRow(bookingId);
+            }
+        });
+    };
+
+    window.loadDepartureRowCountryPorts = function (bookingId) {
+        const cityEl = document.getElementById('departure_city_' + bookingId);
+        const dropoffEl = document.getElementById('departure_dropoff_' + bookingId);
+        if (!cityEl || !dropoffEl) return;
+        const selected = dropoffEl.value;
+        window.loadCountryPortsThen(cityEl.value, getCountryFromCitySelect(cityEl), function (ports) {
+            fillPortSelectOptions(dropoffEl, ports, { useName: true, placeholder: 'Select dropoff port', selectedValue: selected });
+            if (typeof updateDepartureVehicles === 'function') {
+                updateDepartureVehicles(bookingId);
+            }
+        });
+    };
+
+    window.loadDropoffModalCountryPorts = function () {
+        const cityEl = document.getElementById('modal_exitport_transport_city');
+        const dropoffEl = document.getElementById('modal_dropoff_transport_dropoff_zone');
+        if (!cityEl || !dropoffEl) return;
+        const selected = dropoffEl.value;
+        window.loadCountryPortsThen(cityEl.value, getCountryFromCitySelect(cityEl), function (ports) {
+            fillPortSelectOptions(dropoffEl, ports, { useName: false, placeholder: 'Select dropoff location', selectedValue: selected });
+            if (typeof window.refreshSelect2 === 'function') {
+                window.refreshSelect2(dropoffEl);
+            }
+        });
+    };
+
     function getTransportModalCityContext() {
         const citySelect = document.getElementById('modal_entryport_transport_city');
         if (!citySelect || !citySelect.value) {
@@ -14386,21 +15465,25 @@
         }
 
         // Backend data
-        const allPorts = @json($ports ?? []);
+        const allPorts = window.ALL_TOUR_PORTS || @json($ports ?? []);
         const allHotels = @json($hotels ?? []);
         const allRestaurants = @json($restaurants ?? []);
         const allAttractions = @json($attractions ?? []);
         const cityCtx = getTransportModalCityContext();
+        const citySelect = document.getElementById('modal_entryport_transport_city');
+        const country = getCountryFromCitySelect(citySelect);
         const filterByCity = function(list) {
             if (!cityCtx.cityName && cityCtx.cityId == null) return list;
             const filtered = list.filter(function(item) { return recordMatchesTransportCity(item, cityCtx); });
             return filtered.length ? filtered : list;
         };
-        const ports = filterByCity(allPorts);
         const hotels = filterByCity(allHotels);
         const restaurants = filterByCity(allRestaurants);
         const attractions = filterByCity(allAttractions);
+        const pickupSelected = pickupSelect.value;
+        const dropoffSelected = dropoffSelect.value;
 
+        const applyPortLists = function (ports) {
         // Helper to build port options
         const buildPortOptions = () => {
             let html = '<option value="">Select location</option>';
@@ -14477,24 +15560,31 @@
             // Pickup: Hotels + Restaurants
             pickupSelect.innerHTML = buildHotelRestaurantOptions();
 
-            // Dropoff: Ports
+            // Dropoff: Ports (country-wide)
             dropoffSelect.innerHTML = buildPortOptions();
         } else {
             console.log('Configuring transport modal for ARRIVAL (entry_port): pickup = ports, dropoff = hotels/attractions/restaurants');
 
-            // Pickup: Ports
+            // Pickup: Ports (country-wide)
             pickupSelect.innerHTML = buildPortOptions();
 
-            // Dropoff: Hotels + Attractions + Restaurants (original behaviour)
+            // Dropoff: Hotels + Attractions + Restaurants (city-filtered)
             dropoffSelect.innerHTML = buildArrivalDropoffOptions();
         }
 
-        // Reset selects to default value
         pickupSelect.value = '';
         dropoffSelect.value = '';
+        if (pickupSelected && Array.from(pickupSelect.options).some(function (o) { return o.value === pickupSelected; })) {
+            pickupSelect.value = pickupSelected;
+        }
+        if (dropoffSelected && Array.from(dropoffSelect.options).some(function (o) { return o.value === dropoffSelected; })) {
+            dropoffSelect.value = dropoffSelected;
+        }
 
-        // Select2 caches options on init; refresh after innerHTML changes (live server timing can init before this runs)
         refreshTransportModalZoneSelects();
+        };
+
+        window.loadCountryPortsThen(cityCtx.cityName, country, applyPortLists);
     }
     
     function loadZonesForPickup() {
@@ -16545,30 +17635,30 @@
                 detailsHtml = `
                     <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
                         <span style="color: #6c757d;"><i class="ri-user-line me-1" style="color: #667eea;"></i>Total adult price:</span>
-                        <span class="fw-semibold" style="color: #495057;">SGD ${adultPrice.toFixed(2)} × ${adultsCount} = SGD ${adultTotal.toFixed(2)}</span>
+                        <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${adultPrice.toFixed(2)} × ${adultsCount} = ${__tourCurrencySymbol} ${adultTotal.toFixed(2)}</span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
                         <span style="color: #6c757d;"><i class="ri-user-smile-line me-1" style="color: #28a745;"></i>Total child price:</span>
-                        <span class="fw-semibold" style="color: #495057;">SGD ${childPrice.toFixed(2)} × ${childrenCount} = SGD ${childTotal.toFixed(2)}</span>
+                        <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${childPrice.toFixed(2)} × ${childrenCount} = ${__tourCurrencySymbol} ${childTotal.toFixed(2)}</span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
                         <span style="color: #6c757d;"><i class="ri-user-heart-line me-1" style="color: #ffc107;"></i>Total infant price:</span>
-                        <span class="fw-semibold" style="color: #495057;">SGD ${infantPrice.toFixed(2)} × ${infantsCount} = SGD ${infantTotal.toFixed(2)}</span>
+                        <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${infantPrice.toFixed(2)} × ${infantsCount} = ${__tourCurrencySymbol} ${infantTotal.toFixed(2)}</span>
                     </div>
                 `;
             } else if (serviceType === 'Private' && !isManualPriceUsed) {
                 detailsHtml = `
                     <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
                         <span style="color: #6c757d;"><i class="ri-user-line me-1" style="color: #667eea;"></i>Adult price:</span>
-                        <span class="fw-semibold" style="color: #495057;">SGD ${basePrice.toFixed(2)}</span>
+                        <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${basePrice.toFixed(2)}</span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
                         <span style="color: #6c757d;"><i class="ri-user-smile-line me-1" style="color: #28a745;"></i>Child price:</span>
-                        <span class="fw-semibold" style="color: #495057;">SGD ${basePrice.toFixed(2)}</span>
+                        <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${basePrice.toFixed(2)}</span>
                     </div>
                     <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
                         <span style="color: #6c757d;"><i class="ri-user-heart-line me-1" style="color: #ffc107;"></i>Infant price:</span>
-                        <span class="fw-semibold" style="color: #495057;">SGD ${basePrice.toFixed(2)}</span>
+                        <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${basePrice.toFixed(2)}</span>
                     </div>
                     <small style="color: #6c757d; font-size: 0.7rem; display: block; margin-top: 0.35rem;">
                         <i class="ri-information-line me-1" style="color: #667eea;"></i>Private vehicle: fixed price per trip (not per person).
@@ -16593,7 +17683,7 @@
             
             const totalPriceDisplay = document.getElementById('transport_total_price_display');
             if (totalPriceDisplay) {
-                totalPriceDisplay.textContent = 'SGD ' + formattedTotalPrice;
+                totalPriceDisplay.textContent = __tourCurrencySymbol + ' ' + formattedTotalPrice;
             }
             
             // Update hidden fields
@@ -16706,11 +17796,11 @@
                     detailsHtml = `
                         <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                             <span style="color: #6c757d;"><i class="ri-car-line me-1" style="color: #667eea;"></i>Base (vehicle):</span>
-                            <span class="fw-semibold" style="color: #495057;">SGD ${basePrice.toFixed(2)}</span>
+                            <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${basePrice.toFixed(2)}</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                             <span style="color: #6c757d;"><i class="ri-time-line me-1" style="color: #667eea;"></i>Hourly rate:</span>
-                            <span class="fw-semibold" style="color: #495057;">SGD ${costPerHour.toFixed(2)} per hour</span>
+                            <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${costPerHour.toFixed(2)} per hour</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                             <span style="color: #6c757d;"><i class="ri-calendar-check-line me-1" style="color: #667eea;"></i>Selected hours:</span>
@@ -16718,11 +17808,11 @@
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                             <span style="color: #6c757d;"><i class="ri-calculator-line me-1" style="color: #667eea;"></i>Hours charge:</span>
-                            <span class="fw-semibold" style="color: #495057;">SGD ${costPerHour.toFixed(2)} × ${selectedHours} = SGD ${hourlyCost.toFixed(2)}</span>
+                            <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${costPerHour.toFixed(2)} × ${selectedHours} = ${__tourCurrencySymbol} ${hourlyCost.toFixed(2)}</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-2 pt-2 border-top border-1" style="font-size: 0.9rem;">
                             <span style="color: #495057;" class="fw-semibold"><i class="ri-money-dollar-circle-line me-1" style="color: #667eea;"></i>Total:</span>
-                            <span class="fw-bold" style="color: #495057;">SGD ${basePrice.toFixed(2)} + SGD ${hourlyCost.toFixed(2)} = SGD ${totalPrice.toFixed(2)}</span>
+                            <span class="fw-bold" style="color: #495057;">${__tourCurrencySymbol} ${basePrice.toFixed(2)} + ${__tourCurrencySymbol} ${hourlyCost.toFixed(2)} = ${__tourCurrencySymbol} ${totalPrice.toFixed(2)}</span>
                         </div>
                         <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 0.5rem;"><i class="ri-information-line me-1" style="color: #667eea;"></i>Private hourly: base + (hours × rate per hour).</small>
                     `;
@@ -16732,11 +17822,11 @@
                     detailsHtml = `
                         <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                             <span style="color: #6c757d;"><i class="ri-price-tag-3-line me-1" style="color: #28a745;"></i>Base (per person):</span>
-                            <span class="fw-semibold" style="color: #495057;">SGD ${basePrice.toFixed(2)}</span>
+                            <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${basePrice.toFixed(2)}</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                             <span style="color: #6c757d;"><i class="ri-time-line me-1" style="color: #28a745;"></i>Hourly (per person):</span>
-                            <span class="fw-semibold" style="color: #495057;">SGD ${sharableCostPerHour.toFixed(2)} × ${selectedHours} h = SGD ${hourlyPerPerson.toFixed(2)}</span>
+                            <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${sharableCostPerHour.toFixed(2)} × ${selectedHours} h = ${__tourCurrencySymbol} ${hourlyPerPerson.toFixed(2)}</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-2" style="font-size: 0.85rem;">
                             <span style="color: #6c757d;"><i class="ri-group-line me-1" style="color: #28a745;"></i>Guests:</span>
@@ -16744,7 +17834,7 @@
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-2 pt-2 border-top border-1" style="font-size: 0.9rem;">
                             <span style="color: #495057;" class="fw-semibold"><i class="ri-calculator-line me-1" style="color: #28a745;"></i>Total:</span>
-                            <span class="fw-bold" style="color: #495057;">(SGD ${perPersonTotal.toFixed(2)} per person) × ${validatedPassengers} = SGD ${totalPrice.toFixed(2)}</span>
+                            <span class="fw-bold" style="color: #495057;">(${__tourCurrencySymbol} ${perPersonTotal.toFixed(2)} per person) × ${validatedPassengers} = ${__tourCurrencySymbol} ${totalPrice.toFixed(2)}</span>
                         </div>
                         <small style="color: #6c757d; font-size: 0.8rem; display: block; margin-top: 0.5rem;"><i class="ri-information-line me-1" style="color: #28a745;"></i>Shared hourly: (base + hours × rate) × guests.</small>
                     `;
@@ -16759,30 +17849,30 @@
                     detailsHtml = `
                         <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
                             <span style="color: #6c757d;"><i class="ri-user-line me-1" style="color: #667eea;"></i>Total adult price:</span>
-                            <span class="fw-semibold" style="color: #495057;">SGD ${adultPrice.toFixed(2)} × ${adultsCount} = SGD ${adultTotal.toFixed(2)}</span>
+                            <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${adultPrice.toFixed(2)} × ${adultsCount} = ${__tourCurrencySymbol} ${adultTotal.toFixed(2)}</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
                             <span style="color: #6c757d;"><i class="ri-user-smile-line me-1" style="color: #28a745;"></i>Total child price:</span>
-                            <span class="fw-semibold" style="color: #495057;">SGD ${childPrice.toFixed(2)} × ${childrenCount} = SGD ${childTotal.toFixed(2)}</span>
+                            <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${childPrice.toFixed(2)} × ${childrenCount} = ${__tourCurrencySymbol} ${childTotal.toFixed(2)}</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
                             <span style="color: #6c757d;"><i class="ri-user-heart-line me-1" style="color: #ffc107;"></i>Total infant price:</span>
-                            <span class="fw-semibold" style="color: #495057;">SGD ${infantPrice.toFixed(2)} × ${infantsCount} = SGD ${infantTotal.toFixed(2)}</span>
+                            <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${infantPrice.toFixed(2)} × ${infantsCount} = ${__tourCurrencySymbol} ${infantTotal.toFixed(2)}</span>
                         </div>
                     `;
                 } else {
                     detailsHtml = `
                         <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
                             <span style="color: #6c757d;"><i class="ri-user-line me-1" style="color: #667eea;"></i>Adult price:</span>
-                            <span class="fw-semibold" style="color: #495057;">SGD ${basePrice.toFixed(2)}</span>
+                            <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${basePrice.toFixed(2)}</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
                             <span style="color: #6c757d;"><i class="ri-user-smile-line me-1" style="color: #28a745;"></i>Child price:</span>
-                            <span class="fw-semibold" style="color: #495057;">SGD ${basePrice.toFixed(2)}</span>
+                            <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${basePrice.toFixed(2)}</span>
                         </div>
                         <div class="d-flex justify-content-between align-items-center mb-1" style="font-size: 0.8rem;">
                             <span style="color: #6c757d;"><i class="ri-user-heart-line me-1" style="color: #ffc107;"></i>Infant price:</span>
-                            <span class="fw-semibold" style="color: #495057;">SGD ${basePrice.toFixed(2)}</span>
+                            <span class="fw-semibold" style="color: #495057;">${__tourCurrencySymbol} ${basePrice.toFixed(2)}</span>
                         </div>
                         <small style="color: #6c757d; font-size: 0.7rem; display: block; margin-top: 0.35rem;"><i class="ri-information-line me-1" style="color: #667eea;"></i>Private vehicle: fixed price per trip (not per person).</small>
                     `;
@@ -16797,7 +17887,7 @@
             priceDetails.innerHTML = detailsHtml;
             const formattedTotalPrice = totalPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             const totalPriceDisplay = document.getElementById('local_transfer_total_price_display');
-            if (totalPriceDisplay) totalPriceDisplay.textContent = 'SGD ' + formattedTotalPrice;
+            if (totalPriceDisplay) totalPriceDisplay.textContent = __tourCurrencySymbol + ' ' + formattedTotalPrice;
             
             document.getElementById('local_transfer_base_price').value = basePrice.toFixed(2);
             document.getElementById('local_transfer_total_price').value = totalPrice.toFixed(2);
@@ -16909,8 +17999,19 @@
         
         // Get tour details
         const tourId = document.getElementById('modal_transport_tour_id').value;
-        const country = document.getElementById('modal_transport_country').value;
-        const city = document.getElementById('modal_transport_city').value;
+        const transportCityGeo = (typeof window.resolveModalCityGeo === 'function')
+            ? window.resolveModalCityGeo('modal_entryport_transport_city')
+            : { city: '', country: '' };
+        const city = transportCityGeo.city
+            || (document.getElementById('modal_transport_city') ? document.getElementById('modal_transport_city').value : '')
+            || vehicleData.city
+            || '';
+        const country = (typeof window.resolveServiceOrderCountry === 'function')
+            ? window.resolveServiceOrderCountry(
+                transportCityGeo.country || vehicleData.country || (document.getElementById('modal_transport_country') ? document.getElementById('modal_transport_country').value : ''),
+                document.getElementById('user_country') ? document.getElementById('user_country').value : ''
+            )
+            : (transportCityGeo.country || vehicleData.country || '');
         const startDate = document.getElementById('modal_transport_start_date').value;
         const endDate = document.getElementById('modal_transport_end_date').value;
         const pickupDate = document.getElementById('modal_transport_pickup_date').value;
@@ -17363,8 +18464,19 @@
         
         // Get tour details
         const tourId = document.getElementById('local_transfer_tour_id').value;
-        const country = document.getElementById('local_transfer_country').value;
-        const city = document.getElementById('local_transfer_city').value;
+        const localCityGeo = (typeof window.resolveModalCityGeo === 'function')
+            ? window.resolveModalCityGeo('modal_local_transfer_city')
+            : { city: '', country: '' };
+        const city = localCityGeo.city
+            || (document.getElementById('local_transfer_city') ? document.getElementById('local_transfer_city').value : '')
+            || vehicleData.city
+            || '';
+        const country = (typeof window.resolveServiceOrderCountry === 'function')
+            ? window.resolveServiceOrderCountry(
+                localCityGeo.country || vehicleData.country || (document.getElementById('local_transfer_country') ? document.getElementById('local_transfer_country').value : ''),
+                document.getElementById('user_country') ? document.getElementById('user_country').value : ''
+            )
+            : (localCityGeo.country || vehicleData.country || '');
         const startDate = document.getElementById('local_transfer_start_date').value;
         const endDate = document.getElementById('local_transfer_end_date').value;
         const pickupDate = document.getElementById('local_transfer_pickup_date').value;
@@ -17487,7 +18599,14 @@
         
         const ticketSelect = document.getElementById('modal_attraction_ticket');
         const selectedTicketOption = ticketSelect.options[ticketSelect.selectedIndex];
-        const ticketData = selectedTicketOption ? JSON.parse(selectedTicketOption.getAttribute('data-ticket')) : {};
+        let ticketData = {};
+        if (selectedTicketOption) {
+            try {
+                ticketData = JSON.parse(selectedTicketOption.getAttribute('data-ticket')) || {};
+            } catch (e) {
+                ticketData = {};
+            }
+        }
         console.log('Ticket data:', ticketData);
         
         // Get guest data from modal
@@ -17503,7 +18622,18 @@
         
         // Get tour details
         const tourId = document.getElementById('tour_id').value;
-        const country = document.getElementById('user_country').value;
+        const attractionCityGeo = (typeof window.resolveModalCityGeo === 'function')
+            ? window.resolveModalCityGeo('modal_attraction_city_select')
+            : { city: '', country: '' };
+        const country = (typeof window.resolveServiceOrderCountry === 'function')
+            ? window.resolveServiceOrderCountry(
+                attractionCityGeo.country || (attractionData && attractionData.country),
+                document.getElementById('user_country') ? document.getElementById('user_country').value : ''
+            )
+            : (attractionCityGeo.country || '');
+        const attractionCity = attractionCityGeo.city
+            || (attractionData && (attractionData.location || attractionData.city))
+            || '';
         
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
@@ -17549,6 +18679,9 @@
             seniorCount: 0,
             AttractionId: parseInt(attractionId),
             AttractionName: attractionData.name || "",
+            AttractionCity: attractionCity || null,
+            city: attractionCity || null,
+            country: country || null,
             ticketId: parseInt(ticketId),
             ticketName: ticketData.name || "",
             ticket_details: {
@@ -17937,6 +19070,28 @@
     }
     
     // Hotel Modal Functions - Chain-dependent dropdowns like create.blade.php
+    // AbortControllers cancel in-flight hotel/room/bed fetches when the user changes selection quickly.
+    window.__hotelModalFetchControllers = window.__hotelModalFetchControllers || {
+        hotels: null,
+        rooms: null,
+        beds: null,
+    };
+
+    function abortHotelModalFetch(kind) {
+        const ctrls = window.__hotelModalFetchControllers;
+        if (ctrls[kind]) {
+            try { ctrls[kind].abort(); } catch (e) { /* ignore */ }
+            ctrls[kind] = null;
+        }
+    }
+
+    function startHotelModalFetch(kind) {
+        abortHotelModalFetch(kind);
+        const controller = new AbortController();
+        window.__hotelModalFetchControllers[kind] = controller;
+        return controller;
+    }
+
     function loadHotelsForSelectedCity(cityName) {
         const hotelSelect = document.getElementById('hotel_select');
         const hotelCount = document.getElementById('hotel_count');
@@ -17945,6 +19100,9 @@
         
         if (!cityName) {
             // Reset to default state when no city selected
+            abortHotelModalFetch('hotels');
+            abortHotelModalFetch('rooms');
+            abortHotelModalFetch('beds');
             hotelSelect.disabled = true;
             hotelSelect.innerHTML = '<option value="">Select city first to load hotels</option>';
             hotelCount.textContent = '0';
@@ -17966,10 +19124,13 @@
         
         // Get current user's DMC ID for hotel filtering
         const currentDmcId = document.getElementById('dmc_id').value;
-        console.log('Loading hotels for city:', cityName, 'DMC ID:', currentDmcId);
+        const controller = startHotelModalFetch('hotels');
         
         // Fetch hotels from API using DMC-specific endpoint (same as create.blade.php)
-        fetch(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`)
+        fetch(`{{ route('fetch-hotels-by-dmc') }}?city=${encodeURIComponent(cityName)}&dmc_id=${currentDmcId}`, {
+            signal: controller.signal,
+            headers: { 'Accept': 'application/json' },
+        })
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
@@ -17977,9 +19138,12 @@
                 return response.json();
             })
             .then(response => {
-                console.log('Hotel API Response:', response);
-                
-                hotelSelect.innerHTML = '<option value="">Select a hotel in ' + cityName + '</option>';
+                hotelSelect.innerHTML = '';
+                const frag = document.createDocumentFragment();
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = 'Select a hotel in ' + cityName;
+                frag.appendChild(placeholder);
                 hotelSelect.disabled = false;
                 
                 if (response.success && response.hotels && response.hotels.length > 0) {
@@ -17988,26 +19152,36 @@
                     
                     response.hotels.forEach(hotel => {
                         const starInfo = hotel.hotel_star_rating ? ` (${hotel.hotel_star_rating}⭐)` : '';
-                const option = document.createElement('option');
-                option.value = hotel.hotel_unique_id;
+                        const option = document.createElement('option');
+                        option.value = hotel.hotel_unique_id;
                         option.textContent = hotel.name + starInfo;
-                option.setAttribute('data-hotel', JSON.stringify(hotel));
-                hotelSelect.appendChild(option);
-            });
+                        // Slim payload only — full hotel JSON on every option was a major lag source
+                        option.setAttribute('data-hotel', JSON.stringify({
+                            hotel_unique_id: hotel.hotel_unique_id || '',
+                            name: hotel.name || '',
+                            city: hotel.city || '',
+                            country: hotel.country || '',
+                            hotel_star_rating: hotel.hotel_star_rating || '',
+                            weekend_days: hotel.weekend_days || null,
+                            check_in_time: hotel.check_in_time || '',
+                            check_out_time: hotel.check_out_time || '',
+                        }));
+                        frag.appendChild(option);
+                    });
+                    hotelSelect.appendChild(frag);
             
                     hotelCount.textContent = response.hotels.length;
                     if (hotelLoadingStatus) {
                         hotelLoadingStatus.innerHTML = `<i class="ri-check-line me-1 text-success"></i>${response.hotels.length} hotels found in ${cityName}`;
                         hotelLoadingStatus.style.color = '#198754';
                     }
-                    console.log(`Loaded ${response.hotels.length} hotels for ${cityName}`);
                     
                     // Validate fields after hotels are loaded
                     validateHotelModalFields();
-        } else {
+                } else {
                     window.hotelData = [];
                     hotelSelect.innerHTML = '<option value="">No hotels found in ' + cityName + '</option>';
-            hotelCount.textContent = '0';
+                    hotelCount.textContent = '0';
                     if (hotelLoadingStatus) {
                         hotelLoadingStatus.innerHTML = `<i class="ri-information-line me-1 text-warning"></i>No hotels found in ${cityName}`;
                         hotelLoadingStatus.style.color = '#fd7e14';
@@ -18019,6 +19193,7 @@
                 }
             })
             .catch(error => {
+                if (error && error.name === 'AbortError') return;
                 console.error('Error loading hotels:', error);
                 window.hotelData = [];
                 hotelSelect.innerHTML = '<option value="">Error loading hotels</option>';
@@ -18049,12 +19224,15 @@
         }
         
         if (!hotelId) {
+            abortHotelModalFetch('rooms');
+            abortHotelModalFetch('beds');
             // Reset to default state when no hotel selected
             resetHotelModalFields();
             return;
         }
         
-        console.log('Loading rooms for hotel:', hotelId);
+        // Cancel any in-flight bed fetch from a previous hotel/room choice
+        abortHotelModalFetch('beds');
         
         // Show loading state
         roomTypeSelect.innerHTML = '<option value="">Loading rooms...</option>';
@@ -18067,9 +19245,13 @@
         // Get DMC id for query string (API resolves DMC from auth; this is informational)
         const dmcEl = document.getElementById('dmc_id');
         const currentDmcId = dmcEl ? String(dmcEl.value || '').trim() : '';
+        const controller = startHotelModalFetch('rooms');
         
-        // fetch-rooms-by-hotel already filters by DMC on the server — use response.rooms as-is (see loadRoomsForSelectedHotel).
-        fetch(`{{ route('fetch-rooms-by-hotel') }}?hotel_id=${encodeURIComponent(hotelId)}&dmc_id=${encodeURIComponent(currentDmcId)}`)
+        // fetch-rooms-by-hotel already filters by DMC on the server — use response.rooms as-is.
+        fetch(`{{ route('fetch-rooms-by-hotel') }}?hotel_id=${encodeURIComponent(hotelId)}&dmc_id=${encodeURIComponent(currentDmcId)}`, {
+            signal: controller.signal,
+            headers: { 'Accept': 'application/json' },
+        })
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
@@ -18077,87 +19259,82 @@
                 return response.json();
             })
             .then(response => {
-                console.log('Rooms API Response:', response);
-                
-                // Clear dropdowns
-                roomTypeSelect.innerHTML = '<option value="">Select room type</option>';
+                // Clear dropdowns via fragment (one DOM write)
+                const roomFrag = document.createDocumentFragment();
+                const roomPlaceholder = document.createElement('option');
+                roomPlaceholder.value = '';
+                roomPlaceholder.textContent = 'Select room type';
+                roomFrag.appendChild(roomPlaceholder);
                 bedTypeSelect.innerHTML = '<option value="">Select room type first</option>';
                 mealPlanSelect.innerHTML = '<option value="">Select room type first</option>';
                 
                 if (response.success && response.rooms && response.rooms.length > 0) {
                     const dmcFilteredRooms = response.rooms;
-                    console.log('Rooms from API (server-filtered):', dmcFilteredRooms.length);
+                    if (response.weekend_days) {
+                        window.hotelWeekendDays = response.weekend_days;
+                    }
                     
                     // Store room data globally for bed fetching
                     window.roomData = dmcFilteredRooms;
                     
-                    // Extract unique room types
-                    const roomTypes = [...new Set(dmcFilteredRooms.map(room => room.room_type).filter(Boolean))];
-                    console.log('Available room types:', roomTypes);
+                    // Extract unique room types once (avoid N×find)
+                    const byType = new Map();
+                    dmcFilteredRooms.forEach(room => {
+                        if (!room || !room.room_type) return;
+                        if (!byType.has(room.room_type)) {
+                            byType.set(room.room_type, room);
+                        }
+                    });
                     
-                            // Populate room types with pricing information
-                            roomTypes.forEach(roomType => {
-                                const sampleRoom = dmcFilteredRooms.find(room => room.room_type === roomType);
-                                
-                                if (sampleRoom) {
-                                    // Get guest count for pricing - use person_count_select from modal
-                                    const personCountSelect = document.getElementById('person_count_select');
-                                    const numberOfPersons = personCountSelect ? parseInt(personCountSelect.value) || 1 : 1;
-                                    
-                                    // Determine pricing based on occupancy
-                                    const isSingleOccupancy = numberOfPersons <= 1;
-                                    
-                                    let price = 0;
-                                    let priceText = '';
-                                    
-                                    if (isSingleOccupancy) {
-                                        price = parseFloat(sampleRoom.weekday_price) || 0;
-                                        priceText = ` - $${price}`;
-                                    } else {
-                                        price = parseFloat(sampleRoom.double_weekday_price) || 0;
-                                        priceText = ` - $${price}`;
-                                    }
-                                    
-                                    const option = document.createElement('option');
-                                    option.value = roomType;
-                                    option.textContent = `${roomType}${priceText}`;
-                                    
-                                    // Store room data in dataset for later use
-                                    option.dataset.roomType = roomType;
-                                    option.dataset.weekdayPrice = sampleRoom.weekday_price || 0;
-                                    option.dataset.weekendPrice = sampleRoom.weekend_price || 0;
-                                    option.dataset.doubleWeekdayPrice = sampleRoom.double_weekday_price || 0;
-                                    option.dataset.doubleWeekendPrice = sampleRoom.double_weekend_price || 0;
-                                    option.dataset.roomId = sampleRoom.room_id;
-                                    option.dataset.breakfastPrice = sampleRoom.breakfast_price || 0;
-                                    option.dataset.lunchPrice = sampleRoom.lunch_price || 0;
-                                    option.dataset.dinnerPrice = sampleRoom.dinner_price || 0;
-                                    option.dataset.breakfast = sampleRoom.breakfast || 0;
-                                    option.dataset.lunch = sampleRoom.lunch || 0;
-                                    option.dataset.dinner = sampleRoom.dinner || 0;
-                                    
-                                    roomTypeSelect.appendChild(option);
-                                    console.log(`Added room type: ${roomType} with price $${price}`);
-                                }
-                            });
-                            
-                            // Update price after rooms are loaded
-                            setTimeout(() => {
-                                updateHotelModalPrice();
-                            }, 100);
+                    const personCountSelect = document.getElementById('person_count_select');
+                    const numberOfPersons = personCountSelect ? parseInt(personCountSelect.value) || 1 : 1;
+                    const isSingleOccupancy = numberOfPersons <= 1;
                     
+                    byType.forEach((sampleRoom, roomType) => {
+                        let price = 0;
+                        if (isSingleOccupancy) {
+                            price = parseFloat(sampleRoom.weekday_price) || 0;
+                        } else {
+                            price = parseFloat(sampleRoom.double_weekday_price) || 0;
+                        }
+                        const priceText = price ? ` - ${window.__displayCurrency} ${price}` : '';
+                        
+                        const option = document.createElement('option');
+                        option.value = roomType;
+                        option.textContent = `${roomType}${priceText}`;
+                        
+                        option.dataset.roomType = roomType;
+                        option.dataset.weekdayPrice = sampleRoom.weekday_price || 0;
+                        option.dataset.weekendPrice = sampleRoom.weekend_price || 0;
+                        option.dataset.doubleWeekdayPrice = sampleRoom.double_weekday_price || 0;
+                        option.dataset.doubleWeekendPrice = sampleRoom.double_weekend_price || 0;
+                        option.dataset.roomId = sampleRoom.room_id;
+                        option.dataset.breakfastPrice = sampleRoom.breakfast_price || 0;
+                        option.dataset.lunchPrice = sampleRoom.lunch_price || 0;
+                        option.dataset.dinnerPrice = sampleRoom.dinner_price || 0;
+                        option.dataset.breakfast = sampleRoom.breakfast || 0;
+                        option.dataset.lunch = sampleRoom.lunch || 0;
+                        option.dataset.dinner = sampleRoom.dinner || 0;
+                        
+                        roomFrag.appendChild(option);
+                    });
+                    
+                    roomTypeSelect.innerHTML = '';
+                    roomTypeSelect.appendChild(roomFrag);
                     roomTypeSelect.disabled = false;
-                    console.log(`Loaded ${roomTypes.length} room types for hotel ${hotelId}`);
                     
-                    // Validate fields after rooms are loaded
-                    validateHotelModalFields();
+                    // Update price after rooms are loaded
+                    setTimeout(() => {
+                        updateHotelModalPrice();
+                        validateHotelModalFields();
+                    }, 0);
                 } else {
-                    console.log('No rooms found for hotel:', hotelId);
                     roomTypeSelect.innerHTML = '<option value="">No rooms available</option>';
                     roomTypeSelect.disabled = false;
                 }
             })
             .catch(error => {
+                if (error && error.name === 'AbortError') return;
                 console.error('Error loading rooms:', error);
                 roomTypeSelect.innerHTML = '<option value="">Error loading rooms</option>';
                 bedTypeSelect.innerHTML = '<option value="">Error loading rooms</option>';
@@ -18255,6 +19432,7 @@
         const bedTypeSelect = document.getElementById('bed_type');
         const mealPlanSelect = document.getElementById('meal_plan');
         if (!roomType) {
+            abortHotelModalFetch('beds');
             // Reset to default state when no room type selected
             bedTypeSelect.disabled = true;
             bedTypeSelect.innerHTML = '<option value="">Select room type first</option>';
@@ -18264,8 +19442,6 @@
             updateModalChildPricingVisibility(null);
             return;
         }
-        
-        console.log('Loading beds for room type:', roomType);
         
         // Show loading state
         bedTypeSelect.innerHTML = '<option value="">Loading bed types...</option>';
@@ -18292,11 +19468,13 @@
         // Get the first room ID to fetch beds from beds table
         const firstRoom = selectedRooms[0];
         const roomId = firstRoom.room_id;
-        
-        console.log('Fetching beds for room ID:', roomId);
+        const controller = startHotelModalFetch('beds');
         
         // Fetch beds from the beds table using API endpoint (same as create.blade.php)
-        fetch(`{{ route('fetch-beds-by-room') }}?room_id=${roomId}`)
+        fetch(`{{ route('fetch-beds-by-room') }}?room_id=${roomId}`, {
+            signal: controller.signal,
+            headers: { 'Accept': 'application/json' },
+        })
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
@@ -18304,9 +19482,11 @@
                 return response.json();
             })
             .then(data => {
-                console.log('Beds API Response:', data);
-                
-                bedTypeSelect.innerHTML = '<option value="">Select bed type</option>';
+                const frag = document.createDocumentFragment();
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = 'Select bed type';
+                frag.appendChild(placeholder);
                 
                 if (data.success && data.beds && data.beds.length > 0) {
                     // Populate bed types from the beds table
@@ -18327,7 +19507,7 @@
                         if (bed.extra_bed) {
                             bedTypeText += ` + Extra Bed`;
                             if (bed.extra_bed_price) {
-                                bedTypeText += ` ($${bed.extra_bed_price})`;
+                                bedTypeText += ` (${window.__displayCurrency} ${bed.extra_bed_price})`;
                             }
                         }
                         
@@ -18335,7 +19515,7 @@
                         if (bed.baby_cot) {
                             bedTypeText += ` + Baby Cot`;
                             if (bed.baby_cot_price) {
-                                bedTypeText += ` ($${bed.baby_cot_price})`;
+                                bedTypeText += ` (${window.__displayCurrency} ${bed.baby_cot_price})`;
                             }
                         }
                         
@@ -18347,23 +19527,25 @@
                         option.setAttribute('data-room-id', bed.room_id);
                         option.setAttribute('data-bed-max-occupancy', bed.max_occupancy);
                         option.setAttribute('data-bed-type', bed.room_type || bed.bed_type);
-                        bedTypeSelect.appendChild(option);
+                        frag.appendChild(option);
                     });
                     
+                    bedTypeSelect.innerHTML = '';
+                    bedTypeSelect.appendChild(frag);
                     bedTypeSelect.disabled = false;
-                    console.log(`Loaded ${data.beds.length} bed types for room type ${roomType}`);
                     
                     // Validate fields after beds are loaded
                     validateHotelModalFields();
                 } else {
-                    console.log('No beds found for room type:', roomType);
                     bedTypeSelect.innerHTML = '<option value="">No bed types available</option>';
                 }
                 
                 // Meals follow room type (not bed row); rebuild when room type / beds list changes
                 loadHotelModalMealPlansFromRoomType(roomType, { preserveMeal: false });
+                updateHotelModalPrice();
             })
             .catch(error => {
+                if (error && error.name === 'AbortError') return;
                 console.error('Error fetching beds:', error);
                 bedTypeSelect.innerHTML = '<option value="">Error loading bed types</option>';
                 mealPlanSelect.innerHTML = '<option value="">Error loading bed types</option>';
@@ -18435,13 +19617,17 @@
         const bedTypeSelect = document.getElementById('bed_type');
         const mealPlanSelect = document.getElementById('meal_plan');
         const proceedBtn = document.getElementById('proceed_hotel_btn');
+        const proceedWrap = document.getElementById('proceed_hotel_wrap');
         
         // Check if all required fields are selected
-        const isValid = citySelect && citySelect.value &&
+        const fieldsFilled = citySelect && citySelect.value &&
                         hotelSelect && hotelSelect.value &&
                         roomTypeSelect && roomTypeSelect.value &&
                         bedTypeSelect && bedTypeSelect.value &&
                         mealPlanSelect && mealPlanSelect.value;
+
+        // A booking must carry a rate that "Get Price" actually calculated.
+        const isValid = !!fieldsFilled && window.hotelModalPriceFetched === true;
         
         if (proceedBtn) {
             proceedBtn.disabled = !isValid;
@@ -18451,6 +19637,16 @@
             } else {
                 proceedBtn.classList.remove('btn-success');
                 proceedBtn.classList.add('btn-secondary');
+            }
+        }
+
+        if (proceedWrap) {
+            if (isValid) {
+                proceedWrap.removeAttribute('title');
+            } else if (!fieldsFilled) {
+                proceedWrap.setAttribute('title', 'Select city, hotel, room, bed and meal plan first');
+            } else {
+                proceedWrap.setAttribute('title', 'Please click Get Price before booking');
             }
         }
         
@@ -18613,7 +19809,7 @@
         }
         
         // Update the UI with the calculated price if needed
-        console.log(`Meal pricing for ${personCount} persons: $${totalMealPrice.toFixed(2)}`);
+        console.log(`Meal pricing for ${personCount} persons: ${window.__displayCurrency} ${totalMealPrice.toFixed(2)}`);
         
         // Validate fields after meal plan selection
         validateHotelModalFields();
@@ -18624,6 +19820,12 @@
         const bedTypeSelect = document.getElementById('bed_type');
         const mealPlanSelect = document.getElementById('meal_plan');
         const proceedBtn = document.getElementById('proceed_hotel_btn');
+        const proceedWrap = document.getElementById('proceed_hotel_wrap');
+
+        window.hotelModalPriceFetched = false;
+        if (proceedWrap) {
+            proceedWrap.setAttribute('title', 'Select city, hotel, room, bed and meal plan first');
+        }
         
         if (roomTypeSelect) {
             roomTypeSelect.disabled = true;
@@ -18935,7 +20137,7 @@
                          if (bed.extra_bed) {
                              bedTypeText += ` + Extra Bed`;
                              if (bed.extra_bed_price) {
-                                 bedTypeText += ` ($${bed.extra_bed_price})`;
+                                 bedTypeText += ` (${window.__displayCurrency} ${bed.extra_bed_price})`;
                              }
                          }
                          
@@ -18943,7 +20145,7 @@
                          if (bed.baby_cot) {
                              bedTypeText += ` + Baby Cot`;
                              if (bed.baby_cot_price) {
-                                 bedTypeText += ` ($${bed.baby_cot_price})`;
+                                 bedTypeText += ` (${window.__displayCurrency} ${bed.baby_cot_price})`;
                              }
                          }
                          
@@ -19031,6 +20233,10 @@
     
     // Function to update hotel modal price based on room type, number of rooms, and dates
     function updateHotelModalPrice() {
+        // Any change to the booking invalidates the last "Get Price" result.
+        window.hotelModalPriceFetched = false;
+        validateHotelModalFields();
+
         const roomTypeSelect = document.getElementById('room_type');
         const numberOfRoomsInput = document.getElementById('number_of_rooms_modal');
         const priceInput = document.getElementById('total_price_modal');
@@ -19143,7 +20349,7 @@
         const totalPrice = roomSubtotal + mealPlanSubtotal + childWithBedSubtotal + childWithoutBedSubtotal;
         
         const modalEl = document.getElementById('hotelBookingModal');
-        const currencySymbol = (modalEl && modalEl.getAttribute('data-currency')) || '$';
+        const currencySymbol = (modalEl && modalEl.getAttribute('data-currency')) || __tourCurrencySymbol;
         const fmt = (n) => (n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         
         // Update price breakdown grid
@@ -19237,6 +20443,45 @@
 
     // Tracks pre-booked hotel rows that were edited and need a fresh "Get Price".
     window.hotelNeedsGetPrice = window.hotelNeedsGetPrice || {};
+    // True after a successful Get Price so the client-side grid does not overwrite helper totals.
+    window.hotelPricedByHelper = window.hotelPricedByHelper || {};
+
+    // Keep header, Total Price field, grid total, and selected room-type label on the same figure.
+    window.syncHotelBookingPriceDisplays = function(bookingId, amount) {
+        const n = parseFloat(amount) || 0;
+        const formatted = n.toFixed(2);
+        const currencyLabel = '{{ trim($displayCurrency) }}';
+        const totalInput = document.getElementById('total_price_' + bookingId);
+        const headerTotalEl = document.getElementById('hotel_header_total_' + bookingId);
+        const grandTotalEl = document.getElementById('hotel_grand_total_' + bookingId);
+        const roomTypeSelect = document.getElementById('room_type_' + bookingId);
+
+        if (totalInput && document.activeElement !== totalInput) {
+            totalInput.value = formatted;
+            totalInput.dataset.dbTotal = formatted;
+        }
+        if (headerTotalEl) headerTotalEl.textContent = currencyLabel + ' ' + formatted;
+        if (grandTotalEl) grandTotalEl.textContent = currencyLabel + ' ' + formatted;
+
+        if (roomTypeSelect && roomTypeSelect.selectedIndex >= 0) {
+            const opt = roomTypeSelect.options[roomTypeSelect.selectedIndex];
+            if (opt && opt.value) {
+                opt.textContent = n > 0
+                    ? (opt.value + ' - ' + currencyLabel + ' ' + formatted)
+                    : opt.value;
+                if (window.jQuery) {
+                    const $sel = window.jQuery(roomTypeSelect);
+                    if ($sel.data('select2')) {
+                        const rendered = $sel.next('.select2-container').find('.select2-selection__rendered');
+                        if (rendered.length) {
+                            rendered.text(opt.textContent);
+                            rendered.attr('title', opt.textContent);
+                        }
+                    }
+                }
+            }
+        }
+    };
 
     // Enable/disable a booking's "Save Changes" button (with a tooltip when blocked).
     window.setHotelSaveBlocked = function(bookingId, blocked) {
@@ -19254,20 +20499,18 @@
 
     // Reset a booking's price (input, pricing-details grid, totals) to zero.
     window.zeroOutHotelBookingPrice = function(bookingId) {
-        const currencyLabel = '{{ trim($tour->currency ?? "$") }}';
+        window.hotelPricedByHelper[bookingId] = false;
         const totalInput = document.getElementById('total_price_' + bookingId);
         if (totalInput) {
-            totalInput.value = '0.00';
             totalInput.dataset.manualEdit = 'false';
         }
         const gridBody = document.getElementById('hotel_price_grid_body_' + bookingId);
         if (gridBody) {
             gridBody.innerHTML = '<div class="text-muted text-center py-2" style="font-size: 0.75rem;">Click "Get Price" to calculate the price.</div>';
         }
-        const grandTotalEl = document.getElementById('hotel_grand_total_' + bookingId);
-        if (grandTotalEl) grandTotalEl.textContent = currencyLabel + ' 0.00';
-        const headerTotalEl = document.getElementById('hotel_header_total_' + bookingId);
-        if (headerTotalEl) headerTotalEl.textContent = currencyLabel + ' 0.00';
+        if (typeof window.syncHotelBookingPriceDisplays === 'function') {
+            window.syncHotelBookingPriceDisplays(bookingId, 0);
+        }
     };
 
     // Mark a booking dirty: zero its price and block saving until "Get Price".
@@ -19400,21 +20643,20 @@
             dates: dates
         })
         .then(data => {
-            const currencyLabel = '{{ trim($tour->currency ?? "$") }}';
+            const currencyLabel = '{{ trim($displayCurrency) }}';
             if (data && data.success) {
                 // Helper grand_total is per single room (room + meals + extra bed).
                 const finalTotal = Number(data.grand_total) * numberOfRooms;
                 if (totalInput) {
-                    totalInput.value = finalTotal.toFixed(2);
-                    // Mark as manual so the auto grid calc won't overwrite it.
-                    totalInput.dataset.manualEdit = 'true';
-                    totalInput.dataset.dbTotal = finalTotal.toFixed(2);
+                    totalInput.dataset.manualEdit = 'false';
                 }
-                const headerTotalEl = document.getElementById('hotel_header_total_' + bookingId);
-                if (headerTotalEl) headerTotalEl.textContent = currencyLabel + ' ' + finalTotal.toFixed(2);
+                window.hotelPricedByHelper[bookingId] = true;
 
                 // Populate the "Hotel Pricing Details" breakdown grid.
                 window.renderBookingHelperGrid(bookingId, data, numberOfRooms, currencyLabel);
+                if (typeof window.syncHotelBookingPriceDisplays === 'function') {
+                    window.syncHotelBookingPriceDisplays(bookingId, finalTotal);
+                }
 
                 // Re-priced via the rate engine: clear the dirty flag and re-enable saving.
                 window.hotelNeedsGetPrice[bookingId] = false;
@@ -19558,12 +20800,14 @@
             if (data && data.success) {
                 const finalTotal = Number(data.grand_total) * numberOfRooms;
                 const modalEl = document.getElementById('hotelBookingModal');
-                const currencySymbol = (modalEl && modalEl.getAttribute('data-currency')) || '$';
+                const currencySymbol = (modalEl && modalEl.getAttribute('data-currency')) || __tourCurrencySymbol;
                 if (priceInput) priceInput.value = finalTotal.toFixed(2);
                 if (priceDisplay) priceDisplay.textContent = currencySymbol + finalTotal.toFixed(2);
 
                 const gridTotal = document.getElementById('hotel_modal_price_grid_total');
                 if (gridTotal) gridTotal.textContent = currencySymbol + finalTotal.toFixed(2);
+
+                window.hotelModalPriceFetched = true;
 
                 showNotification(
                     'Price calculated: ' + currencySymbol + finalTotal.toFixed(2) +
@@ -19572,17 +20816,124 @@
                     'success'
                 );
             } else {
+                window.hotelModalPriceFetched = false;
                 showNotification((data && data.message) ? data.message : 'Failed to calculate price.', 'error');
             }
+            validateHotelModalFields();
         })
         .catch(error => {
             console.error('Error fetching modal hotel price:', error);
+            window.hotelModalPriceFetched = false;
+            validateHotelModalFields();
             showNotification('Error calculating hotel price.', 'error');
         })
         .finally(() => {
             if (btn) btn.disabled = false;
         });
     };
+
+    // True when tour guest selection includes at least one child or infant
+    window.tourHasChildOrInfantGuests = function () {
+        const children = parseInt(document.getElementById('children')?.value || 0, 10) || 0;
+        const infants = parseInt(document.getElementById('infants')?.value || 0, 10) || 0;
+        return (children + infants) > 0;
+    };
+
+    window.updateEditHotelChildCheckboxEnabledState = function () {
+        const allow = window.tourHasChildOrInfantGuests();
+        const msg = 'Please add child first';
+
+        document.querySelectorAll('input[type="checkbox"][id^="child_with_bed"], input[type="checkbox"][id^="child_without_bed"]').forEach(function (chk) {
+            const wrapId = chk.id
+                .replace(/^child_with_bed_/, 'child_with_bed_wrap_')
+                .replace(/^child_without_bed_/, 'child_without_bed_wrap_');
+            const wrap = document.getElementById(wrapId);
+
+            chk.disabled = !allow;
+            if (!allow) {
+                chk.checked = false;
+                chk.title = msg;
+            } else {
+                chk.removeAttribute('title');
+            }
+
+            if (wrap) {
+                wrap.style.opacity = allow ? '1' : '0.65';
+                wrap.dataset.childPricingLocked = allow ? '0' : '1';
+            }
+        });
+
+        document.querySelectorAll('[id^="hotel_child_pricing_guest_hint_"]').forEach(function (hint) {
+            const suffix = hint.id.replace('hotel_child_pricing_guest_hint_', '');
+            let cwb = null;
+            let cnb = null;
+            if (suffix === 'modal') {
+                cwb = document.getElementById('child_with_bed_wrap_modal');
+                cnb = document.getElementById('child_without_bed_wrap_modal');
+            } else {
+                cwb = document.getElementById('child_with_bed_wrap_' + suffix);
+                cnb = document.getElementById('child_without_bed_wrap_' + suffix);
+            }
+            const visible = (cwb && cwb.style.display !== 'none') || (cnb && cnb.style.display !== 'none');
+            hint.style.display = (!allow && visible) ? 'block' : 'none';
+        });
+
+        if (!allow) {
+            if (typeof updateHotelModalPrice === 'function') {
+                try { updateHotelModalPrice(); } catch (e) { /* ignore */ }
+            }
+            document.querySelectorAll('input[type="checkbox"][id^="child_with_bed_"]').forEach(function (chk) {
+                if (chk.id === 'child_with_bed_modal') return;
+                const bookingId = chk.id.replace('child_with_bed_', '');
+                const fn = window['updateHotelPriceGrid_' + bookingId];
+                if (typeof fn === 'function') {
+                    try { fn(true); } catch (e) { /* ignore */ }
+                }
+            });
+        }
+    };
+
+    if (!window._editHotelChildPricingClickBound) {
+        window._editHotelChildPricingClickBound = true;
+        document.addEventListener('click', function (e) {
+            const wrap = e.target.closest('[id^="child_with_bed_wrap_"], [id^="child_without_bed_wrap_"]');
+            if (!wrap || wrap.dataset.childPricingLocked !== '1') return;
+            const chk = wrap.querySelector('input[type="checkbox"]');
+            if (!chk || !chk.disabled) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const message = 'Please add child first';
+            if (typeof showNotification === 'function') {
+                showNotification(message, 'info');
+            } else if (typeof showToastr === 'function') {
+                showToastr('info', message);
+            } else {
+                alert(message);
+            }
+        }, true);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        if (typeof window.updateEditHotelChildCheckboxEnabledState === 'function') {
+            window.updateEditHotelChildCheckboxEnabledState();
+        }
+        const childrenInput = document.getElementById('children');
+        const infantsInput = document.getElementById('infants');
+        if (childrenInput) {
+            childrenInput.addEventListener('change', function () {
+                if (typeof window.updateEditHotelChildCheckboxEnabledState === 'function') {
+                    window.updateEditHotelChildCheckboxEnabledState();
+                }
+            });
+        }
+        if (infantsInput) {
+            infantsInput.addEventListener('change', function () {
+                if (typeof window.updateEditHotelChildCheckboxEnabledState === 'function') {
+                    window.updateEditHotelChildCheckboxEnabledState();
+                }
+            });
+        }
+    });
 
     // Function to show/hide child pricing checkboxes based on room data
     function updateModalChildPricingVisibility(room) {
@@ -19603,7 +20954,7 @@
             if (childWithBedPrice > 0) {
                 childWithBedWrap.style.display = 'block';
                 if (childWithBedPriceLabel) {
-                    childWithBedPriceLabel.textContent = ` ($${childWithBedPrice.toFixed(2)})`;
+                    childWithBedPriceLabel.textContent = ` (${window.__displayCurrency} ${childWithBedPrice.toFixed(2)})`;
                 }
             } else {
                 childWithBedWrap.style.display = 'none';
@@ -19619,7 +20970,7 @@
             if (childWithoutBedPrice > 0) {
                 childWithoutBedWrap.style.display = 'block';
                 if (childWithoutBedPriceLabel) {
-                    childWithoutBedPriceLabel.textContent = ` ($${childWithoutBedPrice.toFixed(2)})`;
+                    childWithoutBedPriceLabel.textContent = ` (${window.__displayCurrency} ${childWithoutBedPrice.toFixed(2)})`;
                 }
             } else {
                 childWithoutBedWrap.style.display = 'none';
@@ -19627,6 +20978,10 @@
                 const checkbox = document.getElementById('child_without_bed_modal');
                 if (checkbox) checkbox.checked = false;
             }
+        }
+        
+        if (typeof window.updateEditHotelChildCheckboxEnabledState === 'function') {
+            window.updateEditHotelChildCheckboxEnabledState();
         }
     }
     
@@ -19641,6 +20996,11 @@
         
         if (!hotelId || !checkIn || !checkOut) {
             showNotification('Please fill in all required fields', 'error');
+            return;
+        }
+
+        if (window.hotelModalPriceFetched !== true) {
+            showNotification('Please click "Get Price" before booking.', 'warning');
             return;
         }
         
@@ -19661,8 +21021,21 @@
         const selectedHotelOption = hotelSelect.options[hotelSelect.selectedIndex];
         const hotelData = selectedHotelOption ? JSON.parse(selectedHotelOption.getAttribute('data-hotel') || '{}') : {};
         
-        // Get country from tour form (fallback if hotel location is not available)
-        const country = document.getElementById('user_country') ? document.getElementById('user_country').value : '';
+        // Multi-city: use selected modal city country (NOT the tour destination CSV)
+        const hotelCityGeo = (typeof window.resolveModalCityGeo === 'function')
+            ? window.resolveModalCityGeo('modal_city_select')
+            : { city: '', country: '' };
+        const serviceCity = hotelCityGeo.city
+            || hotelData.city
+            || hotelData.location
+            || '';
+        const serviceCountry = (typeof window.resolveServiceOrderCountry === 'function')
+            ? window.resolveServiceOrderCountry(
+                hotelCityGeo.country || hotelData.country,
+                document.getElementById('user_country') ? document.getElementById('user_country').value : ''
+            )
+            : (hotelCityGeo.country || hotelData.country || '');
+        const country = serviceCountry;
         
         // Get selected room and bed data
         const roomType = document.getElementById('room_type');
@@ -19839,12 +21212,16 @@
                 hotel_name: hotelData.name || "Hotel",
                 checkInTime: checkInTime,
                 checkOutTime: checkOutTime,
-                location: hotelData.location || hotelData.city || country || null,
+                location: hotelData.location || hotelData.city || serviceCity || null,
+                city: hotelData.city || serviceCity || null,
+                country: serviceCountry || null,
                 image: hotelData.master_image || hotelData.image || "",
                 cancellation_charge: null
             },
             bookingDate: [checkIn, checkOut],
-            transfer_options: null
+            transfer_options: null,
+            city: serviceCity || hotelData.city || hotelData.location || null,
+            country: serviceCountry || null
         };
 
         // Supplement + Remarks (from hotel modal)
@@ -20324,18 +21701,18 @@
         const totalPrice = basePrice + surcharge;
         
         // Update price display
-        document.getElementById('price_base_amount').textContent = '$' + basePrice.toFixed(2);
+        document.getElementById('price_base_amount').textContent = __tourCurrencySymbol + ' ' + basePrice.toFixed(2);
         
         // Show/hide surcharge
         const surchargeRow = document.getElementById('price_surcharge_row');
         if (surcharge > 0) {
             surchargeRow.style.display = 'flex';
-            document.getElementById('price_surcharge_amount').textContent = '$' + surcharge.toFixed(2);
+            document.getElementById('price_surcharge_amount').textContent = __tourCurrencySymbol + ' ' + surcharge.toFixed(2);
         } else {
             surchargeRow.style.display = 'none';
         }
         
-        document.getElementById('price_total_amount').textContent = '$' + totalPrice.toFixed(2);
+        document.getElementById('price_total_amount').textContent = __tourCurrencySymbol + ' ' + totalPrice.toFixed(2);
         
         // Show price container
         priceContainer.style.display = 'block';
@@ -20362,18 +21739,24 @@
         console.log('Guide data:', guideData);
         // Get tour details
         const tourId = document.getElementById('tour_id').value;
-        const country = document.getElementById('user_country').value;
         
         // Get city from guide modal selection or fallback to tour city
         const citySelect = document.getElementById('modal_guide_city_select');
-        let city = '';
-        if (citySelect && citySelect.value) {
-            city = citySelect.value;
-        } else {
+        const guideCityGeo = (typeof window.resolveModalCityGeo === 'function')
+            ? window.resolveModalCityGeo('modal_guide_city_select')
+            : { city: '', country: '' };
+        let city = guideCityGeo.city || '';
+        if (!city) {
             // Fallback to tour city if available
             const tourCity = '{{ $tour->city ?? "" }}';
             city = tourCity || '';
         }
+        const country = (typeof window.resolveServiceOrderCountry === 'function')
+            ? window.resolveServiceOrderCountry(
+                guideCityGeo.country || (guideData && guideData.country),
+                document.getElementById('user_country') ? document.getElementById('user_country').value : ''
+            )
+            : (guideCityGeo.country || '');
         
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
@@ -20470,6 +21853,8 @@
             agent_id: agentId,
             remarks: guideRemarks,
             supplement: guideSupplement,
+            city: city || null,
+            country: country || null,
             userInfo: {
                 fullName: customer_info.fullName,
                 email: customer_info.email,
@@ -21142,7 +22527,7 @@
             const option = document.createElement('option');
             option.value = 'multi_restaurant_' + m.id;
             const price = m.adult_price ?? m.price ?? 0;
-            const currency = m.currency || 'SGD';
+            const currency = m.currency || __tourCurrencySymbol;
             const packageName = m.package_name || 'Multi Restaurant';
             // Show only package name in dropdown; price kept in data for calculations
             option.textContent = packageName;
@@ -21351,7 +22736,7 @@
             const totalPriceInput = document.getElementById('modal_restaurant_total_price');
             if (totalPriceInput) {
                 totalPriceInput.value = mealTotal.toFixed(2);
-                const currency = '{{ $tour->currency ?? "$" }}';
+                const currency = '{{ $displayCurrency }}';
                 const breakdownText = adults + ' adults × ' + currency + adultPrice.toFixed(2) + ' + ' + children + ' children × ' + currency + childPrice.toFixed(2) + ' = ' + currency + mealTotal.toFixed(2);
                 totalPriceInput.setAttribute('data-meal-breakdown', breakdownText);
             }
@@ -21513,9 +22898,9 @@
         const adults = pax.adults || Math.max(1, pax.maleCount + pax.femaleCount);
         const children = parseInt(pax.children || 0) || 0;
         
-        // Get prices from meal data
-        const adultPricePerPerson = parseFloat(mealData.adult_price || 0) || 0;
-        const childPricePerPerson = parseFloat(mealData.child_price || 0) || 0;
+        // Get prices from meal data (Buffet and Set Menu both use adult_price + child_price)
+        const adultPricePerPerson = parseFloat(mealData.adult_price ?? 0) || 0;
+        const childPricePerPerson = parseFloat(mealData.child_price ?? 0) || 0;
         
         // Calculate: adults * adult_price + children * child_price
         const adultTotal = adultPricePerPerson * adults;
@@ -21538,7 +22923,7 @@
         const totalPriceInput = document.getElementById('modal_restaurant_total_price');
         if (totalPriceInput) {
             totalPriceInput.value = totalPrice.toFixed(2);
-            const currency = '{{ $tour->currency ?? "$" }}';
+            const currency = '{{ $displayCurrency }}';
             const breakdownText = adults + ' adults × ' + currency + adultPricePerPerson.toFixed(2) + ' + ' + children + ' children × ' + currency + childPricePerPerson.toFixed(2) + ' = ' + currency + totalPrice.toFixed(2);
             totalPriceInput.setAttribute('data-meal-breakdown', breakdownText);
         }
@@ -22527,6 +23912,10 @@
             try { window.syncEditFOCAfterGuestModal(); } catch (e) { /* ignore */ }
         }
 
+        if (typeof window.updateEditHotelChildCheckboxEnabledState === 'function') {
+            window.updateEditHotelChildCheckboxEnabledState();
+        }
+
         // Close modal
         const modal = bootstrap.Modal.getInstance(document.getElementById('tourGuestSelectorModal'));
         if (modal) {
@@ -22991,13 +24380,24 @@
         };
         
         const tourId = document.getElementById('tour_id').value;
-        const country = document.getElementById('user_country').value;
+        const restaurantCityGeo = (typeof window.resolveModalCityGeo === 'function')
+            ? window.resolveModalCityGeo('modal_restaurant_city_select')
+            : { city: '', country: '' };
+        const country = (typeof window.resolveServiceOrderCountry === 'function')
+            ? window.resolveServiceOrderCountry(
+                restaurantCityGeo.country || (restaurantData && restaurantData.country),
+                document.getElementById('user_country') ? document.getElementById('user_country').value : ''
+            )
+            : (restaurantCityGeo.country || '');
+        const restaurantCity = restaurantCityGeo.city
+            || (restaurantData && (restaurantData.city || restaurantData.location))
+            || '';
         const startDate = document.getElementById('start_date').value;
         const endDate = document.getElementById('end_date').value;
         
         const adultsNum = parseInt(guestData.adults) || 0;
         const childrenNum = parseInt(guestData.children) || 0;
-        const adultPrice = parseFloat(mealData && (mealData.adult_price != null || mealData.price != null) ? (mealData.adult_price ?? mealData.price) : '0') || 0;
+        const adultPrice = parseFloat(mealData && mealData.adult_price != null ? mealData.adult_price : '0') || 0;
         const childPrice = parseFloat(mealData && mealData.child_price != null ? mealData.child_price : '0') || 0;
         let totalPrice = adultPrice * Math.max(1, adultsNum) + childPrice * childrenNum;
         const totalPriceInput = document.getElementById('modal_restaurant_total_price');
@@ -23047,7 +24447,9 @@
             dmc_id: dmcUser.userId || "",
             bookingType: "enquiry",
             remarks: restaurantRemarks,
-            supplement: restaurantSupplement
+            supplement: restaurantSupplement,
+            city: restaurantCity || null,
+            country: country || null
         }];
         
         if (isMultiRestaurant && bookingData[0]) {
@@ -23231,6 +24633,12 @@
     
     function removeService(orderId, serviceType) {
         console.log(`removeService called with orderId: ${orderId}, serviceType: ${serviceType}`);
+
+        const normalizedStatus = String(window.removeServicePageTourStatus || (typeof __tourStatus !== 'undefined' ? __tourStatus : '') || '').toLowerCase().trim();
+        if (window.isActualTourStatus || normalizedStatus === 'actual') {
+            showNotification("Services can't be removed in Actual Status.", 'error');
+            return;
+        }
         
         showRemoveServiceAlert(serviceType, () => {
             showNotification(`Removing ${serviceType} service...`, 'info');
@@ -23244,7 +24652,6 @@
 
             const url = "{{ route('api.orders.cancel', ':orderId') }}".replace(':orderId', orderId);
             const tourId = document.getElementById('tour_id')?.value || '';
-            const normalizedStatus = String(window.removeServicePageTourStatus || __tourStatus || '').toLowerCase();
             const isDefiniteOrActual = ['definite', 'actual'].includes(normalizedStatus);
             
             fetch(url, {
@@ -23275,8 +24682,20 @@
     }
     
     // City mode helpers (used by modals + tour header)
+    // Strips the "(Country)" and "[start→end]" decorations that city labels carry, e.g.
+    // "Singapore (Singapore) [2026-08-05→2026-08-07]" -> "Singapore".
     function normalizeCityText(s) {
-        return (s || '').toString().trim().replace(/\s*\([^)]*\)\s*$/, '').trim();
+        return (s || '')
+            .toString()
+            .replace(/\[[^\]]*\]/g, ' ')
+            .replace(/\([^)]*\)/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    // Comparison key for two city labels that may differ in case or decoration.
+    function cityMatchKey(s) {
+        return normalizeCityText(s).toLowerCase();
     }
 
     function getCurrentCityMode() {
@@ -23315,16 +24734,34 @@
 
     function setSelectToCity(selectEl, cityValue) {
         if (!selectEl || !cityValue) return false;
-        const desired = normalizeCityText(cityValue);
+        const desired = cityMatchKey(cityValue);
         const opts = Array.from(selectEl.options || []);
-        const exact = opts.find(o => normalizeCityText(o.value) === desired) || opts.find(o => normalizeCityText(o.textContent) === desired);
-        let match = exact || opts.find(o => normalizeCityText(o.textContent).startsWith(desired));
+        const exact = opts.find(o => cityMatchKey(o.value) === desired) || opts.find(o => cityMatchKey(o.textContent) === desired);
+        let match = exact || opts.find(o => desired && cityMatchKey(o.textContent).startsWith(desired));
         if (!match) {
             // City not in the rendered option list (e.g. server filtered them out) — inject it so
-            // auto-fill still works instead of silently leaving the field empty.
+            // auto-fill still works instead of silently leaving the field empty. Use the normalized
+            // name so the value still matches the city stored on hotels/attractions/etc.
             match = document.createElement('option');
-            match.value = cityValue;
-            match.textContent = cityValue;
+            match.value = normalizeCityText(cityValue);
+            match.textContent = match.value;
+            // Copy country from the active multi-city segment (or single city) so order geo is correct
+            try {
+                let countryAttr = '';
+                const mode = getCurrentCityMode();
+                if (mode === 'multi') {
+                    const bundle = document.getElementById('segmentServicesBundle');
+                    const seg = bundle ? bundle.closest('.segment') : null;
+                    const citySel = seg ? seg.querySelector('.city-select') : null;
+                    const segOpt = citySel && citySel.selectedOptions ? citySel.selectedOptions[0] : null;
+                    countryAttr = segOpt ? (segOpt.getAttribute('data-country') || '') : '';
+                } else {
+                    const sc = document.getElementById('single_city');
+                    const scOpt = sc && sc.selectedOptions ? sc.selectedOptions[0] : null;
+                    countryAttr = scOpt ? (scOpt.getAttribute('data-country') || '') : '';
+                }
+                if (countryAttr) match.setAttribute('data-country', countryAttr);
+            } catch (e) { /* ignore */ }
             selectEl.appendChild(match);
         }
 
@@ -23349,8 +24786,10 @@
         return true;
     }
 
-    function lockModalCitySelectIfSingle(selectEl) {
-        if (!selectEl || getCurrentCityMode() !== 'single') return;
+    // The city a service belongs to is decided by the tour's city plan (the single city, or the active
+    // segment in multi-city mode), so it is shown read-only in the service modals rather than editable.
+    function lockModalCitySelect(selectEl) {
+        if (!selectEl) return;
         selectEl.disabled = true;
         const $sel = (typeof jQuery !== 'undefined') ? jQuery(selectEl) : null;
         if ($sel && $sel.length && $sel.data('select2')) {
@@ -23379,7 +24818,7 @@
             const sel = modal.querySelector('#' + id);
             if (!sel) return;
             setSelectToCity(sel, city);
-            lockModalCitySelectIfSingle(sel);
+            lockModalCitySelect(sel);
         });
 
         const hiddenIds = ['modal_city', 'modal_transport_city', 'modal_dropoff_transport_city'];
@@ -23465,6 +24904,19 @@
                 }
             });
         }
+
+        document.querySelectorAll('[id^="arrival_city_"]').forEach(function (el) {
+            const bookingId = el.id.replace('arrival_city_', '');
+            if (bookingId && el.value && typeof window.loadArrivalRowCountryPorts === 'function') {
+                window.loadArrivalRowCountryPorts(bookingId);
+            }
+        });
+        document.querySelectorAll('[id^="departure_city_"]').forEach(function (el) {
+            const bookingId = el.id.replace('departure_city_', '');
+            if (bookingId && el.value && typeof window.loadDepartureRowCountryPorts === 'function') {
+                window.loadDepartureRowCountryPorts(bookingId);
+            }
+        });
     });
 
     function getCustomerInfo(){
@@ -23494,88 +24946,595 @@
         return customer_info;
     }
 
-    // Google Maps Autocomplete Functionality for Local Transfer Point-to-Point
-    window.initializeGoogleMapsAutocomplete = function() {
-        console.log('Initializing Google Maps Autocomplete for Local Transfer Point-to-Point...');
-        
-        // Get selected country and city for location bias
-        const selectedCountry = '{{ $tour->country ?? "" }}';
-        const selectedCity = '{{ $tour->city ?? "" }}';
-        
-        // Create location bias for better search results
-        let locationBias = null;
-        if (selectedCountry && selectedCity) {
-            locationBias = selectedCity + ', ' + selectedCountry;
-        } else if (selectedCountry) {
-            locationBias = selectedCountry;
+    // Cache geocoded city bounds for soft location bias (ranking only, not hard restriction).
+    window._gmapsCityBoundsCache = window._gmapsCityBoundsCache || {};
+
+    // Resolve the city dropdown tied to a Google Maps location input (editform modals / day transport).
+    window.resolveCitySelectForAutocompleteInput = function(input) {
+        if (!input) return null;
+        const inputId = input.id || '';
+        let citySelect = null;
+
+        // day1_transport_2_pickup_location / day1_transport_2_hourly_pickup_location
+        let match = inputId.match(/^day(\d+)_transport_(\d+)_(?:hourly_)?(?:pickup|dropoff)_location$/);
+        if (match) {
+            citySelect = document.getElementById(`day${match[1]}_transport_city_${match[2]}`);
+        } else {
+            match = inputId.match(/^day(\d+)_transport_(?:hourly_)?(?:pickup|dropoff)_location$/);
+            if (match) {
+                citySelect = document.getElementById(`day${match[1]}_transport_city_0`);
+            }
         }
-        
-        // Initialize autocomplete for local transfer location inputs
+
+        if (!citySelect) {
+            if (inputId.startsWith('local_transfer_')) {
+                citySelect = document.getElementById('modal_local_transfer_city');
+            } else if (inputId.startsWith('modal_dropoff_transport_')) {
+                citySelect = document.getElementById('modal_exitport_transport_city');
+            } else if (inputId.startsWith('modal_transport_')) {
+                citySelect = document.getElementById('modal_entryport_transport_city');
+            } else if (inputId.includes('_entry_')) {
+                citySelect = document.getElementById('modal_entryport_transport_city') ||
+                    document.getElementById('modal_local_transfer_city');
+            } else if (inputId.includes('_exit_')) {
+                citySelect = document.getElementById('modal_exitport_transport_city') ||
+                    document.getElementById('modal_exit_city');
+            }
+        }
+
+        return citySelect || null;
+    };
+
+    window.resolveCityForAutocompleteInput = function(input) {
+        const citySelect = window.resolveCitySelectForAutocompleteInput(input);
+        if (!citySelect) {
+            // Fall back to tour city when no modal city is bound
+            return String('{{ $tour->city ?? "" }}').trim();
+        }
+
+        const opt = citySelect.options?.[citySelect.selectedIndex];
+        const fromData = (opt?.getAttribute?.('data-city-name') || '').trim();
+        const fromText = (opt?.textContent || '').trim().split('(')[0].trim();
+        const fromValue = String(citySelect.value || '').trim();
+        return fromData || fromText || fromValue;
+    };
+
+    // Prefer the country on the city option tied to this input (destination-aware),
+    // then fall back to the tour/package country. Never hardcode India.
+    window.resolveCountryForAutocompleteInput = function(input) {
+        const citySelect = window.resolveCitySelectForAutocompleteInput(input);
+        if (citySelect) {
+            try {
+                if (typeof $ !== 'undefined' && $(citySelect).length && $(citySelect).data('select2')) {
+                    const d = $(citySelect).select2('data');
+                    const fromSelect2 = d?.[0]?.country != null ? String(d[0].country).trim() : '';
+                    if (fromSelect2) return fromSelect2;
+                }
+            } catch (e) {}
+            const opt = citySelect.options?.[citySelect.selectedIndex];
+            const fromOpt = (opt?.getAttribute?.('data-country') || '').trim();
+            if (fromOpt) return fromOpt;
+        }
+
+        if (typeof window.resolveSelectedCountryNameForAutocomplete === 'function') {
+            const resolved = window.resolveSelectedCountryNameForAutocomplete() || '';
+            if (resolved) return resolved;
+        }
+
+        const tourCountry = String('{{ $tour->country ?? "" }}').trim();
+        if (tourCountry) return tourCountry;
+        return document.getElementById('user_country')?.value || '';
+    };
+
+    /**
+     * Build a contextual Places query.
+     * - "Hotel Verge" + Launceston/Australia => "Hotel Verge, Launceston, Australia"
+     * - Already-complete queries (contain city/country or commas) are left unchanged.
+     */
+    window.buildContextualPlacesQuery = function(rawQuery, cityName, countryName) {
+        const q = String(rawQuery || '').trim();
+        if (!q) return q;
+
+        const lower = q.toLowerCase();
+        const city = String(cityName || '').trim();
+        const country = String(countryName || '').trim();
+
+        if (city && lower.includes(city.toLowerCase())) return q;
+        if (country && lower.includes(country.toLowerCase())) return q;
+        if (q.indexOf(',') !== -1) return q;
+
+        if (city && country) return `${q}, ${city}, ${country}`;
+        if (city) return `${q}, ${city}`;
+        if (country) return `${q}, ${country}`;
+        return q;
+    };
+
+    // Geocode city (+ country) and apply SOFT viewport bias to Autocomplete.
+    window.applyCityBoundsToAutocomplete = function(autocomplete, cityName, countryName) {
+        if (!autocomplete || !cityName || typeof google === 'undefined' || !google.maps?.Geocoder) {
+            return;
+        }
+
+        const cacheKey = `${String(cityName).trim().toLowerCase()}|${String(countryName || '').trim().toLowerCase()}`;
+        const applyBounds = (bounds) => {
+            if (!bounds) return;
+            try {
+                autocomplete.setBounds(bounds);
+                autocomplete.setOptions({ strictBounds: false });
+            } catch (e) {
+                console.warn('Failed to apply city bounds to autocomplete', e);
+            }
+        };
+
+        if (window._gmapsCityBoundsCache[cacheKey]) {
+            applyBounds(window._gmapsCityBoundsCache[cacheKey]);
+            return;
+        }
+
+        const geocoder = new google.maps.Geocoder();
+        const address = countryName ? `${cityName}, ${countryName}` : cityName;
+        geocoder.geocode({ address: address }, function(results, status) {
+            if (status !== 'OK' || !results?.[0]) {
+                console.warn('City geocode failed for autocomplete bias:', address, status);
+                return;
+            }
+            const bounds = results[0].geometry.viewport || results[0].geometry.bounds;
+            if (!bounds) return;
+            window._gmapsCityBoundsCache[cacheKey] = bounds;
+            applyBounds(bounds);
+        });
+    };
+
+    window.applyDestinationOptionsToAutocomplete = function(autocomplete, input) {
+        if (!autocomplete || !input) return;
+        const cityName = window.resolveCityForAutocompleteInput(input);
+        const countryName = window.resolveCountryForAutocompleteInput(input);
+        const countryCode = (typeof window.getCountryCode === 'function')
+            ? window.getCountryCode(countryName)
+            : '';
+
+        const options = { strictBounds: false };
+        if (cityName && countryCode) {
+            options.componentRestrictions = { country: countryCode };
+        } else {
+            options.componentRestrictions = null;
+        }
+        try {
+            autocomplete.setOptions(options);
+        } catch (e) {
+            console.warn('Failed to update autocomplete destination options', e);
+        }
+
+        if (cityName) {
+            window.applyCityBoundsToAutocomplete(autocomplete, cityName, countryName);
+        } else if (countryName && typeof google !== 'undefined' && google.maps?.Geocoder) {
+            window.applyCityBoundsToAutocomplete(autocomplete, countryName, '');
+        }
+    };
+
+    window.hideCityAwarePlaceSuggestions = function(input) {
+        const box = input && input._citySuggestBox;
+        if (box) {
+            box.classList.remove('is-open');
+            box.innerHTML = '';
+        }
+        document.body.classList.remove('gmaps-city-suggest-open');
+    };
+
+    window.renderCityAwarePlaceSuggestions = function(input, predictions, onSelect) {
+        if (!input) return;
+        let parent = input.parentElement;
+        if (!parent) return;
+        if (getComputedStyle(parent).position === 'static') {
+            parent.style.position = 'relative';
+        }
+
+        let box = input._citySuggestBox;
+        if (!box) {
+            box = document.createElement('div');
+            box.className = 'gmaps-city-suggestions';
+            box.setAttribute('role', 'listbox');
+            parent.appendChild(box);
+            input._citySuggestBox = box;
+        }
+
+        if (!predictions || !predictions.length) {
+            window.hideCityAwarePlaceSuggestions(input);
+            return;
+        }
+
+        box.innerHTML = predictions.map(function(p, idx) {
+            return '<div class="gmaps-city-suggestion-item" data-index="' + idx + '" role="option">' +
+                '<div class="main-text"></div>' +
+                '<div class="secondary-text"></div>' +
+                '</div>';
+        }).join('');
+
+        Array.from(box.querySelectorAll('.gmaps-city-suggestion-item')).forEach(function(item, idx) {
+            const p = predictions[idx];
+            const mainEl = item.querySelector('.main-text');
+            const secEl = item.querySelector('.secondary-text');
+            const main = (p.structured_formatting && p.structured_formatting.main_text)
+                ? p.structured_formatting.main_text
+                : (p.description || '');
+            const secondary = (p.structured_formatting && p.structured_formatting.secondary_text)
+                ? p.structured_formatting.secondary_text
+                : '';
+            if (mainEl) mainEl.textContent = main;
+            if (secEl) {
+                if (secondary) {
+                    secEl.textContent = secondary;
+                } else {
+                    secEl.remove();
+                }
+            }
+
+            item.addEventListener('mousedown', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (typeof onSelect === 'function') onSelect(p);
+                window.hideCityAwarePlaceSuggestions(input);
+            });
+        });
+
+        box.classList.add('is-open');
+        document.body.classList.add('gmaps-city-suggest-open');
+    };
+
+    window.fetchCityAwarePlacePredictions = function(input, rawQuery, callback) {
+        if (typeof google === 'undefined' || !google.maps?.places?.AutocompleteService) {
+            callback([]);
+            return;
+        }
+        const city = window.resolveCityForAutocompleteInput(input);
+        const country = window.resolveCountryForAutocompleteInput(input);
+        if (!city) {
+            callback([]);
+            return;
+        }
+
+        const contextual = window.buildContextualPlacesQuery(rawQuery, city, country);
+        const service = new google.maps.places.AutocompleteService();
+        const req = { input: contextual };
+        const countryCode = (typeof window.getCountryCode === 'function')
+            ? window.getCountryCode(country)
+            : '';
+        if (countryCode) {
+            req.componentRestrictions = { country: countryCode };
+        }
+        const cacheKey = `${String(city || '').trim().toLowerCase()}|${String(country || '').trim().toLowerCase()}`;
+        if (window._gmapsCityBoundsCache[cacheKey]) {
+            req.bounds = window._gmapsCityBoundsCache[cacheKey];
+        }
+
+        if (!window._gmapsCityBoundsCache[cacheKey] && google.maps?.Geocoder) {
+            const geocoder = new google.maps.Geocoder();
+            const address = country ? `${city}, ${country}` : city;
+            geocoder.geocode({ address: address }, function(results, status) {
+                if (status === 'OK' && results?.[0]) {
+                    const bounds = results[0].geometry.viewport || results[0].geometry.bounds;
+                    if (bounds) window._gmapsCityBoundsCache[cacheKey] = bounds;
+                }
+            });
+        }
+
+        console.log('City-aware Places query:', contextual, { city, country, countryCode });
+        service.getPlacePredictions(req, function(predictions, status) {
+            if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions?.length) {
+                if (req.componentRestrictions) {
+                    delete req.componentRestrictions;
+                    service.getPlacePredictions(req, function(predictions2, status2) {
+                        if (status2 !== google.maps.places.PlacesServiceStatus.OK || !predictions2?.length) {
+                            callback([]);
+                            return;
+                        }
+                        callback(predictions2);
+                    });
+                    return;
+                }
+                callback([]);
+                return;
+            }
+            callback(predictions);
+        });
+    };
+
+    window.placeMatchesSelectedCity = function(place, cityName) {
+        if (!cityName || !place) return true;
+        const needle = String(cityName).trim().toLowerCase();
+        if (!needle) return true;
+        const parts = [
+            place.formatted_address || '',
+            place.name || '',
+            ...((place.address_components || []).map(c => `${c.long_name || ''} ${c.short_name || ''}`))
+        ];
+        return parts.join(' ').toLowerCase().includes(needle);
+    };
+
+    window.refreshAutocompleteCityBounds = function(citySelectEl) {
+        if (!citySelectEl) return;
+        const selectId = citySelectEl.id || '';
+
+        let ids = [];
+        const dayMatch = selectId.match(/^day(\d+)_transport_city_(\d+)$/);
+        if (dayMatch) {
+            const day = dayMatch[1];
+            const index = parseInt(dayMatch[2], 10) || 0;
+            ids = index === 0
+                ? [
+                    `day${day}_transport_pickup_location`,
+                    `day${day}_transport_dropoff_location`,
+                    `day${day}_transport_hourly_pickup_location`
+                ]
+                : [
+                    `day${day}_transport_${index}_pickup_location`,
+                    `day${day}_transport_${index}_dropoff_location`,
+                    `day${day}_transport_${index}_hourly_pickup_location`
+                ];
+        } else if (selectId === 'modal_local_transfer_city') {
+            ids = [
+                'local_transfer_point_pickup_location',
+                'local_transfer_point_dropoff_location',
+                'local_transfer_hourly_pickup_location'
+            ];
+        } else if (selectId === 'modal_entryport_transport_city') {
+            ids = ['modal_transport_pickup_location', 'modal_transport_dropoff_location'];
+        } else if (selectId === 'modal_exitport_transport_city') {
+            ids = ['modal_dropoff_transport_pickup_location', 'modal_dropoff_transport_dropoff_location'];
+        } else {
+            return;
+        }
+
+        ids.forEach(function(id) {
+            const input = document.getElementById(id);
+            if (!input) return;
+            if (input.value) {
+                input.value = '';
+                const latField = document.getElementById(id.replace('_location', '_lat'));
+                const lngField = document.getElementById(id.replace('_location', '_lng'));
+                const placeIdField = document.getElementById(id.replace('_location', '_place_id'));
+                if (latField) latField.value = '';
+                if (lngField) lngField.value = '';
+                if (placeIdField) placeIdField.value = '';
+            }
+            if (input._placesAutocomplete) {
+                window.applyDestinationOptionsToAutocomplete(input._placesAutocomplete, input);
+            } else {
+                input.removeAttribute('data-autocomplete-initialized');
+            }
+        });
+
+        setTimeout(function() {
+            if (typeof window.initializeGoogleMapsAutocomplete === 'function') {
+                window.initializeGoogleMapsAutocomplete();
+            }
+        }, 50);
+    };
+
+    // Google Maps Autocomplete Functionality (worldwide)
+    // Uses: google.maps.places.Autocomplete (+ Geocoder soft bias)
+    // Assist: AutocompleteService / PlacesService.findPlaceFromQuery for contextual short queries
+    window.initializeGoogleMapsAutocomplete = function() {
+        console.log('Initializing Google Maps Autocomplete...');
+
+        const resolveSelectedCountryName = () => {
+            const tourCountry = String('{{ $tour->country ?? "" }}').trim();
+            if (tourCountry && getCountryCode(tourCountry)) return tourCountry;
+
+            const citySelectIds = [
+                'single_city',
+                'modal_city_select',
+                'modal_local_transfer_city',
+                'modal_entryport_transport_city',
+                'modal_exitport_transport_city'
+            ];
+            for (const id of citySelectIds) {
+                const sel = document.getElementById(id);
+                if (!sel) continue;
+                try {
+                    if (typeof $ !== 'undefined' && $(sel).length && $(sel).data('select2')) {
+                        const d = $(sel).select2('data');
+                        const fromSelect2 = d?.[0]?.country != null ? String(d[0].country).trim() : '';
+                        if (fromSelect2 && getCountryCode(fromSelect2)) return fromSelect2;
+                    }
+                } catch (e) {}
+                const opt = sel.options && sel.options[sel.selectedIndex];
+                const dc = opt && opt.getAttribute ? (opt.getAttribute('data-country') || '') : '';
+                if (dc && getCountryCode(dc)) return dc;
+            }
+
+            return document.getElementById('user_country')?.value || tourCountry || '';
+        };
+        window.resolveSelectedCountryNameForAutocomplete = resolveSelectedCountryName;
+
         document.querySelectorAll('.google-maps-autocomplete').forEach(input => {
             if (input && !input.hasAttribute('data-autocomplete-initialized')) {
                 console.log('Initializing autocomplete for:', input.id);
-                
-                // Create autocomplete instance. Only restrict by country when a valid ISO code exists,
-                // otherwise Google throws InvalidValueError and no suggestions appear.
+
+                const cityName = window.resolveCityForAutocompleteInput(input);
+                const countryName = window.resolveCountryForAutocompleteInput(input);
+
+                // City-respected Autocomplete: soft bounds + destination country when City is selected
                 const autocompleteOptions = {
-                    types: ['establishment', 'geocode'],
-                    fields: ['place_id', 'geometry', 'formatted_address', 'name', 'address_components']
+                    fields: ['place_id', 'geometry', 'formatted_address', 'name', 'address_components'],
+                    strictBounds: false
                 };
-                const countryCode = getCountryCode(selectedCountry);
-                if (countryCode) {
+                const countryCode = (typeof window.getCountryCode === 'function')
+                    ? window.getCountryCode(countryName)
+                    : '';
+                if (cityName && countryCode) {
                     autocompleteOptions.componentRestrictions = { country: countryCode };
                 }
+
                 const autocomplete = new google.maps.places.Autocomplete(input, autocompleteOptions);
-                
-                // Add place_changed event listener
+                input._placesAutocomplete = autocomplete;
+
+                if (cityName) {
+                    window.applyCityBoundsToAutocomplete(autocomplete, cityName, countryName);
+                } else if (countryName) {
+                    window.applyCityBoundsToAutocomplete(autocomplete, countryName, '');
+                }
+
+                if (!input._placesContextualAssistBound) {
+                    input._placesContextualAssistBound = true;
+                    let assistTimer = null;
+
+                    const resolvePlacesService = function() {
+                        if (!input._placesService && typeof google !== 'undefined' && google.maps?.places?.PlacesService) {
+                            input._placesService = new google.maps.places.PlacesService(document.createElement('div'));
+                        }
+                        return input._placesService || null;
+                    };
+
+                    const fillPlaceFields = function(place) {
+                        if (!place?.geometry?.location) return;
+                        const lat = place.geometry.location.lat();
+                        const lng = place.geometry.location.lng();
+                        const latField = document.getElementById(input.id.replace('_location', '_lat'));
+                        const lngField = document.getElementById(input.id.replace('_location', '_lng'));
+                        const placeIdField = document.getElementById(input.id.replace('_location', '_place_id'));
+                        if (latField) latField.value = lat;
+                        if (lngField) lngField.value = lng;
+                        if (placeIdField) placeIdField.value = place.place_id || '';
+                        input.value = place.formatted_address || place.name || input.value;
+                        input.dispatchEvent(new Event('change', { bubbles: true }));
+                        if (typeof checkLocalTransferFormCompletion === 'function') {
+                            checkLocalTransferFormCompletion();
+                        }
+                        if (typeof checkHourlyFormCompletion === 'function') {
+                            checkHourlyFormCompletion();
+                        }
+                    };
+
+                    const selectPrediction = function(prediction) {
+                        const placesService = resolvePlacesService();
+                        if (!placesService || !prediction?.place_id) return;
+                        placesService.getDetails({
+                            placeId: prediction.place_id,
+                            fields: ['place_id', 'geometry', 'formatted_address', 'name', 'address_components']
+                        }, function(place, status) {
+                            if (status !== google.maps.places.PlacesServiceStatus.OK || !place) {
+                                input.value = prediction.description || input.value;
+                                return;
+                            }
+                            fillPlaceFields(place);
+                        });
+                    };
+
+                    input.addEventListener('input', function() {
+                        const raw = String(input.value || '').trim();
+                        const placeIdField = document.getElementById(input.id.replace('_location', '_place_id'));
+                        if (placeIdField) placeIdField.value = '';
+
+                        clearTimeout(assistTimer);
+                        if (raw.length < 2) {
+                            window.hideCityAwarePlaceSuggestions(input);
+                            return;
+                        }
+
+                        assistTimer = setTimeout(function() {
+                            const city = window.resolveCityForAutocompleteInput(input);
+                            if (input._placesAutocomplete) {
+                                window.applyDestinationOptionsToAutocomplete(input._placesAutocomplete, input);
+                            }
+
+                            if (city) {
+                                window.fetchCityAwarePlacePredictions(input, raw, function(predictions) {
+                                    window.renderCityAwarePlaceSuggestions(input, predictions, selectPrediction);
+                                });
+                            } else {
+                                window.hideCityAwarePlaceSuggestions(input);
+                            }
+                        }, 220);
+                    });
+
+                    input.addEventListener('blur', function() {
+                        setTimeout(function() {
+                            window.hideCityAwarePlaceSuggestions(input);
+                            const placeIdField = document.getElementById(input.id.replace('_location', '_place_id'));
+                            if (placeIdField && placeIdField.value) return;
+                            const raw = String(input.value || '').trim();
+                            if (raw.length < 3) return;
+
+                            const city = window.resolveCityForAutocompleteInput(input);
+                            const country = window.resolveCountryForAutocompleteInput(input);
+                            const contextual = window.buildContextualPlacesQuery(raw, city, country);
+                            const shouldResolve = !!city || (contextual !== raw) || raw.indexOf(',') !== -1;
+                            if (!shouldResolve) return;
+
+                            const placesService = resolvePlacesService();
+                            if (!placesService || !placesService.findPlaceFromQuery) return;
+
+                            placesService.findPlaceFromQuery({
+                                query: contextual,
+                                fields: ['place_id', 'geometry', 'formatted_address', 'name', 'address_components']
+                            }, function(results, status) {
+                                if (status !== google.maps.places.PlacesServiceStatus.OK || !results?.[0]) {
+                                    console.log('findPlaceFromQuery miss for', contextual, status);
+                                    return;
+                                }
+                                if (String(input.value || '').trim() !== raw) return;
+                                console.log('findPlaceFromQuery hit:', contextual, results[0]);
+                                fillPlaceFields(results[0]);
+                            });
+                        }, 220);
+                    });
+
+                    input.addEventListener('keydown', function(e) {
+                        if (e.key === 'Escape') {
+                            window.hideCityAwarePlaceSuggestions(input);
+                        }
+                    });
+                }
+
                 autocomplete.addListener('place_changed', function() {
                     const place = autocomplete.getPlace();
-                    
+
                     if (!place.geometry) {
                         console.log('No geometry found for selected place');
                         return;
                     }
-                    
+
+                    window.hideCityAwarePlaceSuggestions(input);
+
+                    const selectedCityForInput = window.resolveCityForAutocompleteInput(input);
+                    if (selectedCityForInput && !window.placeMatchesSelectedCity(place, selectedCityForInput)) {
+                        console.warn('Selected place may be outside the chosen city (allowed):', selectedCityForInput, place.formatted_address);
+                    }
+
                     console.log('Place selected:', place);
-                    
-                    // Extract coordinates
+
                     const lat = place.geometry.location.lat();
                     const lng = place.geometry.location.lng();
-                    
-                    // Update hidden fields based on input ID
                     const inputId = input.id;
-                    
-                    // Handle local transfer point-to-point fields
-                    if (inputId.includes('pickup')) {
+
+                    if (inputId.includes('pickup') || inputId.includes('dropoff')) {
                         const latField = document.getElementById(inputId.replace('_location', '_lat'));
                         const lngField = document.getElementById(inputId.replace('_location', '_lng'));
                         const placeIdField = document.getElementById(inputId.replace('_location', '_place_id'));
-                        
+
                         if (latField) latField.value = lat;
                         if (lngField) lngField.value = lng;
                         if (placeIdField) placeIdField.value = place.place_id;
-                        
-                        console.log(`Updated pickup coordinates: ${lat}, ${lng}`);
-                    } else if (inputId.includes('dropoff')) {
-                        const latField = document.getElementById(inputId.replace('_location', '_lat'));
-                        const lngField = document.getElementById(inputId.replace('_location', '_lng'));
-                        const placeIdField = document.getElementById(inputId.replace('_location', '_place_id'));
-                        
-                        if (latField) latField.value = lat;
-                        if (lngField) lngField.value = lng;
-                        if (placeIdField) placeIdField.value = place.place_id;
-                        
-                        console.log(`Updated dropoff coordinates: ${lat}, ${lng}`);
                     }
-                    
-                    // Update input value with formatted address
+
                     input.value = place.formatted_address || place.name || input.value;
-                    
-                    // Enable search button if both pickup and dropoff are filled
-                    checkLocalTransferFormCompletion();
+
+                    if (typeof checkLocalTransferFormCompletion === 'function') {
+                        checkLocalTransferFormCompletion();
+                    }
+                    if (typeof checkHourlyFormCompletion === 'function') {
+                        checkHourlyFormCompletion();
+                    }
+
+                    console.log('Updated location:', {
+                        lat: lat,
+                        lng: lng,
+                        placeId: place.place_id,
+                        address: place.formatted_address
+                    });
                 });
-                
-                // Mark as initialized
+
                 input.setAttribute('data-autocomplete-initialized', 'true');
             }
         });
@@ -23583,6 +25542,10 @@
     
     // Helper function to get country code from country name
     window.getCountryCode = function(countryName) {
+        if (!countryName) return null;
+        if (typeof countryName === 'string' && /^[A-Za-z]{2}$/.test(countryName.trim())) {
+            return countryName.trim().toUpperCase();
+        }
         const countryCodes = {
             'India': 'IN',
             'United States': 'US',
@@ -23635,7 +25598,15 @@
             'Brazil': 'BR',
             'Argentina': 'AR',
             'Mexico': 'MX',
-            // Add more countries as needed
+            'New Zealand': 'NZ',
+            'United Arab Emirates': 'AE',
+            'Saudi Arabia': 'SA',
+            'Qatar': 'QA',
+            'Bahrain': 'BH',
+            'Oman': 'OM',
+            'Kuwait': 'KW',
+            'South Africa': 'ZA',
+            'Egypt': 'EG'
         };
         
         return countryCodes[countryName] || '';
@@ -23698,118 +25669,6 @@
     }
 
     
-    // Google Maps Autocomplete Functionality
-    window.initializeGoogleMapsAutocomplete = function() {
-        console.log('Initializing Google Maps Autocomplete...');
-        
-        // Resolve the selected country. NOTE: #user_country holds the tour's `destination`, which is often a
-        // CITY name (e.g. "Batam"), not a country. Passing an unmapped value produced
-        // `componentRestrictions: { country: '' }`, which makes Google throw InvalidValueError and breaks
-        // autocomplete entirely (this is why edit failed but create worked). So resolve from real country
-        // sources and only apply the restriction when we have a valid ISO code.
-        const resolveSelectedCountryName = () => {
-            // A hardcoded tour country (most reliable when present)
-            const tourCountry = '{{ $tour->country ?? "" }}'.trim();
-            if (tourCountry && getCountryCode(tourCountry)) return tourCountry;
-
-            // Fall back to the data-country of any selected city dropdown
-            const citySelectIds = ['single_city', 'modal_city_select', 'modal_local_transfer_city', 'modal_entryport_transport_city', 'modal_exitport_transport_city'];
-            for (const id of citySelectIds) {
-                const sel = document.getElementById(id);
-                if (!sel) continue;
-                const opt = sel.options && sel.options[sel.selectedIndex];
-                const dc = opt && opt.getAttribute ? (opt.getAttribute('data-country') || '') : '';
-                if (dc && getCountryCode(dc)) return dc;
-            }
-
-            // Last resort: whatever is in #user_country (may be a city, may map to nothing)
-            return document.getElementById('user_country')?.value || '';
-        };
-
-        const selectedCountry = resolveSelectedCountryName();
-        const selectedCity = document.getElementById('city')?.value || '';
-        
-        // Create location bias for better search results
-        let locationBias = null;
-        if (selectedCountry && selectedCity) {
-            // Use the city as the center point for location bias
-            locationBias = selectedCity + ', ' + selectedCountry;
-        } else if (selectedCountry) {
-            locationBias = selectedCountry;
-        }
-        
-        // Initialize autocomplete for all transport location inputs
-        document.querySelectorAll('.google-maps-autocomplete').forEach(input => {
-            if (input && !input.hasAttribute('data-autocomplete-initialized')) {
-                console.log('Initializing autocomplete for:', input.id);
-                
-                // Create autocomplete instance. Only restrict by country when we have a valid ISO code,
-                // otherwise Google throws InvalidValueError and no suggestions appear.
-                const autocompleteOptions = {
-                    types: ['establishment', 'geocode'],
-                    fields: ['place_id', 'geometry', 'formatted_address', 'name', 'address_components']
-                };
-                const countryCode = getCountryCode(selectedCountry);
-                if (countryCode) {
-                    autocompleteOptions.componentRestrictions = { country: countryCode };
-                }
-                const autocomplete = new google.maps.places.Autocomplete(input, autocompleteOptions);
-                
-                // Add place_changed event listener
-                autocomplete.addListener('place_changed', function() {
-                    const place = autocomplete.getPlace();
-                    
-                    if (!place.geometry) {
-                        console.log('No geometry found for selected place');
-                        return;
-                    }
-                    
-                    console.log('Place selected:', place);
-                    
-                    // Extract coordinates
-                    const lat = place.geometry.location.lat();
-                    const lng = place.geometry.location.lng();
-                    
-                    // Update hidden fields based on input ID
-                    const inputId = input.id;
-                    
-                    // Update the corresponding hidden fields
-                    if (inputId.includes('pickup')) {
-                        const latField = document.getElementById(inputId.replace('_location', '_lat'));
-                        const lngField = document.getElementById(inputId.replace('_location', '_lng'));
-                        const placeIdField = document.getElementById(inputId.replace('_location', '_place_id'));
-                        
-                        if (latField) latField.value = lat;
-                        if (lngField) lngField.value = lng;
-                        if (placeIdField) placeIdField.value = place.place_id;
-                    } else if (inputId.includes('dropoff')) {
-                        const latField = document.getElementById(inputId.replace('_location', '_lat'));
-                        const lngField = document.getElementById(inputId.replace('_location', '_lng'));
-                        const placeIdField = document.getElementById(inputId.replace('_location', '_place_id'));
-                        
-                        if (latField) latField.value = lat;
-                        if (lngField) lngField.value = lng;
-                        if (placeIdField) placeIdField.value = place.place_id;
-                    }
-                    
-                    // Enable search button if all fields are filled
-                    checkLocalTransferFormCompletion();
-                    checkHourlyFormCompletion();
-                    
-                    console.log('Updated location:', {
-                        lat: lat,
-                        lng: lng,
-                        placeId: place.place_id,
-                        address: place.formatted_address
-                    });
-                });
-                
-                // Mark as initialized
-                input.setAttribute('data-autocomplete-initialized', 'true');
-            }
-        });
-    };
-    
     // Function to reinitialize autocomplete when modal opens
     window.reinitializeAutocomplete = function() {
         console.log('Reinitializing autocomplete for local transfer modal...');
@@ -23837,6 +25696,22 @@
                     initializeGoogleMapsAutocomplete();
                 }
             });
+        }
+    });
+
+    // Refresh soft destination bias when modal city dropdowns change
+    document.addEventListener('change', function(e) {
+        const citySelectIds = [
+            'modal_local_transfer_city',
+            'modal_entryport_transport_city',
+            'modal_exitport_transport_city'
+        ];
+        if (e.target && citySelectIds.includes(e.target.id)) {
+            setTimeout(function() {
+                if (typeof window.refreshAutocompleteCityBounds === 'function') {
+                    window.refreshAutocompleteCityBounds(e.target);
+                }
+            }, 100);
         }
     });
 
@@ -24780,6 +26655,64 @@
     }
 
     // Functions to load meals and dish types for restaurant edit form
+    function restoreSavedRestaurantMealDish(bookingId) {
+        const mealTypeSelect = document.getElementById(`meal_type_${bookingId}`);
+        const dishTypeSelect = document.getElementById(`meal_specific_type_${bookingId}`);
+        const currentMealType = document.getElementById(`current_meal_type_${bookingId}`)?.value || '';
+        const currentDishType = document.getElementById(`current_dish_type_${bookingId}`)?.value || '';
+        if (mealTypeSelect && currentMealType) {
+            const hasMeal = Array.from(mealTypeSelect.options || []).some(o => o.value === currentMealType);
+            if (!hasMeal) {
+                const opt = document.createElement('option');
+                opt.value = currentMealType;
+                opt.textContent = currentMealType;
+                opt.selected = true;
+                mealTypeSelect.appendChild(opt);
+            } else {
+                mealTypeSelect.value = currentMealType;
+            }
+        }
+        if (dishTypeSelect && currentDishType) {
+            const hasDish = Array.from(dishTypeSelect.options || []).some(o => o.value === currentDishType);
+            if (!hasDish) {
+                const opt = document.createElement('option');
+                opt.value = currentDishType;
+                opt.textContent = currentDishType;
+                opt.selected = true;
+                dishTypeSelect.appendChild(opt);
+            } else {
+                dishTypeSelect.value = currentDishType;
+            }
+        }
+    }
+
+    function resolveRestaurantIdForEdit(selectedOption) {
+        if (!selectedOption) return '';
+        let restaurantId = selectedOption.getAttribute('data-restaurant-id') || '';
+        if (restaurantId) return restaurantId;
+
+        const name = (selectedOption.value || '').toString().trim();
+        if (!name) return '';
+
+        // Fall back to master restaurants list loaded on the page
+        try {
+            window.__editformRestaurants = window.__editformRestaurants || @json($restaurants ?? []);
+            const match = (window.__editformRestaurants || []).find(function (r) {
+                return String(r.name || '').toLowerCase() === name.toLowerCase();
+            });
+            if (match) {
+                restaurantId = String(match.restaurant_id || match.id || '');
+                if (restaurantId) {
+                    selectedOption.setAttribute('data-restaurant-id', restaurantId);
+                    try {
+                        selectedOption.setAttribute('data-restaurant-data', JSON.stringify(match));
+                    } catch (e) { /* ignore */ }
+                }
+            }
+        } catch (e) { /* ignore */ }
+        return restaurantId;
+    }
+
     function loadRestaurantMealsForEdit(bookingId) {
         const restaurantSelect = document.getElementById(`restaurant_name_${bookingId}`);
         const mealTypeSelect = document.getElementById(`meal_type_${bookingId}`);
@@ -24794,12 +26727,10 @@
         const currentMealType = document.getElementById(`current_meal_type_${bookingId}`)?.value || '';
         const currentDishType = document.getElementById(`current_dish_type_${bookingId}`)?.value || '';
         
-        // Clear dependent dropdowns
-        mealTypeSelect.innerHTML = '<option value="">Select Restaurant First</option>';
-        dishTypeSelect.innerHTML = '<option value="">Select Meal Type First</option>';
-        
         const selectedOption = restaurantSelect.options[restaurantSelect.selectedIndex];
         if (!selectedOption || !selectedOption.value) {
+            mealTypeSelect.innerHTML = '<option value="">Select Restaurant First</option>';
+            if (dishTypeSelect) dishTypeSelect.innerHTML = '<option value="">Select Meal Type First</option>';
             return;
         }
         
@@ -24810,6 +26741,10 @@
             handleMultiRestaurantSelectedForEdit(bookingId, selectedValue);
             return;
         }
+        
+        // Clear dependent dropdowns only after we know a restaurant is selected
+        mealTypeSelect.innerHTML = '<option value="">Select Meal Type</option>';
+        if (dishTypeSelect) dishTypeSelect.innerHTML = '<option value="">Select Meal Type First</option>';
         
         // Show transport section for normal restaurants
         const transportSection = document.getElementById(`restaurant_transport_section_${bookingId}`);
@@ -24826,7 +26761,7 @@
         
         // Try to get restaurant data from data attribute
         const restaurantDataStr = selectedOption.getAttribute('data-restaurant-data');
-        const restaurantId = selectedOption.getAttribute('data-restaurant-id');
+        let restaurantId = resolveRestaurantIdForEdit(selectedOption);
         
         if (restaurantDataStr) {
             try {
@@ -24835,7 +26770,13 @@
                 // If restaurant has meals in data, use them directly
                 if (restaurantData.meals && Array.isArray(restaurantData.meals) && restaurantData.meals.length > 0) {
                     populateMealTypesForEdit(mealTypeSelect, restaurantData.meals, currentMealType);
+                    if (typeof updateRestaurantPriceForEdit === 'function') {
+                        updateRestaurantPriceForEdit(bookingId);
+                    }
                     return;
+                }
+                if (!restaurantId) {
+                    restaurantId = String(restaurantData.restaurant_id || restaurantData.id || '');
                 }
             } catch (error) {
                 console.error('Error parsing restaurant data:', error);
@@ -24845,7 +26786,11 @@
         // Try to fetch meals from API
         if (restaurantId) {
             fetchMealsForRestaurantEdit(restaurantId, mealTypeSelect, bookingId, currentMealType, currentDishType);
+            return;
         }
+
+        // No restaurant id available — keep saved meal/dish visible instead of empty placeholders
+        restoreSavedRestaurantMealDish(bookingId);
     }
     
     function populateMealTypesForEdit(mealTypeSelect, meals, currentMealType = '') {
@@ -24881,7 +26826,7 @@
             mealTypeSelect.appendChild(mealOption);
         });
         
-        // If a meal was selected, trigger dish type loading
+        // If a meal was selected, trigger dish type loading and price update
         if (mealTypeSelect.value) {
             const bookingId = mealTypeSelect.id.replace('meal_type_', '');
             loadDishTypesForEdit(bookingId);
@@ -24893,13 +26838,14 @@
             const dmcId = document.getElementById('dmc_id')?.value;
             if (!dmcId) {
                 console.error('DMC ID not found');
+                if (bookingId) restoreSavedRestaurantMealDish(bookingId);
                 return;
             }
             
             const response = await fetch(`{{ route('api.restaurant.details') }}?restaurantId=${restaurantId}&dmc_id=${dmcId}`);
             const data = await response.json();
             
-            if (data.success && data.meals && Array.isArray(data.meals)) {
+            if (data.success && data.meals && Array.isArray(data.meals) && data.meals.length > 0) {
                 // Convert API format to expected format
                 const meals = data.meals.map(meal => ({
                     meal_id: meal.meal_id,
@@ -24908,12 +26854,26 @@
                     category: meal.category === 'Alcoholic' ? 1 : (meal.category === 'Non Alcoholic' ? 2 : null),
                     item_type: meal.item_type === 'Veg' ? 1 : (meal.item_type === 'Non Veg' ? 2 : null),
                     adult_price: meal.adult_price,
-                    child_price: meal.child_price
+                    child_price: meal.child_price,
+                    price: meal.price
                 }));
                 populateMealTypesForEdit(mealTypeSelect, meals, currentMealType);
+                // Ensure saved dish is restored if dish loader didn't select it
+                if (bookingId && currentDishType) {
+                    const dishTypeSelect = document.getElementById(`meal_specific_type_${bookingId}`);
+                    if (dishTypeSelect && !dishTypeSelect.value) {
+                        restoreSavedRestaurantMealDish(bookingId);
+                    }
+                }
+                if (bookingId && typeof updateRestaurantPriceForEdit === 'function') {
+                    updateRestaurantPriceForEdit(bookingId);
+                }
+            } else if (bookingId) {
+                restoreSavedRestaurantMealDish(bookingId);
             }
         } catch (error) {
             console.error('Error fetching meals for restaurant:', error);
+            if (bookingId) restoreSavedRestaurantMealDish(bookingId);
         }
     }
     
@@ -25178,6 +27138,47 @@
         }
     }
     
+    // Update normal restaurant price in edit form (Buffet & Set Menu use adult_price + child_price)
+    function updateRestaurantPriceForEdit(bookingId) {
+        const restaurantSelect = document.getElementById(`restaurant_name_${bookingId}`);
+        if (restaurantSelect && restaurantSelect.value && String(restaurantSelect.value).startsWith('multi_restaurant_')) {
+            if (typeof updateMultiRestaurantPriceForEdit === 'function') {
+                updateMultiRestaurantPriceForEdit(bookingId);
+            }
+            return;
+        }
+
+        const mealTypeSelect = document.getElementById(`meal_type_${bookingId}`);
+        const totalPriceInput = document.getElementById(`restaurant_total_price_${bookingId}`);
+        if (!mealTypeSelect || !totalPriceInput) return;
+
+        const selectedOption = mealTypeSelect.options[mealTypeSelect.selectedIndex];
+        if (!selectedOption || !selectedOption.value) return;
+
+        const mealDataStr = selectedOption.getAttribute('data-meal');
+        if (!mealDataStr) return;
+
+        let mealData;
+        try {
+            mealData = JSON.parse(mealDataStr);
+        } catch (error) {
+            console.error('Error parsing meal data for price update:', error);
+            return;
+        }
+
+        const adultCountInput = document.getElementById(`restaurant_adult_count_${bookingId}`);
+        const childCountInput = document.getElementById(`restaurant_child_count_${bookingId}`);
+        const adults = parseInt(adultCountInput?.value || 0) || 0;
+        const children = parseInt(childCountInput?.value || 0) || 0;
+        const finalAdults = Math.max(1, adults);
+
+        const adultPrice = parseFloat(mealData.adult_price ?? 0) || 0;
+        const childPrice = parseFloat(mealData.child_price ?? 0) || 0;
+        const total = (adultPrice * finalAdults) + (childPrice * children);
+
+        totalPriceInput.value = total.toFixed(2);
+    }
+
     // Update Multi Restaurant price in edit form
     function updateMultiRestaurantPriceForEdit(bookingId) {
         const restaurantSelect = document.getElementById(`restaurant_name_${bookingId}`);
@@ -25292,6 +27293,13 @@
                 if (!dishTypeSelect.value && currentDishType) {
                     dishTypeSelect.value = dishTypeMatch[1];
                 }
+            } else if (currentDishType) {
+                // Saved booking may only have meal period text ("Breakfast") — restore dish from hidden field
+                const dishOption = document.createElement('option');
+                dishOption.value = currentDishType;
+                dishOption.textContent = currentDishType;
+                dishOption.selected = true;
+                dishTypeSelect.appendChild(dishOption);
             }
             return;
         }
@@ -25320,6 +27328,10 @@
             }
         } catch (error) {
             console.error('Error parsing meal data:', error);
+        }
+
+        if (typeof updateRestaurantPriceForEdit === 'function') {
+            updateRestaurantPriceForEdit(bookingId);
         }
     }
     
@@ -25830,6 +27842,58 @@
         if (totalPriceInput) {
             formData.set('total_price', totalPriceInput.value || '0');
             formData.set('totalPrice', totalPriceInput.value || '0');
+        }
+
+        // Always send resolved attraction_id / ticket_id so backend can replace stale AI IDs.
+        const attractionSelect = document.getElementById(`attraction_name_${bookingId}`);
+        const ticketSelect = document.getElementById(`ticket_name_${bookingId}`);
+        const visitTimeSelect = document.getElementById(`visit_time_${bookingId}`);
+        if (attractionSelect) {
+            const selectedAttractionOpt = (typeof resolveCatalogAttractionOption === 'function')
+                ? resolveCatalogAttractionOption(attractionSelect)
+                : attractionSelect.options[attractionSelect.selectedIndex];
+            const attractionId = selectedAttractionOpt?.getAttribute('data-attraction-id')
+                || selectedAttractionOpt?.dataset?.attractionId
+                || '';
+            const attractionName = (selectedAttractionOpt?.value || attractionSelect.value || '').trim();
+            if (attractionName) {
+                formData.set('attraction_name', attractionName);
+            }
+            formData.set('attraction_id', attractionId || '');
+            try {
+                const attractionDataRaw = selectedAttractionOpt?.getAttribute('data-attraction-data');
+                if (attractionDataRaw) {
+                    const attractionData = JSON.parse(attractionDataRaw);
+                    if (attractionData && attractionData.name) {
+                        formData.set('attraction_name', attractionData.name);
+                    }
+                    if (!attractionId && attractionData && attractionData.attraction_id) {
+                        formData.set('attraction_id', String(attractionData.attraction_id));
+                    }
+                    if (selectedAttractionOpt?.dataset?.isBundle === '1' || attractionData?.is_bundle) {
+                        formData.set('is_bundle', '1');
+                        formData.set('package_attraction_id', String(attractionData.package_attraction_id || attractionId || ''));
+                    }
+                }
+            } catch (e) {
+                console.warn('Could not parse attraction data for update', e);
+            }
+        }
+        if (ticketSelect) {
+            const selectedTicketOpt = ticketSelect.options[ticketSelect.selectedIndex];
+            formData.set('ticket_name', ticketSelect.value || '');
+            formData.set(
+                'ticket_id',
+                selectedTicketOpt?.dataset?.ticketId
+                    || selectedTicketOpt?.getAttribute('data-ticket-id')
+                    || ''
+            );
+            formData.set('adult_price', selectedTicketOpt?.dataset?.adultPrice || '0');
+            formData.set('child_price', selectedTicketOpt?.dataset?.childPrice || '0');
+            formData.set('senior_price', selectedTicketOpt?.dataset?.seniorPrice || '0');
+        }
+        if (visitTimeSelect) {
+            formData.set('visit_time', visitTimeSelect.value || '');
         }
 
         // Collect transport data if transport is required
@@ -26472,22 +28536,18 @@
         if (!form) throw new Error('Form not found');
         const url = form.dataset.updateCityUrl;
         if (!url) throw new Error('City save URL not found');
-
         const csrfMeta = document.querySelector('meta[name="csrf-token"]');
         const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
         if (!csrfToken) throw new Error('CSRF token not found');
-
-        try { if (typeof updateCityHiddenField === 'function') updateCityHiddenField(); } catch (e) { /* ignore */ }
+        try { if (typeof window.updateCityHiddenField === 'function') window.updateCityHiddenField(); } catch (e) { /* ignore */ }
         const city = (document.getElementById('city') || {}).value || '';
         const cityType =
             (document.querySelector('input[name="city_type"]:checked') || {}).value ||
             (document.querySelector('input[type="hidden"][name="city_type"]') || {}).value ||
             'single';
-
         const fd = new FormData();
         fd.append('city', city);
         fd.append('city_type', cityType);
-
         const resp = await fetch(url, {
             method: 'POST',
             headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
@@ -26499,6 +28559,14 @@
         if (!resp.ok || !data.success) {
             throw new Error((data && data.message) ? data.message : 'Failed to save city plans');
         }
+        // Keep the hidden destination field in sync when a city from a new country was added.
+        try {
+            const dest = data && data.data && data.data.destination != null ? String(data.data.destination) : '';
+            const userCountryEl = document.getElementById('user_country');
+            if (userCountryEl && dest !== '') {
+                userCountryEl.value = dest;
+            }
+        } catch (e) { /* ignore */ }
         return data;
     }
 
@@ -26570,9 +28638,6 @@
         formData.append('female', femaleCountEl ? femaleCountEl.value : '0');
         formData.append('agent_id', agentIdEl ? agentIdEl.value : '');
         formData.append('agency_id', agencyIdEl ? agencyIdEl.value : '');
-        const referenceNumberEl = document.getElementById('reference_number');
-        formData.append('reference_number', referenceNumberEl ? referenceNumberEl.value || '' : '');
-        
         // Collect child ages - try multiple sources
         let childAges = '';
         
@@ -26782,6 +28847,16 @@
                         throw new Error(errorMessage);
                     }
                     
+                    // Also persist the city selection before reloading (see comment above).
+                    try {
+                        const cityTypeNow2 = (document.querySelector('input[name="city_type"]:checked') || {}).value || 'single';
+                        if (cityTypeNow2 === 'multi') {
+                            await persistCityPlansNow();
+                        }
+                    } catch (cityErr) {
+                        console.error('Failed to persist city plans after tour info update:', cityErr);
+                    }
+
                     // Show success feedback with deleted services count
                     const deletedCount = confirmData.deleted_services_count || 0;
                     const successMsg = confirmData.message || 'Tour information updated successfully.';
@@ -26829,9 +28904,30 @@
                 throw new Error(errorMessage);
             }
 
+            // Also persist the city selection (master-list cities plus any dated city plans).
+            // This makes sure a city just added to the multi-city list is saved even before
+            // it has a date range — "Update Tour Information" shouldn't silently drop it.
+            try {
+                const cityTypeNow = (document.querySelector('input[name="city_type"]:checked') || {}).value || 'single';
+                if (cityTypeNow === 'multi') {
+                    await persistCityPlansNow();
+                }
+            } catch (cityErr) {
+                console.error('Failed to persist city plans after tour info update:', cityErr);
+                showToastr('warning', 'Tour info updated, but saving the city selection failed: ' + (cityErr && cityErr.message ? cityErr.message : 'Unknown error'));
+            }
+
             // Show success feedback
             feedback.textContent = data.message || 'Tour information updated successfully.';
             feedback.classList.add('text-success');
+
+            // Keep destination hidden field aligned with server (may include newly merged countries).
+            try {
+                const dest = data && data.data && data.data.destination != null ? String(data.data.destination) : '';
+                if (userCountryEl && dest !== '') {
+                    userCountryEl.value = dest;
+                }
+            } catch (e) { /* ignore */ }
             
             // Show success toastr notification
             showToastr('success', data.message || 'Tour information updated successfully.');
@@ -26865,13 +28961,10 @@
         const pickupZoneType = pickupSelect.options[pickupSelect.selectedIndex]?.getAttribute('data-type');
         const dropoffZoneType = dropoffSelect.options[dropoffSelect.selectedIndex]?.getAttribute('data-type');
         const city = citySelect?.value || '';
+        const savedName = vehicleSelect.getAttribute('data-saved-vehicle') || vehicleSelect.value || '';
+        const savedId = vehicleSelect.getAttribute('data-saved-vehicle-id') || '';
         
         if (!pickupZoneId || !dropoffZoneId || !city) {
-            // Clear vehicle select if zones not selected
-            if (vehicleSelect) {
-                vehicleSelect.innerHTML = '<option value="">Select pickup and dropoff locations first</option>';
-                vehicleSelect.disabled = true;
-            }
             return;
         }
         
@@ -26912,31 +29005,25 @@
             }
             
             if (data.success && data.vehicles && data.vehicles.length > 0) {
-                // Populate vehicle dropdown
-                vehicleSelect.innerHTML = '<option value="">Select vehicle</option>';
-                data.vehicles.forEach(vehicle => {
-                    const vehicleInfo = `${vehicle.vehicle_name} (${vehicle.vehicle_type || ''}) - ${vehicle.seating_capacity || ''} seats`;
-                    vehicleSelect.innerHTML += `<option value="${vehicle.vehicle_name || vehicle.vehicle_id}" 
-                        data-vehicle-id="${vehicle.vehicle_id || ''}"
-                        data-private-price="${vehicle.private_price || vehicle.base_price || 0}"
-                        data-shared-price="${vehicle.shared_price || vehicle.sharable_base_price || 0}"
-                        data-sharable="${vehicle.sharable || 0}">
-                        ${vehicleInfo}
-                    </option>`;
-                });
-                vehicleSelect.disabled = false;
-                
-                // Update service type based on vehicle sharability
+                populateVehicleSelect(vehicleSelect, data.vehicles, savedName, savedId);
+                updateDepartureServiceType(bookingId);
+            } else if (savedName) {
+                populateVehicleSelect(vehicleSelect, [], savedName, savedId);
                 updateDepartureServiceType(bookingId);
             } else {
                 vehicleSelect.innerHTML = '<option value="">No vehicles available for this route</option>';
                 vehicleSelect.disabled = true;
+                if (typeof window.refreshSelect2 === 'function') window.refreshSelect2(vehicleSelect);
             }
         } catch (error) {
             console.error('Error fetching vehicles:', error);
             if (vehicleSelect) {
-                vehicleSelect.innerHTML = '<option value="">Error loading vehicles</option>';
-                vehicleSelect.disabled = true;
+                if (savedName) {
+                    populateVehicleSelect(vehicleSelect, [], savedName, savedId);
+                } else {
+                    vehicleSelect.innerHTML = '<option value="">Error loading vehicles</option>';
+                    vehicleSelect.disabled = true;
+                }
             }
         }
     }
@@ -27077,10 +29164,11 @@
         
         const privatePrice = parseFloat(selectedVehicle.getAttribute('data-private-price') || 0);
         const sharedPrice = parseFloat(selectedVehicle.getAttribute('data-shared-price') || 0);
+        const bookedVehicles = resolvePortBookedVehicleCount('departure', bookingId, vehicleSelect);
         
         let price = 0;
         if (serviceType === 'Private') {
-            price = privatePrice;
+            price = privatePrice * bookedVehicles;
         } else if (serviceType === 'Shared') {
             price = sharedPrice;
         }
@@ -27339,24 +29427,24 @@
 
         function parseSegmentsFromDbCity(raw) {
             const s = (raw || '').toString();
-            const out = [];
-            // Match: City Name [YYYY-MM-DD→YYYY-MM-DD]
-            const re = /([^,\[]+?)\s*\[(\d{4}-\d{2}-\d{2})\s*→\s*(\d{4}-\d{2}-\d{2})\]/g;
-            let m;
-            while ((m = re.exec(s)) !== null) {
-                const cityDisplay = (m[1] || '').trim(); // may include "(Country)"
-                const city = normalizeCityValue(cityDisplay); // option value is city name only
-                const start = (m[2] || '').trim();
-                const end = (m[3] || '').trim();
-                if (city) out.push({ city, cityDisplay, start, end });
-            }
-            if (out.length) return out;
-
-            // Fallback: CSV of cities without dates
+            if (!s.trim()) return [];
+            // Each comma-separated token is either "City Name [YYYY-MM-DD→YYYY-MM-DD]" (dated)
+            // or just "City Name" (a city added without a date range yet — blank-date entry).
+            // Handling both per-token (instead of only ever returning one or the other) keeps
+            // mixed strings like "Singapore [2026-08-05→2026-08-07], Batam" from losing cities.
+            const dateRe = /^(.*?)\s*\[\s*(\d{4}-\d{2}-\d{2})\s*→\s*(\d{4}-\d{2}-\d{2})\s*\]$/;
             return s.split(',')
                 .map(t => t.trim())
                 .filter(Boolean)
-                .map(cityDisplay => ({ city: normalizeCityValue(cityDisplay), cityDisplay, start: '', end: '' }));
+                .map(token => {
+                    const m = token.match(dateRe);
+                    if (m) {
+                        const cityDisplay = (m[1] || '').trim();
+                        return { city: normalizeCityValue(cityDisplay), cityDisplay, start: (m[2] || '').trim(), end: (m[3] || '').trim() };
+                    }
+                    return { city: normalizeCityValue(token), cityDisplay: token, start: '', end: '' };
+                })
+                .filter(p => p.city);
         }
 
         function updateCityHiddenField() {
@@ -27365,9 +29453,15 @@
             if (!cityHidden) return;
 
             if (mode === 'multi') {
-                // Prefer segments (city plans) since DB stores city+date ranges
+                // Build one token per segment (with dates when the segment has them), then
+                // append any master-list city that doesn't have a segment yet as a blank
+                // (date-less) token. This way, adding a city to the master list is always
+                // saved — even before a city plan/date range exists for it — and once a
+                // segment with dates is created for that city, its existing token simply
+                // gains the date range instead of a duplicate entry being added.
                 const segs = Array.from(document.querySelectorAll('#segmentsWrapper .segment'));
                 const parts = [];
+                const citiesWithSegment = new Set();
                 for (const seg of segs) {
                     const citySel = seg.querySelector('.city-select');
                     const startEl = seg.querySelector('.start-date');
@@ -27381,21 +29475,30 @@
                     const display = opt ? (opt.textContent || '').trim() : '';
                     const cityToken = display || cityVal;
                     parts.push(st && en ? `${cityToken} [${st}→${en}]` : cityToken);
-                }
-                if (parts.length) {
-                    cityHidden.value = parts.join(', ');
-                    return;
+                    citiesWithSegment.add(normalizeCityValue(cityVal));
                 }
 
-                // Otherwise fall back to master list
+                // Append master-list cities that don't have a segment/date yet (blank-date entries).
                 const mc = document.getElementById('multi_cities');
-                const vals = mc ? Array.from(mc.selectedOptions).map(o => (o.value || '').trim()).filter(Boolean) : [];
-                cityHidden.value = vals.join(', ');
+                if (mc) {
+                    Array.from(mc.selectedOptions).forEach(o => {
+                        const cityVal = (o.value || '').trim();
+                        if (!cityVal || citiesWithSegment.has(normalizeCityValue(cityVal))) return;
+                        const display = (o.textContent || '').trim() || cityVal;
+                        parts.push(display);
+                    });
+                }
+
+                cityHidden.value = parts.join(', ');
             } else {
                 const sc = document.getElementById('single_city');
                 cityHidden.value = sc ? (sc.value || '') : '';
             }
         }
+        // Exposed on window because this IIFE-scoped function is also called (defensively,
+        // via `typeof window.updateCityHiddenField === 'function'`) from persistCityPlansNow(),
+        // which is defined outside this IIFE and otherwise couldn't reach it.
+        window.updateCityHiddenField = updateCityHiddenField;
 
         function setCityTypeMode(mode) {
             const isMulti = mode === 'multi';
@@ -27404,9 +29507,12 @@
             const mcMaster = document.getElementById('multiCityMasterField');
             const agencyCol = document.getElementById('agencyCol');
             const agentCol = document.getElementById('agentCol');
+            const discountCol = document.getElementById('discountAmountCol');
             if (mc) mc.classList.toggle('d-none', !isMulti);
             if (sc) sc.classList.toggle('d-none', isMulti);
             if (mcMaster) mcMaster.classList.toggle('d-none', !isMulti);
+            // Discount amount is single-city only
+            if (discountCol) discountCol.classList.toggle('d-none', isMulti);
 
             // No stretching needed: in multi-city we show master cities in the 6-col slot.
 
@@ -27477,8 +29583,24 @@
         }
 
         function buildSegmentOptions(masterCities) {
+            const mc = document.getElementById('multi_cities');
+            const countryByCity = {};
+            try {
+                if (mc) {
+                    Array.from(mc.options || []).forEach(function (opt) {
+                        const name = (opt.value || '').toString().trim();
+                        const country = (opt.getAttribute('data-country') || '').toString().trim();
+                        if (name) countryByCity[name] = country;
+                    });
+                }
+            } catch (e) { /* ignore */ }
             return ['<option value="">Select city...</option>']
-                .concat(masterCities.map(c => `<option value="${String(c).replace(/"/g, '&quot;')}">${String(c)}</option>`))
+                .concat(masterCities.map(function (c) {
+                    const name = String(c);
+                    const country = countryByCity[name] || countryByCity[name.trim()] || '';
+                    const countryAttr = country ? ` data-country="${String(country).replace(/"/g, '&quot;')}"` : '';
+                    return `<option value="${name.replace(/"/g, '&quot;')}"${countryAttr}>${name}</option>`;
+                }))
                 .join('');
         }
 
@@ -27546,9 +29668,9 @@
                                         style="width:36px;height:36px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;">
                                     <i class="ri-close-line"></i>
                                 </button>
-                                <button type="button" class="btn btn-outline-danger removeSegment" title="Remove this city plan row">
+                                <button type="button" class="btn btn-outline-danger removeSegment" title="Remove this city plan row"
+                                        style="width:36px;height:36px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;">
                                     <i class="ri-close-line"></i>
-                                    <span>Remove</span>
                                 </button>
                             </div>
                         </div>
@@ -27586,8 +29708,10 @@
                     </div>
                 </div>`;
 
-            wrap.insertAdjacentHTML('beforeend', segmentHTML);
-            const seg = wrap.querySelector('.segment:last-child');
+            // New empty plans go to the top (easier to fill); DB-prefilled rows append to keep order.
+            const isNewEmpty = !(prefill && (prefill.city || prefill.cityDisplay || prefill.start || prefill.end));
+            wrap.insertAdjacentHTML(isNewEmpty ? 'afterbegin' : 'beforeend', segmentHTML);
+            const seg = wrap.querySelector(isNewEmpty ? '.segment:first-child' : '.segment:last-child');
             if (!seg) return;
             if (prefill && prefill.city) {
                 const citySel = seg.querySelector('.city-select');
@@ -27837,7 +29961,10 @@
             const bs = normalizeDateToISO(bStart);
             const be = normalizeDateToISO(bEnd);
             if (!as || !ae || !bs || !be) return false;
-            return as <= be && ae >= bs;
+            // Touching at a single day (e.g. Singapore 3→4 then Malaysia 4→6) is allowed —
+            // that shared day is just checkout from one city and checkin to the next. Only an
+            // actual overlap of more than that boundary day should be blocked.
+            return as < be && ae > bs;
         }
 
         function segmentHasOverlap(seg) {
@@ -27923,25 +30050,58 @@
             } catch (e) { /* ignore */ }
         }
 
-        function applyServiceDateFilter(segStart, segEnd, segCity) {
+        function applyServiceDateFilter(segStart, segEnd, segCity, segCountry) {
             if (!segStart || !segEnd) return;
             try {
                 const wantCity = normalizeCityValue(segCity || '').toLowerCase();
+                const wantCountry = (segCountry || '').toString().trim().toLowerCase();
                 const segS = normalizeDateToISO(segStart);
                 const segE = normalizeDateToISO(segEnd);
                 if (!segS || !segE) return;
 
-                // Single-date services
+                const serviceMatchesSegmentGeo = function (el) {
+                    const cAttr = normalizeCityValue(el.getAttribute('data-service-city') || '').toLowerCase();
+                    const countryAttr = (el.getAttribute('data-service-country') || '').toString().trim().toLowerCase();
+                    // No geo on the service card (legacy rows) → allow date-only
+                    if (!cAttr && !countryAttr) return null;
+                    if (wantCity && cAttr) {
+                        return cAttr === wantCity;
+                    }
+                    if (wantCountry && countryAttr) {
+                        return countryAttr === wantCountry;
+                    }
+                    // Service has geo but segment geo unknown → don't force-hide
+                    if (!wantCity && !wantCountry) return true;
+                    // Service geo cannot match this segment (e.g. Singapore under Bali)
+                    return false;
+                };
+
+                const applyGeoAwareVisibility = function (el, dateOk) {
+                    const geoOk = serviceMatchesSegmentGeo(el);
+                    if (geoOk === false) {
+                        // Wrong city/country for this stay — never show here
+                        el.classList.toggle('d-none', true);
+                        return;
+                    }
+                    if (geoOk === true) {
+                        // Correct city/country — show on this stay (date is secondary)
+                        el.classList.toggle('d-none', false);
+                        return;
+                    }
+                    // Legacy: no geo attrs → date range only
+                    el.classList.toggle('d-none', !dateOk);
+                };
+
+                // Single-date services (restaurants, attractions, guides, transfers)
                 document.querySelectorAll('#' + SERVICES_BUNDLE_ID + ' [data-service-date]').forEach(function (el) {
                     const d = (el.getAttribute('data-service-date') || '').trim();
-                    if (!d) return; // if unknown date, keep visible
+                    if (!d) return;
                     const di = normalizeDateToISO(d);
                     if (!di) return;
-                    const ok = di >= segS && di <= segE;
-                    el.classList.toggle('d-none', !ok);
+                    applyGeoAwareVisibility(el, di >= segS && di <= segE);
                 });
 
-                // Range services (hotels): show if overlaps the segment range
+                // Range services (hotels)
                 document.querySelectorAll('#' + SERVICES_BUNDLE_ID + ' [data-service-start][data-service-end]').forEach(function (el) {
                     const s = (el.getAttribute('data-service-start') || '').trim();
                     const e = (el.getAttribute('data-service-end') || '').trim();
@@ -27949,13 +30109,7 @@
                     const si = normalizeDateToISO(s);
                     const ei = normalizeDateToISO(e);
                     if (!si || !ei) return;
-                    const ok = si <= segE && ei >= segS;
-                    let cityOk = true;
-                    const cAttr = (el.getAttribute('data-service-city') || '').trim();
-                    if (wantCity && cAttr) {
-                        cityOk = normalizeCityValue(cAttr).toLowerCase() === wantCity;
-                    }
-                    el.classList.toggle('d-none', !(ok && cityOk));
+                    applyGeoAwareVisibility(el, si <= segE && ei >= segS);
                 });
             } catch (e) { /* ignore */ }
         }
@@ -28002,6 +30156,26 @@
                 return;
             }
 
+            // Switching away from a different segment: close its panel so it doesn't stay
+            // stuck in a stale "open" state. Without this, that segment's header still
+            // looks/behaves as open, so the click handler below would think there's nothing
+            // to do and Bootstrap's native toggle would just close it again on the next
+            // click — without ever moving the shared services bundle back into it. That's
+            // what made "Add Service" appear to stop working when switching cities back and forth.
+            if (!wasActive && _activeSegmentEl) {
+                try {
+                    const prevCollapse = _activeSegmentEl.querySelector('.segment-body-collapse');
+                    if (prevCollapse && prevCollapse.classList.contains('show')) {
+                        if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
+                            const inst = bootstrap.Collapse.getInstance(prevCollapse) || new bootstrap.Collapse(prevCollapse, { toggle: false });
+                            inst.hide();
+                        } else {
+                            prevCollapse.classList.remove('show');
+                        }
+                    }
+                } catch (e) { /* ignore */ }
+            }
+
             // Update segment header UI
             const header = seg.querySelector('.segment-header');
             const title = seg.querySelector('.segment-title');
@@ -28042,22 +30216,35 @@
 
             // Filter services to segment date range (e.g. 26–30 Apr shows only services in that range)
             clearServiceDateFilter();
-            applyServiceDateFilter(start, end, citySel.value);
+            applyServiceDateFilter(
+                start,
+                end,
+                citySel.value,
+                (citySel.selectedOptions && citySel.selectedOptions[0])
+                    ? (citySel.selectedOptions[0].getAttribute('data-country') || '')
+                    : ''
+            );
 
             applySegmentStayDateBadges(start, end);
 
-            // Auto-open the first service accordion (Hotel) when segment becomes valid.
-            try {
-                const el = document.getElementById('hotelAccommodationsSection');
-                if (el && !el.classList.contains('show')) {
-                    if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
-                        const inst = bootstrap.Collapse.getInstance(el) || new bootstrap.Collapse(el, { toggle: false });
-                        inst.show();
-                    } else {
-                        el.classList.add('show');
+            // Auto-open the first service accordion (Hotel) only the first time this segment
+            // becomes active. Without the !wasActive guard, every click anywhere inside an
+            // already-active segment re-ran this and force-reopened Hotel — which, since all
+            // service sections share one Bootstrap accordion, silently closed whichever section
+            // (e.g. Attraction) the user had manually opened.
+            if (!wasActive) {
+                try {
+                    const el = document.getElementById('hotelAccommodationsSection');
+                    if (el && !el.classList.contains('show')) {
+                        if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
+                            const inst = bootstrap.Collapse.getInstance(el) || new bootstrap.Collapse(el, { toggle: false });
+                            inst.show();
+                        } else {
+                            el.classList.add('show');
+                        }
                     }
-                }
-            } catch (e) { /* ignore */ }
+                } catch (e) { /* ignore */ }
+            }
         }
 
         // React when user edits a segment row
@@ -28091,18 +30278,29 @@
 
         // When clicking the date-range accordion bar, also activate services for that stay.
         // This makes the behavior match "All services for this stay".
+        //
+        // IMPORTANT: this must run in the capture phase and take full control (preventDefault +
+        // stopPropagation) whenever it decides to switch to a *different* segment. The header
+        // also carries Bootstrap's native data-bs-toggle="collapse" attribute; if we let that
+        // fire too, it independently opens/closes the panel based on whatever "show" state it
+        // was left in — which could be stale (e.g. still "show" from when this segment was last
+        // active). That race is what made clicking back to a previously-used city (e.g. Singapore,
+        // after switching to Malaysia) sometimes just close the row without ever bringing the
+        // service forms/buttons back, making "Add Service" look blocked.
         document.addEventListener('click', function (e) {
             const headerBtn = e.target && (e.target.closest ? e.target.closest('#segmentsWrapper .segment-header [data-bs-target]') : null);
             if (!headerBtn) return;
             const seg = headerBtn.closest('.segment');
             if (!seg) return;
-            // Don't fight the user's intent if they are closing an already-active segment.
-            const collapse = seg.querySelector('.segment-body-collapse');
-            const isOpen = !!(collapse && collapse.classList.contains('show'));
-            if (_activeSegmentEl !== seg && !isOpen) {
-                activateSegmentForServices(seg);
-            }
-        });
+            // Already the active segment: don't fight the user's intent — let Bootstrap's
+            // native toggle simply open/close this row's panel as normal.
+            if (_activeSegmentEl === seg) return;
+            // Switching to a different segment: fully own this click so it always (re)activates,
+            // regardless of whatever stale open/closed state the panel happens to be in.
+            e.preventDefault();
+            e.stopPropagation();
+            activateSegmentForServices(seg);
+        }, true);
 
         // Make sure the mini arrow button doesn't double-toggle (it sits inside a clickable collapse header).
         document.addEventListener('click', function (e) {
@@ -28111,7 +30309,16 @@
             e.preventDefault();
             e.stopPropagation();
             const seg = btn.closest('.segment');
-            const collapse = seg ? seg.querySelector('.segment-body-collapse') : null;
+            if (!seg) return;
+            // If this segment isn't the active one, activate it (moves the shared services
+            // bundle into it) instead of blindly toggling — otherwise the panel would just
+            // open empty, since the actual service forms/buttons live in the one shared
+            // bundle that only ever lives inside whichever segment is currently active.
+            if (_activeSegmentEl !== seg) {
+                activateSegmentForServices(seg);
+                return;
+            }
+            const collapse = seg.querySelector('.segment-body-collapse');
             if (!collapse) return;
             try {
                 if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
@@ -28199,6 +30406,11 @@
                             const dc = (data.data && typeof data.data.deleted_services_count !== 'undefined') ? data.data.deleted_services_count : null;
                             showToastr('success', dc !== null ? `City plan removed. ${dc} service(s) removed.` : 'City plan removed.');
                         }
+                        // Reload so soft-deleted services disappear from the edit form
+                        setTimeout(function () {
+                            window.location.reload();
+                        }, 900);
+                        return;
                     } else {
                         // Not saved yet: just remove from UI
                         if (typeof showToastr === 'function') showToastr('success', 'City plan removed.');
@@ -28239,11 +30451,17 @@
                     const cityVal = (citySel && citySel.value ? citySel.value : (cityInp && cityInp.value ? cityInp.value : '')).trim();
                     const st = normalizeDateToISO((startEl && startEl.value ? startEl.value : '').trim());
                     const en = normalizeDateToISO((endEl && endEl.value ? endEl.value : '').trim());
-                    if (!cityVal || !st || !en) {
-                        if (typeof showToastr === 'function') showToastr('error', 'Please select City, Stay from, and Stay until.');
+                    // A city can be saved on its own with a blank date range — the date range
+                    // can be added and saved later without needing to re-add the city.
+                    if (!cityVal) {
+                        if (typeof showToastr === 'function') showToastr('error', 'Please select a City.');
                         return;
                     }
-                    if (segmentHasOverlap(seg)) {
+                    if ((st || en) && !(st && en)) {
+                        if (typeof showToastr === 'function') showToastr('error', 'Please provide both Stay from and Stay until, or leave both blank.');
+                        return;
+                    }
+                    if (st && en && segmentHasOverlap(seg)) {
                         if (typeof showToastr === 'function') showToastr('error', 'These dates are already booked in another city plan.');
                         return;
                     }

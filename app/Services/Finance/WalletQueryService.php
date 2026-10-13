@@ -127,11 +127,17 @@ class WalletQueryService
         $to = $this->normalizeLedgerDate($dateTo);
 
         if ($from) {
-            $query->where('created_at', '>=', Carbon::parse($from)->startOfDay());
+            $query->whereRaw(
+                'created_at >= ?::timestamptz',
+                [$this->ledgerRangeStart($from)]
+            );
         }
 
         if ($to) {
-            $query->where('created_at', '<=', Carbon::parse($to)->endOfDay());
+            $query->whereRaw(
+                'created_at < ?::timestamptz',
+                [$this->ledgerRangeEndExclusive($to)]
+            );
         }
 
         return $query
@@ -146,10 +152,49 @@ class WalletQueryService
         }
 
         try {
-            return Carbon::parse($value)->toDateString();
+            return Carbon::parse($value, config('app.timezone'))->toDateString();
         } catch (\Throwable) {
             return null;
         }
+    }
+
+    /**
+     * Inclusive start of a filter date, with an offset so PostgreSQL does not
+     * reinterpret a naive timestamp in the database session timezone.
+     */
+    protected function ledgerRangeStart(string $date): string
+    {
+        return Carbon::parse($date, config('app.timezone'))->startOfDay()->toIso8601String();
+    }
+
+    /**
+     * Exclusive end: start of the day after the filter date.
+     */
+    protected function ledgerRangeEndExclusive(string $date): string
+    {
+        return Carbon::parse($date, config('app.timezone'))->addDay()->startOfDay()->toIso8601String();
+    }
+
+    /**
+     * Credit and debit totals for the same wallet and date range as the ledger table.
+     *
+     * @return array{credit: float, debit: float}
+     */
+    public function summarizeLedger(?int $walletId, ?string $dateFrom = null, ?string $dateTo = null): array
+    {
+        if (! $walletId) {
+            return ['credit' => 0.0, 'debit' => 0.0];
+        }
+
+        $row = $this->ledgerQueryForWallet($walletId, $dateFrom, $dateTo)
+            ->reorder()
+            ->selectRaw('COALESCE(SUM(credit_amount), 0) as credit_total, COALESCE(SUM(debit_amount), 0) as debit_total')
+            ->first();
+
+        return [
+            'credit' => (float) ($row->credit_total ?? 0),
+            'debit' => (float) ($row->debit_total ?? 0),
+        ];
     }
 
     /**
@@ -194,10 +239,18 @@ class WalletQueryService
             'ledger_per_page' => $ledgerFilters['per_page'],
         ], fn ($value) => $value !== null && $value !== '');
 
+        $walletId = isset($walletRow->id) ? (int) $walletRow->id : null;
+        $ledgerSummary = $this->summarizeLedger($walletId);
+        $ledgerFilteredSummary = ($ledgerFilters['date_from'] || $ledgerFilters['date_to'])
+            ? $this->summarizeLedger($walletId, $ledgerFilters['date_from'], $ledgerFilters['date_to'])
+            : $ledgerSummary;
+
         return [
             'ledger' => $ledger,
             'ledgerFilters' => $ledgerFilters,
             'ledgerQueryParams' => $ledgerQueryParams,
+            'ledgerSummary' => $ledgerSummary,
+            'ledgerFilteredSummary' => $ledgerFilteredSummary,
             'currency' => $currency,
         ];
     }
@@ -474,11 +527,11 @@ class WalletQueryService
         $to = $this->normalizeLedgerDate($dateTo);
 
         if ($from) {
-            $query->where('wl.created_at', '>=', Carbon::parse($from)->startOfDay());
+            $query->whereRaw('wl.created_at >= ?::timestamptz', [$this->ledgerRangeStart($from)]);
         }
 
         if ($to) {
-            $query->where('wl.created_at', '<=', Carbon::parse($to)->endOfDay());
+            $query->whereRaw('wl.created_at < ?::timestamptz', [$this->ledgerRangeEndExclusive($to)]);
         }
 
         return $query
@@ -622,11 +675,11 @@ class WalletQueryService
         $to = $this->normalizeLedgerDate($dateTo);
 
         if ($from) {
-            $query->where('wl.created_at', '>=', Carbon::parse($from)->startOfDay());
+            $query->whereRaw('wl.created_at >= ?::timestamptz', [$this->ledgerRangeStart($from)]);
         }
 
         if ($to) {
-            $query->where('wl.created_at', '<=', Carbon::parse($to)->endOfDay());
+            $query->whereRaw('wl.created_at < ?::timestamptz', [$this->ledgerRangeEndExclusive($to)]);
         }
 
         return $query
@@ -1265,6 +1318,8 @@ class WalletQueryService
 
         $ledger = $ledgerData['ledger'];
         $ledgerFilters = $ledgerData['ledgerFilters'];
+        $ledgerSummary = $ledgerData['ledgerSummary'];
+        $ledgerFilteredSummary = $ledgerData['ledgerFilteredSummary'];
 
         $ownerDisplayName = ($ownerType && $ownerId)
             ? $this->resolveOwnerName($ownerType, $ownerId)
@@ -1274,6 +1329,7 @@ class WalletQueryService
 
         return compact(
             'ownerType', 'ownerId', 'wallet', 'ledger', 'ledgerFilters', 'currency',
+            'ledgerSummary', 'ledgerFilteredSummary',
             'canTopUp', 'canSwitchWallet', 'topUpTargets',
             'isAdmin', 'isAgent', 'ownerDisplayName'
         ) + ['isDmc' => $isDmcOwner, 'isFinance' => false];

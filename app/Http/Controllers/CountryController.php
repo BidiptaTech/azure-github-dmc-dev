@@ -151,6 +151,7 @@ class CountryController extends Controller
             'header_pdf' => $header_pdf,
             'footer_pdf' => $footer_pdf,
             'country_image' => $country_image,
+            'is_active' => 1,
         ]);
 
         // Redirect with success message

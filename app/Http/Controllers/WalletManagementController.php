@@ -147,6 +147,8 @@ class WalletManagementController extends Controller
             $ledgerData['ledgerFilters'],
             $ledgerData['ledgerQueryParams'],
             (bool) $request->boolean('show_reference', true),
+            $ledgerData['ledgerSummary'] ?? null,
+            $ledgerData['ledgerFilteredSummary'] ?? null,
         );
     }
 
@@ -288,6 +290,8 @@ class WalletManagementController extends Controller
         array $ledgerFilters,
         array $ledgerQueryParams,
         bool $showReferenceColumn,
+        ?array $ledgerSummary = null,
+        ?array $ledgerFilteredSummary = null,
     ) {
         return response()->json([
             'html' => view('finance.partials.wallet-ledger-results', [
@@ -295,6 +299,8 @@ class WalletManagementController extends Controller
                 'ledgerFilters' => $ledgerFilters,
                 'ledgerQueryParams' => $ledgerQueryParams,
                 'showReferenceColumn' => $showReferenceColumn,
+                'ledgerSummary' => $ledgerSummary,
+                'ledgerFilteredSummary' => $ledgerFilteredSummary,
             ])->render(),
             'meta' => [
                 'total' => $ledger->total(),
@@ -607,94 +613,68 @@ class WalletManagementController extends Controller
                 }
             }
 
-            if ($roleGroup === 'travclicks_owner') {
-                if ($recipientType !== 'master_dmc') {
-                    abort(403, 'Travclicks Owner can allocate only to Master DMC wallets.');
-                }
-
-                $ledgerContext = $this->walletQuery->buildTopupLedgerContext(
-                    $recipientType,
-                    $recipientId,
-                    $validated['ledger_description'] ?? null,
-                    $user->name ?? $user->email,
-                );
-
-                $this->walletService->topup([
-                    'idempotency_key' => (string) Str::uuid(),
-                    'wallet_owner_type' => $recipientType,
-                    'wallet_owner_id' => $recipientId,
-                    'topup_amount' => number_format($creditAmount, 4, '.', ''),
-                    'wallet_currency_code' => $targetCurrency,
-                    'supplier_api_id' => null,
-                    'ledger_description' => $ledgerContext['ledger_description'],
-                    'metadata' => array_merge($ledgerContext['metadata'], [
-                        'fx' => [
-                            'source_currency' => $sourceCurrency,
-                            'source_amount' => number_format($sourceAmount, 4, '.', ''),
-                            'target_currency' => $targetCurrency,
-                            'target_amount' => number_format($creditAmount, 4, '.', ''),
-                            'exchange_rate' => $exchangeRate,
-                        ],
-                    ]),
-                ]);
-            } else {
-                $allocatorWalletOwnerType = match ($roleGroup) {
-                    'master_dmc' => 'master_dmc',
-                    'dmc' => 'dmc',
-                    default => null,
-                };
-
-                $allocatorWalletOwnerId = match ($roleGroup) {
-                    'master_dmc' => (int) $user->userId,
-                    'dmc' => (int) $this->resolveDmcId($user),
-                    default => null,
-                };
-
-                if (! $allocatorWalletOwnerType || ! $allocatorWalletOwnerId) {
-                    abort(403, 'Unable to resolve allocator wallet.');
-                }
-
-                $ledgerContext = $this->walletQuery->buildAllocateLedgerContext(
-                    $allocatorWalletOwnerType,
-                    $allocatorWalletOwnerId,
-                    $recipientType,
-                    $recipientId,
-                    $validated['ledger_description'] ?? null,
-                    $user->name ?? $user->email,
-                );
-
-                $fxSuffix = $sourceCurrency === $targetCurrency
-                    ? ''
-                    : " ({$sourceAmount} {$sourceCurrency} → {$creditAmount} {$targetCurrency} @ {$exchangeRate})";
-
-                $this->walletService->allocate([
-                    'idempotency_key' => (string) Str::uuid(),
-                    'allocator_wallet_owner_type' => $allocatorWalletOwnerType,
-                    'allocator_wallet_owner_id' => $allocatorWalletOwnerId,
-                    'recipient_wallet_owner_type' => $recipientType,
-                    'recipient_wallet_owner_id' => $recipientId,
-                    'allocation_amount' => number_format($creditAmount, 4, '.', ''),
-                    'wallet_currency_code' => $targetCurrency,
-                    'allocator_currency_code' => $sourceCurrency,
-                    'recipient_currency_code' => $targetCurrency,
-                    'allocator_amount' => number_format($sourceAmount, 4, '.', ''),
-                    'recipient_amount' => number_format($creditAmount, 4, '.', ''),
-                    'exchange_rate' => number_format($exchangeRate, 8, '.', ''),
-                    'supplier_api_id' => null,
-                    'ledger_description' => $ledgerContext['ledger_description'].$fxSuffix,
-                    'debit_ledger_description' => $ledgerContext['debit_ledger_description'].$fxSuffix,
-                    'credit_ledger_description' => $ledgerContext['credit_ledger_description'].$fxSuffix,
-                    'metadata' => array_merge($ledgerContext['metadata'], [
-                        'fx' => [
-                            'source_currency' => $sourceCurrency,
-                            'source_amount' => number_format($sourceAmount, 4, '.', ''),
-                            'target_currency' => $targetCurrency,
-                            'target_amount' => number_format($creditAmount, 4, '.', ''),
-                            'exchange_rate' => $exchangeRate,
-                        ],
-                    ]),
-                ]);
+            if ($roleGroup === 'travclicks_owner' && $recipientType !== 'master_dmc') {
+                abort(403, 'Travclicks Owner can allocate only to Master DMC wallets.');
             }
+
+            $allocatorWalletOwnerType = match ($roleGroup) {
+                'travclicks_owner' => 'travclicks',
+                'master_dmc' => 'master_dmc',
+                'dmc' => 'dmc',
+                default => null,
+            };
+
+            $allocatorWalletOwnerId = match ($roleGroup) {
+                'travclicks_owner' => 1,
+                'master_dmc' => (int) $user->userId,
+                'dmc' => (int) $this->resolveDmcId($user),
+                default => null,
+            };
+
+            if (! $allocatorWalletOwnerType || ! $allocatorWalletOwnerId) {
+                abort(403, 'Unable to resolve allocator wallet.');
+            }
+
+            $ledgerContext = $this->walletQuery->buildAllocateLedgerContext(
+                $allocatorWalletOwnerType,
+                $allocatorWalletOwnerId,
+                $recipientType,
+                $recipientId,
+                $validated['ledger_description'] ?? null,
+                $user->name ?? $user->email,
+            );
+
+            $fxSuffix = $sourceCurrency === $targetCurrency
+                ? ''
+                : " ({$sourceAmount} {$sourceCurrency} → {$creditAmount} {$targetCurrency} @ {$exchangeRate})";
+
+            $this->walletService->allocate([
+                'idempotency_key' => (string) Str::uuid(),
+                'allocator_wallet_owner_type' => $allocatorWalletOwnerType,
+                'allocator_wallet_owner_id' => $allocatorWalletOwnerId,
+                'recipient_wallet_owner_type' => $recipientType,
+                'recipient_wallet_owner_id' => $recipientId,
+                'allocation_amount' => number_format($creditAmount, 4, '.', ''),
+                'wallet_currency_code' => $targetCurrency,
+                'allocator_currency_code' => $sourceCurrency,
+                'recipient_currency_code' => $targetCurrency,
+                'allocator_amount' => number_format($sourceAmount, 4, '.', ''),
+                'recipient_amount' => number_format($creditAmount, 4, '.', ''),
+                'exchange_rate' => number_format($exchangeRate, 8, '.', ''),
+                'supplier_api_id' => null,
+                'ledger_description' => $ledgerContext['ledger_description'].$fxSuffix,
+                'debit_ledger_description' => $ledgerContext['debit_ledger_description'].$fxSuffix,
+                'credit_ledger_description' => $ledgerContext['credit_ledger_description'].$fxSuffix,
+                'metadata' => array_merge($ledgerContext['metadata'], [
+                    'fx' => [
+                        'source_currency' => $sourceCurrency,
+                        'source_amount' => number_format($sourceAmount, 4, '.', ''),
+                        'target_currency' => $targetCurrency,
+                        'target_amount' => number_format($creditAmount, 4, '.', ''),
+                        'exchange_rate' => $exchangeRate,
+                    ],
+                ]),
+            ]);
 
             $successMsg = $sourceCurrency === $targetCurrency
                 ? 'Wallet allocation successfully.'
@@ -702,9 +682,9 @@ class WalletManagementController extends Controller
 
             return redirect()
                 ->route('finance.wallet.index', [
-                    'owner_type' => $recipientType,
-                    'owner_id' => $recipientId,
-                    'currency' => $targetCurrency,
+                    'owner_type' => $allocatorWalletOwnerType,
+                    'owner_id' => $allocatorWalletOwnerId,
+                    'currency' => $sourceCurrency,
                 ])
                 ->with('success', $successMsg);
         } catch (RuntimeException $e) {

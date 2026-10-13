@@ -279,6 +279,49 @@
         border-color: #c7d2fe !important;
     }
 
+    .dataTables_wrapper .dataTables_paginate {
+        display: none !important;
+    }
+
+    .ports-infinite-footer {
+        padding: 1rem 0 0.25rem;
+        text-align: center;
+    }
+
+    .ports-infinite-footer .ports-scroll-loader {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #64748b;
+    }
+
+    .ports-infinite-footer.is-loading .ports-scroll-loader {
+        display: inline-flex;
+    }
+
+    .ports-infinite-footer .ports-scroll-end {
+        display: none;
+        font-size: 12px;
+        font-weight: 600;
+        color: #94a3b8;
+    }
+
+    .ports-infinite-footer.is-end .ports-scroll-end {
+        display: block;
+    }
+
+    .spin {
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
     /* Hide default DataTables buttons (we use custom Export dropdown) */
     .dataTables_wrapper .dt-buttons {
         display: none !important;
@@ -452,6 +495,13 @@
                             @endforeach
                         </tbody>
                     </table>
+                <div id="portsInfiniteFooter" class="ports-infinite-footer">
+                    <div class="ports-scroll-loader">
+                        <i class="ri-loader-4-line spin"></i>
+                        <span>Loading more ports…</span>
+                    </div>
+                    <div class="ports-scroll-end">All ports loaded</div>
+                </div>
                 </div>
                 {{-- </div> --}}
             </div>
@@ -470,45 +520,75 @@
 <!-- DataTables Initialization Script -->
 <script>
     $(document).ready(function() {
-        // Initialize DataTable with export buttons
-        $('.datatables-basic').DataTable({
-            responsive: true,
-            dom: '<\"row align-items-center mb-2\"<\"col-sm-6 col-12\"l><\"col-sm-6 col-12\"f>>rt<\"row align-items-center mt-2\"<\"col-sm-6 col-12\"i><\"col-sm-6 col-12\"p>>',
-            buttons: [
-                'copy',
-                'csv',
-                'excel',
-                'pdf',
-                'print' // Enable copy, CSV, Excel, PDF, and Print buttons
-            ],
+        var portsBatchSize = 25;
+        var portsTable = $('.datatables-basic').DataTable({
+            responsive: false,
+            autoWidth: false,
+            dom: '<"row align-items-center mb-2"<"col-sm-6 col-12"l><"col-sm-6 col-12"f>>rt<"row align-items-center mt-2"<"col-sm-12"i>>',
+            buttons: ['copy', 'csv', 'excel', 'pdf', 'print'],
             language: {
                 search: "_INPUT_",
                 searchPlaceholder: "Search...",
             },
-            lengthMenu: [10, 25, 50, 100], // Customize number of entries per page
+            lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+            pageLength: portsBatchSize,
+            paging: true,
             pagingType: 'simple_numbers',
         });
 
-        // Custom export button functionality (for the dropdown)
-        $('#exportCopy').on('click', function() {
-            $('.datatables-basic').DataTable().button('.buttons-copy').trigger();
-        });
+        var $infiniteFooter = $('#portsInfiniteFooter');
+        var portsInfiniteLoading = false;
+        var portsInfiniteGuard = false;
 
-        $('#exportCSV').on('click', function() {
-            $('.datatables-basic').DataTable().button('.buttons-csv').trigger();
-        });
+        function updatePortsInfiniteFooter() {
+            var info = portsTable.page.info();
+            var allVisible = info.recordsDisplay <= info.length;
+            $infiniteFooter.toggleClass('is-end', allVisible && info.recordsDisplay > 0);
+            $infiniteFooter.removeClass('is-loading');
+            portsInfiniteLoading = false;
+        }
 
-        $('#exportExcel').on('click', function() {
-            $('.datatables-basic').DataTable().button('.buttons-excel').trigger();
-        });
+        function loadMorePortsIfNeeded() {
+            if (portsInfiniteLoading) return;
+            var info = portsTable.page.info();
+            if (info.recordsDisplay <= info.length) {
+                updatePortsInfiniteFooter();
+                return;
+            }
+            var scrollBottom = $(window).scrollTop() + $(window).height();
+            if (scrollBottom < $(document).height() - 120) return;
+            portsInfiniteLoading = true;
+            $infiniteFooter.addClass('is-loading').removeClass('is-end');
+            setTimeout(function() {
+                var currentInfo = portsTable.page.info();
+                portsTable.page.len(Math.min(currentInfo.length + portsBatchSize, currentInfo.recordsDisplay)).draw(false);
+                updatePortsInfiniteFooter();
+            }, 150);
+        }
 
-        $('#exportPDF').on('click', function() {
-            $('.datatables-basic').DataTable().button('.buttons-pdf').trigger();
+        portsTable.on('length.dt', function(e, settings, len) {
+            portsBatchSize = len;
+            updatePortsInfiniteFooter();
         });
+        portsTable.on('search.dt', function() {
+            if (portsInfiniteGuard) return;
+            portsInfiniteGuard = true;
+            portsTable.page.len(portsBatchSize).draw(false);
+            portsInfiniteGuard = false;
+            updatePortsInfiniteFooter();
+        });
+        portsTable.on('draw.dt', function() {
+            if (!portsInfiniteGuard) updatePortsInfiniteFooter();
+        });
+        $(window).on('scroll.portsInfinite resize.portsInfinite', loadMorePortsIfNeeded);
+        updatePortsInfiniteFooter();
+        loadMorePortsIfNeeded();
 
-        $('#exportPrint').on('click', function() {
-            $('.datatables-basic').DataTable().button('.buttons-print').trigger();
-        });
+        $('#exportCopy').on('click', function() { portsTable.button('.buttons-copy').trigger(); });
+        $('#exportCSV').on('click', function() { portsTable.button('.buttons-csv').trigger(); });
+        $('#exportExcel').on('click', function() { portsTable.button('.buttons-excel').trigger(); });
+        $('#exportPDF').on('click', function() { portsTable.button('.buttons-pdf').trigger(); });
+        $('#exportPrint').on('click', function() { portsTable.button('.buttons-print').trigger(); });
     });
 </script>
 <!-- End DataTable JS -->

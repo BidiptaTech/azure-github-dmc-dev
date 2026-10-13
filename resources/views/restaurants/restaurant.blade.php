@@ -240,6 +240,40 @@
         border-color: #c7d2fe !important;
     }
 
+    .dataTables_wrapper .dataTables_paginate {
+        display: none !important;
+    }
+
+    .restaurants-infinite-footer {
+        padding: 1rem 0 0.25rem;
+        text-align: center;
+    }
+
+    .restaurants-infinite-footer .restaurants-scroll-loader {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: #64748b;
+    }
+
+    .restaurants-infinite-footer.is-loading .restaurants-scroll-loader {
+        display: inline-flex;
+    }
+
+    .restaurants-infinite-footer .restaurants-scroll-end {
+        display: none;
+        font-size: 12px;
+        font-weight: 600;
+        color: #94a3b8;
+    }
+
+    .restaurants-infinite-footer.is-end .restaurants-scroll-end {
+        display: block;
+    }
+
     .dataTables_wrapper .dt-buttons {
         display: none !important;
     }
@@ -676,6 +710,13 @@
                         @endforeach
                     </tbody>
                 </table>
+                <div id="restaurantsInfiniteFooter" class="restaurants-infinite-footer">
+                    <div class="restaurants-scroll-loader">
+                        <i class="ri-loader-4-line spin"></i>
+                        <span>Loading more restaurants…</span>
+                    </div>
+                    <div class="restaurants-scroll-end">All restaurants loaded</div>
+                </div>
                 </div>
             </div>
         </div>
@@ -711,16 +752,19 @@
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
 <script>
     $(document).ready(function() {
-        $('.datatables-basic').DataTable({
+        var restaurantsBatchSize = 25;
+        var restaurantsTable = $('.datatables-basic').DataTable({
             responsive: false,
             autoWidth: false,
-            dom: '<"row align-items-center mb-2"<"col-sm-6 col-12"l><"col-sm-6 col-12"f>>rt<"row align-items-center mt-2"<"col-sm-6 col-12"i><"col-sm-6 col-12"p>>',
+            dom: '<"row align-items-center mb-2"<"col-sm-6 col-12"l><"col-sm-6 col-12"f>>rt<"row align-items-center mt-2"<"col-sm-12"i>>',
             buttons: ['copy', 'csv', 'excel', 'pdf', 'print'],
             language: {
                 search: "_INPUT_",
                 searchPlaceholder: "Search...",
             },
-            lengthMenu: [10, 25, 50, 100],
+            lengthMenu: [[10, 25, 50, 100], [10, 25, 50, 100]],
+            pageLength: restaurantsBatchSize,
+            paging: true,
             pagingType: 'simple_numbers',
             columnDefs: [
                 { targets: '.col-no',          width: '38px' },
@@ -734,11 +778,59 @@
             ],
         });
 
-        $('#exportCopy').on('click', function()  { $('.datatables-basic').DataTable().button('.buttons-copy').trigger(); });
-        $('#exportCSV').on('click', function()    { $('.datatables-basic').DataTable().button('.buttons-csv').trigger(); });
-        $('#exportExcel').on('click', function()  { $('.datatables-basic').DataTable().button('.buttons-excel').trigger(); });
-        $('#exportPDF').on('click', function()    { $('.datatables-basic').DataTable().button('.buttons-pdf').trigger(); });
-        $('#exportPrint').on('click', function()  { $('.datatables-basic').DataTable().button('.buttons-print').trigger(); });
+        var $infiniteFooter = $('#restaurantsInfiniteFooter');
+        var restaurantsInfiniteLoading = false;
+        var restaurantsInfiniteGuard = false;
+
+        function updateRestaurantsInfiniteFooter() {
+            var info = restaurantsTable.page.info();
+            var allVisible = info.recordsDisplay <= info.length;
+            $infiniteFooter.toggleClass('is-end', allVisible && info.recordsDisplay > 0);
+            $infiniteFooter.removeClass('is-loading');
+            restaurantsInfiniteLoading = false;
+        }
+
+        function loadMoreRestaurantsIfNeeded() {
+            if (restaurantsInfiniteLoading) return;
+            var info = restaurantsTable.page.info();
+            if (info.recordsDisplay <= info.length) {
+                updateRestaurantsInfiniteFooter();
+                return;
+            }
+            var scrollBottom = $(window).scrollTop() + $(window).height();
+            if (scrollBottom < $(document).height() - 120) return;
+            restaurantsInfiniteLoading = true;
+            $infiniteFooter.addClass('is-loading').removeClass('is-end');
+            setTimeout(function() {
+                var currentInfo = restaurantsTable.page.info();
+                restaurantsTable.page.len(Math.min(currentInfo.length + restaurantsBatchSize, currentInfo.recordsDisplay)).draw(false);
+                updateRestaurantsInfiniteFooter();
+            }, 150);
+        }
+
+        restaurantsTable.on('length.dt', function(e, settings, len) {
+            restaurantsBatchSize = len;
+            updateRestaurantsInfiniteFooter();
+        });
+        restaurantsTable.on('search.dt', function() {
+            if (restaurantsInfiniteGuard) return;
+            restaurantsInfiniteGuard = true;
+            restaurantsTable.page.len(restaurantsBatchSize).draw(false);
+            restaurantsInfiniteGuard = false;
+            updateRestaurantsInfiniteFooter();
+        });
+        restaurantsTable.on('draw.dt', function() {
+            if (!restaurantsInfiniteGuard) updateRestaurantsInfiniteFooter();
+        });
+        $(window).on('scroll.restaurantsInfinite resize.restaurantsInfinite', loadMoreRestaurantsIfNeeded);
+        updateRestaurantsInfiniteFooter();
+        loadMoreRestaurantsIfNeeded();
+
+        $('#exportCopy').on('click', function()  { restaurantsTable.button('.buttons-copy').trigger(); });
+        $('#exportCSV').on('click', function()    { restaurantsTable.button('.buttons-csv').trigger(); });
+        $('#exportExcel').on('click', function()  { restaurantsTable.button('.buttons-excel').trigger(); });
+        $('#exportPDF').on('click', function()    { restaurantsTable.button('.buttons-pdf').trigger(); });
+        $('#exportPrint').on('click', function()  { restaurantsTable.button('.buttons-print').trigger(); });
     });
 </script>
 

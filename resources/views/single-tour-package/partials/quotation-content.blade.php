@@ -95,6 +95,8 @@
 
         $otherTotalForOccupancy = $occupancyKey === 'double' ? $otherDoubleTotal : $otherSingleTotal;
 
+        $otherServicesDisplayTotal = $otherTotalForOccupancy;
+
         // Hotel-only totals per-head (supplements excluded)
         // overall total = hotel + other services (for all occupancies, including triple)
         $hotelOnlySingleTotal = max(0, (float)($tourPrices['single_sharing'] ?? 0) - $otherSingleTotal);
@@ -108,6 +110,23 @@
         $hotelOnlyTripleTotal = $tripleSharingTotal > 0
             ? max(0, $tripleSharingTotal - $otherSingleTotal)
             : 0;
+
+        $hotelDisplaySingle = $hotelOnlySingleTotal;
+        $hotelDisplayDouble = $hotelOnlyDoubleTotal;
+        $hotelDisplayTriple = $hotelOnlyTripleTotal;
+        if (! empty($orders ?? null)) {
+            $hotelPerPaxFromOrders = \App\Helpers\CommonHelper::resolveHotelQuotationPerPaxFromOrders(
+                $orders,
+                $tour ?? null,
+                $selectedCurrency ?? null
+            );
+            if ($hotelPerPaxFromOrders && ($hotelPerPaxFromOrders['per_pax'] ?? 0) > 0) {
+                $orderHotelPerPax = (float) $hotelPerPaxFromOrders['per_pax'];
+                $hotelDisplaySingle = $orderHotelPerPax;
+                $hotelDisplayDouble = $orderHotelPerPax;
+                $hotelDisplayTriple = $orderHotelPerPax;
+            }
+        }
 
         // Build booked inclusions list from servicesByType (derived from orders for this tour)
         // We intentionally only show the categories requested by the user.
@@ -592,9 +611,9 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($hotelOnlySingleTotal) }}</td>
-                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($hotelOnlyDoubleTotal) }}</td>
-                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($hotelOnlyTripleTotal) }}</td>
+                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($hotelDisplaySingle) }} /pax</td>
+                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($hotelDisplayDouble) }} /pax</td>
+                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($hotelDisplayTriple) }} /pax</td>
                             </tr>
                         </tbody>
                     </table>
@@ -603,12 +622,12 @@
                     <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; table-layout: fixed;">
                         <thead>
                             <tr>
-                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center;">Price (per pax)</th>
+                                <th style="border: 1px solid #000; padding: 6px; background: #f3f3f3; text-align: center;">Total Price</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
-                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($otherTotalForOccupancy) }}</td>
+                                <td style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">{{ $formatMoney($otherServicesDisplayTotal) }} /pax</td>
                             </tr>
                         </tbody>
                     </table>

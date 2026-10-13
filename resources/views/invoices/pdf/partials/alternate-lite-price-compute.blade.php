@@ -267,8 +267,8 @@
     $liteGstAmount = (float) ($invoice->gst_amount ?? 0);
     $liteFinalPrice = (float) $baseAmountLite + $liteGstAmount;
 
-    $litePaymentReceived = (float) ($invoice->payment_received ?? 0);
-    $liteOutstandingBalance = (float) ($invoice->outstanding_balance ?? $liteFinalPrice);
+    $litePaymentReceived = (float) ($invoicePaymentReceivedForDisplay ?? ($invoice->payment_received ?? 0));
+    $liteOutstandingBalance = (float) $liteFinalPrice - $litePaymentReceived;
 
     $litePdfFormatPrice = function ($amount) use ($selectedCurrencyLite, $exchangeRateLite) {
         if (! is_numeric($amount)) {

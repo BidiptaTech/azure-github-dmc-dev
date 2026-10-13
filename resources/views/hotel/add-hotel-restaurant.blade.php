@@ -212,10 +212,28 @@
         <x-alert />
         <div class="card mb-6">
             <h5 class="card-header d-flex justify-content-between align-items-center">
-                Add New Hotel Restaurant
+                <span class="d-flex align-items-center flex-wrap gap-2">
+                    Add New Hotel Restaurant
+                    @php
+                        $restaurantNoteCountry = $hotel->country
+                            ?? ($userDMC->country ?? null);
+                        $restaurantNoteDmcCurrency = null;
+                        if (!empty($userDMC?->country)) {
+                            $restaurantNoteDmcCurrency = \App\Models\Country::where('name', $userDMC->country)->value('currency');
+                        } elseif (!empty($userDMC?->currency)) {
+                            $restaurantNoteDmcCurrency = $userDMC->currency;
+                        }
+                    @endphp
+                    <x-currency-price-note
+                        :country="$restaurantNoteCountry"
+                        :watch-dmc="in_array(auth()->user()->role_id, [1, 20])"
+                        :dmc-selected="(bool) ($userDMC ?? false)"
+                        :dmc-currency="$restaurantNoteDmcCurrency"
+                    />
+                </span>
             </h5>
             <form id="restaurantForm" method="POST" action="{{ route('hotel-restaurant-store', $hotel->hotel_unique_id) }}"
-                enctype="multipart/form-data" class="card-body">
+                enctype="multipart/form-data" class="card-body js-submit-loader-form" data-loader-message="Saving...">
                 @csrf
                 <!-- Hidden Fields -->
                 <input type="hidden" name="hotel_id" value="{{ $hotel->hotel_unique_id }}">
@@ -643,7 +661,13 @@
                     <!-- Submit Buttons -->
                     <div class="d-flex gap-3 mt-4">
                         @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 20)
-                            <button type="submit" class="btn btn-primary px-4">Save</button>
+                            <button type="submit" class="btn btn-primary px-4 js-submit-loader-btn">
+                                <span class="js-submit-loader-btn-text">Save</span>
+                                <span class="js-submit-loader-btn-loading d-none">
+                                    <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                    Saving...
+                                </span>
+                            </button>
                         @else
                             <button type="button" class="btn btn-secondary px-4" disabled>
                                 <i class="fas fa-lock"></i> Save Restricted
@@ -880,6 +904,7 @@
             </div>
         </div>
         <!-- End Modal -->
+<x-form-submit-loader message="Saving..." />
 <!-- Navigation Tab Enhancement Script -->
 <script>
 $(document).ready(function() {
@@ -1842,6 +1867,8 @@ $(document).ready(function() {
     }
 });
 </script>
+
+@include('components.currency-price-note-dmc-script')
 
 <!-- CSS for readonly mode styling -->
 <style>

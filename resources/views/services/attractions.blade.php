@@ -29,11 +29,10 @@
         </div>
 
         <!-- Selected Attractions Section -->
-        @if(isset($selectedAttractions) && count($selectedAttractions) > 0)
-        <div class="card mb-4" id="selectedAttractionsSection">
+        <div class="card mb-4 {{ (!isset($selectedAttractions) || count($selectedAttractions) === 0) ? 'd-none' : '' }}" id="selectedAttractionsSection">
             <div class="card-header">
                 <div class="d-flex flex-wrap justify-content-between align-items-end gap-2">
-                    <h5 class="mb-0">Selected Attractions ({{ count($selectedAttractions) }})</h5>
+                    <h5 class="mb-0" id="selectedAttractionsTitle">Selected Attractions ({{ isset($selectedAttractions) ? count($selectedAttractions) : 0 }})</h5>
                     <div class="d-flex flex-wrap gap-2">
                         <div class="input-group input-group-sm" style="width: 260px;">
                             <span class="input-group-text"><i class="ri-search-line"></i></span>
@@ -63,7 +62,7 @@
                             </tr>
                         </thead>
                         <tbody id="selectedAttractionsBody">
-                            @foreach($selectedAttractions as $attraction)
+                            @foreach(($selectedAttractions ?? []) as $attraction)
                                 <tr class="selected-attraction-row" data-attraction-id="{{ $attraction->attraction_id }}" data-name="{{ strtolower($attraction->name) }}" data-location="{{ strtolower($attraction->location ?? $attraction->city) }}, {{ strtolower($attraction->country) }}">
                                     <td>
                                         <div class="d-flex align-items-center">
@@ -113,7 +112,6 @@
                 </div>
             </div>
         </div>
-        @endif
 
         <!-- Available Attractions Section -->
         <div class="card">
@@ -126,6 +124,7 @@
             </div>
             
             <div class="card-body">
+                <div id="availableAttractionsAlerts"></div>
                 @if(session('success'))
                     <div class="alert alert-success alert-dismissible fade show" role="alert">
                         {{ session('success') }}
@@ -163,7 +162,17 @@
                 <div class="row" id="attractionsContainer">
                     @if(isset($availableAttractions) && count($availableAttractions) > 0)
                         @foreach($availableAttractions as $attraction)
-                            <div class="col-lg-3 col-md-6 mb-3 attraction-item" data-attraction-name="{{ strtolower($attraction->name) }}" data-country="{{ strtolower($attraction->country) }}" data-city="{{ strtolower($attraction->location ?? $attraction->city) }}">
+                            <div class="col-lg-3 col-md-6 mb-3 attraction-item"
+                                 data-attraction-id="{{ $attraction->attraction_id }}"
+                                 data-attraction-id-encrypted="{{ Crypt::encrypt($attraction->attraction_id) }}"
+                                 data-display-name="{{ $attraction->name }}"
+                                 data-master-image="{{ $attraction->master_image }}"
+                                 data-display-location="{{ $attraction->location ?? $attraction->city }}"
+                                 data-display-country="{{ $attraction->country }}"
+                                 data-edit-url="{{ route('attraction.edit', Crypt::encrypt($attraction->attraction_id)) }}"
+                                 data-attraction-name="{{ strtolower($attraction->name) }}"
+                                 data-country="{{ strtolower($attraction->country) }}"
+                                 data-city="{{ strtolower($attraction->location ?? $attraction->city) }}">
                                 <div class="card h-100 attraction-card" 
                                      data-bs-toggle="tooltip" 
                                      data-bs-html="true"
@@ -304,6 +313,111 @@
 <script>
 let currentAttractionId = null;
 const defaultAttractionCountry = '{{ strtolower(auth()->user()->country ?? '') }}';
+const csrfToken = '{{ csrf_token() }}';
+let selectedAttractionsPaginator = null;
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text ?? '';
+    return div.innerHTML;
+}
+
+function resetAttractionButton(btn) {
+    if (!btn) return;
+    const btnText = btn.querySelector('.btn-text');
+    const btnLoader = btn.querySelector('.btn-loader');
+    if (btnText) btnText.classList.remove('d-none');
+    if (btnLoader) btnLoader.classList.add('d-none');
+    btn.disabled = false;
+}
+
+function setAttractionButtonLoading(btn) {
+    if (!btn) return;
+    const btnText = btn.querySelector('.btn-text');
+    const btnLoader = btn.querySelector('.btn-loader');
+    if (btnText) btnText.classList.add('d-none');
+    if (btnLoader) btnLoader.classList.remove('d-none');
+    btn.disabled = true;
+}
+
+function updateSelectedAttractionCount() {
+    const count = document.querySelectorAll('#selectedAttractionsBody .selected-attraction-row').length;
+    const title = document.getElementById('selectedAttractionsTitle');
+    const section = document.getElementById('selectedAttractionsSection');
+
+    if (title) {
+        title.textContent = `Selected Attractions (${count})`;
+    }
+    if (section) {
+        section.classList.toggle('d-none', count === 0);
+    }
+}
+
+function buildSelectedAttractionRowFromItem(attractionItem) {
+    const attractionId = attractionItem.getAttribute('data-attraction-id');
+    const name = attractionItem.getAttribute('data-display-name') || '';
+    const location = attractionItem.getAttribute('data-display-location') || '';
+    const country = attractionItem.getAttribute('data-display-country') || '';
+    const masterImage = attractionItem.getAttribute('data-master-image') || '';
+    const editUrl = attractionItem.getAttribute('data-edit-url') || '#';
+    const imageHtml = masterImage
+        ? `<img src="${escapeHtml(masterImage)}" alt="${escapeHtml(name)}" class="rounded me-2" style="width: 40px; height: 40px; object-fit: cover;">`
+        : `<div class="bg-light rounded me-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;"><i class="ri-landscape-line text-muted"></i></div>`;
+
+    const row = document.createElement('tr');
+    row.className = 'selected-attraction-row';
+    row.setAttribute('data-attraction-id', attractionId);
+    row.setAttribute('data-name', name.toLowerCase());
+    row.setAttribute('data-location', `${location}, ${country}`.toLowerCase());
+    row.innerHTML = `
+        <td>
+            <div class="d-flex align-items-center">
+                ${imageHtml}
+                <div><strong>${escapeHtml(name)}</strong></div>
+            </div>
+        </td>
+        <td>${escapeHtml(location)}, ${escapeHtml(country)}</td>
+        <td>
+            <div class="btn-group" role="group">
+                <a href="${editUrl}" class="btn btn-sm btn-outline-primary">
+                    <i class="ri-edit-line me-1"></i>Edit
+                </a>
+                <button type="button" class="btn btn-sm btn-outline-danger remove-attraction-btn"
+                        data-attraction-id="${escapeHtml(attractionId)}"
+                        data-attraction-name="${escapeHtml(name)}">
+                    <i class="ri-delete-bin-line me-1"></i>Remove
+                </button>
+            </div>
+        </td>
+    `;
+    return row;
+}
+
+function addAttractionToSelectedTable(attractionItem) {
+    const attractionId = attractionItem.getAttribute('data-attraction-id');
+    if (document.querySelector(`#selectedAttractionsBody .selected-attraction-row[data-attraction-id="${attractionId}"]`)) {
+        return;
+    }
+
+    const tbody = document.getElementById('selectedAttractionsBody');
+    if (!tbody) return;
+
+    tbody.insertBefore(buildSelectedAttractionRowFromItem(attractionItem), tbody.firstChild);
+    attractionItem.classList.add('attraction-selected');
+}
+
+function removeAttractionFromSelectedTable(attractionId) {
+    const row = document.querySelector(`#selectedAttractionsBody .selected-attraction-row[data-attraction-id="${attractionId}"]`);
+    if (row) {
+        row.remove();
+    }
+}
+
+function refreshSelectedAttractionPagination() {
+    if (selectedAttractionsPaginator) {
+        selectedAttractionsPaginator.refresh(1);
+    }
+}
 
 function selectAll() {
     document.querySelectorAll('.select-attraction-btn').forEach(button => {
@@ -329,6 +443,11 @@ function applyAttractionFilters() {
     let visibleCount = 0;
 
     attractionItems.forEach(item => {
+        if (item.classList.contains('attraction-selected')) {
+            item.style.display = 'none';
+            return;
+        }
+
         const name = item.getAttribute('data-attraction-name') || '';
         const country = item.getAttribute('data-country') || '';
         const city = item.getAttribute('data-city') || '';
@@ -390,6 +509,80 @@ function onAttractionCountryChange() {
     applyAttractionFilters();
 }
 
+function selectAttraction(encryptedAttractionId, attractionName, buttonEl) {
+    fetch('{{ route('services.attractions.select') }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+            attraction_id: encryptedAttractionId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const attractionItem = buttonEl ? buttonEl.closest('.attraction-item') : null;
+            if (attractionItem) {
+                addAttractionToSelectedTable(attractionItem);
+                attractionItem.style.display = 'none';
+            }
+
+            updateSelectedAttractionCount();
+            refreshSelectedAttractionPagination();
+            applyAttractionFilters();
+            showAlert('success', data.message || `${attractionName} has been selected successfully!`);
+        } else {
+            resetAttractionButton(buttonEl);
+            showAlert('error', data.message || 'An error occurred while selecting the attraction.');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        resetAttractionButton(buttonEl);
+        showAlert('error', 'An error occurred while selecting the attraction.');
+    });
+}
+
+function removeAttraction(attractionId, attractionName) {
+    fetch('{{ route('services.attractions.remove') }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+            attraction_id: attractionId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            removeAttractionFromSelectedTable(attractionId);
+
+            const attractionItem = document.querySelector(`.attraction-item[data-attraction-id="${attractionId}"]`);
+            if (attractionItem) {
+                attractionItem.classList.remove('attraction-selected');
+                resetAttractionButton(attractionItem.querySelector('.select-attraction-btn'));
+            }
+
+            updateSelectedAttractionCount();
+            refreshSelectedAttractionPagination();
+            applyAttractionFilters();
+            showAlert('success', data.message || `${attractionName} has been removed successfully!`);
+        } else {
+            showAlert('error', data.message || 'An error occurred while removing the attraction.');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('error', 'An error occurred while removing the attraction.');
+    });
+}
+
 // Document ready
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize tooltips
@@ -401,106 +594,48 @@ document.addEventListener('DOMContentLoaded', function() {
     // Attraction selection functionality
     document.querySelectorAll('.select-attraction-btn').forEach(button => {
         button.addEventListener('click', function() {
+            if (this.disabled) return;
+
             const attractionId = this.getAttribute('data-attraction-id');
             const attractionName = this.getAttribute('data-attraction-name');
-            try { localStorage.setItem('last_selected_attraction_id', String(attractionId)); } catch (e) {}
-            
-            // Show loading state
-            const btnText = this.querySelector('.btn-text');
-            const btnLoader = this.querySelector('.btn-loader');
-            btnText.classList.add('d-none');
-            btnLoader.classList.remove('d-none');
-            this.disabled = true;
-            
-            // Make AJAX request
-            fetch('{{ route('services.attractions.select') }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                },
-                body: JSON.stringify({
-                    attraction_id: attractionId
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Show success message
-                    showAlert('success', data.message);
-                    // Reload page after short delay
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1000);
-                } else {
-                    showAlert('error', data.message);
-                    // Reset button state
-                    btnText.classList.remove('d-none');
-                    btnLoader.classList.add('d-none');
-                    this.disabled = false;
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showAlert('error', 'An error occurred while selecting the attraction.');
-                // Reset button state
-                btnText.classList.remove('d-none');
-                btnLoader.classList.add('d-none');
-                this.disabled = false;
-            });
+
+            setAttractionButtonLoading(this);
+            selectAttraction(attractionId, attractionName, this);
         });
     });
 
-    // Attraction removal functionality
-    document.querySelectorAll('.remove-attraction-btn').forEach(button => {
-        button.addEventListener('click', function() {
-            currentAttractionId = this.getAttribute('data-attraction-id');
-            const attractionName = this.getAttribute('data-attraction-name');
-            
-            document.getElementById('removeAttractionName').textContent = attractionName;
-            
-            const modal = new bootstrap.Modal(document.getElementById('removeAttractionModal'));
-            modal.show();
-        });
+    // Attraction removal (including dynamically added rows)
+    document.addEventListener('click', function(event) {
+        const removeBtn = event.target.closest('.remove-attraction-btn');
+        if (!removeBtn || !document.getElementById('selectedAttractionsBody')?.contains(removeBtn)) {
+            return;
+        }
+
+        currentAttractionId = removeBtn.getAttribute('data-attraction-id');
+        const attractionName = removeBtn.getAttribute('data-attraction-name');
+
+        document.getElementById('removeAttractionName').textContent = attractionName;
+
+        const modal = new bootstrap.Modal(document.getElementById('removeAttractionModal'));
+        modal.show();
     });
 
     // Confirm removal
     document.getElementById('confirmRemoveAttraction').addEventListener('click', function() {
         if (!currentAttractionId) return;
-        
-        // Make AJAX request
-        fetch('{{ route('services.attractions.remove') }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify({
-                attraction_id: currentAttractionId
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Hide modal
-                const modal = bootstrap.Modal.getInstance(document.getElementById('removeAttractionModal'));
-                modal.hide();
-                
-                // Show success message
-                showAlert('success', data.message);
-                
-                // Reload page after short delay
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
-            } else {
-                showAlert('error', data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showAlert('error', 'An error occurred while removing the attraction.');
-        });
+
+        const attractionName = document.getElementById('removeAttractionName').textContent;
+        const confirmBtn = this;
+        confirmBtn.disabled = true;
+
+        removeAttraction(currentAttractionId, attractionName);
+
+        const modal = bootstrap.Modal.getInstance(document.getElementById('removeAttractionModal'));
+        if (modal) {
+            modal.hide();
+        }
+
+        confirmBtn.disabled = false;
     });
     // Populate country dropdown from DOM
     const countrySelect = document.getElementById('attractionCountrySelect');
@@ -540,21 +675,26 @@ document.addEventListener('DOMContentLoaded', function() {
     // Selected Attractions: client-side pagination + search
     const selectedBody = document.getElementById('selectedAttractionsBody');
     if (selectedBody) {
-        const rows = Array.from(selectedBody.querySelectorAll('.selected-attraction-row'));
         const pagination = document.getElementById('selectedAttractionsPagination');
         const searchInput = document.getElementById('selectedAttractionSearch');
         const pageSizeSelect = document.getElementById('selectedAttractionPageSize');
 
         function getPageSize() { return parseInt(pageSizeSelect.value, 10) || 10; }
+
+        function getAllRows() {
+            return Array.from(selectedBody.querySelectorAll('.selected-attraction-row'));
+        }
+
         function getFilteredRows() {
             const term = (searchInput.value || '').toLowerCase();
-            return rows.filter(r => {
+            return getAllRows().filter(r => {
                 if (!term) return true;
                 const name = r.getAttribute('data-name') || '';
                 const loc = r.getAttribute('data-location') || '';
                 return name.includes(term) || loc.includes(term);
             });
         }
+
         function renderPagination(total, page, pageSize) {
             const totalPages = Math.max(1, Math.ceil(total / pageSize));
             pagination.innerHTML = '';
@@ -573,6 +713,7 @@ document.addEventListener('DOMContentLoaded', function() {
             for (let i = 1; i <= totalPages; i++) pagination.appendChild(createItem(String(i), i, false, i===page));
             pagination.appendChild(createItem('»', Math.min(totalPages, page+1), page===totalPages));
         }
+
         function render(page=1) {
             const pageSize = getPageSize();
             const filtered = getFilteredRows();
@@ -581,18 +722,18 @@ document.addEventListener('DOMContentLoaded', function() {
             const safePage = Math.min(Math.max(1, page), totalPages);
             const start = (safePage - 1) * pageSize;
             const end = start + pageSize;
-            rows.forEach(r => r.classList.add('d-none'));
+
+            getAllRows().forEach(r => r.classList.add('d-none'));
             filtered.slice(start, end).forEach(r => r.classList.remove('d-none'));
             renderPagination(total, safePage, pageSize);
         }
-        try {
-            const lastId = localStorage.getItem('last_selected_attraction_id');
-            if (lastId) {
-                const row = rows.find(r => String(r.getAttribute('data-attraction-id')) === String(lastId));
-                if (row && row.parentElement) row.parentElement.insertBefore(row, row.parentElement.firstChild);
-                localStorage.removeItem('last_selected_attraction_id');
+
+        selectedAttractionsPaginator = {
+            refresh(page = 1) {
+                render(page);
             }
-        } catch (e) {}
+        };
+
         render(1);
         searchInput.addEventListener('input', () => render(1));
         pageSizeSelect.addEventListener('change', () => render(1));
@@ -607,14 +748,14 @@ function showAlert(type, message) {
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     `;
-    
-    // Insert at the top of the card body
-    const cardBody = document.querySelector('.card-body');
-    cardBody.insertAdjacentHTML('afterbegin', alertHtml);
-    
-    // Auto-remove after 5 seconds
+
+    const alertContainer = document.getElementById('availableAttractionsAlerts');
+    if (!alertContainer) return;
+
+    alertContainer.insertAdjacentHTML('beforeend', alertHtml);
+
     setTimeout(() => {
-        const alert = cardBody.querySelector('.alert');
+        const alert = alertContainer.querySelector('.alert');
         if (alert) {
             alert.remove();
         }

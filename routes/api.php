@@ -74,6 +74,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::get('/enquiry-status', 'App\Http\Controllers\Api\TourController@enquiryStatus');
     Route::get('/get-pdf', 'App\Http\Controllers\Api\CountryPdf@GetPdf');
     Route::get('/get-cities', 'App\Http\Controllers\Api\CountryController@getCity');
+    Route::get('/get-country', 'App\Http\Controllers\Api\CountryController@getCountry');
     Route::get('/get-ports', 'App\Http\Controllers\Api\PortController@port_list');
     Route::get('/zone-vehicles', 'App\Http\Controllers\Api\ZoneController@vehicleLists');
 
@@ -137,3 +138,5 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::post('/refund', [BookingFinanceController::class, 'refund']);
     });
 });
+
+Route::get('/get-payment-details', 'App\Http\Controllers\Api\PaymentController@getPaymentDetails');
