@@ -76,6 +76,9 @@
               @php
                 $roleIds = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
               @endphp
+              @if(!empty($canCreateTourOnBehalf))
+                  <th>Wallet & Tour</th>
+              @endif
               @if(in_array($user->role_id, $roleIds))
                   <th>Action</th>
               @endif
@@ -206,6 +209,16 @@
                   @endif
                 </td> --}}
                 {{-- @if(hasPermission('edit agents') || hasPermission('delete agents')) --}}
+                @if(!empty($canCreateTourOnBehalf))
+                <td>
+                  <a href="{{ route('finance.agent.dashboard', $agent->agent_id) }}"
+                     class="btn btn-info btn-sm d-flex align-items-center gap-1"
+                     title="View wallet & create tour on behalf of agent">
+                    <i class="fas fa-wallet"></i>
+                    <span class="d-none d-md-inline">Wallet & Tour</span>
+                  </a>
+                </td>
+                @endif
                 @if(in_array($user->role_id, $roleIds))
                 <td>
                   <div class="d-flex gap-2">

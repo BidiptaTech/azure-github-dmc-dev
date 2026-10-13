@@ -323,6 +323,7 @@ class ExternalApiReceiveController extends Controller
         $tour->taxes = !empty($taxArray) ? $taxArray : null;
         $tour->reference_id = $this->payloadValue($payload, ['reference_number', 'reference_id'], null);
         $tour->created_by = $createdBy;
+        $tour->finance_status = 'pending';
         $tour->mainguest = $this->extractMainGuest($payload);
         $tour->additionalguest = $this->extractAdditionalGuests($payload);
         $tour->save();
