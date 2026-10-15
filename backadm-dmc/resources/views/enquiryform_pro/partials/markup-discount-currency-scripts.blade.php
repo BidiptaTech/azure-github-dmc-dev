@@ -1,6 +1,6 @@
 {{-- Included inside a parent <script> block (create/edit).
-     Single city: classic #markupType / #discountType controls.
-     Multi-city: one row per selected city in #enquiryProCityMarkupBody. --}}
+     Markup UI removed — hotel/other values come from DMC profile markup_json (Lite parity).
+     FOC discount still auto-applies when "Treat FOC pax as discount" is on. --}}
 (function () {
     if (typeof window.enquiryProCurrencyMarkups !== 'object' || window.enquiryProCurrencyMarkups === null) {
         window.enquiryProCurrencyMarkups = {};
@@ -8,6 +8,52 @@
     /** @type {Object<string, object>} city-name keyed store */
     if (typeof window.enquiryProCityMarkups !== 'object' || window.enquiryProCityMarkups === null) {
         window.enquiryProCityMarkups = {};
+    }
+
+    function enquiryProDmcProfileMarkup() {
+        return window.enquiryProDmcProfileMarkup || {
+            hotel: { markup_type: 'percentage', markup_value: 0 },
+            other: { markup_type: 'percentage', markup_value: 0 },
+            dmc_id: null
+        };
+    }
+
+    function enquiryProNormalizeMarkupType(type) {
+        type = String(type || 'percentage').toLowerCase().trim();
+        if (type === 'fixed') type = 'flat';
+        return (type === 'flat' || type === 'percentage') ? type : 'percentage';
+    }
+
+    /** DMC hotel + other markup rules used when seeding city rows / footer apply. */
+    function enquiryProDmcMarkupDefaults() {
+        const profile = enquiryProDmcProfileMarkup();
+        const hotel = profile.hotel || {};
+        const other = profile.other || {};
+        const hotelType = enquiryProNormalizeMarkupType(hotel.markup_type);
+        const otherType = enquiryProNormalizeMarkupType(other.markup_type);
+        // currency_markups row has one markup_type; prefer hotel type when both set.
+        const sharedType = hotelType || otherType || 'percentage';
+        return {
+            markup_type: sharedType,
+            hotel_markup: Math.max(0, Number(hotel.markup_value) || 0),
+            other_markup: Math.max(0, Number(other.markup_value) || 0),
+            markup_value: Math.max(0, Number(hotel.markup_value) || 0) + Math.max(0, Number(other.markup_value) || 0),
+            hotel_markup_type: hotelType,
+            other_markup_type: otherType,
+            dmc_id: profile.dmc_id || null
+        };
+    }
+    window.enquiryProDmcMarkupDefaults = enquiryProDmcMarkupDefaults;
+
+    function syncHiddenMarkupInputsFromDmc() {
+        const d = enquiryProDmcMarkupDefaults();
+        const mt = document.getElementById('markupType');
+        const mv = document.getElementById('markupValue');
+        if (mt) mt.value = d.markup_type || 'percentage';
+        if (mv) {
+            mv.disabled = false;
+            mv.value = d.hotel_markup || 0;
+        }
     }
 
     function enquiryProNormalizeCityLabel(name) {
@@ -217,6 +263,8 @@
             markup_value: markupValue,
             hotel_markup: hotelMarkup,
             other_markup: otherMarkup,
+            hotel_markup_type: opts.hotel_markup_type || opts.markup_type || '',
+            other_markup_type: opts.other_markup_type || opts.markup_type || '',
             discount_type: opts.discount_type || '',
             discount_value: parseFloat(opts.discount_value || 0) || 0
         };
@@ -302,21 +350,27 @@
     window.resolveServiceCity = resolveServiceCity;
 
     function readSingleMarkupDiscountInputs() {
+        const dmc = enquiryProDmcMarkupDefaults();
+        syncHiddenMarkupInputsFromDmc();
         const focHdr = (typeof getEnquiryProGroupFocFactors === 'function') ? getEnquiryProGroupFocFactors() : null;
         const focDiscountUiActive = focHdr && focHdr.isGroup && focHdr.focSize > 0 && focHdr.discountOn;
-        const discountType = document.getElementById('discountType')?.value || '';
+        let discountType = document.getElementById('discountType')?.value || '';
         let discountValue = parseFloat(document.getElementById('discountValue')?.value || 0) || 0;
-        if (discountType === 'foc' && focDiscountUiActive) {
+        if (focDiscountUiActive) {
+            discountType = 'foc';
             const singleCity = (getEnquiryProCityMarkupTargets()[0] || {}).city || '';
             discountValue = focDiscountAmountForCity(singleCity);
         } else if (discountType === 'foc') {
+            discountType = '';
             discountValue = 0;
         }
         return {
-            markup_type: document.getElementById('markupType')?.value || '',
-            markup_value: parseFloat(document.getElementById('markupValue')?.value || 0) || 0,
-            hotel_markup: parseFloat(document.getElementById('markupValue')?.value || 0) || 0,
-            other_markup: 0,
+            markup_type: dmc.markup_type || 'percentage',
+            markup_value: dmc.markup_value || 0,
+            hotel_markup: dmc.hotel_markup || 0,
+            other_markup: dmc.other_markup || 0,
+            hotel_markup_type: dmc.hotel_markup_type,
+            other_markup_type: dmc.other_markup_type,
             discount_type: discountType,
             discount_value: discountValue
         };
@@ -421,20 +475,35 @@
             syncMultiCityRowsToStore();
             return;
         }
-        if (isEnquiryProMultiCity()) {
-            syncMultiCityRowsToStore();
-            return;
-        }
+        // Pricing-by-city UI removed — always seed city/currency store from DMC profile
+        const dmc = enquiryProDmcMarkupDefaults();
+        const treatFoc = isTreatFocDiscountActive();
         const targets = getEnquiryProCityMarkupTargets();
-        const target = targets[0] || { city: '', country: '', currency: getEnquiryProPrimaryCurrency() };
-        const inputs = readSingleMarkupDiscountInputs();
-        const entry = emptyMarkupDiscountEntry(Object.assign({}, target, inputs));
-        if (entry.city) {
-            window.enquiryProCityMarkups[entry.city] = entry;
-        }
-        if (entry.currency) {
-            window.enquiryProCurrencyMarkups[entry.currency] = entry;
-        }
+        const list = targets.length
+            ? targets
+            : [{ city: '', country: '', currency: getEnquiryProPrimaryCurrency() }];
+        list.forEach(function (t) {
+            const entry = emptyMarkupDiscountEntry({
+                city: t.city || '',
+                country: t.country || '',
+                currency: t.currency || '',
+                markup_type: dmc.markup_type || 'percentage',
+                markup_value: dmc.markup_value || 0,
+                hotel_markup: dmc.hotel_markup || 0,
+                other_markup: dmc.other_markup || 0,
+                hotel_markup_type: dmc.hotel_markup_type,
+                other_markup_type: dmc.other_markup_type,
+                discount_type: treatFoc ? 'foc' : '',
+                discount_value: treatFoc ? focDiscountAmountForCity(t.city || '') : 0
+            });
+            if (entry.city) {
+                window.enquiryProCityMarkups[entry.city] = entry;
+            }
+            if (entry.currency) {
+                window.enquiryProCurrencyMarkups[entry.currency] = entry;
+            }
+        });
+        syncHiddenMarkupInputsFromDmc();
     }
     window.syncActiveCurrencyMarkupToStore = syncActiveCurrencyMarkupToStore;
 
@@ -481,35 +550,57 @@
                 discount_value: parseFloat(e.discount_value || 0) || 0
             };
         }
-        if (!isEnquiryProMultiCity()) {
-            return readSingleMarkupDiscountInputs();
-        }
-        return { markup_type: '', markup_value: 0, hotel_markup: 0, other_markup: 0, discount_type: '', discount_value: 0 };
+        // Always fall back to live DMC hotel/other markups (Pricing-by-city UI removed)
+        const dmc = enquiryProDmcMarkupDefaults();
+        const treatFoc = isTreatFocDiscountActive();
+        return {
+            markup_type: dmc.markup_type || 'percentage',
+            markup_value: dmc.markup_value || 0,
+            hotel_markup: dmc.hotel_markup || 0,
+            other_markup: dmc.other_markup || 0,
+            hotel_markup_type: dmc.hotel_markup_type,
+            other_markup_type: dmc.other_markup_type,
+            discount_type: treatFoc ? 'foc' : '',
+            discount_value: treatFoc ? focDiscountAmountForCity(cityName) : 0
+        };
     }
     window.getCurrencyMarkupDiscountSettings = getCurrencyMarkupDiscountSettings;
 
     function getCurrencyMarkupsPayload() {
         syncActiveCurrencyMarkupToStore();
+        const dmc = enquiryProDmcMarkupDefaults();
+        syncHiddenMarkupInputsFromDmc();
         const targets = getEnquiryProCityMarkupTargets();
-        if (!targets.length) {
-            return Object.keys(window.enquiryProCityMarkups || {}).map(function (city) {
-                return window.enquiryProCityMarkups[city];
-            }).filter(Boolean);
-        }
-        return targets.map(function (t) {
-            const existing = window.enquiryProCityMarkups[t.city] || {};
+        const buildRow = function (t, existing) {
+            existing = existing || {};
             const treatFoc = isTreatFocDiscountActive();
             return emptyMarkupDiscountEntry({
                 city: t.city,
                 country: t.country || existing.country || '',
                 currency: t.currency || existing.currency || '',
-                markup_type: existing.markup_type || '',
-                markup_value: existing.markup_value || 0,
-                hotel_markup: existing.hotel_markup != null ? existing.hotel_markup : (existing.markup_value || 0),
-                other_markup: existing.other_markup != null ? existing.other_markup : 0,
-                discount_type: treatFoc ? 'foc' : ((existing.discount_type === 'foc') ? '' : (existing.discount_type || '')),
-                discount_value: treatFoc ? focDiscountAmountForCity(t.city) : ((existing.discount_type === 'foc') ? 0 : (existing.discount_value || 0))
+                // Always use DMC profile hotel/other markups (Lite parity)
+                markup_type: dmc.markup_type || 'percentage',
+                markup_value: dmc.markup_value || 0,
+                hotel_markup: dmc.hotel_markup || 0,
+                other_markup: dmc.other_markup || 0,
+                hotel_markup_type: dmc.hotel_markup_type,
+                other_markup_type: dmc.other_markup_type,
+                discount_type: treatFoc ? 'foc' : '',
+                discount_value: treatFoc ? focDiscountAmountForCity(t.city) : 0
             });
+        };
+        if (!targets.length) {
+            const cities = Object.keys(window.enquiryProCityMarkups || {});
+            if (!cities.length) {
+                // Still persist DMC markups once (city filled later / single destination)
+                return [buildRow({ city: '', country: '', currency: getEnquiryProPrimaryCurrency() }, {})];
+            }
+            return cities.map(function (city) {
+                return buildRow({ city: city, country: '', currency: '' }, window.enquiryProCityMarkups[city]);
+            });
+        }
+        return targets.map(function (t) {
+            return buildRow(t, window.enquiryProCityMarkups[t.city] || {});
         });
     }
     window.getCurrencyMarkupsPayload = getCurrencyMarkupsPayload;
@@ -662,46 +753,50 @@
         const multiWrap = document.getElementById('enquiryProMarkupMultiWrap');
         const body = document.getElementById('enquiryProCityMarkupBody');
         const targets = getEnquiryProCityMarkupTargets();
-        const hasCities = targets.length >= 1;
+        const dmc = enquiryProDmcMarkupDefaults();
 
+        // UI permanently hidden — markups come from DMC settings
         if (singleWrap) singleWrap.style.display = 'none';
-        if (multiWrap) multiWrap.style.display = hasCities ? 'block' : 'none';
+        if (multiWrap) multiWrap.style.display = 'none';
 
         const countEl = document.getElementById('enquiryProMarkupCityCount');
         if (countEl) countEl.textContent = String(targets.length || 0);
 
-        if (!hasCities) {
+        syncHiddenMarkupInputsFromDmc();
+
+        if (!targets.length) {
             if (body) body.innerHTML = '';
+            if (typeof applyMarkupDiscount === 'function') applyMarkupDiscount();
             return;
         }
 
-        if (!body) return;
-
-        // Preserve current row edits before rebuild
-        syncMultiCityRowsToStore();
-
-        body.innerHTML = targets.map(function (t) {
-            const entry = window.enquiryProCityMarkups[t.city] || emptyMarkupDiscountEntry(t);
-            // Ensure currency/country stay current if city map changed
-            entry.city = t.city;
-            entry.country = t.country || entry.country || '';
-            // Always prefer freshly resolved city currency (never keep stale tour SGD)
-            entry.currency = t.currency || entry.currency || '';
-            if (typeof window.resolveCurrencyForCityName === 'function') {
-                entry.currency = window.resolveCurrencyForCityName(t.city, entry.country) || entry.currency;
-            }
+        targets.forEach(function (t) {
+            const treatFoc = isTreatFocDiscountActive();
+            const currency = (typeof window.resolveCurrencyForCityName === 'function')
+                ? (window.resolveCurrencyForCityName(t.city, t.country) || t.currency || '')
+                : (t.currency || '');
+            const entry = emptyMarkupDiscountEntry({
+                city: t.city,
+                country: t.country || '',
+                currency: currency,
+                markup_type: dmc.markup_type || 'percentage',
+                markup_value: dmc.markup_value || 0,
+                hotel_markup: dmc.hotel_markup || 0,
+                other_markup: dmc.other_markup || 0,
+                discount_type: treatFoc ? 'foc' : '',
+                discount_value: treatFoc ? focDiscountAmountForCity(t.city) : 0
+            });
             window.enquiryProCityMarkups[t.city] = entry;
             if (entry.currency) {
                 window.enquiryProCurrencyMarkups[entry.currency] = Object.assign({}, entry);
             }
-            const rowBuilder = (typeof window.buildCityMarkupRowHtml === 'function')
-                ? window.buildCityMarkupRowHtml
-                : buildCityMarkupRowHtml;
-            return rowBuilder(t, entry);
-        }).join('');
+        });
+
+        if (body) body.innerHTML = '';
         if (typeof applyTreatFocDiscountToPricingUi === 'function') {
             applyTreatFocDiscountToPricingUi();
         }
+        if (typeof applyMarkupDiscount === 'function') applyMarkupDiscount();
     }
     window.buildCityMarkupRowHtml = buildCityMarkupRowHtml;
     window.refreshEnquiryProCurrencyMarkupOptions = refreshEnquiryProCurrencyMarkupOptions;

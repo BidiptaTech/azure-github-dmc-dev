@@ -162,6 +162,22 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
         if (totalPrice <= 0 && perNightHint > 0) {
             totalPrice = Math.round(perNightHint * nights * 100) / 100;
         }
+        // DMC hotel markup meta for Price breakdown (Lite parity)
+        let hotelMarkupMeta = null;
+        const bookingMk = (booking && booking.markup) ? booking.markup : null;
+        if (bookingMk && toNum(bookingMk.markup_amount) > 0) {
+            hotelMarkupMeta = {
+                markup_kind: 'hotel',
+                markup_type: bookingMk.markup_type || 'percentage',
+                markup_value: toNum(bookingMk.markup_value),
+                markup_amount: toNum(bookingMk.markup_amount),
+                dmc_id: bookingMk.dmc_id || null
+            };
+        } else if (typeof enquiryProApplyDmcMarkup === 'function' && totalPrice > 0) {
+            const applied = enquiryProApplyDmcMarkup(totalPrice, 'hotel');
+            hotelMarkupMeta = applied;
+            totalPrice = toNum(applied.price) || totalPrice;
+        }
         // Option 1: online display price → Avg Cost and Sell are the same (per-night avg).
         const perNight = nights > 0 ? (totalPrice / nights) : totalPrice;
         const avg = perNightHint > 0 ? perNightHint : perNight;
@@ -235,12 +251,17 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
             api_environment: hotelData.api_environment || (booking && booking.api_environment) || '',
             totalPrice: totalPrice,
             grand_total: totalPrice,
+            dmc_profile_markup: hotelMarkupMeta,
             price_payload: {
                 room_total: totalPrice,
                 meal_total: 0,
                 grand_total: totalPrice,
                 nights: nights,
-                is_online: true
+                is_online: true,
+                dmc_profile_markup: hotelMarkupMeta,
+                base_grand_total: hotelMarkupMeta
+                    ? Math.max(0, totalPrice - toNum(hotelMarkupMeta.markup_amount))
+                    : totalPrice
             },
             transferIds: [],
             hotelTransfer: null,
@@ -270,7 +291,21 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
             dateTime = visitDate + 'T' + hhmm;
         }
         const city = payload.cityValue || firstCity();
-        const total = toNum(payload.totalPrice) || ((adultP * adults) + (childP * children));
+        let total = toNum(payload.totalPrice) || ((adultP * adults) + (childP * children));
+        let attractionMarkupMeta = null;
+        if (typeof enquiryProApplyDmcMarkup === 'function' && total > 0) {
+            const applied = enquiryProApplyDmcMarkup(total, 'other');
+            attractionMarkupMeta = applied;
+            // Bake markup into unit sells so list + breakdown match Lite Get Price total
+            if (toNum(applied.markup_amount) > 0 && total > 0) {
+                const factor = toNum(applied.price) / total;
+                if (factor > 0 && Number.isFinite(factor)) {
+                    // keep cost as base; sell becomes marked-up unit
+                    // adultCost/childCost stay at base below
+                }
+                total = toNum(applied.price) || total;
+            }
+        }
 
         return {
             id: newId('tour-online'),
@@ -311,6 +346,7 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
             onlineAttractionRaw: payload.onlineAttractionRaw || null,
             totalPrice: total,
             grand_total: total,
+            dmc_profile_markup: attractionMarkupMeta,
             remarks: payload.remarks || '',
             Selection: 'withoutTransport',
             transfer_options: null,

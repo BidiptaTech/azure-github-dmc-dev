@@ -51,6 +51,14 @@ class EnquiryFormPro extends Controller
 
     private string $proFallbackMarkupType = '';
 
+    private float $proFallbackHotelMarkup = 0;
+
+    private float $proFallbackOtherMarkup = 0;
+
+    private string $proFallbackHotelMarkupType = '';
+
+    private string $proFallbackOtherMarkupType = '';
+
     private float $proFallbackDiscountValue = 0;
 
     private string $proFallbackDiscountType = '';
@@ -390,17 +398,20 @@ class EnquiryFormPro extends Controller
         $attributes['country'] = $geo['country'];
         $attributes['currency'] = $geo['currency'];
 
-        // Per-currency / per-city markup/discount for multi-city (fallback to footer active values)
+        // Per-currency / per-city markup/discount — hotel vs other from DMC profile (Lite parity)
         $md = $this->lookupProCurrencyMarkup($geo['currency'] ?? null, $geo['city'] ?? null);
         $orderType = strtolower(trim((string) ($attributes['type'] ?? '')));
         $isHotelOrder = in_array($orderType, ['hotel', 'hotels', 'accommodation'], true);
         $markupForOrder = $isHotelOrder
             ? (float) ($md['hotel_markup'] ?? $md['markup_value'] ?? 0)
             : (float) ($md['other_markup'] ?? $md['markup_value'] ?? 0);
+        $markupTypeForOrder = $isHotelOrder
+            ? (string) ($md['hotel_markup_type'] ?? $md['markup_type'] ?? '')
+            : (string) ($md['other_markup_type'] ?? $md['markup_type'] ?? '');
         $attributes['discount'] = $md['discount_value'];
         $attributes['discount_type'] = $md['discount_type'] !== '' ? $md['discount_type'] : null;
         $attributes['markup_percentage'] = $markupForOrder;
-        $attributes['markup_type'] = $md['markup_type'] !== '' ? $md['markup_type'] : null;
+        $attributes['markup_type'] = $markupTypeForOrder !== '' ? $markupTypeForOrder : null;
 
         return Order::create($attributes);
     }
@@ -562,6 +573,20 @@ class EnquiryFormPro extends Controller
                 }
                 $hotelMarkup = (float) ($row['hotel_markup'] ?? $row['markup_value'] ?? 0);
                 $otherMarkup = (float) ($row['other_markup'] ?? 0);
+                $hotelMarkupType = strtolower(trim((string) ($row['hotel_markup_type'] ?? $markupType)));
+                $otherMarkupType = strtolower(trim((string) ($row['other_markup_type'] ?? $markupType)));
+                if ($hotelMarkupType === 'fixed') {
+                    $hotelMarkupType = 'flat';
+                }
+                if ($otherMarkupType === 'fixed') {
+                    $otherMarkupType = 'flat';
+                }
+                if (!in_array($hotelMarkupType, ['percentage', 'flat'], true)) {
+                    $hotelMarkupType = $markupType !== '' ? $markupType : 'percentage';
+                }
+                if (!in_array($otherMarkupType, ['percentage', 'flat'], true)) {
+                    $otherMarkupType = $markupType !== '' ? $markupType : 'percentage';
+                }
                 $entry = [
                     'city' => $city,
                     'currency' => $currency,
@@ -570,6 +595,8 @@ class EnquiryFormPro extends Controller
                     'markup_value' => $hotelMarkup + $otherMarkup,
                     'hotel_markup' => $hotelMarkup,
                     'other_markup' => $otherMarkup,
+                    'hotel_markup_type' => $hotelMarkupType,
+                    'other_markup_type' => $otherMarkupType,
                     'discount_type' => $discountType !== '' ? $discountType : null,
                     'discount_value' => (float) ($row['discount_value'] ?? 0),
                 ];
@@ -594,53 +621,55 @@ class EnquiryFormPro extends Controller
      */
     private function lookupProCurrencyMarkup(?string $currency, ?string $city = null): array
     {
+        $pack = static function (array $e): array {
+            $markupType = (string) ($e['markup_type'] ?? '');
+            $hotelType = (string) ($e['hotel_markup_type'] ?? $markupType);
+            $otherType = (string) ($e['other_markup_type'] ?? $markupType);
+
+            return [
+                'markup_type' => $markupType,
+                'markup_value' => (float) ($e['markup_value'] ?? 0),
+                'hotel_markup' => (float) ($e['hotel_markup'] ?? $e['markup_value'] ?? 0),
+                'other_markup' => (float) ($e['other_markup'] ?? 0),
+                'hotel_markup_type' => $hotelType,
+                'other_markup_type' => $otherType,
+                'discount_type' => (string) ($e['discount_type'] ?? ''),
+                'discount_value' => (float) ($e['discount_value'] ?? 0),
+            ];
+        };
+
         $cityKey = trim((string) $city);
         if ($cityKey !== '') {
             if (isset($this->proCityMarkups[$cityKey])) {
-                $e = $this->proCityMarkups[$cityKey];
-
-                return [
-                    'markup_type' => (string) ($e['markup_type'] ?? ''),
-                    'markup_value' => (float) ($e['markup_value'] ?? 0),
-                    'hotel_markup' => (float) ($e['hotel_markup'] ?? $e['markup_value'] ?? 0),
-                    'other_markup' => (float) ($e['other_markup'] ?? 0),
-                    'discount_type' => (string) ($e['discount_type'] ?? ''),
-                    'discount_value' => (float) ($e['discount_value'] ?? 0),
-                ];
+                return $pack($this->proCityMarkups[$cityKey]);
             }
             foreach ($this->proCityMarkups as $name => $e) {
                 if (strcasecmp((string) $name, $cityKey) === 0) {
-                    return [
-                        'markup_type' => (string) ($e['markup_type'] ?? ''),
-                        'markup_value' => (float) ($e['markup_value'] ?? 0),
-                        'hotel_markup' => (float) ($e['hotel_markup'] ?? $e['markup_value'] ?? 0),
-                        'other_markup' => (float) ($e['other_markup'] ?? 0),
-                        'discount_type' => (string) ($e['discount_type'] ?? ''),
-                        'discount_value' => (float) ($e['discount_value'] ?? 0),
-                    ];
+                    return $pack($e);
                 }
             }
         }
 
         $key = strtoupper(trim((string) $currency));
         if ($key !== '' && isset($this->proCurrencyMarkups[$key])) {
-            $e = $this->proCurrencyMarkups[$key];
-
-            return [
-                'markup_type' => (string) ($e['markup_type'] ?? ''),
-                'markup_value' => (float) ($e['markup_value'] ?? 0),
-                'hotel_markup' => (float) ($e['hotel_markup'] ?? $e['markup_value'] ?? 0),
-                'other_markup' => (float) ($e['other_markup'] ?? 0),
-                'discount_type' => (string) ($e['discount_type'] ?? ''),
-                'discount_value' => (float) ($e['discount_value'] ?? 0),
-            ];
+            return $pack($this->proCurrencyMarkups[$key]);
         }
 
         return [
-            'markup_type' => $this->proFallbackMarkupType,
-            'markup_value' => $this->proFallbackMarkupValue,
-            'hotel_markup' => $this->proFallbackMarkupValue,
-            'other_markup' => 0.0,
+            'markup_type' => $this->proFallbackMarkupType !== ''
+                ? $this->proFallbackMarkupType
+                : ($this->proFallbackHotelMarkupType ?: $this->proFallbackOtherMarkupType),
+            'markup_value' => $this->proFallbackHotelMarkup + $this->proFallbackOtherMarkup,
+            'hotel_markup' => $this->proFallbackHotelMarkup > 0
+                ? $this->proFallbackHotelMarkup
+                : $this->proFallbackMarkupValue,
+            'other_markup' => $this->proFallbackOtherMarkup,
+            'hotel_markup_type' => $this->proFallbackHotelMarkupType !== ''
+                ? $this->proFallbackHotelMarkupType
+                : $this->proFallbackMarkupType,
+            'other_markup_type' => $this->proFallbackOtherMarkupType !== ''
+                ? $this->proFallbackOtherMarkupType
+                : $this->proFallbackMarkupType,
             'discount_type' => $this->proFallbackDiscountType,
             'discount_value' => $this->proFallbackDiscountValue,
         ];
@@ -648,6 +677,7 @@ class EnquiryFormPro extends Controller
 
     /**
      * Seed controller markup maps from request (call at start of store/update).
+     * Falls back to DMC profile markup_json (hotel / other) when payload is empty — Lite parity.
      */
     private function hydrateProCurrencyMarkupsFromRequest(Request $request): void
     {
@@ -656,6 +686,89 @@ class EnquiryFormPro extends Controller
         $this->proFallbackDiscountValue = (float) $request->input('discount_value', 0);
         $this->proFallbackDiscountType = (string) ($request->input('discount_type') ?? '');
         $this->proCurrencyMarkups = $this->normalizeCurrencyMarkups($request->input('currency_markups'));
+
+        $dmc = CommonHelper::getDmcProfileMarkupConfig(auth()->user());
+        $hotel = is_array($dmc['hotel'] ?? null) ? $dmc['hotel'] : [];
+        $other = is_array($dmc['other'] ?? null) ? $dmc['other'] : [];
+        $hotelVal = max(0.0, (float) ($hotel['markup_value'] ?? 0));
+        $otherVal = max(0.0, (float) ($other['markup_value'] ?? 0));
+        $hotelType = strtolower(trim((string) ($hotel['markup_type'] ?? 'percentage')));
+        $otherType = strtolower(trim((string) ($other['markup_type'] ?? 'percentage')));
+        if ($hotelType === 'fixed') {
+            $hotelType = 'flat';
+        }
+        if ($otherType === 'fixed') {
+            $otherType = 'flat';
+        }
+        if (!in_array($hotelType, ['percentage', 'flat'], true)) {
+            $hotelType = 'percentage';
+        }
+        if (!in_array($otherType, ['percentage', 'flat'], true)) {
+            $otherType = 'percentage';
+        }
+
+        $this->proFallbackHotelMarkup = $hotelVal;
+        $this->proFallbackOtherMarkup = $otherVal;
+        $this->proFallbackHotelMarkupType = $hotelType;
+        $this->proFallbackOtherMarkupType = $otherType;
+
+        if ($this->proFallbackMarkupType === '') {
+            $this->proFallbackMarkupType = $hotelType ?: $otherType;
+        }
+        if ($this->proFallbackMarkupValue <= 0 && $hotelVal > 0) {
+            $this->proFallbackMarkupValue = $hotelVal;
+        }
+
+        $enrichRow = function (array $e) use ($hotelVal, $otherVal, $hotelType, $otherType): array {
+            $hasHotel = array_key_exists('hotel_markup', $e) && (float) $e['hotel_markup'] > 0;
+            $hasOther = array_key_exists('other_markup', $e) && (float) $e['other_markup'] > 0;
+            if (!$hasHotel && !$hasOther && (float) ($e['markup_value'] ?? 0) <= 0) {
+                $e['hotel_markup'] = $hotelVal;
+                $e['other_markup'] = $otherVal;
+                $e['markup_value'] = $hotelVal + $otherVal;
+                $e['markup_type'] = $e['markup_type'] ?: $hotelType;
+            } else {
+                if (!array_key_exists('hotel_markup', $e)) {
+                    $e['hotel_markup'] = (float) ($e['markup_value'] ?? 0);
+                }
+                if (!array_key_exists('other_markup', $e)) {
+                    $e['other_markup'] = 0.0;
+                }
+            }
+            $e['hotel_markup_type'] = $e['hotel_markup_type'] ?? $hotelType;
+            $e['other_markup_type'] = $e['other_markup_type'] ?? $otherType;
+            if (empty($e['markup_type'])) {
+                $e['markup_type'] = $hotelType;
+            }
+
+            return $e;
+        };
+
+        if (empty($this->proCurrencyMarkups) && empty($this->proCityMarkups)) {
+            // No client rows — seed one DMC-backed entry so order create still gets hotel/other
+            $this->proCurrencyMarkups = [
+                '' => $enrichRow([
+                    'city' => '',
+                    'currency' => '',
+                    'country' => '',
+                    'markup_type' => $hotelType,
+                    'markup_value' => $hotelVal + $otherVal,
+                    'hotel_markup' => $hotelVal,
+                    'other_markup' => $otherVal,
+                    'hotel_markup_type' => $hotelType,
+                    'other_markup_type' => $otherType,
+                    'discount_type' => $this->proFallbackDiscountType !== '' ? $this->proFallbackDiscountType : null,
+                    'discount_value' => $this->proFallbackDiscountValue,
+                ]),
+            ];
+        } else {
+            foreach ($this->proCurrencyMarkups as $k => $row) {
+                $this->proCurrencyMarkups[$k] = $enrichRow($row);
+            }
+            foreach ($this->proCityMarkups as $k => $row) {
+                $this->proCityMarkups[$k] = $enrichRow($row);
+            }
+        }
     }
 
     /**
@@ -5074,7 +5187,9 @@ class EnquiryFormPro extends Controller
         $markupValue = $isHotelOrder
             ? (float) ($md['hotel_markup'] ?? $md['markup_value'] ?? 0)
             : (float) ($md['other_markup'] ?? $md['markup_value'] ?? 0);
-        $markupType = $md['markup_type'];
+        $markupType = $isHotelOrder
+            ? (string) ($md['hotel_markup_type'] ?? $md['markup_type'] ?? '')
+            : (string) ($md['other_markup_type'] ?? $md['markup_type'] ?? '');
 
         // Already-present active row unchanged → only bump updated_at (no duplicate insert elsewhere)
         if (
