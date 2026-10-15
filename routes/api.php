@@ -5,6 +5,8 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Api\AiConfigController;
+use App\Http\Controllers\Api\BookingFinanceController;
+use App\Http\Controllers\Api\FinanceWebhookController;
 use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 /*
 |--------------------------------------------------------------------------
@@ -36,6 +38,10 @@ Route::get('/v1/external/receive', 'App\Http\Controllers\Api\ExternalApiReceiveC
     ->withoutMiddleware([\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class]);
 Route::get('/v1/external/received', 'App\Http\Controllers\Api\ExternalApiReceiveController@index')
     ->withoutMiddleware([\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class]);
+
+// Payment gateway webhook — public, signature-verified
+Route::post('/v1/finance/webhook/payment', [FinanceWebhookController::class, 'paymentCallback'])
+    ->withoutMiddleware([EnsureFrontendRequestsAreStateful::class]);
 
 // Simple test route to debug routing issues
 Route::get('/debug-test', function () {
@@ -154,7 +160,16 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::post('/save-service', 'App\Http\Controllers\OrderController@saveService');
 
     Route::get('/city-country', 'App\Http\Controllers\Api\CountryController@cityCountry');
-    
+
+    // Finance Microservice integration (Bearer via Laravel → Azure Functions)
+    Route::prefix('finance')->group(function () {
+        Route::post('/wallet/topup', [BookingFinanceController::class, 'walletTopup']);
+        Route::post('/wallet/booking', [BookingFinanceController::class, 'walletBooking']);
+        Route::post('/commission/calculate', [BookingFinanceController::class, 'calculateCommission']);
+        Route::post('/settlement/offline', [BookingFinanceController::class, 'offlineSettlement']);
+        Route::post('/payment/create', [BookingFinanceController::class, 'createOnlinePayment']);
+        Route::post('/refund', [BookingFinanceController::class, 'refund']);
+    });
 });
 
 Route::get('/get-payment-details', 'App\Http\Controllers\Api\PaymentController@getPaymentDetails');

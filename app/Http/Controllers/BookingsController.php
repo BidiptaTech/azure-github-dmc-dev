@@ -13,6 +13,7 @@ use App\Models\EnquiryForm;
 use App\Models\Order;
 use App\Models\Tour;
 use App\Models\User;
+use App\Services\Finance\BookingFinanceOrchestrator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -1301,6 +1302,8 @@ class BookingsController extends Controller
 
             Order::where('tour_id', $tour->tour_id)->update(['bookingType' => 'booking']);
 
+            $actualAmount = 0;
+
             if ($tour->tour_status !== 'Confirmed') {
                 $oldStatus = $tour->tour_status;
 
@@ -1330,6 +1333,34 @@ class BookingsController extends Controller
                 );
 
                 $tour->update(['tour_status' => 'Confirmed']);
+            } else {
+                $actualAmount = (float) ($tour->selling_price ?? 0);
+                if ($actualAmount <= 0) {
+                    $actualAmount = $this->calculateOrdersTotalAmount((int) $tour->tour_id);
+                }
+            }
+
+            $tour->refresh();
+
+            try {
+                $sellingPrice = (float) ($actualAmount ?? 0);
+                if ($sellingPrice <= 0) {
+                    $sellingPrice = $this->calculateOrdersTotalAmount((int) $tour->tour_id);
+                }
+
+                if ($sellingPrice > 0) {
+                    app(BookingFinanceOrchestrator::class)->processOnTourConfirmation($tour, $sellingPrice);
+                }
+            } catch (\RuntimeException $e) {
+                Log::warning('tour_confirm_finance_failed', [
+                    'tour_id' => $tour->tour_id,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return back()->with(
+                    'warning',
+                    'Tour #'.$tour->tour_id.' confirmed, but wallet settlement failed: '.$e->getMessage()
+                );
             }
 
             if (!empty($tour->multi_enq_id)) {

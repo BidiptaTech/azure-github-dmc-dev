@@ -2340,6 +2340,7 @@ class EnquiryFormPro extends Controller
                 ? $this->currencyMarkupsListForStorage()
                 : null;
             $tour->created_by = $user->userId; // Store the user ID who created the tour
+            $tour->finance_status = 'pending';
             // Store user currency for this tour based on DMC/user country
             $tour->user_currency = CommonHelper::getDmcCurrencyByCountry();
             // Note: salutation, customer_name, contact_number are stored in orders JSON, not in tours table
