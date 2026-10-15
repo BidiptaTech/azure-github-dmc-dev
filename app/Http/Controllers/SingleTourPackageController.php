@@ -730,11 +730,17 @@ class SingleTourPackageController extends Controller
                     'booking_id' => $order->booking_id,
                     'order_type' => $order->order_type ?? null,
                     'error' => $e->getMessage(),
+                    'previous' => $e->getPrevious()?->getMessage(),
                 ]);
+
+                // Keep supplier product names out of the API response shown in the UI.
+                $publicMessage = $e instanceof \RuntimeException
+                    ? $e->getMessage()
+                    : 'Failed to cancel the online hotel reservation with the supplier. The hotel was not removed.';
 
                 return response()->json([
                     'success' => false,
-                    'message' => 'Failed to cancel the online hotel with the supplier: ' . $e->getMessage(),
+                    'message' => $publicMessage,
                 ], 422);
             }
 
@@ -2057,9 +2063,14 @@ class SingleTourPackageController extends Controller
                 return;
             }
             $row['_booking_id'] = $order->booking_id ?? null;
+            $row['_order_id'] = $order->id ?? null;
             $row['_order_country'] = $order->country ?? '';
             $row['_order_city'] = $order->city ?? '';
             $row['_order_currency'] = $order->currency ?? '';
+            if (($order->order_type ?? '') === 'online' || ! empty($order->booking_details)) {
+                $row['isOnlineHotel'] = true;
+                $row['hotelSourceType'] = 'online';
+            }
             // Keep order bookingType on hydrate so edit-save does not reset Definite → enquiry
             if (empty($row['bookingType']) && !empty($order->bookingType)) {
                 $row['bookingType'] = $order->bookingType;
@@ -6292,28 +6303,57 @@ class SingleTourPackageController extends Controller
                                     );
                                     $enhancedHotelData['bookingType'] = $hotelBookingType;
 
-                                    $order = Order::create([
-                                        // 'booking_id' => $newHotelBookingId,
-                                        'agent_id' => $agentId,
-                                        'tour_id' => $tourId,
-                                        'data' => [$enhancedHotelData], // Store hotel data as array
-                                        'type' => $type,
-                                        'country' => $hotelGeo['country'] ?? $orderCountry,
-                                        'city' => $hotelGeo['city'] ?? $orderCity,
-                                        'currency' => $hotelGeo['currency'] ?? $orderCurrency,
-                                        'status' => 1,
-                                        'bookingType' => $hotelBookingType,
-                                        'remarks' => $hotelBooking['remarks'] ?? null,
-                                        'order_type' => $this->resolveServiceOrderType($hotelBooking, 'hotel'),
-                                        'order_ref_no' => '1111111',
-                                    ]);
-                                    $order->refresh();
+                                    // Lite edit save preserves kept hotels during clearServices; update in place
+                                    // so confirmed online booking_details are not lost on recreate.
+                                    $existingBookingId = (int) ($hotelBooking['_booking_id'] ?? 0);
+                                    $existingHotelOrder = $existingBookingId > 0
+                                        ? Order::where('tour_id', $tourId)
+                                            ->where('booking_id', $existingBookingId)
+                                            ->where('type', 'hotel')
+                                            ->first()
+                                        : null;
 
-                                    \Log::info("Hotel order created successfully", [
-                                        'order_id' => $order->booking_id,
-                                        'hotel_name' => $enhancedHotelData['hotelDetails']['hotel_name'],
-                                        'tour_id' => $tourId
-                                    ]);
+                                    if ($existingHotelOrder) {
+                                        $existingHotelOrder->agent_id = $agentId;
+                                        $existingHotelOrder->data = [$enhancedHotelData];
+                                        $existingHotelOrder->country = $hotelGeo['country'] ?? $orderCountry;
+                                        $existingHotelOrder->city = $hotelGeo['city'] ?? $orderCity;
+                                        $existingHotelOrder->currency = $hotelGeo['currency'] ?? $orderCurrency;
+                                        $existingHotelOrder->bookingType = $hotelBookingType;
+                                        $existingHotelOrder->remarks = $hotelBooking['remarks'] ?? null;
+                                        $existingHotelOrder->order_type = $this->resolveServiceOrderType($hotelBooking, 'hotel');
+                                        $existingHotelOrder->save();
+                                        $order = $existingHotelOrder;
+
+                                        \Log::info('Hotel order updated in place (preserved from clear)', [
+                                            'order_id' => $order->booking_id,
+                                            'hotel_name' => $enhancedHotelData['hotelDetails']['hotel_name'],
+                                            'tour_id' => $tourId,
+                                        ]);
+                                    } else {
+                                        $order = Order::create([
+                                            // 'booking_id' => $newHotelBookingId,
+                                            'agent_id' => $agentId,
+                                            'tour_id' => $tourId,
+                                            'data' => [$enhancedHotelData], // Store hotel data as array
+                                            'type' => $type,
+                                            'country' => $hotelGeo['country'] ?? $orderCountry,
+                                            'city' => $hotelGeo['city'] ?? $orderCity,
+                                            'currency' => $hotelGeo['currency'] ?? $orderCurrency,
+                                            'status' => 1,
+                                            'bookingType' => $hotelBookingType,
+                                            'remarks' => $hotelBooking['remarks'] ?? null,
+                                            'order_type' => $this->resolveServiceOrderType($hotelBooking, 'hotel'),
+                                            'order_ref_no' => '1111111',
+                                        ]);
+                                        $order->refresh();
+
+                                        \Log::info("Hotel order created successfully", [
+                                            'order_id' => $order->booking_id,
+                                            'hotel_name' => $enhancedHotelData['hotelDetails']['hotel_name'],
+                                            'tour_id' => $tourId
+                                        ]);
+                                    }
 
                                     $createdOrders[] = [
                                         'type' => $type,

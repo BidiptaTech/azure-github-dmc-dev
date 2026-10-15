@@ -2087,11 +2087,28 @@
                                                 <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.8rem;">Booking Status</h6>
                                             </div>
                                             @if($hotelOrder->is_approve == 1)
+                                                @php
+                                                    $hotelDisplayRef = $hotelOrder->reference_id;
+                                                    if (($hotelOrder->order_type ?? '') === 'online' && !empty($hotelOrder->booking_details)) {
+                                                        $bd = is_array($hotelOrder->booking_details)
+                                                            ? $hotelOrder->booking_details
+                                                            : json_decode($hotelOrder->booking_details, true);
+                                                        $supplierRef = null;
+                                                        if (is_array($bd)) {
+                                                            $supplierRef = $bd['book_response']['bookingDetails']['mgBookingID']
+                                                                ?? ($bd['book_response']['booking']['reference'] ?? null)
+                                                                ?? ($bd['supplier_booking_reference'] ?? null);
+                                                        }
+                                                        if (!empty($supplierRef)) {
+                                                            $hotelDisplayRef = $supplierRef;
+                                                        }
+                                                    }
+                                                @endphp
                                                 <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
                                                     <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
                                                     <strong>Approved</strong>
-                                                    @if($hotelOrder->reference_id)
-                                                        <span class="ms-1">• Ref: {{ $hotelOrder->reference_id }}</span>
+                                                    @if($hotelDisplayRef)
+                                                        <span class="ms-1">• Ref: {{ $hotelDisplayRef }}</span>
                                                     @endif
                                                     @if($hotelOrder->display_due_date)
                                                         <span class="ms-1">• Due: {{ \Carbon\Carbon::parse($hotelOrder->display_due_date)->format('d-m-Y') }}</span>
@@ -7751,14 +7768,20 @@ function loadIndividualHotelContent(tourId, hotelOrderIndex, bookingIndex, modal
                 transferOptions: hotelData.transfer_options || null,
                 // Approval status
                 isApprove: hotelData.is_approve || false,
-                referenceId: hotelData.reference_id || null,
+                // Online: mgBookingID from booking_details; offline: orders.reference_id
+                referenceId: hotelData.display_reference_id
+                    || hotelData.mg_booking_id
+                    || hotelData.reference_id
+                    || null,
                 actualDueDate: hotelData.actual_due_date || null,
                 displayDueDate: hotelData.display_due_date || null,
                 approvalFile: hotelData.approval_file || null,
                 // orders.order_type: online | offline | null
-                orderType: hotelData.order_type || null
+                orderType: hotelData.order_type || null,
+                booking_details: hotelData.booking_details || null,
+                mgBookingID: hotelData.mg_booking_id || null
             };
-            
+
             console.log('✅ Hotel booking data prepared for display', hotelBooking);
             console.log('🔍 Transfer options in hotel booking:', hotelBooking.transferOptions);
             console.log('🔍 Transfer required value:', hotelBooking.transferOptions?.transfer_required);

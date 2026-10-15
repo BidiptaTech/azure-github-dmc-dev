@@ -11,22 +11,22 @@
             <div class="modal-body" style="background: #f8f9fa;">
                 <div class="alert alert-info py-2 mb-3" style="font-size: 0.85rem;">
                     <i class="ri-information-line me-1"></i>
-                    Hotels are fetched live from the supplier mapped to the selected city's country. Select dates, city and guests, then click <strong>Fetch Hotels</strong>.
+                    Hotels are fetched live from the supplier mapped to the selected city's country. Select dates, city, guests and rooms, then click <strong>Fetch Hotels</strong>.
                 </div>
 
                 {{-- Search criteria (maps to fetchHotels API) --}}
                 <div class="card border-0 shadow-sm mb-3">
                     <div class="card-body">
-                        <div class="row g-2">
-                            <div class="col-md-3">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-2">
                                 <label class="form-label fw-semibold mb-1" style="font-size: 0.8rem;"><i class="ri-building-line me-1"></i>City</label>
                                 <select class="form-select form-select-sm" id="onlineHotelCity"></select>
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-2">
                                 <label class="form-label fw-semibold mb-1" style="font-size: 0.8rem;"><i class="ri-calendar-line me-1"></i>Check-in</label>
                                 <input type="date" class="form-control form-control-sm" id="onlineHotelCheckIn">
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-2">
                                 <label class="form-label fw-semibold mb-1" style="font-size: 0.8rem;"><i class="ri-calendar-line me-1"></i>Check-out</label>
                                 <input type="date" class="form-control form-control-sm" id="onlineHotelCheckOut">
                             </div>
@@ -45,6 +45,10 @@
                                     </div>
                                 </div>
                                 <input type="hidden" id="onlineHotelPaxInfo" value="">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold mb-1" style="font-size: 0.8rem;"><i class="ri-hotel-bed-2-line me-1"></i>Number of Rooms</label>
+                                <input type="number" class="form-control form-control-sm" id="onlineNumberOfRooms" value="1" min="1" max="999">
                             </div>
                         </div>
                         <div class="mt-3 d-flex align-items-center gap-2">
@@ -66,10 +70,6 @@
                                 <select class="form-select form-select-sm" id="onlineHotelSelect" disabled>
                                     <option value="">Fetch hotels first</option>
                                 </select>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label fw-semibold mb-1" style="font-size: 0.8rem;"><i class="ri-hotel-bed-2-line me-1"></i>Number of Rooms</label>
-                                <input type="number" class="form-control form-control-sm" id="onlineNumberOfRooms" value="1" min="1" max="999">
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label fw-semibold mb-1 d-flex align-items-center gap-1" style="font-size: 0.8rem;">
@@ -94,13 +94,8 @@
                         
                             <div class="col-md-3">
                                 <label class="form-label fw-semibold mb-1" style="font-size: 0.8rem;"><i class="ri-restaurant-line me-1"></i>Meal Plan</label>
-                                <select class="form-select form-select-sm" id="onlineMealPlanSelect">
+                                <select class="form-select form-select-sm" id="onlineMealPlanSelect" disabled>
                                     <option value="">Select Meal Plan</option>
-                                    <option value="room only">Room Only</option>
-                                    <option value="room with breakfast">Room with Breakfast</option>
-                                    <option value="room with breakfast + dinner">Room with Breakfast + Dinner</option>
-                                    <option value="room with breakfast + lunch">Room with Breakfast + Lunch</option>
-                                    <option value="room with all meals (breakfast + lunch + dinner)">Room with All Meals</option>
                                 </select>
                             </div>
                             
@@ -284,6 +279,8 @@
     let onlineLastSupplierCode = '';
     let onlineLastApiEnvironment = '';
     let onlineHotelLastSearch = { checkIn: '', checkOut: '', city: '', paxInfo: '' };
+    /** City/tour stay window — modal date pickers cannot leave this range. */
+    let onlineStayDateBounds = { start: '', end: '' };
     let onlineGuestState = { male: 1, female: 0, children: 0, infants: 0, childAges: [] };
     // Two-step suppliers (MG Bedbank) list their whole catalogue first, then price one hotel on demand.
     let onlineTwoStep = false;
@@ -499,6 +496,13 @@
 
     function buildPaxInfo() {
         const { adults, children } = getAdultsChildren();
+        const ages = Array.isArray(onlineGuestState.childAges)
+            ? onlineGuestState.childAges.filter(function (a) { return Number.isFinite(a) && a > 0; })
+            : [];
+        // adults|children|age1,age2 — ages optional; MG defaults missing ages to 8.
+        if (children > 0 && ages.length > 0) {
+            return adults + '|' + children + '|' + ages.slice(0, children).join(',');
+        }
         return adults + '|' + children;
     }
 
@@ -722,6 +726,12 @@
             }
         }
 
+        // Default bounds = tour dates; STP Lite host override narrows to that city's stay.
+        onlineStayDateBounds = {
+            start: tourStart || '',
+            end: tourEnd || (checkOutEl?.value || ''),
+        };
+
         // Optional host override (STP Lite per-city stay → city / check-in / check-out)
         if (typeof window.getOnlineHotelSearchDefaults === 'function') {
             try {
@@ -740,8 +750,14 @@
                 }
                 if (checkInEl && d.checkIn) checkInEl.value = d.checkIn;
                 if (checkOutEl && d.checkOut) checkOutEl.value = d.checkOut;
+                const boundStart = String(d.stayStart || d.checkIn || '').trim();
+                const boundEnd = String(d.stayEnd || d.checkOut || '').trim();
+                if (boundStart) onlineStayDateBounds.start = boundStart;
+                if (boundEnd) onlineStayDateBounds.end = boundEnd;
             } catch (e) { /* ignore host override errors */ }
         }
+
+        applyOnlineStayDateBounds();
 
         onlineHotelLastSearch = {
             checkIn: checkInEl?.value || '',
@@ -772,6 +788,64 @@
             return null;
         }
         return new Date(parts[0], parts[1] - 1, parts[2]);
+    }
+
+    /**
+     * Restrict check-in/out to the city (or tour) stay window set when the modal opened.
+     * Mirrors STP Lite offline hotel date clamping.
+     */
+    function applyOnlineStayDateBounds() {
+        const checkInEl = document.getElementById('onlineHotelCheckIn');
+        const checkOutEl = document.getElementById('onlineHotelCheckOut');
+        if (!checkInEl && !checkOutEl) return;
+
+        const min = onlineStayDateBounds.start || '';
+        const max = onlineStayDateBounds.end || '';
+
+        if (checkInEl) {
+            if (min) checkInEl.setAttribute('min', min);
+            else checkInEl.removeAttribute('min');
+            if (max) checkInEl.setAttribute('max', max);
+            else checkInEl.removeAttribute('max');
+
+            if (!checkInEl.value && min) checkInEl.value = min;
+            if (min && checkInEl.value && checkInEl.value < min) checkInEl.value = min;
+            if (max && checkInEl.value && checkInEl.value > max) checkInEl.value = max;
+        }
+
+        if (checkOutEl) {
+            const outMin = (checkInEl && checkInEl.value) || min;
+            if (outMin) checkOutEl.setAttribute('min', outMin);
+            else checkOutEl.removeAttribute('min');
+            if (max) checkOutEl.setAttribute('max', max);
+            else checkOutEl.removeAttribute('max');
+
+            if (!checkOutEl.value && max) checkOutEl.value = max;
+            if (outMin && checkOutEl.value && checkOutEl.value < outMin) checkOutEl.value = outMin;
+            if (max && checkOutEl.value && checkOutEl.value > max) checkOutEl.value = max;
+
+            // Keep at least one night when both dates are set and equal.
+            if (
+                checkInEl && checkInEl.value && checkOutEl.value
+                && checkOutEl.value <= checkInEl.value
+                && max && checkInEl.value < max
+            ) {
+                const next = addDaysToDateStr(checkInEl.value, 1);
+                checkOutEl.value = (max && next > max) ? max : next;
+            }
+        }
+    }
+
+    function onlineDatesWithinStayBounds(checkIn, checkOut) {
+        const min = onlineStayDateBounds.start || '';
+        const max = onlineStayDateBounds.end || '';
+        if (!checkIn || !checkOut) return false;
+        if (checkOut <= checkIn) return false;
+        if (min && checkIn < min) return false;
+        if (max && checkIn > max) return false;
+        if (min && checkOut < min) return false;
+        if (max && checkOut > max) return false;
+        return true;
     }
 
     function countDaysBetween(startStr, endStr) {
@@ -1000,6 +1074,91 @@
         if (mealPlanName === 'AP' || mealPlanName === 'FB' || mealPlanName === 'AI' || mealPlanName.includes('FULL BOARD') || mealPlanName.includes('ALL INCLUSIVE')) return 'room with all meals (breakfast + lunch + dinner)';
         if (room?.breakFast === true || room?.breakfast_included === true) return 'room with breakfast';
         return '';
+    }
+
+    /** Group key: same physical room / different meal plans share room_id (MG). */
+    function roomGroupKey(room) {
+        const id = String(room?.room_id || room?.roomId || '').trim();
+        if (id) return id;
+        return String(room?.room_name || room?.roomName || room?.roomType || room?.name || '').trim() || 'room';
+    }
+
+    function roomGroupLabel(room) {
+        return String(
+            room?.room_name || room?.roomName || room?.roomType || room?.room_type || room?.name || room?.type || ''
+        ).trim() || roomGroupKey(room);
+    }
+
+    /** Supplier-facing meal label for the dropdown (dynamic per hotel). */
+    function roomMealOptionLabel(room) {
+        const raw = String(
+            room?.mealPlanName
+            || room?.meal_plan_name
+            || room?.meal_plan
+            || room?.board_code
+            || room?.booking?.room?.meal_plan_name
+            || ''
+        ).trim();
+        if (raw) return raw;
+        const mapped = roomMealLabel(room);
+        return mapped || 'Standard';
+    }
+
+    function roomsForGroupKey(groupKey) {
+        return onlineCurrentRooms
+            .map(function (room, idx) { return { room: room, idx: idx }; })
+            .filter(function (item) { return roomGroupKey(item.room) === groupKey; });
+    }
+
+    function clearOnlineMealPlanSelect() {
+        const mealSel = document.getElementById('onlineMealPlanSelect');
+        if (!mealSel) return;
+        mealSel.innerHTML = '<option value="">Select Meal Plan</option>';
+        mealSel.disabled = true;
+        mealSel.value = '';
+    }
+
+    /**
+     * Meal plans available for the selected room type (from live hotel rooms).
+     * Option value = index into onlineCurrentRooms so price/rate keys stay in sync.
+     */
+    function populateOnlineMealsForGroup(groupKey, preferredRoomIdx) {
+        const mealSel = document.getElementById('onlineMealPlanSelect');
+        if (!mealSel) return null;
+
+        mealSel.innerHTML = '<option value="">Select Meal Plan</option>';
+        const matches = roomsForGroupKey(groupKey);
+
+        if (!matches.length) {
+            mealSel.disabled = true;
+            return null;
+        }
+
+        matches.sort(function (a, b) {
+            return roomDisplayPrice(a.room) - roomDisplayPrice(b.room);
+        });
+
+        matches.forEach(function (item) {
+            const opt = document.createElement('option');
+            opt.value = String(item.idx);
+            const mealLabel = roomMealOptionLabel(item.room);
+            const price = roomDisplayPrice(item.room);
+            opt.textContent = price > 0
+                ? mealLabel + ' — ' + String(item.room.currency || 'SGD') + ' ' + price.toFixed(2)
+                : mealLabel;
+            opt.dataset.roomIndex = String(item.idx);
+            mealSel.appendChild(opt);
+        });
+
+        mealSel.disabled = false;
+
+        let selectIdx = matches[0].idx;
+        if (preferredRoomIdx !== undefined && preferredRoomIdx !== null && preferredRoomIdx >= 0) {
+            const found = matches.find(function (m) { return m.idx === preferredRoomIdx; });
+            if (found) selectIdx = found.idx;
+        }
+        mealSel.value = String(selectIdx);
+        return onlineCurrentRooms[selectIdx] || matches[0].room;
     }
 
     function roomDisplayPrice(room) {
@@ -1712,22 +1871,18 @@
         onlineSelectedRoom = room || null;
         if (!room) {
             clearOnlineCancellationPolicy();
+            clearOnlineMealPlanSelect();
             return;
         }
 
         const price = roomDisplayPrice(room);
         if (price > 0) {
             document.getElementById('onlineRoomPriceDisplay').value = price.toFixed(2);
+        } else {
+            document.getElementById('onlineRoomPriceDisplay').value = '0.00';
         }
 
         populateOnlineBedTypes(room);
-
-        const meal = roomMealLabel(room);
-        const mealSel = document.getElementById('onlineMealPlanSelect');
-        if (mealSel && meal) {
-            mealSel.value = meal;
-        }
-
         renderOnlineCancellationPolicy(room);
     }
 
@@ -1737,26 +1892,46 @@
         roomSel.innerHTML = '<option value="">Room Type</option>';
         bedSel.innerHTML = '<option value="">Bed Type</option>';
         bedSel.disabled = true;
+        clearOnlineMealPlanSelect();
 
         const rooms = hotel.rooms || hotel.roomTypes || hotel.room_types || [];
         onlineCurrentRooms = Array.isArray(rooms) ? rooms : [];
         onlineSelectedRoom = null;
         if (Array.isArray(rooms) && rooms.length) {
-            rooms.forEach(function (room, idx) {
+            // One Room Type option per room code; meals are chosen separately.
+            const seenGroups = {};
+            const groupOrder = [];
+            onlineCurrentRooms.forEach(function (room, idx) {
+                const key = roomGroupKey(room);
+                if (!seenGroups[key]) {
+                    seenGroups[key] = { key: key, label: roomGroupLabel(room), firstIdx: idx, minPrice: roomDisplayPrice(room) };
+                    groupOrder.push(seenGroups[key]);
+                } else {
+                    const p = roomDisplayPrice(room);
+                    if (p > 0 && (seenGroups[key].minPrice <= 0 || p < seenGroups[key].minPrice)) {
+                        seenGroups[key].minPrice = p;
+                        seenGroups[key].firstIdx = idx;
+                    }
+                }
+            });
+
+            groupOrder.forEach(function (group) {
                 const opt = document.createElement('option');
-                const name = room.roomName || room.room_name || room.roomType || room.room_type || room.name || room.type || ('Room ' + (idx + 1));
-                opt.value = name;
-                opt.textContent = roomOptionLabel(room, idx);
-                opt.dataset.index = String(idx);
-                const price = roomDisplayPrice(room);
-                if (price > 0) {
-                    opt.dataset.price = String(price);
+                opt.value = group.key;
+                opt.textContent = group.label;
+                opt.dataset.groupKey = group.key;
+                opt.dataset.index = String(group.firstIdx);
+                if (group.minPrice > 0) {
+                    opt.dataset.price = String(group.minPrice);
                 }
                 roomSel.appendChild(opt);
             });
+
             roomSel.disabled = false;
             roomSel.selectedIndex = 1;
-            applySelectedRoomDetails(onlineCurrentRooms[0]);
+            const firstGroup = groupOrder[0];
+            const selected = populateOnlineMealsForGroup(firstGroup.key, firstGroup.firstIdx);
+            applySelectedRoomDetails(selected);
         } else {
             roomSel.disabled = true;
             clearOnlineCancellationPolicy();
@@ -1785,6 +1960,9 @@
         if (onlineTwoStep) {
             // Without a priced room there is no rate key to book against.
             ok = ok && !onlineRoomsLoading && !!onlineSelectedRoom;
+        } else if (onlineCurrentRooms.length > 0) {
+            // Meal plan option value is the room index — require a concrete rate row.
+            ok = ok && !!onlineSelectedRoom;
         }
         if (btn) btn.disabled = !ok;
     }
@@ -1833,13 +2011,26 @@
             return;
         }
 
+        applyOnlineStayDateBounds();
+        const boundedIn = document.getElementById('onlineHotelCheckIn')?.value || checkIn;
+        const boundedOut = document.getElementById('onlineHotelCheckOut')?.value || checkOut;
+        if (!onlineDatesWithinStayBounds(boundedIn, boundedOut)) {
+            if (typeof showNotification === 'function') {
+                const rangeHint = (onlineStayDateBounds.start && onlineStayDateBounds.end)
+                    ? (' Allowed: ' + onlineStayDateBounds.start + ' → ' + onlineStayDateBounds.end + '.')
+                    : '';
+                showNotification('Dates must stay within the selected city stay range.' + rangeHint, 'warning');
+            }
+            return;
+        }
+
         hideOnlineHotelSelectionPanel();
         setOnlineHotelFetchLoading(true);
         if (statusEl) statusEl.textContent = '';
 
         const roomCount = selectedRoomCount();
-        onlineHotelLastSearch = { checkIn: checkIn, checkOut: checkOut, city: city, paxInfo: paxInfo, rooms: roomCount };
-        const fetchedNightPlan = { start: checkIn, nights: countDaysBetween(checkIn, checkOut) };
+        onlineHotelLastSearch = { checkIn: boundedIn, checkOut: boundedOut, city: city, paxInfo: paxInfo, rooms: roomCount };
+        const fetchedNightPlan = { start: boundedIn, nights: countDaysBetween(boundedIn, boundedOut) };
 
         fetch(fetchUrl, {
             method: 'POST',
@@ -1849,7 +2040,7 @@
                 'Accept': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest'
             },
-            body: JSON.stringify({ checkIn: checkIn, checkOut: checkOut, city: city, paxInfo: paxInfo, rooms: roomCount })
+            body: JSON.stringify({ checkIn: boundedIn, checkOut: boundedOut, city: city, paxInfo: paxInfo, rooms: roomCount })
         })
         .then(r => r.json())
         .then(data => {
@@ -1902,7 +2093,12 @@
     });
 
     ['onlineHotelCity', 'onlineHotelCheckIn', 'onlineHotelCheckOut'].forEach(function (id) {
-        document.getElementById(id)?.addEventListener('change', onOnlineHotelSearchCriteriaChange);
+        document.getElementById(id)?.addEventListener('change', function () {
+            if (id === 'onlineHotelCheckIn' || id === 'onlineHotelCheckOut') {
+                applyOnlineStayDateBounds();
+            }
+            onOnlineHotelSearchCriteriaChange();
+        });
     });
 
     document.getElementById('onlineNumberOfRooms')?.addEventListener('change', onOnlineRoomCountChange);
@@ -1937,7 +2133,13 @@
         if (onlineTwoStep) {
             loadOnlineHotelRooms(hotel);
         } else {
-            populateOnlineRooms(hotel);
+            const hasRooms = Array.isArray(hotel.rooms) && hotel.rooms.length > 0;
+            if (hasRooms) {
+                populateOnlineRooms(hotel);
+            } else {
+                // Fallback: SearchHotel-first hotels normally ship rooms; refresh one hotel if missing.
+                loadOnlineHotelRooms(hotel);
+            }
         }
 
         validateOnlineAddBtn();
@@ -1947,16 +2149,31 @@
 
     document.getElementById('onlineRoomTypeSelect')?.addEventListener('change', function () {
         const opt = this.options[this.selectedIndex];
-        const roomIdx = opt?.dataset?.index !== undefined ? parseInt(opt.dataset.index, 10) : -1;
-        const room = roomIdx >= 0 ? onlineCurrentRooms[roomIdx] : null;
+        const groupKey = opt?.dataset?.groupKey || opt?.value || '';
+        if (!groupKey || this.selectedIndex <= 0) {
+            onlineSelectedRoom = null;
+            clearOnlineMealPlanSelect();
+            clearOnlineCancellationPolicy();
+            document.getElementById('onlineRoomPriceDisplay').value = '0.00';
+            validateOnlineAddBtn();
+            return;
+        }
+
+        const preferredIdx = opt?.dataset?.index !== undefined ? parseInt(opt.dataset.index, 10) : -1;
+        const selected = populateOnlineMealsForGroup(groupKey, preferredIdx);
+        applySelectedRoomDetails(selected);
+        validateOnlineAddBtn();
+    });
+
+    document.getElementById('onlineMealPlanSelect')?.addEventListener('change', function () {
+        const idx = parseInt(this.value, 10);
+        const room = (!isNaN(idx) && idx >= 0) ? onlineCurrentRooms[idx] : null;
         if (room) {
             applySelectedRoomDetails(room);
         } else {
             onlineSelectedRoom = null;
             clearOnlineCancellationPolicy();
-            if (opt && opt.dataset.price) {
-                document.getElementById('onlineRoomPriceDisplay').value = parseFloat(opt.dataset.price).toFixed(2);
-            }
+            document.getElementById('onlineRoomPriceDisplay').value = '0.00';
         }
         validateOnlineAddBtn();
     });
@@ -1982,8 +2199,8 @@
         const hotelRaw = onlineSelectedHotelDetail || (idx >= 0 ? onlineHotelsCache[idx] : null);
         if (!hotelRaw) return;
 
-        if (onlineTwoStep && !onlineSelectedRoom) {
-            alert('Please select a room with live availability before adding this hotel.');
+        if ((onlineTwoStep || onlineCurrentRooms.length > 0) && !onlineSelectedRoom) {
+            alert('Please select a room and meal plan before adding this hotel.');
             return;
         }
 
@@ -1994,9 +2211,14 @@
         const checkOutDateStr = addDaysToDateStr(planStart, endNight);
         const checkInDate = typeof moment !== 'undefined' ? moment(checkInDateStr).format('MMM DD') : formatNightDateLabel(planStart, startNight - 1);
         const checkOutDate = typeof moment !== 'undefined' ? moment(checkOutDateStr).format('MMM DD') : formatNightDateLabel(planStart, endNight);
-        const roomType = document.getElementById('onlineRoomTypeSelect')?.value || 'Standard';
+        const roomTypeSel = document.getElementById('onlineRoomTypeSelect');
+        const roomType = onlineSelectedRoom
+            ? roomGroupLabel(onlineSelectedRoom)
+            : (roomTypeSel?.selectedOptions?.[0]?.textContent || roomTypeSel?.value || 'Standard');
         const bedType = document.getElementById('onlineBedTypeSelect')?.value || '';
-        const mealPlan = document.getElementById('onlineMealPlanSelect')?.value || 'Not specified';
+        const mealPlan = onlineSelectedRoom
+            ? (roomMealLabel(onlineSelectedRoom) || roomMealOptionLabel(onlineSelectedRoom) || 'Not specified')
+            : 'Not specified';
         const selectedPersons = parseInt(document.getElementById('onlineSelectedPersons')?.value, 10) || 1;
         const numberOfRooms = parseInt(document.getElementById('onlineNumberOfRooms')?.value, 10) || 1;
         const price = parseFloat(document.getElementById('onlineRoomPriceDisplay')?.value) || 0;

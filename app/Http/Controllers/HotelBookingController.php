@@ -7,6 +7,7 @@ use App\Models\Tour;
 use App\Models\Hotel;
 use App\Services\ApiEnvironmentResolver;
 use App\Services\HotelSuppliers\OnlineHotelBookingServiceFactory;
+use App\Services\OnlinePricing\OnlinePricingService;
 use App\Services\SupplierConfigResolver;
 use App\Services\AttractionSuppliers\OnlineAttractionOrderService;
 use Illuminate\Http\Request;
@@ -1229,6 +1230,12 @@ class HotelBookingController extends Controller
                 'full_booking_keys' => array_keys($booking)
             ]);
 
+            $bookingDetails = $this->decodeOrderBookingDetails($hotelOrder->booking_details ?? null);
+            $supplierBookingRef = $this->extractOnlineHotelSupplierBookingReference($bookingDetails);
+            $isOnlineHotel = ! empty($booking['isOnlineHotel'])
+                || ($booking['hotelSourceType'] ?? '') === 'online'
+                || ($hotelOrder->order_type ?? '') === 'online';
+
             return response()->json([
                 'success' => true,
                 'data' => [
@@ -1240,6 +1247,13 @@ class HotelBookingController extends Controller
                     ],
                     'hotel_booking' => [
                         'booking_id' => $hotelOrder->id,
+                        'booking_details' => $bookingDetails,
+                        'mg_booking_id' => $supplierBookingRef,
+                        'supplier_booking_reference' => $supplierBookingRef,
+                        // Online: supplier booking ref (MG mgBookingID / Hotelbeds reference); offline: orders.reference_id
+                        'display_reference_id' => $isOnlineHotel
+                            ? ($supplierBookingRef ?: ($hotelOrder->reference_id ?? null))
+                            : ($hotelOrder->reference_id ?? null),
                         'hotel_name' => $booking['hotelDetails']['hotel_name'] ?? 'Unknown Hotel',
                         'hotel_id' => $booking['hotelDetails']['hotel_id'] ?? null,
                         'location' => $booking['hotelDetails']['location'] ?? 'N/A',
@@ -1317,14 +1331,16 @@ class HotelBookingController extends Controller
                         'order_type' => $hotelOrder->order_type ?? null,
                         'online_hotel_source' => $booking['onlineHotelSource']
                             ?? ($booking['onlineHotelBooking']['supplier_code'] ?? null),
-                        'is_online_hotel' => ! empty($booking['isOnlineHotel'])
-                            || ($booking['hotelSourceType'] ?? '') === 'online'
-                            || ($hotelOrder->order_type ?? '') === 'online',
+                        'is_online_hotel' => $isOnlineHotel,
                         // MG cancellation rules stored at enquiry (for approve confirm modal)
                         'cancellation_policy_type' => $booking['onlineHotelBooking']['room']['cancellation_policy_type']
                             ?? ($booking['onlineHotelBooking']['raw_room']['cancellationPolicyType'] ?? null),
-                        'cancellation_policies' => $this->normalizeOnlineHotelCancellationPolicies(
-                            $booking['onlineHotelBooking'] ?? null
+                        'cancellation_policies' => $this->customerFacingCancellationPolicies(
+                            $booking,
+                            $this->normalizeOnlineHotelCancellationPolicies(
+                                $booking['onlineHotelBooking'] ?? null
+                            ),
+                            (int) ($request->tour_id ?? 0),
                         ),
                     ]
                 ]
@@ -2714,7 +2730,11 @@ class HotelBookingController extends Controller
                 $booking['onlineHotelBooking'] ?? null
             );
             $livePolicies = $this->extractLiveCancellationPolicies($recheckResult);
-            $cancellationPolicies = $livePolicies !== [] ? $livePolicies : $storedPolicies;
+            $cancellationPolicies = $this->customerFacingCancellationPolicies(
+                $booking,
+                $livePolicies !== [] ? $livePolicies : $storedPolicies,
+                (int) ($hotelOrder->tour_id ?? $request->tour_id ?? 0),
+            );
             $cancellationPolicyType = (string) (
                 $recheckResult['cancellation_policy_type']
                 ?? ($booking['onlineHotelBooking']['room']['cancellation_policy_type'] ?? '')
@@ -6417,6 +6437,50 @@ class HotelBookingController extends Controller
     }
 
     /**
+     * Mark absolute cancel penalties with the same admin+DMC stack as the room rate.
+     *
+     * @param  array<string, mixed>  $booking
+     * @param  array<int, array<string, mixed>>  $policies
+     * @return array<int, array<string, mixed>>
+     */
+    private function customerFacingCancellationPolicies(array $booking, array $policies, int $tourId = 0): array
+    {
+        if ($policies === []) {
+            return [];
+        }
+
+        $online = is_array($booking['onlineHotelBooking'] ?? null)
+            ? $booking['onlineHotelBooking']
+            : [];
+
+        if (($online['supplier_code'] ?? '') === '' && filled($booking['onlineHotelSource'] ?? null)) {
+            $online['supplier_code'] = (string) $booking['onlineHotelSource'];
+        }
+
+        $tourDmcId = null;
+        if ($tourId > 0) {
+            $tour = Tour::query()
+                ->where(function ($query) use ($tourId) {
+                    $query->where('tour_id', $tourId)->orWhere('id', $tourId);
+                })
+                ->first(['dmc_id']);
+            $tourDmcId = $tour && (int) $tour->dmc_id > 0 ? (int) $tour->dmc_id : null;
+        }
+
+        $pricing = app(OnlinePricingService::class);
+        $context = $pricing->hotelMarkupContextForRecheck($online, Auth::user(), $tourDmcId);
+
+        if (! $context) {
+            return $policies;
+        }
+
+        /** @var array<int, array<string, mixed>> $marked */
+        $marked = $pricing->applyMarkupToCancellationPolicies($policies, $context);
+
+        return $marked;
+    }
+
+    /**
      * Pull cancellation policy list from stored onlineHotelBooking (enquiry payload).
      *
      * @param  array<string, mixed>|null  $onlineBooking
@@ -6432,10 +6496,19 @@ class HotelBookingController extends Controller
             $onlineBooking['room']['cancellation_policies'] ?? null,
             $onlineBooking['raw_room']['cancellationPolicies']['policy'] ?? null,
             $onlineBooking['room']['cancellationPolicies']['policy'] ?? null,
+            // Hotelbeds enquiry stores policies on raw_room.rate (pre-normalised adapter).
+            $onlineBooking['raw_room']['rate']['cancellationPolicies'] ?? null,
+            $onlineBooking['raw_room']['room']['rates'][0]['cancellationPolicies'] ?? null,
         ];
 
+        $checkIn = (string) ($onlineBooking['check_in'] ?? $onlineBooking['selection']['stay_check_in'] ?? '');
+        $checkOut = (string) ($onlineBooking['check_out'] ?? $onlineBooking['selection']['stay_check_out'] ?? '');
+        $netPrice = (float) ($onlineBooking['room']['net_price']
+            ?? $onlineBooking['raw_room']['rate']['net']
+            ?? 0);
+
         foreach ($candidates as $candidate) {
-            $normalized = $this->coerceCancellationPolicyList($candidate);
+            $normalized = $this->coerceCancellationPolicyList($candidate, $checkIn, $checkOut, $netPrice);
             if ($normalized !== []) {
                 return $normalized;
             }
@@ -6452,28 +6525,83 @@ class HotelBookingController extends Controller
      */
     private function extractLiveCancellationPolicies(array $recheckResult): array
     {
+        // Prefer supplier-normalized list already attached by the booking service.
+        if (
+            is_array($recheckResult['cancellation_policies'] ?? null)
+            && $recheckResult['cancellation_policies'] !== []
+        ) {
+            return $this->coerceCancellationPolicyList($recheckResult['cancellation_policies']);
+        }
+
+        // MG Bedbank RecheckHotel shape
         $roomDetails = $recheckResult['recheck_response']['hotels']['hotel']['roomDetails'] ?? null;
 
         if (is_array($roomDetails) && isset($roomDetails[0]) && is_array($roomDetails[0])) {
             $roomDetails = $roomDetails[0];
         }
 
-        if (! is_array($roomDetails)) {
+        if (is_array($roomDetails)) {
+            $mg = $this->coerceCancellationPolicyList(
+                $roomDetails['cancellationPolicies']['policy'] ?? ($roomDetails['cancellation_policies'] ?? null)
+            );
+            if ($mg !== []) {
+                return $mg;
+            }
+        }
+
+        // Hotelbeds CheckRate: hotel.rooms[].rates[].cancellationPolicies [{amount, from}]
+        $hotel = $recheckResult['recheck_response']['hotel']
+            ?? ($recheckResult['recheck_response']['hotels']['hotel'] ?? null);
+
+        if (! is_array($hotel)) {
             return [];
         }
 
-        return $this->coerceCancellationPolicyList(
-            $roomDetails['cancellationPolicies']['policy'] ?? ($roomDetails['cancellation_policies'] ?? null)
-        );
+        $checkIn = (string) ($recheckResult['check_in'] ?? $hotel['checkIn'] ?? '');
+        $checkOut = (string) ($recheckResult['check_out'] ?? $hotel['checkOut'] ?? '');
+        $netPrice = (float) ($recheckResult['supplier_net_price'] ?? 0);
+
+        foreach ($hotel['rooms'] ?? [] as $room) {
+            if (! is_array($room)) {
+                continue;
+            }
+            foreach ($room['rates'] ?? [] as $rate) {
+                if (! is_array($rate)) {
+                    continue;
+                }
+                $policies = $this->coerceCancellationPolicyList(
+                    $rate['cancellationPolicies'] ?? null,
+                    $checkIn,
+                    $checkOut,
+                    $netPrice > 0 ? $netPrice : (float) ($rate['net'] ?? 0),
+                );
+                if ($policies !== []) {
+                    return $policies;
+                }
+            }
+        }
+
+        return [];
     }
 
     /**
+     * Accept MG `{fromDate,toDate,...}` and Hotelbeds `{amount,from}` shapes.
+     *
      * @return array<int, array<string, mixed>>
      */
-    private function coerceCancellationPolicyList(mixed $value): array
-    {
+    private function coerceCancellationPolicyList(
+        mixed $value,
+        string $checkIn = '',
+        string $checkOut = '',
+        float $netPrice = 0.0,
+    ): array {
         if (is_array($value) && isset($value['fromDate'])) {
             return [$value];
+        }
+
+        // Single Hotelbeds rule object.
+        if (is_array($value) && (isset($value['from']) || isset($value['amount'])) && ! array_is_list($value)) {
+            $value = [$value];
         }
 
         if (! is_array($value)) {
@@ -6481,13 +6609,147 @@ class HotelBookingController extends Controller
         }
 
         $list = [];
+        $hotelbedsRows = [];
+
         foreach ($value as $item) {
-            if (is_array($item) && (isset($item['fromDate']) || isset($item['toDate']))) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            if (isset($item['fromDate']) || isset($item['toDate'])) {
                 $list[] = $item;
+                continue;
+            }
+
+            // Hotelbeds availability: { amount, from: "2026-11-01T23:59:00+08:00" }
+            if (isset($item['from']) || (isset($item['amount']) && ! isset($item['fromDate']))) {
+                $fromRaw = trim((string) ($item['from'] ?? ''));
+                $fromDate = '';
+                if (preg_match('/^(\d{4}-\d{2}-\d{2})/', $fromRaw, $m)) {
+                    $fromDate = $m[1];
+                }
+                if ($fromDate === '') {
+                    continue;
+                }
+                $hotelbedsRows[] = [
+                    'fromDate' => $fromDate,
+                    'amount' => $item['amount'] ?? '',
+                ];
             }
         }
 
-        return $list;
+        if ($list !== []) {
+            return $list;
+        }
+
+        if ($hotelbedsRows === []) {
+            return [];
+        }
+
+        usort(
+            $hotelbedsRows,
+            fn (array $a, array $b) => strcmp((string) $a['fromDate'], (string) $b['fromDate'])
+        );
+
+        $normalized = [];
+        foreach ($hotelbedsRows as $index => $row) {
+            $nextFrom = $hotelbedsRows[$index + 1]['fromDate'] ?? null;
+            $toDate = '';
+            if (is_string($nextFrom) && $nextFrom !== '') {
+                try {
+                    $toDate = \Carbon\Carbon::parse($nextFrom)->subDay()->toDateString();
+                } catch (\Throwable) {
+                    $toDate = '';
+                }
+            } elseif ($checkIn !== '') {
+                $toDate = substr($checkIn, 0, 10);
+            }
+
+            $amount = is_numeric($row['amount']) ? (string) $row['amount'] : trim((string) $row['amount']);
+            $amountFloat = is_numeric($amount) ? (float) $amount : null;
+            $noShow = false;
+            $percent = '';
+            if (
+                $amountFloat !== null
+                && $netPrice > 0
+                && $amountFloat >= ($netPrice * 0.99)
+                && $checkIn !== ''
+                && $row['fromDate'] >= substr($checkIn, 0, 10)
+            ) {
+                $noShow = true;
+                $percent = '100.00';
+            }
+
+            $normalized[] = [
+                'fromDate' => $row['fromDate'],
+                'toDate' => $toDate,
+                'amount' => $amount,
+                'b2BMarkup' => '',
+                'grossAmount' => $amount,
+                'nights' => '',
+                'percent' => $percent,
+                'noShow' => $noShow,
+            ];
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function decodeOrderBookingDetails(mixed $raw): ?array
+    {
+        if (is_array($raw)) {
+            return $raw;
+        }
+
+        if (! is_string($raw) || trim($raw) === '') {
+            return null;
+        }
+
+        $decoded = json_decode($raw, true);
+
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    /**
+     * Supplier confirmation id from orders.booking_details
+     * (MG mgBookingID, Hotelbeds booking.reference, Tinivia supplier_booking_reference).
+     *
+     * @param  array<string, mixed>|null  $bookingDetails
+     */
+    private function extractOnlineHotelSupplierBookingReference(?array $bookingDetails): ?string
+    {
+        if (! is_array($bookingDetails)) {
+            return null;
+        }
+
+        $candidates = [
+            $bookingDetails['book_response']['bookingDetails']['mgBookingID'] ?? null,
+            $bookingDetails['book_response']['bookingDetails']['mgBookingId'] ?? null,
+            $bookingDetails['book_response']['booking']['reference'] ?? null,
+            $bookingDetails['book_response']['booking']['hotel']['reference'] ?? null,
+            $bookingDetails['book_response']['reference'] ?? null,
+            $bookingDetails['supplier_booking_reference'] ?? null,
+            $bookingDetails['mg_booking_id'] ?? null,
+            $bookingDetails['mgBookingID'] ?? null,
+        ];
+
+        foreach ($candidates as $candidate) {
+            $value = trim((string) ($candidate ?? ''));
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
+    /** @deprecated Use extractOnlineHotelSupplierBookingReference() */
+    private function extractOnlineHotelMgBookingId(?array $bookingDetails): ?string
+    {
+        return $this->extractOnlineHotelSupplierBookingReference($bookingDetails);
     }
 
     /**

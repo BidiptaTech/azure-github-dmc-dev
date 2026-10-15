@@ -19,8 +19,9 @@ class OnlineHotelAggregator
     ) {}
 
     /**
-     * Lists the hotels for a city. Two-step suppliers return their catalogue without
-     * rates here; the caller then asks for `rooms()` once a hotel is picked.
+     * Lists hotels for a city. Catalogue-only two-step suppliers return hotels without
+     * rates here; suppliers with pricesOnSearch() (e.g. MG Bedbank) run live SearchHotel
+     * and return priced available hotels in one step.
      *
      * @return array<string, mixed>
      */
@@ -32,7 +33,9 @@ class OnlineHotelAggregator
         int $rooms = 1,
     ): array {
         [$searchRequest, $adapter, $resolved] = $this->prepare($cityName, $checkIn, $checkOut, $paxInfo, $rooms);
-        $twoStep = $adapter instanceof TwoStepHotelSupplierAdapter;
+        $pricesOnSearch = $this->adapterPricesOnSearch($adapter);
+        // UI "two_step" means: fetch catalogue first, then price on hotel pick.
+        $twoStep = ($adapter instanceof TwoStepHotelSupplierAdapter) && ! $pricesOnSearch;
 
         Log::info('Online hotel search', [
             'city' => $searchRequest->cityName,
@@ -42,6 +45,7 @@ class OnlineHotelAggregator
             'pax_info' => $searchRequest->paxInfo,
             'rooms' => $searchRequest->roomCount(),
             'two_step' => $twoStep,
+            'prices_on_search' => $pricesOnSearch,
             'api_environment' => $resolved['api_environment'] ?? null,
         ]);
 
@@ -65,6 +69,18 @@ class OnlineHotelAggregator
             'request' => $searchRequest->toPayload(),
             'provider' => $result['provider'],
         ];
+    }
+
+    /**
+     * True when search already returns live rates (no separate rooms hop for the modal).
+     */
+    private function adapterPricesOnSearch(HotelSupplierAdapter $adapter): bool
+    {
+        if (method_exists($adapter, 'pricesOnSearch')) {
+            return (bool) $adapter->pricesOnSearch();
+        }
+
+        return ! ($adapter instanceof TwoStepHotelSupplierAdapter);
     }
 
     /**

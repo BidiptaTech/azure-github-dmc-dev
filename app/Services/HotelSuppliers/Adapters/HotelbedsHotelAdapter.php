@@ -3,10 +3,9 @@
 namespace App\Services\HotelSuppliers\Adapters;
 
 use App\Services\HotelSuppliers\Contracts\HotelSupplierAdapter;
+use App\Services\HotelSuppliers\Hotelbeds\HotelbedsCancellationPolicies;
+use App\Services\HotelSuppliers\Hotelbeds\HotelbedsClient;
 use App\Services\HotelSuppliers\HotelSearchRequest;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
-use RuntimeException;
 
 class HotelbedsHotelAdapter implements HotelSupplierAdapter
 {
@@ -33,24 +32,7 @@ class HotelbedsHotelAdapter implements HotelSupplierAdapter
      */
     public function fetchHotels(HotelSearchRequest $request, array $credentials): array
     {
-        $baseUrl = rtrim((string) ($credentials['base_url'] ?? ''), '/');
-        $apiKey = trim((string) ($credentials['api_key'] ?? ''));
-        $secret = trim((string) ($credentials['api_secret'] ?? ''));
-
-        if (! array_key_exists('base_url', $credentials) && $baseUrl === '') {
-            $baseUrl = rtrim((string) config('services.hotelbeds.base_url', ''), '/');
-        }
-        if (! array_key_exists('api_key', $credentials) && $apiKey === '') {
-            $apiKey = trim((string) config('services.hotelbeds.api_key', ''));
-        }
-        if (! array_key_exists('api_secret', $credentials) && $secret === '') {
-            $secret = trim((string) config('services.hotelbeds.api_secret', ''));
-        }
-
-        if ($baseUrl === '' || $apiKey === '' || $secret === '') {
-            throw new RuntimeException('Hotelbeds credentials are incomplete (base_url, api_key and api_secret required).');
-        }
-
+        $client = new HotelbedsClient($credentials);
         $occupancy = $this->parsePaxInfo($request->paxInfo);
 
         $payload = [
@@ -80,47 +62,28 @@ class HotelbedsHotelAdapter implements HotelSupplierAdapter
             );
         }
 
-        $timeout = (int) ($credentials['timeout'] ?? config('services.hotelbeds.timeout', 30));
-
-        $response = Http::timeout($timeout > 0 ? $timeout : 30)
-            ->withHeaders($this->buildAuthHeaders($apiKey, $secret))
-            ->acceptJson()
-            ->asJson()
-            ->post($baseUrl . '/hotel-api/1.0/hotels', $payload);
-
-        if (! $response->successful()) {
-            Log::warning('Hotelbeds availability failed', [
-                'status' => $response->status(),
-                'body' => $response->body(),
-                'payload' => $payload,
-            ]);
-
-            throw new RuntimeException('Hotelbeds hotel search failed with HTTP ' . $response->status());
-        }
-
-        $body = $response->json();
+        $body = $client->availability($payload);
         $rawHotels = $this->extractRawHotels($body);
 
-        return [
-            'hotels' => array_map(fn (array $item) => $this->normalizeHotel($item), $rawHotels),
-            'provider' => $body,
+        $context = [
+            'supplier_code' => $this->code(),
+            'session_id' => null,
+            'currency' => null,
+            'check_in' => $request->checkIn,
+            'check_out' => $request->checkOut,
+            'search' => [
+                'city_name' => $request->cityName,
+                'pax_info' => $request->paxInfo,
+                'rooms' => $request->roomCount(),
+            ],
         ];
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private function buildAuthHeaders(string $apiKey, string $secret): array
-    {
-        $timestamp = (string) time();
-        $signature = hash('sha256', $apiKey . $secret . $timestamp);
 
         return [
-            'Api-key' => $apiKey,
-            'X-Signature' => $signature,
-            'Accept' => 'application/json',
-            'Accept-Encoding' => 'gzip',
-            'Content-Type' => 'application/json',
+            'hotels' => array_map(
+                fn (array $item) => $this->normalizeHotel($item, $context),
+                $rawHotels
+            ),
+            'provider' => $body,
         ];
     }
 
@@ -166,11 +129,35 @@ class HotelbedsHotelAdapter implements HotelSupplierAdapter
 
     /**
      * @param  array<string, mixed>  $item
+     * @param  array<string, mixed>  $context  Shared search/session facts for booking payloads.
      * @return array<string, mixed>
      */
-    private function normalizeHotel(array $item): array
+    private function normalizeHotel(array $item, array $context = []): array
     {
         $currency = (string) ($item['currency'] ?? 'EUR');
+        $hotelContext = array_merge($context, [
+            'currency' => $currency,
+            'hotel' => [
+                'code' => (string) ($item['code'] ?? $item['hotel_id'] ?? ''),
+                'name' => (string) ($item['name'] ?? $item['hotel_name'] ?? ''),
+                'rating' => $this->parseStarRating($item['categoryCode'] ?? $item['categoryName'] ?? ''),
+                'address' => trim(implode(', ', array_filter([
+                    (string) ($item['zoneName'] ?? ''),
+                    (string) ($item['destinationName'] ?? ''),
+                ]))),
+                'image' => '',
+                'check_in_time' => '',
+                'check_out_time' => '',
+                'latitude' => (string) ($item['latitude'] ?? ''),
+                'longitude' => (string) ($item['longitude'] ?? ''),
+                'destination_code' => (string) ($item['destinationCode'] ?? ''),
+                'destination_name' => (string) ($item['destinationName'] ?? ''),
+                'zone_name' => (string) ($item['zoneName'] ?? ''),
+                'category_code' => (string) ($item['categoryCode'] ?? ''),
+                'category_name' => (string) ($item['categoryName'] ?? ''),
+            ],
+        ]);
+
         $rooms = [];
 
         foreach ($item['rooms'] ?? [] as $room) {
@@ -182,7 +169,7 @@ class HotelbedsHotelAdapter implements HotelSupplierAdapter
                 if (! is_array($rate)) {
                     continue;
                 }
-                $rooms[] = $this->normalizeRateAsRoom($room, $rate, $currency);
+                $rooms[] = $this->normalizeRateAsRoom($room, $rate, $currency, $hotelContext);
             }
         }
 
@@ -197,21 +184,18 @@ class HotelbedsHotelAdapter implements HotelSupplierAdapter
         return [
             'hotel_id' => (string) ($item['code'] ?? $item['hotel_id'] ?? ''),
             'hotel_name' => (string) ($item['name'] ?? $item['hotel_name'] ?? ''),
-            'star_rating' => $this->parseStarRating($item['categoryCode'] ?? $item['categoryName'] ?? ''),
-            'address' => trim(implode(', ', array_filter([
-                (string) ($item['zoneName'] ?? ''),
-                (string) ($item['destinationName'] ?? ''),
-            ]))),
+            'star_rating' => $hotelContext['hotel']['rating'],
+            'address' => $hotelContext['hotel']['address'],
             'currency' => $currency,
             'min_rate' => $minRate,
             'max_rate' => $maxRate,
-            'latitude' => (string) ($item['latitude'] ?? ''),
-            'longitude' => (string) ($item['longitude'] ?? ''),
-            'destination_code' => (string) ($item['destinationCode'] ?? ''),
-            'destination_name' => (string) ($item['destinationName'] ?? ''),
-            'zone_name' => (string) ($item['zoneName'] ?? ''),
-            'category_code' => (string) ($item['categoryCode'] ?? ''),
-            'category_name' => (string) ($item['categoryName'] ?? ''),
+            'latitude' => $hotelContext['hotel']['latitude'],
+            'longitude' => $hotelContext['hotel']['longitude'],
+            'destination_code' => $hotelContext['hotel']['destination_code'],
+            'destination_name' => $hotelContext['hotel']['destination_name'],
+            'zone_name' => $hotelContext['hotel']['zone_name'],
+            'category_code' => $hotelContext['hotel']['category_code'],
+            'category_name' => $hotelContext['hotel']['category_name'],
             'images' => [],
             'description' => (string) ($item['categoryName'] ?? ''),
             'rooms' => $rooms,
@@ -223,9 +207,10 @@ class HotelbedsHotelAdapter implements HotelSupplierAdapter
     /**
      * @param  array<string, mixed>  $room
      * @param  array<string, mixed>  $rate
+     * @param  array<string, mixed>  $context
      * @return array<string, mixed>
      */
-    private function normalizeRateAsRoom(array $room, array $rate, string $currency): array
+    private function normalizeRateAsRoom(array $room, array $rate, string $currency, array $context = []): array
     {
         $roomName = trim((string) ($room['name'] ?? ''));
         $boardName = trim((string) ($rate['boardName'] ?? $rate['boardCode'] ?? ''));
@@ -244,32 +229,144 @@ class HotelbedsHotelAdapter implements HotelSupplierAdapter
 
         $roomCode = (string) ($room['code'] ?? '');
         $bedType = $this->inferBedType($roomName, $roomCode);
+        $rateClass = strtoupper(trim((string) ($rate['rateClass'] ?? '')));
+        $policyType = HotelbedsCancellationPolicies::policyTypeFromRateClass($rateClass);
+        $policies = HotelbedsCancellationPolicies::normalize(
+            is_array($rate['cancellationPolicies'] ?? null) ? $rate['cancellationPolicies'] : [],
+            (string) ($context['check_in'] ?? ''),
+            (string) ($context['check_out'] ?? ''),
+            $net,
+        );
+        $rateKey = (string) ($rate['rateKey'] ?? '');
+        $adults = (int) ($rate['adults'] ?? 0);
+        $children = (int) ($rate['children'] ?? 0);
+
+        $raw = [
+            'room' => $room,
+            'rate' => $rate,
+        ];
 
         return [
             'room_id' => $roomCode,
             'room_name' => $displayName,
-            'rate_plan_id' => (string) ($rate['rateKey'] ?? ''),
+            'rate_plan_id' => $rateKey,
             'bed_type' => $bedType,
             'extra_bed_type' => '',
             'meal_plan' => $boardName,
             'board_code' => $boardCode,
             'breakfast_included' => in_array($boardCode, ['BB', 'HB', 'FB', 'AI'], true),
-            'max_occupancy' => (int) (($rate['adults'] ?? 0) + ($rate['children'] ?? 0)),
+            'max_occupancy' => $adults + $children,
+            'booked_adults' => $adults,
+            'booked_children' => $children,
             'price' => [
                 'actual' => $net,
                 'tax' => $tax,
             ],
             'inclusions' => $promotions,
             'currency' => $currency,
-            'rate_class' => (string) ($rate['rateClass'] ?? ''),
+            'rate_class' => $rateClass,
             'rate_type' => (string) ($rate['rateType'] ?? ''),
             'payment_type' => (string) ($rate['paymentType'] ?? ''),
             'allotment' => (int) ($rate['allotment'] ?? 0),
             'packaging' => (bool) ($rate['packaging'] ?? false),
-            'raw' => [
-                'room' => $room,
-                'rate' => $rate,
+            'cancellation_policy_type' => $policyType,
+            'cancellation_policy' => $policies,
+            'free_cancellation' => $policies === [] && $rateClass !== 'NRF',
+            'booking' => $this->bookingPayload(
+                $roomCode,
+                $roomName,
+                $boardCode,
+                $boardName,
+                $policyType,
+                $rateKey,
+                $net,
+                $rate,
+                $policies,
+                $context,
+                $raw,
+            ),
+            'raw' => $raw,
+        ];
+    }
+
+    /**
+     * Stored on each room so the modal can persist onlineHotelBooking in the same
+     * shape as MG Bedbank (rate key, policies, hotel/search context, raw supplier rate).
+     *
+     * @param  array<string, mixed>  $rate
+     * @param  array<int, array<string, mixed>>  $policies
+     * @param  array<string, mixed>  $context
+     * @param  array<string, mixed>  $raw
+     * @return array<string, mixed>
+     */
+    private function bookingPayload(
+        string $roomCode,
+        string $roomName,
+        string $boardCode,
+        string $boardName,
+        string $policyType,
+        string $rateKey,
+        float $net,
+        array $rate,
+        array $policies,
+        array $context,
+        array $raw,
+    ): array {
+        $adults = (int) ($rate['adults'] ?? 0);
+        $children = (int) ($rate['children'] ?? 0);
+
+        return [
+            'supplier_code' => $context['supplier_code'] ?? $this->code(),
+            'session_id' => $context['session_id'] ?? null,
+            'currency' => $context['currency'] ?? 'EUR',
+            'check_in' => $context['check_in'] ?? '',
+            'check_out' => $context['check_out'] ?? '',
+            'search' => $context['search'] ?? [],
+            'hotel' => $context['hotel'] ?? [],
+            'room' => [
+                'code' => $roomCode,
+                'name' => $roomName,
+                'meal_plan_code' => $boardCode,
+                'meal_plan_name' => $boardName,
+                'cancellation_policy_type' => $policyType,
+                'promo_code' => '',
+                'avail_flag' => true,
+                'can_hold' => false,
+                'package_rate' => (bool) ($rate['packaging'] ?? false),
+                'net_price' => $net,
+                'gross_price' => $net,
+                'avg_night_price' => 0.0,
+                'b2b_markup' => 0.0,
+                'msp' => '',
+                'rate_key' => $rateKey,
+                'rate_keys' => $rateKey !== '' ? [$rateKey] : [],
+                'rate_class' => strtoupper(trim((string) ($rate['rateClass'] ?? ''))),
+                'rate_type' => (string) ($rate['rateType'] ?? ''),
+                'payment_type' => (string) ($rate['paymentType'] ?? ''),
+                'allotment' => (int) ($rate['allotment'] ?? 0),
+                'allocations' => [[
+                    'roomNo' => 1,
+                    'rateKey' => $rateKey,
+                    'noOfAdults' => $adults,
+                    'noOfChild' => $children,
+                    'child1Age' => 0,
+                    'child2Age' => 0,
+                    'extraBed' => false,
+                    'netPrice' => $net,
+                    'grossPrice' => $net,
+                    'avgNightPrice' => 0.0,
+                    'b2BMarkup' => 0,
+                ]],
+                'cancellation_policies' => $policies,
+                'messages' => [],
+                'size' => '',
+                'max_occupancy' => $adults + $children,
+                'max_adult' => $adults,
+                'max_children' => $children,
+                'image' => '',
             ],
+            'raw_room' => $raw,
+            'fetched_at' => now()->toIso8601String(),
         ];
     }
 

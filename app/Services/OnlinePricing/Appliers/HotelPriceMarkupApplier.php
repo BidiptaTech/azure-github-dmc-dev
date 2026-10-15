@@ -89,6 +89,13 @@ class HotelPriceMarkupApplier
             $room['price'] = $this->markUp((float) $room['price'], $context);
         }
 
+        // Absolute cancel penalties must match the marked-up sell rate (same stack).
+        foreach (['cancellation_policy', 'cancellationPolicy', 'cancellation_policies'] as $policyKey) {
+            if (isset($room[$policyKey]) && is_array($room[$policyKey])) {
+                $room[$policyKey] = $this->markUpCancellationPolicies($room[$policyKey], $context);
+            }
+        }
+
         // Travels with the enquiry into orders.data so the pre-approval recheck can
         // re-apply this exact stack to the supplier's fresh price. Suppliers that ship a
         // `booking` block carry it there; for the rest the modal reads `room.markup`.
@@ -96,9 +103,55 @@ class HotelPriceMarkupApplier
 
         if (is_array($room['booking'] ?? null)) {
             $room['booking']['markup'] = $room['markup'];
+
+            if (isset($room['booking']['room']) && is_array($room['booking']['room'])) {
+                if (isset($room['booking']['room']['cancellation_policies']) && is_array($room['booking']['room']['cancellation_policies'])) {
+                    $room['booking']['room']['cancellation_policies'] = $this->markUpCancellationPolicies(
+                        $room['booking']['room']['cancellation_policies'],
+                        $context,
+                    );
+                }
+            }
         }
 
         return $room;
+    }
+
+    /**
+     * @param  array<int, mixed>  $policies
+     * @return array<int, mixed>
+     */
+    private function markUpCancellationPolicies(array $policies, MarkupContext $context): array
+    {
+        return array_map(function ($policy) use ($context) {
+            if (! is_array($policy)) {
+                return $policy;
+            }
+
+            foreach (
+                [
+                    'amount' => 'supplier_amount',
+                    'grossAmount' => 'supplier_grossAmount',
+                ] as $field => $supplierField
+            ) {
+                if (! isset($policy[$field]) || ! is_numeric($policy[$field]) || (float) $policy[$field] <= 0) {
+                    continue;
+                }
+
+                if (! isset($policy[$supplierField]) || ! is_numeric($policy[$supplierField])) {
+                    $policy[$supplierField] = $policy[$field];
+                }
+
+                $base = (float) $policy[$supplierField];
+                if ($base <= 0) {
+                    continue;
+                }
+
+                $policy[$field] = $this->markUp($base, $context);
+            }
+
+            return $policy;
+        }, $policies);
     }
 
     /**
