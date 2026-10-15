@@ -174,7 +174,7 @@ use Illuminate\Support\Facades\Crypt;
                                         <tr>
                                             <td colspan="6" class="text-end"><strong>Subtotal:</strong></td>
                                             <td class="text-end">
-                                                <strong id="subtotalDisplay">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($invoice->subtotal, 2) }}</strong>
+                                                <strong id="subtotalDisplay">{{ $baseCurrency }} {{ number_format($invoice->subtotal, 2) }}</strong>
                                                 <input type="hidden" name="subtotal" id="subtotalInput" value="{{ $invoice->subtotal }}">
                                             </td>
                                             <td></td>
@@ -182,7 +182,7 @@ use Illuminate\Support\Facades\Crypt;
                                         <tr class="table-primary">
                                             <td colspan="6" class="text-end"><strong>Total Amount:</strong></td>
                                             <td class="text-end">
-                                                <strong id="totalDisplay">{{ $invoice->base_currency ?? 'SGD' }} {{ number_format($invoice->total_amount, 2) }}</strong>
+                                                <strong id="totalDisplay">{{ $baseCurrency }} {{ number_format($invoice->total_amount, 2) }}</strong>
                                                 <input type="hidden" name="total_amount" id="totalInput" value="{{ $invoice->total_amount }}">
                                             </td>
                                             <td></td>
@@ -343,8 +343,8 @@ function calculateTotals() {
     
     document.getElementById('subtotalInput').value = subtotal.toFixed(2);
     document.getElementById('totalInput').value = total.toFixed(2);
-    document.getElementById('subtotalDisplay').textContent = '{{ $invoice->base_currency ?? "SGD" }} ' + subtotal.toFixed(2);
-    document.getElementById('totalDisplay').textContent = '{{ $invoice->base_currency ?? "SGD" }} ' + total.toFixed(2);
+    document.getElementById('subtotalDisplay').textContent = '{{ $baseCurrency }} ' + subtotal.toFixed(2);
+    document.getElementById('totalDisplay').textContent = '{{ $baseCurrency }} ' + total.toFixed(2);
 }
 
 // Attach event listeners to existing rows

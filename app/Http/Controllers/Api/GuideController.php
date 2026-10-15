@@ -290,6 +290,7 @@ class GuideController extends Controller
         } catch (\Exception $e) {
             return response()->json(['error' => 'Invalid date input.'], 400);
         }
+        
 
         $guideBookings = $orders->flatMap(function ($order) use ($guide_id, $formattedDate) {
             // Check if data is already an array or a JSON string

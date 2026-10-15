@@ -14,6 +14,9 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             CitiesTableSeeder::class,
+            DayLevelJsonSeeder::class,
+            DayLevelAdditionalTransfersSeeder::class,
+            MillenniumIndonesiaServicesSeeder::class,
         ]);
     }
 }

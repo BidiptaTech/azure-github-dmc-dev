@@ -28,6 +28,9 @@ class Agency extends Model
         'logo',
         'status',
         'dmc_id',
+        'sales_dmc',
+        'special_discount',
+        'special_discount_type',
         'created_by',
         'updated_by',
     ];
@@ -35,6 +38,8 @@ class Agency extends Model
     protected $casts = [
         'branches' => 'array', // Cast JSON to array
         'dmc_id' => 'array', // Cast JSON to array
+        'sales_dmc' => 'array',
+        'special_discount' => 'decimal:2',
         'status' => 'boolean',
     ];
 
@@ -115,7 +120,25 @@ class Agency extends Model
             return $id != $dmcId;
         }));
         $this->dmc_id = $dmcIds;
+
+        $salesDmc = $this->sales_dmc ?? [];
+        unset($salesDmc[(string) $dmcId]);
+        $this->sales_dmc = empty($salesDmc) ? null : $salesDmc;
+
         $this->save();
+        return $this;
+    }
+
+    /**
+     * Assign the sales user responsible for this agency under a DMC.
+     */
+    public function setSalesDmcUser($dmcId, $userId)
+    {
+        $salesDmc = $this->sales_dmc ?? [];
+        $salesDmc[(string) $dmcId] = (int) $userId;
+        $this->sales_dmc = $salesDmc;
+        $this->save();
+
         return $this;
     }
 

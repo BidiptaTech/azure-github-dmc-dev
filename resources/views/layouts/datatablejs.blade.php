@@ -10,6 +10,10 @@
 <!-- DataTables Initialization Script -->
 <script>
     $(document).ready(function() {
+        // Skip if already initialized (booking pages call initializeDataTable themselves)
+        if ($.fn.DataTable && $.fn.DataTable.isDataTable('.datatables-basic')) {
+            return;
+        }
         // Initialize DataTable with export buttons
         $('.datatables-basic').DataTable({
             responsive: true,

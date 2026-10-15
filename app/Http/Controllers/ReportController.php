@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Helpers\CommonHelper;
 use App\Models\User;
 use App\Models\Country;
 use App\Models\Tour;
@@ -186,10 +187,9 @@ class ReportController extends Controller
     public function getToursByCountry($country)
     {
         try {
-            $tours = Tour::where('destination', $country)
-                        ->where('status', 1)
-                        ->with('booking')
-                        ->get();
+            $toursQuery = Tour::query()->where('status', 1);
+            CommonHelper::whereDestinationContainsCountry($toursQuery, (string) $country, 'destination');
+            $tours = $toursQuery->with('booking')->get();
 
             $alltours = $tours->map(function ($tour) {
                 $totalAmount = $tour->booking->sum(function ($order) {
@@ -279,12 +279,12 @@ class ReportController extends Controller
                 $enquiredToursQuery->where($dateFilter);
             }
             
-            // Apply country filter if provided
+            // Apply country filter if provided (supports multi-country destination CSV)
             if (!empty($country)) {
-                $completedToursQuery->where('destination', $country);
-                $progressToursQuery->where('destination', $country);
-                $cancelToursQuery->where('destination', $country);
-                $enquiredToursQuery->where('destination', $country);
+                CommonHelper::whereDestinationContainsCountry($completedToursQuery, $country, 'destination');
+                CommonHelper::whereDestinationContainsCountry($progressToursQuery, $country, 'destination');
+                CommonHelper::whereDestinationContainsCountry($cancelToursQuery, $country, 'destination');
+                CommonHelper::whereDestinationContainsCountry($enquiredToursQuery, $country, 'destination');
             }
             
             // Apply role and userType filters if provided

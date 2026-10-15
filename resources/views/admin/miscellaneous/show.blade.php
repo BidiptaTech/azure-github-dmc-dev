@@ -1,5 +1,6 @@
 @extends('layouts.layout')
 @section('title', 'View Miscellaneous Item')
+@php use Illuminate\Support\Facades\Crypt; @endphp
 
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
@@ -10,7 +11,7 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Item Details</h5>
                     <div>
-                        <a href="{{ route('miscellaneous.edit', $item->mis_id) }}" class="btn btn-sm btn-primary">
+                        <a href="{{ route('miscellaneous.edit', Crypt::encrypt($item->mis_id)) }}" class="btn btn-sm btn-primary">
                             <i class="ri-edit-line me-1"></i> Edit
                         </a>
                         <a href="{{ route('miscellaneous.index') }}" class="btn btn-sm btn-secondary">
@@ -21,7 +22,7 @@
                 <div class="card-body">
                     @if($item->image)
                         <div class="mb-3 text-center">
-                            <img src="{{ asset('storage/' . $item->image) }}" 
+                            <img src="{{ (str_starts_with($item->image, 'http') || str_starts_with($item->image, '/')) ? $item->image : asset('storage/' . $item->image) }}" 
                                  alt="{{ $item->item_name }}" 
                                  style="max-width: 100%; max-height: 300px; border-radius: 8px; border: 1px solid #ddd;">
                         </div>
@@ -118,10 +119,10 @@
             <div class="card">
                 <div class="card-body">
                     <div class="d-flex gap-2">
-                        <a href="{{ route('miscellaneous.edit', $item->mis_id) }}" class="btn btn-primary">
+                        <a href="{{ route('miscellaneous.edit', Crypt::encrypt($item->mis_id)) }}" class="btn btn-primary">
                             <i class="ri-edit-line me-1"></i> Edit Item
                         </a>
-                        <form action="{{ route('miscellaneous.destroy', $item->mis_id) }}" 
+                        <form action="{{ route('miscellaneous.destroy', Crypt::encrypt($item->mis_id)) }}" 
                               method="POST" 
                               style="display: inline;"
                               onsubmit="return confirm('Are you sure you want to delete this item? This will also remove it from all DMCs and cannot be undone.')">

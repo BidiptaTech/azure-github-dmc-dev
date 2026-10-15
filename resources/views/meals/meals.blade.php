@@ -13,13 +13,16 @@
                         <h5 class="card-title mb-0">Meals</h5>
                     </div>
 
-                    <div class="d-flex justify-content-between gap-3">
+                    <div class="d-flex justify-content-between gap-3 align-items-center flex-wrap">
                         <!-- Add New Meal Button -->
-                        @if(hasPermission('create meal'))
-                        <a href="{{ route('meals.create') }}" class="btn btn-primary btn-sm d-flex align-items-center gap-2">
-                            <i class="fas fa-plus"></i> Add New Meal Details
-                        </a>
-                        @endif
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            @if(hasPermission('create meal'))
+                            <a href="{{ route('meals.create') }}" class="btn btn-primary btn-sm d-flex align-items-center gap-2">
+                                <i class="fas fa-plus"></i> Add New Meal Details
+                            </a>
+                            @endif
+                            <x-currency-price-note />
+                        </div>
 
                         <!-- Export Dropdown Button -->
                         <div class="dropdown">
@@ -75,7 +78,7 @@
                                     @if($meal->type == 1)
                                         Buffet
                                     @elseif($meal->type == 2)
-                                        Set Buffet
+                                        Set Menu
                                     @elseif($meal->type == 3)
                                         A-La-carte
                                     @else
