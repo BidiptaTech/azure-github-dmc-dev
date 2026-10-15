@@ -50,6 +50,23 @@
         if ($transferCost <= 0) {
             $transferCost = (float) ($tf['cost'] ?? $tf['lineCost'] ?? 0);
         }
+        // Prefer top-level sell with DMC markup when vehicles still hold pre-markup line sell
+        if ($isPro) {
+            $markedSell = (float) (
+                ($tf['dmc_profile_markup']['price'] ?? 0)
+                ?: ($tf['totalPrice'] ?? $tf['sell'] ?? $tf['lineSell'] ?? 0)
+            );
+            $markedBase = (float) (
+                ($tf['dmc_profile_markup']['base_price'] ?? 0)
+                ?: ($tf['base_grand_total'] ?? 0)
+            );
+            if ($markedSell > 0 && (
+                ($markedBase > 0 && abs($transferSell - $markedBase) < 0.05)
+                || ($markedSell > $transferSell + 0.01)
+            )) {
+                $transferSell = $markedSell;
+            }
+        }
     }
     // Display total always prefers sell for Pro; legacy uses cost
     $transferDisplayTotal = $isPro ? $transferSell : (float) ($tf['cost'] ?? $tf['totalPrice'] ?? $transferSell);
@@ -106,6 +123,14 @@
                     $vChild = (int) ($v['child'] ?? $v['childQty'] ?? $v['children'] ?? 0);
                     $vInfant = (int) ($v['infant'] ?? $v['infantQty'] ?? $v['infants'] ?? 0);
                     $vLineSell = (float) ($v['lineSell'] ?? $v['line_sell'] ?? $v['totalPrice'] ?? $v['sell'] ?? 0);
+                    // If vehicle line is still base but top-level has markup, show marked line for single-vehicle
+                    if ($isPro && count($vehList) === 1 && $transferDisplayTotal > 0
+                        && abs($vLineSell - $transferDisplayTotal) > 0.01
+                        && !empty($tf['dmc_profile_markup']['price'])) {
+                        $vLineSell = (float) $transferDisplayTotal;
+                    } elseif ($isPro && !empty($v['dmc_profile_markup']['price'])) {
+                        $vLineSell = (float) $v['dmc_profile_markup']['price'];
+                    }
                     $vLineCost = (float) ($v['lineCost'] ?? $v['line_cost'] ?? $v['cost'] ?? 0);
                     $vPaxLabel = $vAdults . 'A / ' . $vChild . 'C';
                     if ($vInfant > 0) {

@@ -63,6 +63,23 @@
     if ($transferCost <= 0) {
         $transferCost = (float) ($tf['cost'] ?? $tf['lineCost'] ?? 0);
     }
+    // Prefer top-level sell with DMC markup when vehicles still hold pre-markup line sell
+    if ($isPro) {
+        $markedSell = (float) (
+            ($tf['dmc_profile_markup']['price'] ?? 0)
+            ?: ($tf['totalPrice'] ?? $tf['sell'] ?? $tf['lineSell'] ?? 0)
+        );
+        $markedBase = (float) (
+            ($tf['dmc_profile_markup']['base_price'] ?? 0)
+            ?: ($tf['base_grand_total'] ?? 0)
+        );
+        if ($markedSell > 0 && (
+            ($markedBase > 0 && abs($transferSell - $markedBase) < 0.05)
+            || ($markedSell > $transferSell + 0.01)
+        )) {
+            $transferSell = $markedSell;
+        }
+    }
     // Non-pro display total stays on cost path when no sell stored
     $transferPrice = $isPro ? $transferSell : (float) ($tf['cost'] ?? $tf['totalPrice'] ?? $transferSell);
 

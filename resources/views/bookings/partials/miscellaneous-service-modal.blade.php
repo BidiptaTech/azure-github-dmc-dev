@@ -41,14 +41,36 @@
                             @endif
                             @php
                                 $itemName = $booking['itemName'] ?? ($booking['item_name'] ?? 'Miscellaneous Item');
-                                $totalPrice = (float) ($booking['totalPrice'] ?? ($booking['total_price'] ?? 0));
                                 $adults = (int) ($booking['adultsQty'] ?? ($booking['adults_qty'] ?? 0));
                                 $children = (int) ($booking['childQty'] ?? ($booking['child_qty'] ?? 0));
                                 $infants = (int) ($booking['infantQty'] ?? ($booking['infant_qty'] ?? 0));
-                                $adultSell = $booking['adultSell'] ?? ($booking['adult_sell'] ?? null);
-                                $childSell = $booking['childSell'] ?? ($booking['child_sell'] ?? null);
-                                $infantSell = $booking['infantSell'] ?? ($booking['infant_sell'] ?? null);
-                                $hasUnitPrices = $adultSell !== null || $childSell !== null || $infantSell !== null;
+                                // Unit sells are BASE; marked units used for display after DMC other markup
+                                $adultSell = (float) ($booking['adultSellBase'] ?? $booking['adultSell'] ?? $booking['adult_sell'] ?? 0);
+                                $childSell = (float) ($booking['childSellBase'] ?? $booking['childSell'] ?? $booking['child_sell'] ?? 0);
+                                $infantSell = (float) ($booking['infantSellBase'] ?? $booking['infantSell'] ?? $booking['infant_sell'] ?? 0);
+                                $adultSellMarked = (float) ($booking['adultSellMarked'] ?? 0);
+                                $childSellMarked = (float) ($booking['childSellMarked'] ?? 0);
+                                $infantSellMarked = (float) ($booking['infantSellMarked'] ?? 0);
+                                $hasUnitPrices = $adultSell > 0 || $childSell > 0 || $infantSell > 0
+                                    || $adultSellMarked > 0 || $childSellMarked > 0 || $infantSellMarked > 0;
+
+                                $baseTotal = (float) (
+                                    ($booking['base_grand_total'] ?? null)
+                                    ?? ($booking['dmc_profile_markup']['base_price'] ?? null)
+                                    ?? 0
+                                );
+                                if ($baseTotal <= 0) {
+                                    $baseTotal = ($adultSell * $adults) + ($childSell * $children) + ($infantSell * $infants);
+                                }
+                                $totalPrice = (float) (
+                                    ($booking['dmc_profile_markup']['price'] ?? null)
+                                    ?? ($booking['totalPrice'] ?? $booking['total_price'] ?? null)
+                                    ?? 0
+                                );
+                                if ($totalPrice <= 0) {
+                                    $totalPrice = $baseTotal;
+                                }
+                                $markupAmount = (float) ($booking['dmc_profile_markup']['markup_amount'] ?? max(0, $totalPrice - $baseTotal));
 
                                 try {
                                     $dateLabel = !empty($booking['bookingDate'])
@@ -115,12 +137,28 @@
                                     <div class="svc-dl">
                                         @if($hasUnitPrices)
                                         <div class="svc-dl-row full">
-                                            <span class="svc-dl-label">Unit Prices</span>
-                                            <span class="svc-dl-value">Adult: {{ $adultSell ?? 0 }} / Child: {{ $childSell ?? 0 }} / Infant: {{ $infantSell ?? 0 }}</span>
+                                            <span class="svc-dl-label">Sell / Pax (base)</span>
+                                            <span class="svc-dl-value">Adult: {{ number_format($adultSell, 2) }} / Child: {{ number_format($childSell, 2) }} / Infant: {{ number_format($infantSell, 2) }}</span>
+                                        </div>
+                                        @if($adultSellMarked > 0 || $childSellMarked > 0 || $infantSellMarked > 0)
+                                        <div class="svc-dl-row full">
+                                            <span class="svc-dl-label">Markup / Pax</span>
+                                            <span class="svc-dl-value">Adult: {{ number_format($adultSellMarked ?: $adultSell, 2) }} / Child: {{ number_format($childSellMarked ?: $childSell, 2) }} / Infant: {{ number_format($infantSellMarked ?: $infantSell, 2) }}</span>
+                                        </div>
+                                        @endif
+                                        @endif
+                                        @if($baseTotal > 0 && abs($baseTotal - $totalPrice) > 0.01)
+                                        <div class="svc-dl-row full">
+                                            <span class="svc-dl-label">Sell total (base)</span>
+                                            <span class="svc-dl-value">{{ $currency }} {{ number_format($baseTotal, 2) }}</span>
+                                        </div>
+                                        <div class="svc-dl-row full">
+                                            <span class="svc-dl-label">Markup amount</span>
+                                            <span class="svc-dl-value">{{ $currency }} {{ number_format($markupAmount, 2) }}</span>
                                         </div>
                                         @endif
                                         <div class="svc-dl-row full">
-                                            <span class="svc-dl-label">Total</span>
+                                            <span class="svc-dl-label">Total (after markup)</span>
                                             <span class="svc-dl-value svc-amount" style="color:var(--svc-accent);">{{ $currency }} {{ number_format($totalPrice, 2) }}</span>
                                         </div>
                                     </div>
