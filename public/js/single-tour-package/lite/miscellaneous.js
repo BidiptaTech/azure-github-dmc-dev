@@ -153,7 +153,7 @@
         var el = card.querySelector('[data-misc-line-total]');
         if (!el) return;
         var foc = !!(card.querySelector('.misc-foc-discount') || {}).checked;
-        var total = calcCardTotal(card);
+        var total = foc ? 0 : calcCardTotal(card);
         el.textContent = foc ? 'FOC' : ((currency || 'SGD') + ' ' + money(total));
         el.classList.toggle('is-foc', foc);
     }
@@ -278,7 +278,7 @@
         var infantQty = preset && preset.infantQty != null ? preset.infantQty : defs.infants;
         var focOn = !!(preset && (preset.focServiceDiscount || preset.foc_service_discount));
         var isEditing = root.__editingIdx != null && root.__editingIdx >= 0;
-        var preview = rowTotal(adultsQty, adultP, childQty, childP, infantQty, infantP, focOn);
+        var previewTotal = rowTotal(adultsQty, adultP, childQty, childP, infantQty, infantP, focOn);
 
         host.classList.remove('d-none');
         host.innerHTML =
@@ -301,8 +301,8 @@
             '  </div>' +
             '  <div class="stp-lite-misc-card__foot">' +
             '    <div class="stp-lite-misc-card__total">' +
-            '      <span class="stp-lite-misc-card__total-label">Line total</span>' +
-            '      <strong data-misc-line-total>' + T.esc(cur) + ' ' + money(preview) + '</strong>' +
+            '      <span class="stp-lite-misc-card__total-label">Total Price</span>' +
+            '      <strong data-misc-line-total>' + T.esc(cur) + ' ' + money(previewTotal) + '</strong>' +
             '    </div>' +
             '    <div class="stp-lite-misc-card__actions">' +
             (isEditing

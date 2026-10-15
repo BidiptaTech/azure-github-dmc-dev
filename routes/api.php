@@ -5,6 +5,8 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Api\AiConfigController;
+use App\Http\Controllers\Api\BookingFinanceController;
+use App\Http\Controllers\Api\FinanceWebhookController;
 use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 /*
 |--------------------------------------------------------------------------
@@ -37,11 +39,39 @@ Route::get('/v1/external/receive', 'App\Http\Controllers\Api\ExternalApiReceiveC
 Route::get('/v1/external/received', 'App\Http\Controllers\Api\ExternalApiReceiveController@index')
     ->withoutMiddleware([\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class]);
 
+// Payment gateway webhook — public, signature-verified
+Route::post('/v1/finance/webhook/payment', [FinanceWebhookController::class, 'paymentCallback'])
+    ->withoutMiddleware([EnsureFrontendRequestsAreStateful::class]);
+
 // Simple test route to debug routing issues
 Route::get('/debug-test', function () {
     Log::info('API DEBUG ROUTE HIT - API routes working');
     return response()->json(['message' => 'API debug route working', 'time' => now()]);
 });
+
+// Outbound server IP check — hits https://api.attractionsg.com/whatismyip
+Route::get('/test-server-ip', function () {
+    $url = 'https://api.attractionsg.com/whatismyip';
+    try {
+        $response = Http::timeout(15)->get($url);
+        $ip = trim((string) $response->body());
+
+        return response()->json([
+            'ok' => $response->successful(),
+            'status' => $response->status(),
+            'server_outbound_ip' => $ip,
+            'source' => $url,
+            'checked_at' => now()->toDateTimeString(),
+        ], $response->successful() ? 200 : 502);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'ok' => false,
+            'error' => $e->getMessage(),
+            'source' => $url,
+            'checked_at' => now()->toDateTimeString(),
+        ], 500);
+    }
+})->withoutMiddleware([EnsureFrontendRequestsAreStateful::class]);
 
 Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::post('/update-profile', 'App\Http\Controllers\Api\LoginControllerApi@updateProfile');
@@ -130,7 +160,16 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::post('/save-service', 'App\Http\Controllers\OrderController@saveService');
 
     Route::get('/city-country', 'App\Http\Controllers\Api\CountryController@cityCountry');
-    
+
+    // Finance Microservice integration (Bearer via Laravel → Azure Functions)
+    Route::prefix('finance')->group(function () {
+        Route::post('/wallet/topup', [BookingFinanceController::class, 'walletTopup']);
+        Route::post('/wallet/booking', [BookingFinanceController::class, 'walletBooking']);
+        Route::post('/commission/calculate', [BookingFinanceController::class, 'calculateCommission']);
+        Route::post('/settlement/offline', [BookingFinanceController::class, 'offlineSettlement']);
+        Route::post('/payment/create', [BookingFinanceController::class, 'createOnlinePayment']);
+        Route::post('/refund', [BookingFinanceController::class, 'refund']);
+    });
 });
 
 Route::get('/get-payment-details', 'App\Http\Controllers\Api\PaymentController@getPaymentDetails');

@@ -34,10 +34,50 @@ use Illuminate\Support\Facades\Validator;
 use DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\Agency;
+use App\Services\Finance\BookingFinanceOrchestrator;
+use Illuminate\Http\JsonResponse;
 
 
 class TourController extends Controller
 {
+    /**
+     * Delegate to finance microservice when payment_mode is present on a confirmed booking.
+     */
+    protected function applyBookingFinance(Request $request, int $tourId, ?float $sellingPrice, array $response): array|JsonResponse
+    {
+        if ($request->bookingType !== 'booking' || ! $request->filled('payment_mode')) {
+            return $response;
+        }
+
+        $tour = Tour::where('tour_id', $tourId)->first();
+        if (! $tour) {
+            return $response;
+        }
+
+        try {
+            $financeResult = app(BookingFinanceOrchestrator::class)->processAfterBooking(
+                $tour,
+                $request,
+                (float) ($sellingPrice ?? $request->input('selling_price', 0))
+            );
+
+            if ($financeResult) {
+                $response['finance'] = $financeResult['data'] ?? $financeResult;
+            }
+        } catch (\RuntimeException $e) {
+            $statusCode = $e->getCode() >= 400 ? $e->getCode() : 500;
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'finance_error' => true,
+                'order' => $response['order'] ?? null,
+            ], $statusCode);
+        }
+
+        return $response;
+    }
+
     /*
     * Create Tour unique Id.
     * Date 28-11-2024
@@ -1291,8 +1331,13 @@ class TourController extends Controller
                             $response['tour_created'] = true;
                             $response['tour_data'] = $tourCreationData;
                         }
-                        
-                        return response()->json($response, 201);
+
+                        $financeResponse = $this->applyBookingFinance($request, $tour_id, (float) $totalPrice, $response);
+                        if ($financeResponse instanceof JsonResponse) {
+                            return $financeResponse;
+                        }
+
+                        return response()->json($financeResponse, 201);
                     
                 }
                 else{
@@ -1454,8 +1499,13 @@ class TourController extends Controller
                     $response['tour_created'] = true;
                     $response['tour_data'] = $tourCreationData;
                 }
-                
-                return response()->json($response, 201);
+
+                $financeResponse = $this->applyBookingFinance($request, $tour_id, (float) $totalPrice, $response);
+                if ($financeResponse instanceof JsonResponse) {
+                    return $financeResponse;
+                }
+
+                return response()->json($financeResponse, 201);
                 
             }
             else{
@@ -2653,8 +2703,14 @@ class TourController extends Controller
                         $response['tour_created'] = true;
                         $response['tour_data'] = $tourCreationData;
                     }
-                    
-                    return response()->json($response, 201);
+    
+                $sellingPrice = isset($totalPrice) ? (float) $totalPrice : (float) $request->input('selling_price', 0);
+                $financeResponse = $this->applyBookingFinance($request, $tour_id, $sellingPrice, $response);
+                if ($financeResponse instanceof JsonResponse) {
+                    return $financeResponse;
+                }
+
+                    return response()->json($financeResponse, 201);
                 }
             }
             else{

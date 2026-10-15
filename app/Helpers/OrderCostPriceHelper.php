@@ -79,6 +79,8 @@ class OrderCostPriceHelper
         $source = 'payload';
         if (in_array('view_details', $sources, true)) {
             $source = 'view_details';
+        } elseif (in_array('online', $sources, true)) {
+            $source = 'online';
         } elseif (in_array('database', $sources, true) && in_array('payload', $sources, true)) {
             $source = 'mixed';
         } elseif (in_array('database', $sources, true)) {
@@ -140,6 +142,66 @@ class OrderCostPriceHelper
         ];
     }
 
+    private static function isOnlineHotelItem(array $item): bool
+    {
+        if (! empty($item['isOnlineHotel'])) {
+            return true;
+        }
+        if (strtolower(trim((string) ($item['hotelSourceType'] ?? ''))) === 'online') {
+            return true;
+        }
+        if (strtolower(trim((string) ($item['priceMode'] ?? ''))) === 'online') {
+            return true;
+        }
+        $payload = is_array($item['price_payload'] ?? null) ? $item['price_payload'] : [];
+
+        return ! empty($payload['is_online']);
+    }
+
+    /**
+     * Online hotel: cost === sell (live API stay total).
+     */
+    private static function resolveOnlineHotelStayCost(array $item): float
+    {
+        $payload = is_array($item['price_payload'] ?? null) ? $item['price_payload'] : [];
+        $helper = is_array($item['helperPriceResult'] ?? null) ? $item['helperPriceResult'] : [];
+        $booking = is_array($item['onlineHotelBooking'] ?? null) ? $item['onlineHotelBooking'] : [];
+        $selection = is_array($booking['selection'] ?? null) ? $booking['selection'] : [];
+
+        $stay = self::firstNumeric($item, [
+            'grand_total', 'room_total', 'totalPrice', 'price',
+        ]);
+        if ($stay <= 0) {
+            $stay = self::firstNumeric($payload, ['grand_total', 'room_total']);
+        }
+        if ($stay <= 0) {
+            $stay = self::firstNumeric($helper, ['grand_total', 'room_total']);
+        }
+        if ($stay <= 0) {
+            $stay = self::firstNumeric($selection, ['price']);
+        }
+        if ($stay <= 0) {
+            $rooms = is_array($item['rooms'] ?? null) ? $item['rooms'] : [];
+            foreach ($rooms as $roomRow) {
+                if (! is_array($roomRow)) {
+                    continue;
+                }
+                $beds = is_array($roomRow['beds'] ?? null) ? $roomRow['beds'] : [];
+                foreach ($beds as $bed) {
+                    if (! is_array($bed)) {
+                        continue;
+                    }
+                    $bedPrice = self::firstNumeric($bed, ['price', 'cost', 'sell', 'cost_price']);
+                    if ($bedPrice > 0) {
+                        $stay += $bedPrice;
+                    }
+                }
+            }
+        }
+
+        return round(max(0.0, $stay), 2);
+    }
+
     private static function buildHotelCost(array $item): array
     {
         $components = [];
@@ -151,6 +213,38 @@ class OrderCostPriceHelper
         $weekendDays = self::resolveWeekendDays($hotelUniqueId);
 
         $rooms = is_array($item['rooms'] ?? null) ? $item['rooms'] : [];
+
+        // Online hotel (Pro + Lite): cost = sell stay total — no local room/rate rows.
+        if (self::isOnlineHotelItem($item)) {
+            $stayCost = self::resolveOnlineHotelStayCost($item);
+            if ($stayCost > 0) {
+                $roomLabel = trim((string) (
+                    $item['room_type']
+                    ?? $item['roomType']
+                    ?? ($rooms[0]['room_type'] ?? null)
+                    ?? $item['hotel_name']
+                    ?? $item['hotelName']
+                    ?? 'Online Hotel'
+                ));
+                $components[] = [
+                    'key' => 'room',
+                    'label' => $roomLabel !== '' ? $roomLabel : 'Online Hotel',
+                    'cost' => $stayCost,
+                    'meta' => [
+                        'hotel_id' => $item['hotel_unique_id'] ?? $item['hotel_id'] ?? null,
+                        'number_of_rooms' => max(1, (int) ($item['number_of_rooms'] ?? ($rooms[0]['number_of_rooms'] ?? 1))),
+                        'nights' => max(1, $nights),
+                        'is_online' => true,
+                        'cost_equals_sell' => true,
+                    ],
+                ];
+            }
+
+            return [
+                'components' => $components,
+                'source' => 'online',
+            ];
+        }
 
         // Prefer View-details snapshot from Pro create/edit (exact season/fair/blackout costs).
         $snapshot = is_array($item['lodging_cost_snapshot'] ?? null) ? $item['lodging_cost_snapshot'] : null;
@@ -583,7 +677,8 @@ class OrderCostPriceHelper
         $ticketId = $item['ticket_id'] ?? $item['ticketId'] ?? ($item['ticket_details']['ticket_id'] ?? null);
         $ticket = null;
         $isOnlineAttraction = ! empty($item['isOnlineAttraction'])
-            || strtolower((string) ($item['attractionSourceType'] ?? '')) === 'online';
+            || strtolower((string) ($item['attractionSourceType'] ?? '')) === 'online'
+            || strtolower((string) ($item['mode'] ?? '')) === 'online';
 
         // tickets.ticket_id is bigint. Online SKUs such as "SPPARK-premium" are not local ticket IDs.
         // Querying them inside an open PostgreSQL transaction aborts the txn (SQLSTATE 25P02 on the later orders insert).
@@ -595,6 +690,7 @@ class OrderCostPriceHelper
         $childUnit = 0.0;
         $infantUnit = 0.0;
         $seniorUnit = 0.0;
+        $ticketDetails = is_array($item['ticket_details'] ?? null) ? $item['ticket_details'] : [];
 
         if ($ticket) {
             $source = 'database';
@@ -612,7 +708,6 @@ class OrderCostPriceHelper
         }
 
         if ($adultUnit <= 0 && $childUnit <= 0 && $infantUnit <= 0 && $seniorUnit <= 0) {
-            $ticketDetails = is_array($item['ticket_details'] ?? null) ? $item['ticket_details'] : [];
             $adultUnit = self::firstNumeric($ticketDetails, ['adult_cost', 'adult_cost_price', 'adultCost'])
                 ?: self::firstNumeric($item, ['adultCost', 'adult_cost', 'adult_cost_price']);
             $childUnit = self::firstNumeric($ticketDetails, ['child_cost', 'child_cost_price', 'childCost'])
@@ -623,15 +718,41 @@ class OrderCostPriceHelper
                 ?: self::firstNumeric($item, ['seniorCost', 'senior_cost']);
         }
 
+        // Online attraction: cost === sell (live API unit prices / stay total).
+        if ($isOnlineAttraction) {
+            if ($adultUnit <= 0) {
+                $adultUnit = self::firstNumeric($ticketDetails, ['adult_price', 'adult_sell', 'adultSell'])
+                    ?: self::firstNumeric($item, ['adultSell', 'adult_sell', 'adult_price']);
+            }
+            if ($childUnit <= 0) {
+                $childUnit = self::firstNumeric($ticketDetails, ['child_price', 'child_sell', 'childSell'])
+                    ?: self::firstNumeric($item, ['childSell', 'child_sell', 'child_price']);
+            }
+            if ($infantUnit <= 0) {
+                $infantUnit = self::firstNumeric($ticketDetails, ['infant_price', 'infant_sell', 'infantSell'])
+                    ?: self::firstNumeric($item, ['infantSell', 'infant_sell', 'infant_price']);
+            }
+            if ($seniorUnit <= 0) {
+                $seniorUnit = self::firstNumeric($ticketDetails, ['senior_price', 'senior_adult_price', 'senior_sell'])
+                    ?: self::firstNumeric($item, ['seniorSell', 'senior_sell', 'senior_price']);
+            }
+            $source = 'online';
+        }
+
         $ticketCost = ($adultUnit * $adults) + ($childUnit * $children) + ($infantUnit * $infants) + ($seniorUnit * $seniors);
         if ($ticketCost <= 0) {
-            $sellTotal = self::firstNumeric($item, ['sell', 'totalPrice']);
+            $sellTotal = self::firstNumeric($item, ['sell', 'totalPrice', 'grand_total', 'price']);
             $maybeCost = self::firstNumeric($item, ['total_cost']);
             $topCost = self::firstNumeric($item, ['cost', 'Cost']);
-            // Do not treat ticket sell total as cost
-            if ($maybeCost > 0) {
+            if ($isOnlineAttraction && $sellTotal > 0) {
+                // Online: cost equals sell — use booking total as cost_price.
+                $ticketCost = $sellTotal;
+            } elseif ($maybeCost > 0) {
                 $ticketCost = $maybeCost;
             } elseif ($topCost > 0 && abs($topCost - $sellTotal) > 0.009) {
+                // Offline: do not treat ticket sell total as cost
+                $ticketCost = $topCost;
+            } elseif ($isOnlineAttraction && $topCost > 0) {
                 $ticketCost = $topCost;
             }
         }
@@ -653,6 +774,8 @@ class OrderCostPriceHelper
                     'infant_unit_cost' => $infantUnit,
                     'senior_unit_cost' => $seniorUnit,
                     'nri' => $isNri,
+                    'is_online' => $isOnlineAttraction,
+                    'cost_equals_sell' => $isOnlineAttraction,
                 ],
             ];
         }

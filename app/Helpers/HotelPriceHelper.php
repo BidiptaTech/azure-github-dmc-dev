@@ -380,6 +380,18 @@ class HotelPriceHelper
                 ? $childWithoutBedCostUnit * $children * $nightCount
                 : 0.0;
 
+            $baseGrandTotal = $roomTotal + $mealTotal + $childWithBedTotal + $childWithoutBedTotal;
+            // Profile markup from operating DMC (role 11) — works for sales/ops/multi-role via getDmcId().
+            $markupApply = CommonHelper::applyDmcProfileMarkup(
+                (float) $baseGrandTotal,
+                'hotel',
+                Auth::user(),
+                null
+            );
+            $hotelMarkupAmount = (float) ($markupApply['markup_amount'] ?? 0);
+            $roomTotalSell = $roomTotal + $hotelMarkupAmount;
+            $grandTotalSell = $baseGrandTotal + $hotelMarkupAmount;
+
             return [
                 'success'         => true,
                 'hotel_unique_id' => $hotelUniqueId,
@@ -398,7 +410,8 @@ class HotelPriceHelper
                 'extra_bed'       => $extraBed,
                 'nights'          => $nightCount,
                 'extra_bed_price' => round($extraBedPrice, 2),
-                'room_total'      => round($roomTotal, 2),
+                'room_total'      => round($roomTotalSell, 2),
+                'room_total_base' => round($roomTotal, 2),
                 'room_cost_total' => round($roomCostTotal, 2),
                 'fair_charge_total' => round($fairChargeTotal, 2),
                 'fair_nights'     => $fairNights,
@@ -430,7 +443,15 @@ class HotelPriceHelper
                     'lunch_price'     => round($roomLunch, 2),
                     'dinner_price'    => round($roomDinner, 2),
                 ],
-                'grand_total'     => round($roomTotal + $mealTotal + $childWithBedTotal + $childWithoutBedTotal, 2),
+                'base_grand_total' => round($baseGrandTotal, 2),
+                'dmc_profile_markup' => [
+                    'markup_kind' => 'hotel',
+                    'markup_type' => $markupApply['markup_type'] ?? 'percentage',
+                    'markup_value' => (float) ($markupApply['markup_value'] ?? 0),
+                    'markup_amount' => $hotelMarkupAmount,
+                    'dmc_id' => $markupApply['dmc_id'] ?? null,
+                ],
+                'grand_total'     => round($grandTotalSell, 2),
                 'grand_cost_total'=> round($roomCostTotal + $mealCostTotal + $childWithBedCostTotal + $childWithoutBedCostTotal, 2),
                 'breakdown'       => $breakdown,
             ];

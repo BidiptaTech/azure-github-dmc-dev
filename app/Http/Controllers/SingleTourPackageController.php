@@ -39,6 +39,7 @@ use App\Models\PackagedAttraction;
 use App\Services\ApiEnvironmentResolver;
 use App\Services\HotelSuppliers\OnlineHotelAggregator;
 use App\Services\HotelSuppliers\OnlineHotelCancellationService;
+use App\Services\AttractionSuppliers\OnlineAttractionCancellationService;
 use App\Services\AttractionSuppliers\OnlineAttractionAggregator;
 use App\Services\AttractionSuppliers\OnlineAttractionOrderService;
 use App\Services\EnquiryAmountTopUpService;
@@ -710,7 +711,14 @@ class SingleTourPackageController extends Controller
         try {
             $requestTourId = (int) $request->input('tour_id', 0);
 
-            $orderQuery = Order::where('booking_id', $id);
+            $orderQuery = Order::query();
+            if (is_numeric($id) && (int) $id > 0) {
+                $orderQuery->where(function ($q) use ($id) {
+                    $q->where('booking_id', $id)->orWhere('id', (int) $id);
+                });
+            } else {
+                $orderQuery->where('booking_id', $id);
+            }
             if ($requestTourId > 0) {
                 $orderQuery->where('tour_id', $requestTourId);
             }
@@ -719,19 +727,28 @@ class SingleTourPackageController extends Controller
             $tourId = (int) $order->tour_id;
             $tour = Tour::where('tour_id', $tourId)->first();
             $tourStatus = $tour ? $tour->tour_status : null;
+            $cancelReason = trim((string) $request->input('cancel_reason', ''));
+            $voucherCancelResult = null;
 
             // Cancel with the supplier before soft-deleting so a failed API call
             // does not leave a live reservation while the local order is gone.
             try {
                 app(OnlineHotelCancellationService::class)->cancelIfApplicable($order);
+                $voucherCancelResult = app(OnlineAttractionCancellationService::class)
+                    ->cancelIfApplicable($order, $cancelReason !== '' ? $cancelReason : null);
             } catch (\Throwable $e) {
-                Log::error('Online hotel supplier cancellation failed during order remove', [
+                Log::error('Online supplier cancellation failed during order remove', [
                     'order_id' => $order->id,
                     'booking_id' => $order->booking_id,
                     'order_type' => $order->order_type ?? null,
+                    'type' => $order->type ?? null,
                     'error' => $e->getMessage(),
                     'previous' => $e->getPrevious()?->getMessage(),
                 ]);
+
+                $label = (($order->type ?? '') === 'attraction')
+                    ? 'online attraction voucher'
+                    : 'online hotel';
 
                 // Keep supplier product names out of the API response shown in the UI.
                 $publicMessage = $e instanceof \RuntimeException
@@ -740,7 +757,13 @@ class SingleTourPackageController extends Controller
 
                 return response()->json([
                     'success' => false,
-                    'message' => $publicMessage,
+                    'message' => 'Failed to cancel the ' . $label . ' with the supplier: ' . $e->getMessage(),
+                    'data' => [
+                        'voucher_cancel' => [
+                            'success' => false,
+                            'message' => $e->getMessage(),
+                        ],
+                    ],
                 ], 422);
             }
 
@@ -788,9 +811,23 @@ class SingleTourPackageController extends Controller
                 CommonHelper::maybeRevertTourStatusToNewEnquiry($tourId);
             });
 
+            $message = 'Order cancelled successfully';
+            if (is_array($voucherCancelResult) && ! empty($voucherCancelResult['success'])) {
+                $message = 'Online attraction voucher cancelled and booking removed successfully.';
+                if (! empty($voucherCancelResult['message'])) {
+                    $message .= ' ' . $voucherCancelResult['message'];
+                }
+            }
+
             return response()->json([
                 'success' => true,
-                'message' => 'Order cancelled successfully'
+                'message' => $message,
+                'data' => [
+                    'voucher_cancel' => $voucherCancelResult,
+                    'voucher_code' => is_array($voucherCancelResult)
+                        ? ($voucherCancelResult['voucher_code'] ?? null)
+                        : null,
+                ],
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -2070,6 +2107,11 @@ class SingleTourPackageController extends Controller
             if (($order->order_type ?? '') === 'online' || ! empty($order->booking_details)) {
                 $row['isOnlineHotel'] = true;
                 $row['hotelSourceType'] = 'online';
+            }
+            $row['is_approve'] = (int) ($order->is_approve ?? 0) === 1;
+            $row['order_type'] = $order->order_type ?? ($row['order_type'] ?? null);
+            if (empty($row['voucher_code']) && is_array($row)) {
+                $row['voucher_code'] = \App\Services\AttractionSuppliers\OnlineAttractionOrderService::extractPrimaryVoucherCode($row);
             }
             // Keep order bookingType on hydrate so edit-save does not reset Definite → enquiry
             if (empty($row['bookingType']) && !empty($order->bookingType)) {
@@ -6377,6 +6419,13 @@ class SingleTourPackageController extends Controller
                             }
                             
                         } elseif ($type === 'attraction') {
+                            // Call Attractions /order/create outside the per-row loop (Lite + Pro parity).
+                            // Reuses existing/cached order_ref_id so retries do not duplicate external orders.
+                            $attractionExternalRefs = $this->createOnlineAttractionExternalOrders(
+                                $decodedData,
+                                (int) $tourId
+                            );
+
                             // For attractions, store each attraction as a separate order
                             foreach ($decodedData as $attractionIndex => $attraction) {
                                 // Ensure attraction has proper price field (use totalPrice from frontend calculation)

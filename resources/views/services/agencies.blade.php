@@ -59,11 +59,18 @@
                                 <th>Location</th>
                                 <th>Contact</th>
                                 <th>Branches</th>
+                                <th>Special Discount</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody id="selectedAgenciesBody">
                             @foreach(($selectedAgencies ?? []) as $agency)
+                                @php
+                                    $discountType = in_array($agency->special_discount_type, ['percentage', 'flat'], true)
+                                        ? $agency->special_discount_type
+                                        : 'percentage';
+                                    $discountValue = (int) ($agency->special_discount ?? 0);
+                                @endphp
                                 <tr class="selected-agency-row" data-agency-id="{{ $agency->agency_id }}" data-name="{{ strtolower($agency->agency_name) }}" data-location="{{ strtolower($agency->city) }}, {{ strtolower($agency->country) }}">
                                     <td>
                                         <div class="d-flex align-items-center">
@@ -99,17 +106,41 @@
                                             {{ $agency->total_branches == 1 ? 'Location' : 'Locations' }}
                                         </span>
                                     </td>
+                                    <td class="special-discount-cell">
+                                        <div class="special-discount-shell">
+                                            <div class="special-discount-toggle" role="group" aria-label="Discount type">
+                                                <button type="button"
+                                                        class="special-discount-toggle-btn {{ $discountType === 'percentage' ? 'active' : '' }}"
+                                                        data-type="percentage"
+                                                        title="Percentage">%</button>
+                                                <button type="button"
+                                                        class="special-discount-toggle-btn {{ $discountType === 'flat' ? 'active' : '' }}"
+                                                        data-type="flat"
+                                                        title="Flat">Flat</button>
+                                            </div>
+                                            <input type="hidden" class="special-discount-type" value="{{ $discountType }}">
+                                            <input type="number" class="form-control form-control-sm special-discount-value"
+                                                   value="{{ $discountValue }}" min="0" step="1" inputmode="numeric"
+                                                   placeholder="0" aria-label="Discount value">
+                                            <button type="button" class="btn btn-sm btn-primary save-special-discount-btn"
+                                                    data-agency-id="{{ $agency->agency_id }}" title="Save special discount">
+                                                <i class="ri-check-line"></i>
+                                            </button>
+                                        </div>
+                                    </td>
                                     <td>
                                         <div class="btn-group" role="group">
                                             <a href="{{ route('agencies.show', Crypt::encrypt($agency->agency_id)) }}" 
-                                               class="btn btn-sm btn-outline-primary">
-                                                <i class="ri-eye-line me-1"></i>View
+                                               class="btn btn-sm btn-icon btn-outline-primary"
+                                               title="View" aria-label="View">
+                                                <i class="ri-eye-line"></i>
                                             </a>
                                             <button type="button" 
-                                                    class="btn btn-sm btn-outline-danger remove-agency-btn" 
+                                                    class="btn btn-sm btn-icon btn-outline-danger remove-agency-btn" 
                                                     data-agency-id="{{ $agency->agency_id }}"
-                                                    data-agency-name="{{ $agency->agency_name }}">
-                                                <i class="ri-delete-bin-line me-1"></i>Remove
+                                                    data-agency-name="{{ $agency->agency_name }}"
+                                                    title="Remove" aria-label="Remove">
+                                                <i class="ri-delete-bin-line"></i>
                                             </button>
                                         </div>
                                     </td>
@@ -182,6 +213,8 @@
                                  data-email="{{ $agency->email }}"
                                  data-phone="{{ $agency->phone }}"
                                  data-total-branches="{{ $agency->total_branches }}"
+                                 data-special-discount-type="{{ in_array($agency->special_discount_type, ['percentage', 'flat'], true) ? $agency->special_discount_type : 'percentage' }}"
+                                 data-special-discount="{{ (int) ($agency->special_discount ?? 0) }}"
                                  data-view-url="{{ route('agencies.show', Crypt::encrypt($agency->agency_id)) }}"
                                  data-agency-name="{{ strtolower($agency->agency_name) }}"
                                  data-country="{{ strtolower($agency->country) }}"
@@ -357,6 +390,86 @@
     background-color: #4d7c0f;
     border-color: #4d7c0f;
 }
+
+.special-discount-cell {
+    width: 250px;
+    min-width: 250px;
+    vertical-align: middle;
+}
+
+.special-discount-shell {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem;
+    border: 1px solid #e7e7ff;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #f8f8ff 0%, #f3f4ff 100%);
+    box-shadow: 0 1px 2px rgba(105, 108, 255, 0.08);
+}
+
+.special-discount-toggle {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px;
+    border-radius: 999px;
+    background: #eef0ff;
+}
+
+.special-discount-toggle-btn {
+    border: 0;
+    background: transparent;
+    color: #697a8d;
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1;
+    padding: 0.35rem 0.55rem;
+    border-radius: 999px;
+    min-width: 34px;
+    transition: all 0.15s ease;
+}
+
+.special-discount-toggle-btn:hover {
+    color: #5a5fe0;
+}
+
+.special-discount-toggle-btn.active {
+    background: #fff;
+    color: #696cff;
+    box-shadow: 0 1px 3px rgba(105, 108, 255, 0.2);
+}
+
+.special-discount-shell .special-discount-value {
+    width: 68px;
+    border: 0;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: inset 0 0 0 1px #e4e6f4;
+    text-align: center;
+    font-weight: 600;
+    color: #566a7f;
+    height: 30px;
+    padding: 0.2rem 0.4rem;
+}
+
+.special-discount-shell .special-discount-value:focus {
+    box-shadow: inset 0 0 0 1px #696cff, 0 0 0 0.15rem rgba(105, 108, 255, 0.15);
+}
+
+.special-discount-shell .save-special-discount-btn {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 6px rgba(105, 108, 255, 0.25);
+}
+
+.special-discount-shell .save-special-discount-btn:hover {
+    transform: translateY(-1px);
+}
 </style>
 
 <script>
@@ -364,6 +477,7 @@ let currentAgencyId = null;
 let pendingAgencySelection = null;
 const defaultAgencyCountry = '{{ strtolower(auth()->user()->country ?? '') }}';
 const csrfToken = '{{ csrf_token() }}';
+const specialDiscountUpdateUrl = '{{ route('services.agencies.special-discount') }}';
 let selectedAgenciesPaginator = null;
 
 function escapeHtml(text) {
@@ -408,6 +522,8 @@ function buildSelectedAgencyRowFromItem(item) {
     const phone = item.getAttribute('data-phone') || '';
     const branches = parseInt(item.getAttribute('data-total-branches') || '0', 10);
     const viewUrl = item.getAttribute('data-view-url') || '#';
+    const discountType = item.getAttribute('data-special-discount-type') || 'percentage';
+    const discountValue = item.getAttribute('data-special-discount') || '0';
     const branchLabel = `${branches} ${branches === 1 ? 'Location' : 'Locations'}`;
     const logoHtml = logo
         ? `<img src="${escapeHtml(logo)}" alt="${escapeHtml(name)} Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 4px;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><i class="ri-building-line text-muted" style="display: none;"></i>`
@@ -428,16 +544,79 @@ function buildSelectedAgencyRowFromItem(item) {
         <td>${escapeHtml(city)}, ${escapeHtml(country)}</td>
         <td><small class="d-block">${escapeHtml(email)}</small><small class="text-muted">${escapeHtml(phone)}</small></td>
         <td><span class="badge bg-label-info">${escapeHtml(branchLabel)}</span></td>
+        <td class="special-discount-cell">
+            <div class="special-discount-shell">
+                <div class="special-discount-toggle" role="group" aria-label="Discount type">
+                    <button type="button" class="special-discount-toggle-btn ${discountType === 'percentage' ? 'active' : ''}" data-type="percentage" title="Percentage">%</button>
+                    <button type="button" class="special-discount-toggle-btn ${discountType === 'flat' ? 'active' : ''}" data-type="flat" title="Flat">Flat</button>
+                </div>
+                <input type="hidden" class="special-discount-type" value="${escapeHtml(discountType)}">
+                <input type="number" class="form-control form-control-sm special-discount-value"
+                       value="${escapeHtml(String(parseInt(discountValue, 10) || 0))}" min="0" step="1" inputmode="numeric"
+                       placeholder="0" aria-label="Discount value">
+                <button type="button" class="btn btn-sm btn-primary save-special-discount-btn"
+                        data-agency-id="${escapeHtml(agencyId)}" title="Save special discount">
+                    <i class="ri-check-line"></i>
+                </button>
+            </div>
+        </td>
         <td>
             <div class="btn-group" role="group">
-                <a href="${viewUrl}" class="btn btn-sm btn-outline-primary"><i class="ri-eye-line me-1"></i>View</a>
-                <button type="button" class="btn btn-sm btn-outline-danger remove-agency-btn"
-                        data-agency-id="${escapeHtml(agencyId)}" data-agency-name="${escapeHtml(name)}">
-                    <i class="ri-delete-bin-line me-1"></i>Remove
+                <a href="${viewUrl}" class="btn btn-sm btn-icon btn-outline-primary" title="View" aria-label="View"><i class="ri-eye-line"></i></a>
+                <button type="button" class="btn btn-sm btn-icon btn-outline-danger remove-agency-btn"
+                        data-agency-id="${escapeHtml(agencyId)}" data-agency-name="${escapeHtml(name)}"
+                        title="Remove" aria-label="Remove">
+                    <i class="ri-delete-bin-line"></i>
                 </button>
             </div>
         </td>`;
     return row;
+}
+
+async function saveSpecialDiscount(btn) {
+    const row = btn.closest('.selected-agency-row');
+    if (!row) return;
+
+    const agencyId = btn.getAttribute('data-agency-id');
+    const typeSelect = row.querySelector('.special-discount-type');
+    const valueInput = row.querySelector('.special-discount-value');
+    const type = typeSelect ? typeSelect.value : 'percentage';
+    const value = valueInput ? Math.max(0, parseInt(valueInput.value, 10) || 0) : 0;
+    if (valueInput) valueInput.value = value;
+
+    btn.disabled = true;
+    try {
+        const response = await fetch(specialDiscountUpdateUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+            },
+            body: JSON.stringify({
+                agency_id: agencyId,
+                special_discount_type: type,
+                special_discount: value,
+            }),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Failed to update special discount.');
+        }
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({ icon: 'success', title: 'Saved', text: data.message, timer: 1500, showConfirmButton: false });
+        } else {
+            alert(data.message || 'Special discount updated.');
+        }
+    } catch (error) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({ icon: 'error', title: 'Error', text: error.message || 'Failed to update special discount.' });
+        } else {
+            alert(error.message || 'Failed to update special discount.');
+        }
+    } finally {
+        btn.disabled = false;
+    }
 }
 
 function addAgencyToSelectedTable(item) {
@@ -683,7 +862,31 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    document.addEventListener('input', function(event) {
+        const valueInput = event.target.closest('.special-discount-value');
+        if (!valueInput || !document.getElementById('selectedAgenciesBody')?.contains(valueInput)) return;
+        valueInput.value = String(valueInput.value || '').replace(/[^\d]/g, '');
+    });
+
     document.addEventListener('click', function(event) {
+        const typeBtn = event.target.closest('.special-discount-toggle-btn');
+        if (typeBtn && document.getElementById('selectedAgenciesBody')?.contains(typeBtn)) {
+            const shell = typeBtn.closest('.special-discount-shell');
+            if (shell) {
+                shell.querySelectorAll('.special-discount-toggle-btn').forEach(btn => btn.classList.remove('active'));
+                typeBtn.classList.add('active');
+                const typeInput = shell.querySelector('.special-discount-type');
+                if (typeInput) typeInput.value = typeBtn.getAttribute('data-type') || 'percentage';
+            }
+            return;
+        }
+
+        const saveDiscountBtn = event.target.closest('.save-special-discount-btn');
+        if (saveDiscountBtn && document.getElementById('selectedAgenciesBody')?.contains(saveDiscountBtn)) {
+            saveSpecialDiscount(saveDiscountBtn);
+            return;
+        }
+
         const removeBtn = event.target.closest('.remove-agency-btn');
         if (!removeBtn || !document.getElementById('selectedAgenciesBody')?.contains(removeBtn)) return;
         currentAgencyId = removeBtn.getAttribute('data-agency-id');

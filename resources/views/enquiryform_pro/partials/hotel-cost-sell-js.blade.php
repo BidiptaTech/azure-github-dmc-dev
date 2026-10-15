@@ -88,6 +88,10 @@
     .ep-pd-total-label { font-size: 10px; color: #64748b; font-weight: 600; text-transform: uppercase; }
     .ep-pd-total-cost { font-size: 15px; font-weight: 700; color: #475569; }
     .ep-pd-total-sell { font-size: 15px; font-weight: 700; color: #198754; }
+    .ep-pd-night-amt { font-size: 13px; font-weight: 700; color: #0f172a; white-space: nowrap; }
+    .ep-pd-formula { color: #64748b; font-size: 11px; margin-top: 3px; line-height: 1.4; }
+    .ep-pd-comp { color: #15803d; font-weight: 600; }
+    .ep-mk-summary-row.is-markup .ep-mk-amt { color: #7c3aed; font-weight: 700; }
 </style>
 <script>
 (function () {
@@ -113,6 +117,92 @@
             .replace(/&/g, '&amp;').replace(/</g, '&lt;')
             .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
+
+    function epMoney(cur, amount) {
+        return String(cur || 'SGD') + ' ' + epFmt(amount);
+    }
+
+    function epRoomsSuffix(rooms) {
+        rooms = Math.max(1, parseInt(rooms, 10) || 1);
+        return ' × ' + rooms + ' room' + (rooms > 1 ? 's' : '');
+    }
+
+    function epNightsSuffix(nights) {
+        nights = Math.max(1, parseInt(nights, 10) || 1);
+        return ' × ' + nights + ' night' + (nights > 1 ? 's' : '');
+    }
+
+    function epMealPaxForSource(source, combo) {
+        if (typeof enquiryProMealPaxPerRoomForHotel === 'function') {
+            const v = parseInt(enquiryProMealPaxPerRoomForHotel(source || combo), 10);
+            if (Number.isFinite(v) && v > 0) return v;
+        }
+        const raw = parseInt((source && source.mealPax) || (combo && combo.mealPax) || (combo && combo.maxOccupancy) || 1, 10);
+        return Math.max(1, Number.isFinite(raw) ? raw : 1);
+    }
+
+    /** Apply DMC hotel markup to stay sell (not cost). Same rule Lite uses for Total Price. */
+    window.enquiryProHotelSellWithMarkup = function (baseTotal) {
+        const base = Math.max(0, Number(baseTotal) || 0);
+        if (typeof enquiryProApplyDmcMarkup === 'function') {
+            return enquiryProApplyDmcMarkup(base, 'hotel');
+        }
+        return {
+            base_price: Math.round(base * 100) / 100,
+            markup_amount: 0,
+            price: Math.round(base * 100) / 100,
+            markup_type: 'percentage',
+            markup_value: 0,
+            markup_kind: 'hotel',
+            dmc_id: null
+        };
+    };
+
+    /**
+     * Stamp marked-up sell onto hotel order JSON (Lite: totalPrice / grand_total / dmc_profile_markup).
+     * baseTotal must be BEFORE DMC hotel markup. On edit re-save, callers may accidentally pass the
+     * already-marked saved total — peel back using base_grand_total / dmc_profile_markup when present.
+     */
+    window.enquiryProAttachHotelMarkupFields = function (hotelData, baseTotal) {
+        hotelData = hotelData || {};
+        let base = Math.max(0, Number(baseTotal) || 0);
+        const storedBase = parseFloat(
+            hotelData.base_grand_total != null ? hotelData.base_grand_total
+                : (hotelData.dmc_profile_markup && hotelData.dmc_profile_markup.base_price)
+        );
+        const storedMarked = parseFloat(
+            (hotelData.dmc_profile_markup && hotelData.dmc_profile_markup.price != null)
+                ? hotelData.dmc_profile_markup.price
+                : (hotelData._savedMarkedTotal != null ? hotelData._savedMarkedTotal : NaN)
+        );
+        // Edit preserve path: totalPrice arg equals previous marked grand total → use stored base
+        if (Number.isFinite(storedBase) && storedBase > 0
+            && Number.isFinite(storedMarked) && storedMarked > 0
+            && Math.abs(base - storedMarked) < 0.05) {
+            base = storedBase;
+        } else if (Number.isFinite(storedBase) && storedBase > 0
+            && Math.abs(base - storedBase) < 0.05) {
+            base = storedBase;
+        } else if (hotelData._hotelTotalIncludesMarkup === true && base > 0
+            && typeof window.enquiryProSplitDmcMarkupFromFinal === 'function') {
+            base = window.enquiryProSplitDmcMarkupFromFinal(base, 'hotel').base_price;
+        }
+        const applied = window.enquiryProHotelSellWithMarkup(base);
+        hotelData.totalPrice = applied.price;
+        hotelData.price = applied.price;
+        hotelData.grand_total = applied.price;
+        hotelData.grand_total_with_cot = applied.price;
+        hotelData.base_grand_total = applied.base_price;
+        hotelData.dmc_profile_markup = applied;
+        hotelData.price_payload = Object.assign({}, hotelData.price_payload || {}, {
+            base_grand_total: applied.base_price,
+            grand_total: applied.price,
+            dmc_profile_markup: applied
+        });
+        delete hotelData._hotelTotalIncludesMarkup;
+        delete hotelData._savedMarkedTotal;
+        return applied;
+    };
 
     function epMealFlags(combo) {
         if (typeof enquiryProMealPlanFlagsFromCombo === 'function') {
@@ -349,6 +439,15 @@
         if (sellInput && !sellUserEdited) sellInput.value = epFmt(combo.sell);
     };
 
+    function epIsOnlineHotelSource(source) {
+        return !!(source && (
+            source.isOnlineHotel
+            || source.hotelSourceType === 'online'
+            || source.priceMode === 'online'
+            || source.onlineHotelBooking
+        ));
+    }
+
     window.enquiryProBuildHotelPriceBreakdown = function (source) {
         const combo = {
             roomData: source?.roomData || source?.bedData || {},
@@ -363,10 +462,111 @@
             rooms: source?.rooms || 1
         };
         const dates = epDatesForSource(source, combo);
+
+        // Online hotels have no DMC weekday/season catalog — use stored avg cost/sell (equal) per night.
+        if (epIsOnlineHotelSource(source)) {
+            const nCount = Math.max(1, dates.length || parseInt(source.nights, 10) || 0);
+            const stayDates = dates.length ? dates : Array.from({ length: nCount }, function (_, i) {
+                return 'Night ' + (i + 1);
+            });
+            const rooms = Math.max(1, parseInt(source.rooms || combo.rooms || 1, 10) || 1);
+            let perNight = parseFloat(source.avgCost || source.avgSell || source.cost || source.sell || source.roomPrice || 0) || 0;
+            const stayTotal = parseFloat(source.totalPrice || source.grand_total || 0) || 0;
+            if (!(perNight > 0) && stayTotal > 0 && stayDates.length > 0) {
+                perNight = stayTotal / stayDates.length;
+            }
+            perNight = Math.round(perNight * 100) / 100;
+            const nights = stayDates.map(function (d, i) {
+                const dt = String(d || '');
+                const isIso = /^\d{4}-\d{2}-\d{2}/.test(dt);
+                const dateObj = isIso ? new Date(dt.substring(0, 10) + 'T12:00:00') : null;
+                const weekend = dateObj && typeof isWeekendDate === 'function' ? isWeekendDate(dateObj, []) : false;
+                return {
+                    date: isIso ? dt.substring(0, 10) : dt,
+                    day: weekend ? 'Weekend' : 'Weekday',
+                    eventType: 'Online',
+                    eventName: 'Live API',
+                    roomCostBase: perNight,
+                    roomCost: perNight,
+                    costSurcharge: 0,
+                    mealCost: 0,
+                    breakfastCost: 0,
+                    lunchCost: 0,
+                    dinnerCost: 0,
+                    cost: perNight,
+                    roomSellBase: perNight,
+                    surcharge: 0,
+                    roomSell: perNight,
+                    mealSell: 0,
+                    breakfast: 0,
+                    lunch: 0,
+                    dinner: 0,
+                    sell: perNight
+                };
+            });
+            // Online totalPrice is already stay total for all rooms — don't multiply rooms again
+            const avg = perNight;
+            const stay = stayTotal > 0
+                ? Math.round(stayTotal * 100) / 100
+                : Math.round(perNight * nights.length * 100) / 100;
+            const roomStay = stay;
+            // Prefer stored markup from online booking; else apply DMC hotel profile
+            let markup = null;
+            const storedMk = source.dmc_profile_markup
+                || (source.price_payload && source.price_payload.dmc_profile_markup)
+                || (source.onlineHotelBooking && source.onlineHotelBooking.markup)
+                || null;
+            if (storedMk && Number(storedMk.markup_amount || 0) > 0) {
+                markup = {
+                    base_price: Math.max(0, stay - Number(storedMk.markup_amount || 0)),
+                    markup_amount: Number(storedMk.markup_amount || 0),
+                    price: stay,
+                    markup_type: storedMk.markup_type || 'percentage',
+                    markup_value: Number(storedMk.markup_value || 0),
+                    markup_kind: 'hotel',
+                    dmc_id: storedMk.dmc_id || null
+                };
+            } else if (typeof enquiryProApplyDmcMarkup === 'function') {
+                // Treat current stay as base and show marked-up total (Lite Get Price parity)
+                markup = enquiryProApplyDmcMarkup(stay, 'hotel');
+            } else {
+                markup = { base_price: stay, markup_amount: 0, price: stay, markup_type: 'percentage', markup_value: 0 };
+            }
+            return {
+                combo,
+                nights,
+                avgCost: avg,
+                avgSell: avg,
+                staySellTotal: markup.base_price != null ? markup.base_price : stay,
+                stayCostTotal: stay,
+                roomCostTotal: roomStay,
+                roomSellTotal: markup.base_price != null ? markup.base_price : roomStay,
+                mealCostTotal: 0,
+                mealSellTotal: 0,
+                fairSellTotal: 0,
+                fairCostTotal: 0,
+                rooms: rooms,
+                dmcMarkup: markup
+            };
+        }
+
         const rates = epRatesForSource(combo);
+        const rooms = Math.max(1, parseInt(source?.rooms || combo.rooms || 1, 10) || 1);
+        const mealPax = epMealPaxForSource(source, combo);
+        const breakfastComp = epBreakfastComplimentary(combo);
         const nights = dates.map(d => {
             const cost = enquiryProLodgingPriceForNight(combo, d, rates, true);
             const sell = enquiryProLodgingPriceForNight(combo, d, rates, false);
+            const bfSellRoom = (sell.breakfast || 0) * mealPax;
+            const lnSellRoom = (sell.lunch || 0) * mealPax;
+            const dnSellRoom = (sell.dinner || 0) * mealPax;
+            const mealSellRoom = bfSellRoom + lnSellRoom + dnSellRoom;
+            const nightSellRoom = (sell.room || 0) + mealSellRoom;
+            const bfCostRoom = (cost.breakfast || 0) * mealPax;
+            const lnCostRoom = (cost.lunch || 0) * mealPax;
+            const dnCostRoom = (cost.dinner || 0) * mealPax;
+            const mealCostRoom = bfCostRoom + lnCostRoom + dnCostRoom;
+            const nightCostRoom = (cost.room || 0) + mealCostRoom;
             return {
                 date: d,
                 day: cost.isWeekend ? 'Weekend' : 'Weekday',
@@ -387,24 +587,67 @@
                 breakfast: sell.breakfast,
                 lunch: sell.lunch,
                 dinner: sell.dinner,
-                sell: sell.price
+                sell: sell.price,
+                breakfastSellRoom: bfSellRoom,
+                lunchSellRoom: lnSellRoom,
+                dinnerSellRoom: dnSellRoom,
+                mealSellRoom: mealSellRoom,
+                nightSellRoom: nightSellRoom,
+                breakfastCostRoom: bfCostRoom,
+                lunchCostRoom: lnCostRoom,
+                dinnerCostRoom: dnCostRoom,
+                mealCostRoom: mealCostRoom,
+                nightCostRoom: nightCostRoom
             };
         });
         const avgCost = nights.length ? nights.reduce((s, n) => s + n.cost, 0) / nights.length : 0;
         const avgSellRaw = nights.length ? nights.reduce((s, n) => s + n.sell, 0) / nights.length : 0;
+        const roomSellStay = nights.reduce((s, n) => s + (n.roomSellBase || 0), 0) * rooms;
+        const roomCostStay = nights.reduce((s, n) => s + (n.roomCostBase || 0), 0) * rooms;
+        const lunchSellStay = nights.reduce((s, n) => s + (n.lunchSellRoom || 0), 0) * rooms;
+        const dinnerSellStay = nights.reduce((s, n) => s + (n.dinnerSellRoom || 0), 0) * rooms;
+        const breakfastSellStay = nights.reduce((s, n) => s + (n.breakfastSellRoom || 0), 0) * rooms;
+        const lunchCostStay = nights.reduce((s, n) => s + (n.lunchCostRoom || 0), 0) * rooms;
+        const dinnerCostStay = nights.reduce((s, n) => s + (n.dinnerCostRoom || 0), 0) * rooms;
+        const breakfastCostStay = nights.reduce((s, n) => s + (n.breakfastCostRoom || 0), 0) * rooms;
+        const fairSellStay = nights.reduce((s, n) => s + (n.surcharge || 0), 0) * rooms;
+        const staySellLite = nights.reduce((s, n) => s + (n.nightSellRoom || 0), 0) * rooms;
+        const stayCostLite = nights.reduce((s, n) => s + (n.nightCostRoom || 0), 0) * rooms;
+        let staySellBase = staySellLite;
+        if (typeof enquiryProHotelPayloadTotalPrice === 'function' && source && (source.roomData || source.bedData || source.mealPlan)) {
+            const payloadBase = enquiryProHotelPayloadTotalPrice(source, rooms, nights.length || parseInt(source.nights, 10) || 1);
+            if (Number(payloadBase) > 0) staySellBase = Number(payloadBase);
+        }
+        const markup = (typeof window.enquiryProHotelSellWithMarkup === 'function')
+            ? window.enquiryProHotelSellWithMarkup(staySellBase)
+            : { base_price: staySellBase, markup_amount: 0, price: staySellBase, markup_type: 'percentage', markup_value: 0 };
         return {
             combo,
             nights,
+            mealPax,
+            breakfastComp,
             avgCost: Math.round(avgCost * 100) / 100,
             avgSell: epRoundSell(avgSellRaw),
-            staySellTotal: nights.reduce((s, n) => s + n.sell, 0),
-            stayCostTotal: nights.reduce((s, n) => s + n.cost, 0),
-            roomCostTotal: nights.reduce((s, n) => s + n.roomCost, 0),
-            roomSellTotal: nights.reduce((s, n) => s + n.roomSell, 0),
-            mealCostTotal: nights.reduce((s, n) => s + n.mealCost, 0),
-            mealSellTotal: nights.reduce((s, n) => s + n.mealSell, 0),
-            fairSellTotal: nights.reduce((s, n) => s + (n.surcharge || 0), 0),
-            fairCostTotal: nights.reduce((s, n) => s + (n.costSurcharge || 0), 0)
+            staySellTotal: staySellLite,
+            stayCostTotal: stayCostLite,
+            staySellAllRooms: staySellLite,
+            stayCostAllRooms: stayCostLite,
+            roomCostTotal: roomCostStay,
+            roomSellTotal: roomSellStay,
+            mealCostTotal: breakfastCostStay + lunchCostStay + dinnerCostStay,
+            mealSellTotal: breakfastSellStay + lunchSellStay + dinnerSellStay,
+            breakfastSellStay,
+            lunchSellStay,
+            dinnerSellStay,
+            breakfastCostStay,
+            lunchCostStay,
+            dinnerCostStay,
+            fairSellTotal: fairSellStay,
+            fairCostTotal: nights.reduce((s, n) => s + (n.costSurcharge || 0), 0) * rooms,
+            rooms: rooms,
+            staySellBase,
+            addonSell: Math.max(0, Math.round((Number(staySellBase) - Number(staySellLite)) * 100) / 100),
+            dmcMarkup: markup
         };
     };
 
@@ -649,94 +892,169 @@
 
     window.enquiryProRenderHotelPriceDetailsHtml = function (source) {
         const data = enquiryProBuildHotelPriceBreakdown(source);
-        const rooms = Math.max(1, parseInt(source?.rooms || data.combo.rooms || 1, 10) || 1);
+        const rooms = Math.max(1, parseInt(source?.rooms || data.rooms || data.combo.rooms || 1, 10) || 1);
+        const nightCount = data.nights.length || 1;
         const title = [source?.hotelName, source?.roomType || data.combo.roomType, source?.mealPlanLabel || data.combo.mealPlanLabel]
             .filter(Boolean).join(' · ') || 'Selected room';
         const stayLabel = data.nights.length
             ? `${data.nights.length} night${data.nights.length > 1 ? 's' : ''}${rooms > 1 ? ' · ' + rooms + ' rooms' : ''}`
             : '';
+        let cur = 'SGD';
+        if (source?.currency) cur = String(source.currency).toUpperCase();
+        else if (typeof resolveServiceCurrency === 'function') cur = String(resolveServiceCurrency(source || {}) || cur).toUpperCase();
+        else if (typeof getEnquiryProPrimaryCurrency === 'function') cur = String(getEnquiryProPrimaryCurrency() || cur).toUpperCase();
+
+        const roomUnit = nightCount > 0 ? (Number(data.roomSellTotal || 0) / nightCount / rooms) : 0;
+        const lunchUnit = nightCount > 0 ? (Number(data.lunchSellStay || 0) / nightCount / rooms) : 0;
+        const dinnerUnit = nightCount > 0 ? (Number(data.dinnerSellStay || 0) / nightCount / rooms) : 0;
+        const breakfastUnit = nightCount > 0 ? (Number(data.breakfastSellStay || 0) / nightCount / rooms) : 0;
+        const fairUnit = nightCount > 0 ? (Number(data.fairSellTotal || 0) / nightCount / rooms) : 0;
+        const roomSuffix = epRoomsSuffix(rooms);
+        const roomsCut = rooms > 1 ? (' × ' + rooms + ' rooms') : '';
 
         const nightCards = data.nights.map((n, i) => {
             const sellParts = [];
-            if (n.roomSellBase > 0) sellParts.push(`Room ${epFmt(n.roomSellBase)}`);
-            if (n.surcharge > 0) sellParts.push(`Fair ${epFmt(n.surcharge)}`);
-            if (n.breakfast > 0) sellParts.push(`Breakfast ${epFmt(n.breakfast)}`);
-            if (n.lunch > 0) sellParts.push(`Lunch ${epFmt(n.lunch)}`);
-            if (n.dinner > 0) sellParts.push(`Dinner ${epFmt(n.dinner)}`);
-
             const costParts = [];
-            if (n.roomCostBase > 0) costParts.push(`Room ${epFmt(n.roomCostBase)}`);
-            if (n.costSurcharge > 0) costParts.push(`Fair ${epFmt(n.costSurcharge)}`);
-            if (n.breakfastCost > 0) costParts.push(`Breakfast ${epFmt(n.breakfastCost)}`);
-            if (n.lunchCost > 0) costParts.push(`Lunch ${epFmt(n.lunchCost)}`);
-            if (n.dinnerCost > 0) costParts.push(`Dinner ${epFmt(n.dinnerCost)}`);
+            if (n.eventType === 'Online') {
+                sellParts.push('Online room ' + epFmt(n.sell));
+                costParts.push('Online room ' + epFmt(n.cost));
+            } else {
+                if ((n.roomSellBase || n.roomSell) > 0) sellParts.push('Room ' + epFmt(n.roomSellBase || n.roomSell));
+                if ((n.roomCostBase || n.roomCost) > 0) costParts.push('Room ' + epFmt(n.roomCostBase || n.roomCost));
+            }
+            if (n.surcharge > 0) sellParts.push('Fair ' + epFmt(n.surcharge));
+            if (n.costSurcharge > 0) costParts.push('Fair ' + epFmt(n.costSurcharge));
+            if (!data.breakfastComp && (n.breakfastSellRoom || 0) > 0) sellParts.push('Breakfast ' + epFmt(n.breakfastSellRoom));
+            if (!data.breakfastComp && (n.breakfastCostRoom || 0) > 0) costParts.push('Breakfast ' + epFmt(n.breakfastCostRoom));
+            if ((n.lunchSellRoom || 0) > 0) sellParts.push('Lunch ' + epFmt(n.lunchSellRoom));
+            if ((n.lunchCostRoom || 0) > 0) costParts.push('Lunch ' + epFmt(n.lunchCostRoom));
+            if ((n.dinnerSellRoom || 0) > 0) sellParts.push('Dinner ' + epFmt(n.dinnerSellRoom));
+            if ((n.dinnerCostRoom || 0) > 0) costParts.push('Dinner ' + epFmt(n.dinnerCostRoom));
 
+            const nightSellRoom = n.nightSellRoom != null ? n.nightSellRoom : n.sell;
+            const nightCostRoom = n.nightCostRoom != null ? n.nightCostRoom : n.cost;
+            const nightSellAll = Math.round(nightSellRoom * rooms * 100) / 100;
+            const nightCostAll = Math.round(nightCostRoom * rooms * 100) / 100;
             const sellCut = sellParts.length
-                ? epCutParts(sellParts) + ` = ${epFmt(n.sell)}`
+                ? epCutParts(sellParts) + ' = ' + epFmt(nightSellRoom) + roomsCut
                 : '';
             const costCut = costParts.length
-                ? epCutParts(costParts) + ` = ${epFmt(n.cost)}`
+                ? epCutParts(costParts) + ' = ' + epFmt(nightCostRoom) + roomsCut
                 : '';
-
+            const dateLabel = String(n.date || '');
+            const dayLabel = String(n.day || '');
             return `
                 <div class="ep-pd-night">
                     <div class="ep-pd-night-top">
                         <div>
                             <div class="ep-pd-night-meta">
-                                N${i + 1} · ${epEscape(n.date)} (${epEscape(n.day)})
+                                N${i + 1} · ${epEscape(dateLabel)}${dayLabel ? ' (' + epEscape(dayLabel) + ')' : ''}
                                 ${epEventBadge(n.eventType, n.eventName)}
                             </div>
                             ${sellCut ? `<div class="ep-pd-cut"><span style="color:#15803d;font-weight:600;">Sell:</span> ${sellCut}</div>` : ''}
                             ${costCut ? `<div class="ep-pd-cut"><span style="color:#64748b;font-weight:600;">Cost:</span> ${costCut}</div>` : ''}
+                            <div class="ep-pd-formula" style="margin-top:4px;">
+                                Room ${epEscape(epMoney(cur, n.roomSellBase || n.roomSell || 0))}/night${roomSuffix}
+                                ${(n.lunchSellRoom || 0) > 0 ? ' + Lunch ' + epEscape(epMoney(cur, n.lunchSellRoom)) + '/night' + roomSuffix : ''}
+                                ${(n.dinnerSellRoom || 0) > 0 ? ' + Dinner ' + epEscape(epMoney(cur, n.dinnerSellRoom)) + '/night' + roomSuffix : ''}
+                                ${!data.breakfastComp && (n.breakfastSellRoom || 0) > 0 ? ' + Breakfast ' + epEscape(epMoney(cur, n.breakfastSellRoom)) + '/night' + roomSuffix : ''}
+                                ${(n.surcharge || 0) > 0 ? ' + Fair ' + epEscape(epMoney(cur, n.surcharge)) + '/night' + roomSuffix : ''}
+                            </div>
                         </div>
                         <div class="ep-pd-night-totals">
-                            <div class="ep-pd-c">C ${epFmt(n.cost)}</div>
-                            <div class="ep-pd-s">S ${epFmt(n.sell)}</div>
+                            <div class="ep-pd-c">C ${epFmt(nightCostAll)}</div>
+                            <div class="ep-pd-s">S ${epFmt(nightSellAll)}</div>
+                            <div class="ep-pd-night-amt" style="margin-top:4px;">${epEscape(epMoney(cur, nightSellAll))}</div>
                         </div>
                     </div>
                 </div>`;
         }).join('');
 
+        const markup = data.dmcMarkup || window.enquiryProHotelSellWithMarkup(
+            data.staySellBase != null ? data.staySellBase : (data.staySellAllRooms || data.staySellTotal || 0)
+        );
+        const csRow = function (label, costAmt, sellAmt) {
+            return '<div class="ep-pd-summary-row"><span style="color:#475569;"><strong>' + label + '</strong></span>'
+                + '<span>C ' + epFmt(costAmt || 0) + ' · <span style="color:#198754;font-weight:600;">S ' + epFmt(sellAmt || 0) + '</span></span></div>';
+        };
+        const formulaRow = function (labelHtml, amount) {
+            return '<div class="ep-pd-summary-row"><span>' + labelHtml + '</span><strong>' + epEscape(epMoney(cur, amount)) + '</strong></div>';
+        };
+
+        let costSellRows = '';
+        costSellRows += csRow('Room cost:', data.roomCostTotal, data.roomSellTotal);
+        if ((data.fairSellTotal || 0) > 0 || (data.fairCostTotal || 0) > 0) {
+            costSellRows += '<div class="ep-pd-summary-row"><span style="color:#b45309;"><strong>Fair charge:</strong></span>'
+                + '<span style="color:#b45309;font-weight:600;">C ' + epFmt(data.fairCostTotal || 0)
+                + ' · S ' + epFmt(data.fairSellTotal || 0) + '</span></div>';
+        }
+        if ((data.mealCostTotal || 0) > 0 || (data.mealSellTotal || 0) > 0) {
+            costSellRows += csRow('Meals:', data.mealCostTotal, data.mealSellTotal);
+        }
+        costSellRows += '<div class="ep-pd-summary-row"><span style="color:#64748b;"><strong>Avg / night / room:</strong></span>'
+            + '<span>C ' + epFmt(data.avgCost) + ' · <span style="color:#198754;font-weight:700;">S ' + epFmt(data.avgSell) + '</span></span></div>';
+
+        let sellTotalRows = '';
+        sellTotalRows += formulaRow(
+            '<strong>Room Cost</strong> ' + epEscape(epMoney(cur, roomUnit)) + '/night' + epNightsSuffix(nightCount) + roomSuffix,
+            data.roomSellTotal || 0
+        );
+        if ((data.fairSellTotal || 0) > 0) {
+            sellTotalRows += formulaRow(
+                '<strong>Fair Charge</strong> ' + epEscape(epMoney(cur, fairUnit)) + '/night' + epNightsSuffix(nightCount) + roomSuffix,
+                data.fairSellTotal
+            );
+        }
+        if (data.breakfastComp) {
+            sellTotalRows += '<div class="ep-pd-summary-row"><span><strong>Breakfast (Meal)</strong></span><span class="ep-pd-comp">Included (complementary)</span></div>';
+        } else if ((data.breakfastSellStay || 0) > 0) {
+            sellTotalRows += formulaRow(
+                '<strong>Breakfast (Meal)</strong> ' + epEscape(epMoney(cur, breakfastUnit)) + '/night' + epNightsSuffix(nightCount) + roomSuffix,
+                data.breakfastSellStay
+            );
+        }
+        if ((data.lunchSellStay || 0) > 0) {
+            sellTotalRows += formulaRow(
+                '<strong>Lunch</strong> ' + epEscape(epMoney(cur, lunchUnit)) + '/night' + epNightsSuffix(nightCount) + roomSuffix,
+                data.lunchSellStay
+            );
+        }
+        if ((data.dinnerSellStay || 0) > 0) {
+            sellTotalRows += formulaRow(
+                '<strong>Dinner</strong> ' + epEscape(epMoney(cur, dinnerUnit)) + '/night' + epNightsSuffix(nightCount) + roomSuffix,
+                data.dinnerSellStay
+            );
+        }
+        if ((data.addonSell || 0) > 0.009) {
+            sellTotalRows += formulaRow(
+                '<strong>Add-ons</strong> <small class="text-muted">(extra bed / CWB / CNB / cot)</small>',
+                data.addonSell
+            );
+        }
+
+        const markupSummaryHtml = (typeof enquiryProDmcMarkupSummaryHtml === 'function')
+            ? enquiryProDmcMarkupSummaryHtml(markup, cur)
+            : '';
+
         return `
             <div class="ep-pd-wrap">
                 <div class="ep-pd-title">
                     <strong style="color:#1e293b;">${epEscape(title)}</strong>
-                    ${stayLabel ? `<span class="text-muted"> · ${epEscape(stayLabel)}</span>` : ''}
+                    ${stayLabel ? `<span class="text-muted"> — Price breakdown · ${epEscape(stayLabel)}</span>` : ''}
                 </div>
 
-                <div class="ep-pd-section-label">Per-night price cut</div>
+                <div class="ep-pd-section-label">Room rate / night</div>
                 ${nightCards || '<div class="text-muted text-center py-3">No stay dates selected</div>'}
 
-                <div class="ep-pd-section-label">Summary</div>
+                <div class="ep-pd-section-label">Cost &amp; Sell</div>
                 <div class="ep-pd-summary">
-                    <div class="ep-pd-summary-row">
-                        <span style="color:#475569;"><strong>Room (stay):</strong></span>
-                        <span>C ${epFmt(data.roomCostTotal)} · <span style="color:#198754;font-weight:600;">S ${epFmt(data.roomSellTotal)}</span></span>
-                    </div>
-                    ${data.fairSellTotal > 0 || data.fairCostTotal > 0 ? `
-                    <div class="ep-pd-summary-row">
-                        <span style="color:#b45309;"><strong>Fair charge:</strong></span>
-                        <span style="color:#b45309;font-weight:600;">C ${epFmt(data.fairCostTotal)} · S ${epFmt(data.fairSellTotal)}</span>
-                    </div>` : ''}
-                    ${(data.mealCostTotal > 0 || data.mealSellTotal > 0) ? `
-                    <div class="ep-pd-summary-row">
-                        <span style="color:#475569;"><strong>Meals:</strong></span>
-                        <span>C ${epFmt(data.mealCostTotal)} · <span style="color:#198754;font-weight:600;">S ${epFmt(data.mealSellTotal)}</span></span>
-                    </div>` : ''}
-                    <div class="ep-pd-summary-row">
-                        <span style="color:#475569;"><strong>Avg / night:</strong></span>
-                        <span>C ${epFmt(data.avgCost)} · <span style="color:#198754;font-weight:700;">S ${epFmt(data.avgSell)}</span></span>
-                    </div>
-                    <div class="ep-pd-total-row">
-                        <div class="ep-pd-total-box">
-                            <div class="ep-pd-total-label">Stay cost</div>
-                            <div class="ep-pd-total-cost">${epFmt(data.stayCostTotal)}</div>
-                        </div>
-                        <div class="ep-pd-total-box" style="text-align:right;">
-                            <div class="ep-pd-total-label">Stay sell</div>
-                            <div class="ep-pd-total-sell">${epFmt(data.staySellTotal)}</div>
-                        </div>
-                    </div>
+                    ${costSellRows}
+                </div>
+
+                <div class="ep-pd-section-label">Total (sell + markup)</div>
+                <div class="ep-pd-summary">
+                    ${sellTotalRows}
+                    ${markupSummaryHtml ? `<div style="margin-top:8px;">${markupSummaryHtml}</div>` : ''}
                 </div>
             </div>`;
     };
@@ -766,6 +1084,7 @@
     }
 
     window.enquiryProHotelNeedsCatalogEnrich = function (hotel) {
+        if (epIsOnlineHotelSource(hotel)) return false;
         const room = hotel?.roomData || {};
         const weekday = epNum(room.weekday_price || room.weekdayPrice, 0);
         const doubleWd = epNum(room.double_weekday_price || room.doubleWeekdayPrice, 0);
@@ -829,6 +1148,7 @@
     window.enquiryProEnrichHotelCatalogPricing = async function (hotel, options) {
         const opts = options || {};
         if (!hotel) return hotel;
+        if (epIsOnlineHotelSource(hotel)) return hotel;
         const preserveStored = opts.preserveStoredPricing === true
             || !!(hotel.orderId || hotel.bookingId || hotel.savedSelectedMeals || hotel.savedTotalPrice);
         const needs = enquiryProHotelNeedsCatalogEnrich(hotel);
@@ -932,16 +1252,25 @@
         };
 
         // --- Sell: explicit per-night fields from create (beds.price / avgSell) ---
+        // Prefer avgSell over price/sell so a wrongly-stored stay total in price cannot win.
         let sell = pickPositive([
-            bed.avgSell, bed.sell, bed.price,
-            src.avgSell, src.sell
+            bed.avgSell, src.avgSell,
+            bed.sell, bed.price,
+            src.sell
         ]);
-        const totalPrice = parseFloat(src.totalPrice || 0) || 0;
-        // top-level price/totalPrice are stay totals
-        if (!sell && totalPrice > 0) {
-            sell = round2(totalPrice / stayFactor);
-        } else if (sell && totalPrice > 0 && Math.abs(sell - totalPrice) < 0.02) {
-            sell = round2(totalPrice / stayFactor);
+        const totalPrice = parseFloat(src.totalPrice || src.grand_total_with_cot || src.price || 0) || 0;
+        const baseGrand = parseFloat(
+            src.base_grand_total
+            ?? (src.dmc_profile_markup && src.dmc_profile_markup.base_price)
+            ?? 0
+        ) || 0;
+        // Prefer BASE stay total when deriving per-night (never use marked grand as listing Sell)
+        const staySellTotal = (baseGrand > 0 ? baseGrand : 0) || totalPrice;
+        if (!sell && staySellTotal > 0 && stayFactor > 0) {
+            sell = round2(staySellTotal / stayFactor);
+        } else if (sell && staySellTotal > 0 && Math.abs(sell - staySellTotal) < 0.02) {
+            // bed.price / data.sell accidentally equals stay grand total
+            sell = round2(staySellTotal / stayFactor);
         }
         sell = round2(sell);
 

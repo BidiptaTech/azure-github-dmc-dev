@@ -8805,7 +8805,12 @@ function loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, 
                 approvalFile: attractionData.approval_file || null,
                 currency: attractionData.currency || window.bookingCurrency || 'SGD',
                 country: attractionData.country || '',
-                vouchers: attractionData.vouchers || []
+                vouchers: attractionData.vouchers || [],
+                voucher_code: attractionData.voucher_code || null,
+                voucher_download_link: attractionData.voucher_download_link || null,
+                is_online_attraction: !!attractionData.is_online_attraction,
+                order_type: attractionData.order_type || null,
+                attractionSourceType: attractionData.attractionSourceType || null
             };
             
             console.log('✅ Attraction booking data prepared for display', attractionBooking);
@@ -8846,11 +8851,14 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
 
     let actionsHtml = '';
     if (preApproved) {
-        actionsHtml = '<span class="svc-status-pill is-approved"><i class="ri-check-line"></i> Approved' +
-            (attractionBooking.referenceId ? (' · Ref: ' + (attractionBooking.referenceId || '')) : '') +
-            (attractionBooking.displayDueDate ? (' · Due: ' + (attractionBooking.displayDueDate || '')) : '') +
-            '</span>' +
-            '<button type="button" class="btn btn-sm svc-btn" style="border:1px solid #0ea5e9;color:#0369a1;" onclick="openAttractionMailPreview(' + tourId + ', ' + attractionOrderIndex + ', ' + bookingIndex + ')"><i class="ri-mail-line me-1"></i>Mail Preview</button>';
+        actionsHtml = (typeof window.buildApprovedAttractionActionsHtml === 'function')
+            ? window.buildApprovedAttractionActionsHtml(tourId, attractionOrderIndex, bookingIndex, attractionBooking)
+            : ('<span class="svc-status-pill is-approved"><i class="ri-check-line"></i> Approved' +
+                (attractionBooking.referenceId ? (' · Ref: ' + (attractionBooking.referenceId || '')) : '') +
+                (attractionBooking.displayDueDate ? (' · Due: ' + (attractionBooking.displayDueDate || '')) : '') +
+                '</span>' +
+                '<button type="button" class="btn btn-sm svc-btn" style="border:1px solid #0ea5e9;color:#0369a1;" onclick="openAttractionMailPreview(' + tourId + ', ' + attractionOrderIndex + ', ' + bookingIndex + ')"><i class="ri-mail-line me-1"></i>Mail Preview</button>' +
+                '<button type="button" class="btn btn-sm btn-outline-secondary svc-btn" onclick="openAttractionFilesModal(\'' + tourId + '\', \'' + attractionOrderIndex + '\', \'' + bookingIndex + '\')" title="View and manage uploaded files"><i class="ri-file-list-3-line me-1"></i>View Files</button>');
     } else {
         actionsHtml = '<div class="d-flex gap-1 flex-wrap" id="' + actionsHostId + '"></div>';
     }
@@ -8867,7 +8875,15 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
         })
         : '<div class="alert alert-warning">Attraction details renderer unavailable.</div>';
 
-    document.getElementById(modalId + '_content').innerHTML = content;
+    const contentEl = document.getElementById(modalId + '_content');
+    contentEl.innerHTML = content;
+    if (preApproved && typeof window.mountAttractionDetailsVouchers === 'function') {
+        window.mountAttractionDetailsVouchers(contentEl, attractionBooking, {
+            tourId: tourId,
+            attractionOrderIndex: attractionOrderIndex,
+            bookingIndex: bookingIndex
+        });
+    }
 
     // Add action buttons based on user role and approval status
     const isApproved = attractionBooking.isApprove == 1 || attractionBooking.isApprove === '1' || attractionBooking.isApprove === true || attractionBooking.is_approve == 1 || attractionBooking.is_approve === '1' || attractionBooking.is_approve === true || false;
@@ -28812,6 +28828,9 @@ input[type="file"].form-control:hover {
     background: linear-gradient(45deg, #667eea, #764ba2);
 }
 </style>
+
+{{-- Re-include last so reject/voucher overrides win over earlier inline definitions --}}
+@include('bookings.partials.attraction-voucher-scripts')
 
 @endsection
 

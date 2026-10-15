@@ -28,6 +28,8 @@ use App\Models\Setting;
 use App\Helpers\CommonHelper;
 use App\Helpers\HotelPriceHelper;
 use App\Mail\TravclicksMail;
+use App\Services\ApiEnvironmentResolver;
+use App\Services\AttractionSuppliers\OnlineAttractionOrderService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -48,6 +50,14 @@ class EnquiryFormPro extends Controller
     private float $proFallbackMarkupValue = 0;
 
     private string $proFallbackMarkupType = '';
+
+    private float $proFallbackHotelMarkup = 0;
+
+    private float $proFallbackOtherMarkup = 0;
+
+    private string $proFallbackHotelMarkupType = '';
+
+    private string $proFallbackOtherMarkupType = '';
 
     private float $proFallbackDiscountValue = 0;
 
@@ -388,19 +398,139 @@ class EnquiryFormPro extends Controller
         $attributes['country'] = $geo['country'];
         $attributes['currency'] = $geo['currency'];
 
-        // Per-currency / per-city markup/discount for multi-city (fallback to footer active values)
+        // Per-currency / per-city markup/discount — hotel vs other from DMC profile (Lite parity)
         $md = $this->lookupProCurrencyMarkup($geo['currency'] ?? null, $geo['city'] ?? null);
         $orderType = strtolower(trim((string) ($attributes['type'] ?? '')));
         $isHotelOrder = in_array($orderType, ['hotel', 'hotels', 'accommodation'], true);
         $markupForOrder = $isHotelOrder
             ? (float) ($md['hotel_markup'] ?? $md['markup_value'] ?? 0)
             : (float) ($md['other_markup'] ?? $md['markup_value'] ?? 0);
+        $markupTypeForOrder = $isHotelOrder
+            ? (string) ($md['hotel_markup_type'] ?? $md['markup_type'] ?? '')
+            : (string) ($md['other_markup_type'] ?? $md['markup_type'] ?? '');
         $attributes['discount'] = $md['discount_value'];
         $attributes['discount_type'] = $md['discount_type'] !== '' ? $md['discount_type'] : null;
         $attributes['markup_percentage'] = $markupForOrder;
-        $attributes['markup_type'] = $md['markup_type'] !== '' ? $md['markup_type'] : null;
+        $attributes['markup_type'] = $markupTypeForOrder !== '' ? $markupTypeForOrder : null;
 
         return Order::create($attributes);
+    }
+
+    /**
+     * Resolve whether a hotel/attraction order was booked online or offline (Lite parity).
+     *
+     * @param  array<string, mixed>  $item
+     */
+    private function resolveServiceOrderType(array $item, string $serviceType): string
+    {
+        if ($serviceType === 'hotel') {
+            if (! empty($item['isOnlineHotel']) || ($item['hotelSourceType'] ?? '') === 'online'
+                || strtolower((string) ($item['priceMode'] ?? '')) === 'online') {
+                return 'online';
+            }
+
+            return 'offline';
+        }
+
+        if ($serviceType === 'attraction') {
+            if (! empty($item['isOnlineAttraction']) || ($item['attractionSourceType'] ?? '') === 'online'
+                || strtolower((string) ($item['mode'] ?? '')) === 'online') {
+                return 'online';
+            }
+
+            return 'offline';
+        }
+
+        return 'offline';
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     */
+    private function resolveStoredApiEnvironment(array $item): ?string
+    {
+        $resolver = app(ApiEnvironmentResolver::class);
+        $stored = $resolver->storedEnvironment($item);
+
+        if ($stored !== null) {
+            return $stored;
+        }
+
+        if (empty($item['isOnlineHotel']) && ($item['hotelSourceType'] ?? '') !== 'online'
+            && empty($item['isOnlineAttraction']) && ($item['attractionSourceType'] ?? '') !== 'online') {
+            return null;
+        }
+
+        try {
+            return $resolver->resolve();
+        } catch (\RuntimeException) {
+            return $resolver->normalize('demo');
+        }
+    }
+
+    /**
+     * Call Attractions /order/create (Lite parity). Prefer outside heavy DB work;
+     * reuses existing/cached order_ref_id so retries do not duplicate external orders.
+     *
+     * @param  list<mixed>  $attractions
+     * @return array<int, string|null>
+     */
+    private function createOnlineAttractionExternalOrders(array $attractions, int $tourId): array
+    {
+        $refs = [];
+        $service = app(OnlineAttractionOrderService::class);
+
+        foreach ($attractions as $index => $attraction) {
+            if (! is_array($attraction) || ! OnlineAttractionOrderService::isOnlineAttraction($attraction)) {
+                $refs[$index] = null;
+                continue;
+            }
+
+            $existing = OnlineAttractionOrderService::extractSavedRef((object) [
+                'order_ref_no' => $attraction['order_ref_no'] ?? null,
+            ], $attraction);
+            if ($existing !== null) {
+                $refs[$index] = $existing;
+                continue;
+            }
+
+            $result = $service->createOrder($attraction, $tourId);
+            $ref = $result['order_ref_id'] ?? null;
+            $ref = (is_string($ref) && $ref !== '' && ! OnlineAttractionOrderService::isPlaceholderRef($ref))
+                ? $ref
+                : null;
+
+            if ($ref !== null) {
+                $refs[$index] = $ref;
+                continue;
+            }
+
+            throw new \RuntimeException(
+                'Failed to create online attraction order: '
+                . ($result['message'] ?? 'missing order_ref_id from Attractions API')
+            );
+        }
+
+        return $refs;
+    }
+
+    /**
+     * Persist API order_ref_no onto the order row (and force-write if cast/save skipped it).
+     */
+    private function applyOrderRefNo(Order $order, ?string $externalRef): void
+    {
+        if ($externalRef === null || $externalRef === '' || OnlineAttractionOrderService::isPlaceholderRef($externalRef)) {
+            return;
+        }
+
+        $order->refresh();
+        if ((string) $order->order_ref_no !== (string) $externalRef) {
+            DB::table('orders')->where('id', $order->id)->update([
+                'order_ref_no' => $externalRef,
+                'updated_at' => now(),
+            ]);
+            $order->order_ref_no = $externalRef;
+        }
     }
 
     /**
@@ -443,6 +573,20 @@ class EnquiryFormPro extends Controller
                 }
                 $hotelMarkup = (float) ($row['hotel_markup'] ?? $row['markup_value'] ?? 0);
                 $otherMarkup = (float) ($row['other_markup'] ?? 0);
+                $hotelMarkupType = strtolower(trim((string) ($row['hotel_markup_type'] ?? $markupType)));
+                $otherMarkupType = strtolower(trim((string) ($row['other_markup_type'] ?? $markupType)));
+                if ($hotelMarkupType === 'fixed') {
+                    $hotelMarkupType = 'flat';
+                }
+                if ($otherMarkupType === 'fixed') {
+                    $otherMarkupType = 'flat';
+                }
+                if (!in_array($hotelMarkupType, ['percentage', 'flat'], true)) {
+                    $hotelMarkupType = $markupType !== '' ? $markupType : 'percentage';
+                }
+                if (!in_array($otherMarkupType, ['percentage', 'flat'], true)) {
+                    $otherMarkupType = $markupType !== '' ? $markupType : 'percentage';
+                }
                 $entry = [
                     'city' => $city,
                     'currency' => $currency,
@@ -451,6 +595,8 @@ class EnquiryFormPro extends Controller
                     'markup_value' => $hotelMarkup + $otherMarkup,
                     'hotel_markup' => $hotelMarkup,
                     'other_markup' => $otherMarkup,
+                    'hotel_markup_type' => $hotelMarkupType,
+                    'other_markup_type' => $otherMarkupType,
                     'discount_type' => $discountType !== '' ? $discountType : null,
                     'discount_value' => (float) ($row['discount_value'] ?? 0),
                 ];
@@ -475,53 +621,55 @@ class EnquiryFormPro extends Controller
      */
     private function lookupProCurrencyMarkup(?string $currency, ?string $city = null): array
     {
+        $pack = static function (array $e): array {
+            $markupType = (string) ($e['markup_type'] ?? '');
+            $hotelType = (string) ($e['hotel_markup_type'] ?? $markupType);
+            $otherType = (string) ($e['other_markup_type'] ?? $markupType);
+
+            return [
+                'markup_type' => $markupType,
+                'markup_value' => (float) ($e['markup_value'] ?? 0),
+                'hotel_markup' => (float) ($e['hotel_markup'] ?? $e['markup_value'] ?? 0),
+                'other_markup' => (float) ($e['other_markup'] ?? 0),
+                'hotel_markup_type' => $hotelType,
+                'other_markup_type' => $otherType,
+                'discount_type' => (string) ($e['discount_type'] ?? ''),
+                'discount_value' => (float) ($e['discount_value'] ?? 0),
+            ];
+        };
+
         $cityKey = trim((string) $city);
         if ($cityKey !== '') {
             if (isset($this->proCityMarkups[$cityKey])) {
-                $e = $this->proCityMarkups[$cityKey];
-
-                return [
-                    'markup_type' => (string) ($e['markup_type'] ?? ''),
-                    'markup_value' => (float) ($e['markup_value'] ?? 0),
-                    'hotel_markup' => (float) ($e['hotel_markup'] ?? $e['markup_value'] ?? 0),
-                    'other_markup' => (float) ($e['other_markup'] ?? 0),
-                    'discount_type' => (string) ($e['discount_type'] ?? ''),
-                    'discount_value' => (float) ($e['discount_value'] ?? 0),
-                ];
+                return $pack($this->proCityMarkups[$cityKey]);
             }
             foreach ($this->proCityMarkups as $name => $e) {
                 if (strcasecmp((string) $name, $cityKey) === 0) {
-                    return [
-                        'markup_type' => (string) ($e['markup_type'] ?? ''),
-                        'markup_value' => (float) ($e['markup_value'] ?? 0),
-                        'hotel_markup' => (float) ($e['hotel_markup'] ?? $e['markup_value'] ?? 0),
-                        'other_markup' => (float) ($e['other_markup'] ?? 0),
-                        'discount_type' => (string) ($e['discount_type'] ?? ''),
-                        'discount_value' => (float) ($e['discount_value'] ?? 0),
-                    ];
+                    return $pack($e);
                 }
             }
         }
 
         $key = strtoupper(trim((string) $currency));
         if ($key !== '' && isset($this->proCurrencyMarkups[$key])) {
-            $e = $this->proCurrencyMarkups[$key];
-
-            return [
-                'markup_type' => (string) ($e['markup_type'] ?? ''),
-                'markup_value' => (float) ($e['markup_value'] ?? 0),
-                'hotel_markup' => (float) ($e['hotel_markup'] ?? $e['markup_value'] ?? 0),
-                'other_markup' => (float) ($e['other_markup'] ?? 0),
-                'discount_type' => (string) ($e['discount_type'] ?? ''),
-                'discount_value' => (float) ($e['discount_value'] ?? 0),
-            ];
+            return $pack($this->proCurrencyMarkups[$key]);
         }
 
         return [
-            'markup_type' => $this->proFallbackMarkupType,
-            'markup_value' => $this->proFallbackMarkupValue,
-            'hotel_markup' => $this->proFallbackMarkupValue,
-            'other_markup' => 0.0,
+            'markup_type' => $this->proFallbackMarkupType !== ''
+                ? $this->proFallbackMarkupType
+                : ($this->proFallbackHotelMarkupType ?: $this->proFallbackOtherMarkupType),
+            'markup_value' => $this->proFallbackHotelMarkup + $this->proFallbackOtherMarkup,
+            'hotel_markup' => $this->proFallbackHotelMarkup > 0
+                ? $this->proFallbackHotelMarkup
+                : $this->proFallbackMarkupValue,
+            'other_markup' => $this->proFallbackOtherMarkup,
+            'hotel_markup_type' => $this->proFallbackHotelMarkupType !== ''
+                ? $this->proFallbackHotelMarkupType
+                : $this->proFallbackMarkupType,
+            'other_markup_type' => $this->proFallbackOtherMarkupType !== ''
+                ? $this->proFallbackOtherMarkupType
+                : $this->proFallbackMarkupType,
             'discount_type' => $this->proFallbackDiscountType,
             'discount_value' => $this->proFallbackDiscountValue,
         ];
@@ -529,6 +677,7 @@ class EnquiryFormPro extends Controller
 
     /**
      * Seed controller markup maps from request (call at start of store/update).
+     * Falls back to DMC profile markup_json (hotel / other) when payload is empty — Lite parity.
      */
     private function hydrateProCurrencyMarkupsFromRequest(Request $request): void
     {
@@ -537,6 +686,89 @@ class EnquiryFormPro extends Controller
         $this->proFallbackDiscountValue = (float) $request->input('discount_value', 0);
         $this->proFallbackDiscountType = (string) ($request->input('discount_type') ?? '');
         $this->proCurrencyMarkups = $this->normalizeCurrencyMarkups($request->input('currency_markups'));
+
+        $dmc = CommonHelper::getDmcProfileMarkupConfig(auth()->user());
+        $hotel = is_array($dmc['hotel'] ?? null) ? $dmc['hotel'] : [];
+        $other = is_array($dmc['other'] ?? null) ? $dmc['other'] : [];
+        $hotelVal = max(0.0, (float) ($hotel['markup_value'] ?? 0));
+        $otherVal = max(0.0, (float) ($other['markup_value'] ?? 0));
+        $hotelType = strtolower(trim((string) ($hotel['markup_type'] ?? 'percentage')));
+        $otherType = strtolower(trim((string) ($other['markup_type'] ?? 'percentage')));
+        if ($hotelType === 'fixed') {
+            $hotelType = 'flat';
+        }
+        if ($otherType === 'fixed') {
+            $otherType = 'flat';
+        }
+        if (!in_array($hotelType, ['percentage', 'flat'], true)) {
+            $hotelType = 'percentage';
+        }
+        if (!in_array($otherType, ['percentage', 'flat'], true)) {
+            $otherType = 'percentage';
+        }
+
+        $this->proFallbackHotelMarkup = $hotelVal;
+        $this->proFallbackOtherMarkup = $otherVal;
+        $this->proFallbackHotelMarkupType = $hotelType;
+        $this->proFallbackOtherMarkupType = $otherType;
+
+        if ($this->proFallbackMarkupType === '') {
+            $this->proFallbackMarkupType = $hotelType ?: $otherType;
+        }
+        if ($this->proFallbackMarkupValue <= 0 && $hotelVal > 0) {
+            $this->proFallbackMarkupValue = $hotelVal;
+        }
+
+        $enrichRow = function (array $e) use ($hotelVal, $otherVal, $hotelType, $otherType): array {
+            $hasHotel = array_key_exists('hotel_markup', $e) && (float) $e['hotel_markup'] > 0;
+            $hasOther = array_key_exists('other_markup', $e) && (float) $e['other_markup'] > 0;
+            if (!$hasHotel && !$hasOther && (float) ($e['markup_value'] ?? 0) <= 0) {
+                $e['hotel_markup'] = $hotelVal;
+                $e['other_markup'] = $otherVal;
+                $e['markup_value'] = $hotelVal + $otherVal;
+                $e['markup_type'] = $e['markup_type'] ?: $hotelType;
+            } else {
+                if (!array_key_exists('hotel_markup', $e)) {
+                    $e['hotel_markup'] = (float) ($e['markup_value'] ?? 0);
+                }
+                if (!array_key_exists('other_markup', $e)) {
+                    $e['other_markup'] = 0.0;
+                }
+            }
+            $e['hotel_markup_type'] = $e['hotel_markup_type'] ?? $hotelType;
+            $e['other_markup_type'] = $e['other_markup_type'] ?? $otherType;
+            if (empty($e['markup_type'])) {
+                $e['markup_type'] = $hotelType;
+            }
+
+            return $e;
+        };
+
+        if (empty($this->proCurrencyMarkups) && empty($this->proCityMarkups)) {
+            // No client rows — seed one DMC-backed entry so order create still gets hotel/other
+            $this->proCurrencyMarkups = [
+                '' => $enrichRow([
+                    'city' => '',
+                    'currency' => '',
+                    'country' => '',
+                    'markup_type' => $hotelType,
+                    'markup_value' => $hotelVal + $otherVal,
+                    'hotel_markup' => $hotelVal,
+                    'other_markup' => $otherVal,
+                    'hotel_markup_type' => $hotelType,
+                    'other_markup_type' => $otherType,
+                    'discount_type' => $this->proFallbackDiscountType !== '' ? $this->proFallbackDiscountType : null,
+                    'discount_value' => $this->proFallbackDiscountValue,
+                ]),
+            ];
+        } else {
+            foreach ($this->proCurrencyMarkups as $k => $row) {
+                $this->proCurrencyMarkups[$k] = $enrichRow($row);
+            }
+            foreach ($this->proCityMarkups as $k => $row) {
+                $this->proCityMarkups[$k] = $enrichRow($row);
+            }
+        }
     }
 
     /**
@@ -2108,6 +2340,7 @@ class EnquiryFormPro extends Controller
                 ? $this->currencyMarkupsListForStorage()
                 : null;
             $tour->created_by = $user->userId; // Store the user ID who created the tour
+            $tour->finance_status = 'pending';
             // Store user currency for this tour based on DMC/user country
             $tour->user_currency = CommonHelper::getDmcCurrencyByCountry();
             // Note: salutation, customer_name, contact_number are stored in orders JSON, not in tours table
@@ -2294,9 +2527,15 @@ class EnquiryFormPro extends Controller
             // 1. Accommodation Orders
             if ($request->has('accommodations') && !empty($request->accommodations)) {
                 $accommodations = json_decode($request->accommodations, true);
+                if (! is_array($accommodations)) {
+                    $accommodations = [];
+                }
                 \Log::info('Processing accommodations', ['count' => count($accommodations)]);
                 
                 foreach ($accommodations as $accommodation) {
+                    if (! is_array($accommodation)) {
+                        continue;
+                    }
                     \Log::info('Accommodation data', [
                         'has_transfer_options' => isset($accommodation['transfer_options']),
                         'transfer_options' => $accommodation['transfer_options'] ?? null
@@ -2305,6 +2544,13 @@ class EnquiryFormPro extends Controller
                     
                     // Add tour_id to the JSON data
                     $accommodation['tour_id'] = $tourId;
+                    $accommodation['isOnlineHotel'] = (bool) ($accommodation['isOnlineHotel'] ?? false);
+                    $accommodation['hotelSourceType'] = $accommodation['hotelSourceType']
+                        ?? (! empty($accommodation['isOnlineHotel']) ? 'online' : 'offline');
+                    $isOnlineHotel = $this->resolveServiceOrderType($accommodation, 'hotel') === 'online';
+                    if ($isOnlineHotel) {
+                        $accommodation['api_environment'] = $this->resolveStoredApiEnvironment($accommodation);
+                    }
                     
                     $order = $this->createEnquiryProOrder([
                         // 'booking_id' => $bookingId,
@@ -2318,6 +2564,9 @@ class EnquiryFormPro extends Controller
                         'markup_percentage' => $markupValue,
                         'markup_type' => $markupType,
                         'status' => 1,
+                        // Lite parity: online hotels store order_type + placeholder until supplier book on approve
+                        'order_type' => $isOnlineHotel ? 'online' : 'offline',
+                        'order_ref_no' => $isOnlineHotel ? OnlineAttractionOrderService::PLACEHOLDER_ORDER_REF : null,
                     ]);
                     
                     $order->refresh();
@@ -2344,9 +2593,18 @@ class EnquiryFormPro extends Controller
             // 2. Tour/Attraction Orders
             if ($request->has('tours') && !empty($request->tours)) {
                 $tours = json_decode($request->tours, true);
+                if (! is_array($tours)) {
+                    $tours = [];
+                }
                 \Log::info('Processing attractions', ['count' => count($tours)]);
+
+                // Lite parity: create Attractions API order_ref_id before inserting orders
+                $attractionExternalRefs = $this->createOnlineAttractionExternalOrders($tours, (int) $tourId);
                 
-                foreach ($tours as $tourItem) {
+                foreach ($tours as $attractionIndex => $tourItem) {
+                    if (! is_array($tourItem)) {
+                        continue;
+                    }
                     \Log::info('Attraction data', [
                         'has_transfer_options' => isset($tourItem['transfer_options']),
                         'has_guide_options' => isset($tourItem['guide_options']),
@@ -2357,6 +2615,20 @@ class EnquiryFormPro extends Controller
                     
                     // Add tour_id to the JSON data
                     $tourItem['tour_id'] = $tourId;
+                    $tourItem['isOnlineAttraction'] = (bool) ($tourItem['isOnlineAttraction'] ?? false);
+                    $tourItem['attractionSourceType'] = $tourItem['attractionSourceType']
+                        ?? (! empty($tourItem['isOnlineAttraction']) ? 'online' : 'offline');
+                    if (! empty($tourItem['isOnlineAttraction']) || ($tourItem['attractionSourceType'] ?? '') === 'online') {
+                        $tourItem['api_environment'] = $this->resolveStoredApiEnvironment($tourItem);
+                    }
+
+                    $externalRef = $attractionExternalRefs[$attractionIndex] ?? null;
+                    if (is_string($externalRef) && $externalRef !== '' && ! OnlineAttractionOrderService::isPlaceholderRef($externalRef)) {
+                        $tourItem = app(OnlineAttractionOrderService::class)
+                            ->applyRefToAttraction($tourItem, $externalRef, 'pending');
+                    } else {
+                        $externalRef = null;
+                    }
                     
                     $order = $this->createEnquiryProOrder([
                         // 'booking_id' => $bookingId,
@@ -2370,9 +2642,12 @@ class EnquiryFormPro extends Controller
                         'markup_percentage' => $markupValue,
                         'markup_type' => $markupType,
                         'status' => 1,
+                        'order_type' => $this->resolveServiceOrderType($tourItem, 'attraction'),
+                        'order_ref_no' => $externalRef,
                     ]);
                     
                     $order->refresh();
+                    $this->applyOrderRefNo($order, $externalRef);
                     $bookingId = $order->booking_id;
                     
                     $createdOrders[] = [
@@ -4215,10 +4490,36 @@ class EnquiryFormPro extends Controller
                 $seenHotels[] = $uniqueKey;
 
                 $accommodation['tour_id'] = $tour_id;
+                $accommodation['isOnlineHotel'] = (bool) ($accommodation['isOnlineHotel'] ?? false);
+                $accommodation['hotelSourceType'] = $accommodation['hotelSourceType']
+                    ?? (! empty($accommodation['isOnlineHotel']) ? 'online' : 'offline');
+                $isOnlineHotel = $this->resolveServiceOrderType($accommodation, 'hotel') === 'online';
+                if ($isOnlineHotel) {
+                    $accommodation['api_environment'] = $this->resolveStoredApiEnvironment($accommodation);
+                }
 
                 $existingOrder = $this->findOrderForTourTypeIncludingTrashedByPayload($tour, 'hotel', $accommodation);
                 if ($existingOrder !== null) {
                     $this->restoreAndUpdateEnquiryOrder($existingOrder, $request, $tour_id, [$accommodation], 'hotel', $bookingType, $discountValue, $discountType, $markupValue, $markupType, $syncedOrders);
+                    if ($isOnlineHotel) {
+                        $updates = [];
+                        if ((string) ($existingOrder->order_type ?? '') !== 'online') {
+                            $updates['order_type'] = 'online';
+                        }
+                        $existingRef = OnlineAttractionOrderService::extractSavedRef($existingOrder, $accommodation);
+                        if ($existingRef === null && OnlineAttractionOrderService::isPlaceholderRef((string) ($existingOrder->order_ref_no ?? ''))) {
+                            $updates['order_ref_no'] = OnlineAttractionOrderService::PLACEHOLDER_ORDER_REF;
+                        }
+                        if ($updates !== []) {
+                            $updates['updated_at'] = now();
+                            DB::table('orders')->where('id', $existingOrder->id)->update($updates);
+                            foreach ($updates as $k => $v) {
+                                if ($k !== 'updated_at') {
+                                    $existingOrder->{$k} = $v;
+                                }
+                            }
+                        }
+                    }
 
                     continue;
                 }
@@ -4236,6 +4537,8 @@ class EnquiryFormPro extends Controller
                     'markup_percentage' => $markupValue,
                     'markup_type' => $markupType,
                     'status' => 1,
+                    'order_type' => $isOnlineHotel ? 'online' : 'offline',
+                    'order_ref_no' => $isOnlineHotel ? OnlineAttractionOrderService::PLACEHOLDER_ORDER_REF : null,
                 ]);
                 $order->refresh();
                 $bookingId = $order->booking_id;
@@ -4251,8 +4554,25 @@ class EnquiryFormPro extends Controller
             }
             $removedOrdersCount += $this->softDeleteOrphanOrdersForType($tour, 'attraction', $this->resolveKeepBookingIdsForType($tour, 'attraction', $toursPayload));
 
+            // Seed existing refs onto payload so create-order reuses them (no duplicate API orders).
+            foreach ($toursPayload as $ti => $tourRow) {
+                if (! is_array($tourRow)) {
+                    continue;
+                }
+                $existingForRef = $this->findOrderForTourTypeIncludingTrashedByPayload($tour, 'attraction', $tourRow);
+                if ($existingForRef) {
+                    $savedRef = OnlineAttractionOrderService::extractSavedRef($existingForRef, $tourRow);
+                    if ($savedRef !== null) {
+                        $toursPayload[$ti]['order_ref_no'] = $savedRef;
+                        $toursPayload[$ti]['external_order_ref_id'] = $savedRef;
+                        $toursPayload[$ti]['attraction_order_ref_id'] = $savedRef;
+                    }
+                }
+            }
+            $attractionExternalRefs = $this->createOnlineAttractionExternalOrders($toursPayload, (int) $tour_id);
+
             $seenTours = [];
-            foreach ($toursPayload as $tourItem) {
+            foreach ($toursPayload as $attractionIndex => $tourItem) {
                 if (! is_array($tourItem)) {
                     continue;
                 }
@@ -4268,10 +4588,32 @@ class EnquiryFormPro extends Controller
                 $seenTours[] = $uniqueKey;
 
                 $tourItem['tour_id'] = $tour_id;
+                $tourItem['isOnlineAttraction'] = (bool) ($tourItem['isOnlineAttraction'] ?? false);
+                $tourItem['attractionSourceType'] = $tourItem['attractionSourceType']
+                    ?? (! empty($tourItem['isOnlineAttraction']) ? 'online' : 'offline');
+                if (! empty($tourItem['isOnlineAttraction']) || ($tourItem['attractionSourceType'] ?? '') === 'online') {
+                    $tourItem['api_environment'] = $this->resolveStoredApiEnvironment($tourItem);
+                }
+
+                $externalRef = $attractionExternalRefs[$attractionIndex] ?? null;
+                if (is_string($externalRef) && $externalRef !== '' && ! OnlineAttractionOrderService::isPlaceholderRef($externalRef)) {
+                    $tourItem = app(OnlineAttractionOrderService::class)
+                        ->applyRefToAttraction($tourItem, $externalRef, 'pending');
+                } else {
+                    $externalRef = null;
+                }
 
                 $existingOrder = $this->findOrderForTourTypeIncludingTrashedByPayload($tour, 'attraction', $tourItem);
                 if ($existingOrder !== null) {
                     $this->restoreAndUpdateEnquiryOrder($existingOrder, $request, $tour_id, [$tourItem], 'attraction', $bookingType, $discountValue, $discountType, $markupValue, $markupType, $syncedOrders);
+                    $this->applyOrderRefNo($existingOrder, $externalRef ?: OnlineAttractionOrderService::extractSavedRef($existingOrder, $tourItem));
+                    if ($this->resolveServiceOrderType($tourItem, 'attraction') === 'online' && (string) ($existingOrder->order_type ?? '') !== 'online') {
+                        DB::table('orders')->where('id', $existingOrder->id)->update([
+                            'order_type' => 'online',
+                            'updated_at' => now(),
+                        ]);
+                        $existingOrder->order_type = 'online';
+                    }
 
                     continue;
                 }
@@ -4289,8 +4631,11 @@ class EnquiryFormPro extends Controller
                     'markup_percentage' => $markupValue,
                     'markup_type' => $markupType,
                     'status' => 1,
+                    'order_type' => $this->resolveServiceOrderType($tourItem, 'attraction'),
+                    'order_ref_no' => $externalRef,
                 ]);
                 $order->refresh();
+                $this->applyOrderRefNo($order, $externalRef);
                 $bookingId = $order->booking_id;
                 
                 $syncedOrders[] = ['type' => 'attraction', 'booking_id' => $bookingId, 'action' => 'created'];
@@ -4842,7 +5187,9 @@ class EnquiryFormPro extends Controller
         $markupValue = $isHotelOrder
             ? (float) ($md['hotel_markup'] ?? $md['markup_value'] ?? 0)
             : (float) ($md['other_markup'] ?? $md['markup_value'] ?? 0);
-        $markupType = $md['markup_type'];
+        $markupType = $isHotelOrder
+            ? (string) ($md['hotel_markup_type'] ?? $md['markup_type'] ?? '')
+            : (string) ($md['other_markup_type'] ?? $md['markup_type'] ?? '');
 
         // Already-present active row unchanged → only bump updated_at (no duplicate insert elsewhere)
         if (
@@ -4885,6 +5232,23 @@ class EnquiryFormPro extends Controller
         if ($order->status === null) {
             $order->status = 1;
         }
+
+        // Lite parity: keep online order_type / API order_ref_no on update
+        $first = is_array($dataPayload[0] ?? null) ? $dataPayload[0] : [];
+        if (in_array($type, ['hotel', 'attraction'], true)) {
+            $resolvedType = $this->resolveServiceOrderType($first, $type);
+            $order->order_type = $resolvedType;
+            if ($type === 'attraction') {
+                $ref = OnlineAttractionOrderService::extractSavedRef($order, $first);
+                if ($ref !== null) {
+                    $order->order_ref_no = $ref;
+                }
+            } elseif ($resolvedType === 'online'
+                && OnlineAttractionOrderService::isPlaceholderRef((string) ($order->order_ref_no ?? ''))) {
+                $order->order_ref_no = OnlineAttractionOrderService::PLACEHOLDER_ORDER_REF;
+            }
+        }
+
         $order->save();
 
         $syncedOrders[] = [
@@ -4896,6 +5260,7 @@ class EnquiryFormPro extends Controller
 
     /**
      * Soft-delete orders of this type for this tour row whose booking_id is not listed in the payload (removed in UI).
+     * Online approved attractions: cancel voucher with supplier first (credits refund), same as booking modal.
      *
      * @param  list<string>  $keepBookingIds
      */
@@ -4913,7 +5278,48 @@ class EnquiryFormPro extends Controller
             $q->whereNotIn('booking_id', $normalized);
         }
 
-        return (int) $q->delete();
+        if ($type !== 'attraction') {
+            return (int) $q->delete();
+        }
+
+        $orphans = $q->get();
+        if ($orphans->isEmpty()) {
+            return 0;
+        }
+
+        $deleted = 0;
+        $cancelService = app(\App\Services\AttractionSuppliers\OnlineAttractionCancellationService::class);
+        foreach ($orphans as $orphan) {
+            try {
+                $cancelService->cancelIfApplicable(
+                    $orphan,
+                    'Removed from Pro enquiry edit form'
+                );
+            } catch (\Throwable $e) {
+                \Log::error('Pro edit: online attraction voucher cancel failed during orphan soft-delete', [
+                    'tour_id' => $tour->tour_id,
+                    'order_id' => $orphan->id,
+                    'booking_id' => $orphan->booking_id,
+                    'error' => $e->getMessage(),
+                ]);
+
+                throw new \RuntimeException(
+                    'Cannot remove online attraction "' . ($orphan->booking_id ?? $orphan->id)
+                    . '": voucher cancel failed — ' . $e->getMessage()
+                );
+            }
+
+            $refundPayload = \App\Helpers\CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tour->tour_id, []);
+            if (isset($refundPayload['is_refund'])) {
+                $orphan->is_refund = $refundPayload['is_refund'];
+                $orphan->save();
+            }
+
+            $orphan->delete();
+            $deleted++;
+        }
+
+        return $deleted;
     }
 
     /**

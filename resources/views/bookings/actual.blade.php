@@ -7643,7 +7643,6 @@ window.loadAttractionDataForApprove = function(tourId, attractionOrderIndex, boo
                 booking_index: bookingIndex,
                 attraction_order_id: attractionOrderId || undefined
             })
-            })
         })
         .then(response => response.json())
         .then(data => {
@@ -28619,6 +28618,8 @@ input[type="file"].form-control:hover {
 }
 </style>
 
+{{-- Re-include last so reject/voucher overrides win over earlier inline definitions --}}
+@include('bookings.partials.attraction-voucher-scripts')
 
 @endsection
 

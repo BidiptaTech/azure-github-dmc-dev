@@ -58,6 +58,18 @@
                                 }
                             }
                             $operationalDisplay = implode(', ', $operationalCountries);
+                            $isDmcProfile = (int) ($user->role_id ?? 0) === 11;
+                            $markupJson = is_array($user->markup_json) ? $user->markup_json : [];
+                            $hotelMarkupType = old('hotel_markup_type', $markupJson['hotel']['markup_type'] ?? 'percentage');
+                            $hotelMarkupValue = old('hotel_markup_value', $markupJson['hotel']['markup_value'] ?? '');
+                            $otherMarkupType = old('other_markup_type', $markupJson['other']['markup_type'] ?? 'percentage');
+                            $otherMarkupValue = old('other_markup_value', $markupJson['other']['markup_value'] ?? '');
+                            if (! in_array($hotelMarkupType, ['percentage', 'flat'], true)) {
+                                $hotelMarkupType = 'percentage';
+                            }
+                            if (! in_array($otherMarkupType, ['percentage', 'flat'], true)) {
+                                $otherMarkupType = 'percentage';
+                            }
                             @endphp
                             <img id="profile-image-preview" 
                                  src="{{ $profileImg }}" 
@@ -165,6 +177,58 @@
                     {{-- ACCOUNT DETAILS (read-only with edit icon for consistency) --}}
                     
                 </form>
+
+                @if($isDmcProfile)
+                <form action="{{ route('user.profile.markup.update') }}" method="POST" class="mt-4" id="dmc-markup-form">
+                    @csrf
+                    <div class="card">
+                        <div class="card-header d-flex align-items-center justify-content-between">
+                            <h5 class="card-title mb-0">Markup</h5>
+                            <button type="submit" class="btn btn-primary btn-sm">
+                                <i class="ri-save-line me-1"></i> Save
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="border rounded-3 p-3 h-100" style="background:#f8f9fa;">
+                                        <h6 class="mb-3">Hotel</h6>
+                                        <div class="mb-3">
+                                            <label for="hotel_markup_type" class="form-label">Type</label>
+                                            <select class="form-select" id="hotel_markup_type" name="hotel_markup_type">
+                                                <option value="percentage" {{ $hotelMarkupType === 'percentage' ? 'selected' : '' }}>Percentage</option>
+                                                <option value="flat" {{ $hotelMarkupType === 'flat' ? 'selected' : '' }}>Flat</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-0">
+                                            <label for="hotel_markup_value" class="form-label">Value</label>
+                                            <input type="number" class="form-control" id="hotel_markup_value" name="hotel_markup_value"
+                                                value="{{ $hotelMarkupValue }}" min="0" step="0.01" placeholder="0">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="border rounded-3 p-3 h-100" style="background:#f8f9fa;">
+                                        <h6 class="mb-3">Other</h6>
+                                        <div class="mb-3">
+                                            <label for="other_markup_type" class="form-label">Type</label>
+                                            <select class="form-select" id="other_markup_type" name="other_markup_type">
+                                                <option value="percentage" {{ $otherMarkupType === 'percentage' ? 'selected' : '' }}>Percentage</option>
+                                                <option value="flat" {{ $otherMarkupType === 'flat' ? 'selected' : '' }}>Flat</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-0">
+                                            <label for="other_markup_value" class="form-label">Value</label>
+                                            <input type="number" class="form-control" id="other_markup_value" name="other_markup_value"
+                                                value="{{ $otherMarkupValue }}" min="0" step="0.01" placeholder="0">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+                @endif
             </div>
 
         </div>
