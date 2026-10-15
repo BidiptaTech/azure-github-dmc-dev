@@ -456,6 +456,91 @@
     }
     window.getCityDateRange = getCityDateRange;
 
+    /**
+     * Expand a city's stay window to include hotel (or other) service dates,
+     * without shrinking the tour. Keeps chain integrity for neighbouring cities.
+     * Used when editing hotel check-in/out so checkout is not clamped back.
+     */
+    function expandCityDateRangeToCover(city, startValue, endValue) {
+        const key = serviceCityKey(city);
+        if (!key) return null;
+        const start = enquiryProDateOnly(startValue);
+        const end = enquiryProDateOnly(endValue || startValue);
+        if (!start || !end) return getCityDateRange(city);
+
+        const bounds = enquiryProTourDateBounds();
+        let ranges = Array.isArray(window.enquiryProCityDateRanges)
+            ? window.enquiryProCityDateRanges.slice()
+            : [];
+        let idx = ranges.findIndex(function (range) {
+            return serviceCityKey(range.city) === key;
+        });
+        if (idx < 0) {
+            ranges.push({
+                city: city,
+                start_date: start,
+                end_date: end
+            });
+            idx = ranges.length - 1;
+        }
+
+        const range = { ...ranges[idx] };
+        let changed = false;
+        if (!range.start_date || start < range.start_date) {
+            range.start_date = start;
+            changed = true;
+        }
+        if (!range.end_date || end > range.end_date) {
+            range.end_date = end;
+            changed = true;
+        }
+        // Never push city window outside the tour header when both bounds exist
+        if (bounds.start && range.start_date < bounds.start) {
+            range.start_date = bounds.start;
+            changed = true;
+        }
+        if (bounds.end && range.end_date > bounds.end) {
+            // Prefer expanding tour via expandHeaderDatesIfNeeded first; if still outside, allow city = end
+            range.end_date = bounds.end;
+            changed = true;
+        }
+        if (range.start_date && range.end_date && range.end_date < range.start_date) {
+            range.end_date = range.start_date;
+            changed = true;
+        }
+        if (!changed) return range;
+
+        ranges[idx] = range;
+        // Keep adjacent cities from overlapping after an expand
+        if (idx > 0 && ranges[idx - 1] && ranges[idx - 1].end_date > range.start_date) {
+            ranges[idx - 1] = { ...ranges[idx - 1], end_date: range.start_date };
+        }
+        if (idx < ranges.length - 1 && ranges[idx + 1] && ranges[idx + 1].start_date < range.end_date) {
+            ranges[idx + 1] = { ...ranges[idx + 1], start_date: range.end_date };
+        }
+        window.enquiryProCityDateRanges = ranges;
+        // Do NOT call syncCityDateRangePanel() here — re-stitching can shrink a just-expanded
+        // city end (e.g. 27 → 25 on a multi-city even split). Refresh panel inputs in place.
+        const panelRows = document.getElementById('cityDateRangeRows');
+        if (panelRows) {
+            const startInput = panelRows.querySelector(`.city-date-range-start[data-index="${idx}"]`);
+            const endInput = panelRows.querySelector(`.city-date-range-end[data-index="${idx}"]`);
+            if (startInput) startInput.value = range.start_date || '';
+            if (endInput) endInput.value = range.end_date || '';
+            const nightsEl = panelRows.querySelectorAll('.city-stay-nights')[idx];
+            if (nightsEl) {
+                const n = enquiryProNightCount(range.start_date, range.end_date);
+                nightsEl.textContent = n + (n === 1 ? ' Night' : ' Nights');
+            }
+        }
+        // Refresh min/max on open accommodation inputs without force-resetting values
+        if (typeof applyCityDateRangeToContext === 'function') {
+            applyCityDateRangeToContext(city, 'accommodation', { reset: false });
+        }
+        return range;
+    }
+    window.expandCityDateRangeToCover = expandCityDateRangeToCover;
+
     function getDefaultMealCountForCity(city) {
         const range = getCityDateRange(city);
         if (range && range.start_date && range.end_date) {
@@ -865,8 +950,19 @@
         const city = document.getElementById(citySelectId)?.value || '';
         if (!city) return;
         window._enquiryProReapplyingCityWindow = true;
-        try { applyCityDateRangeToContext(city, context); }
-        finally { window._enquiryProReapplyingCityWindow = false; }
+        try {
+            // Widen city window before clamp so hotel checkout (e.g. 27) is not forced back to city end (25)
+            if (context === 'accommodation' && typeof expandCityDateRangeToCover === 'function') {
+                const checkIn = document.getElementById('checkInDate')?.value || '';
+                const checkOut = document.getElementById('checkOutDate')?.value || '';
+                if (checkIn || checkOut) {
+                    expandCityDateRangeToCover(city, checkIn || checkOut, checkOut || checkIn);
+                }
+            }
+            applyCityDateRangeToContext(city, context);
+        } finally {
+            window._enquiryProReapplyingCityWindow = false;
+        }
     });
 
     // Service modals prefill their dates while opening, so align them with the city window once they are visible.
