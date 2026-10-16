@@ -62,6 +62,7 @@ const commonSlice = createSlice({
   reducers: {
     setBookingType: (state, action) => {
       state.bookingType = action.payload;
+      console.log("Setting bookingType to:", action.payload);
       // console.log("Setting bookingType to:", action.payload);
     },
     setBookingMode: (state, action) => {

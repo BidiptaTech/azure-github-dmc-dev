@@ -1044,17 +1044,17 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
       });
       
       const resolvedCountry =
+        city?.country ||
         (typeof country === "string" && country) ||
         country?.name ||
         country?.label ||
         tour?.destination ||
         tour?.country ||
-        city?.country ||
         "";
 
       dispatch(
         fetchAttractions({
-          city: city.address || city.name,
+          city: city.name || city.address,
           country: resolvedCountry,
           date: bookingDate,
           adults: tour.adult,

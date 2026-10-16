@@ -469,6 +469,8 @@ const TourProperties = () => {
   
   // Get search parameters from Redux state for API calls
   const searchParamsFromRedux = useSelector((state) => state.attractions.searchParams);
+  const listingMode = useSelector((state) => state.attractions.listingMode || "offline");
+  const listingModeRef = useRef(listingMode);
   
   // Get tour_id from global auth state and extract numeric part
   const globalTourId = useSelector((state) => state.auth?.tourId || state.steps?.id);
@@ -517,13 +519,16 @@ const TourProperties = () => {
 
   // Load more effect for infinite scroll
   useEffect(() => {
-    // Don't load attractions if search came from MainFilterSearchBox
-    // if (isFromMainSearch) {
-    //   return;
-    // }
-    
+    if (listingModeRef.current !== listingMode) {
+      listingModeRef.current = listingMode;
+      setCurrentPage(1);
+      setHasMore(true);
+      return;
+    }
+
     if (currentPage > 1 && attractions.length > 0) {
       setIsLoadingMore(true);
+      const pageSize = listingMode === "online" ? 20 : itemsPerPage;
       const start = (currentPage - 1) * itemsPerPage;
       
       dispatch(fetchAttractions({
@@ -531,25 +536,22 @@ const TourProperties = () => {
         date: searchParamsFromRedux?.date,
         adults: searchParamsFromRedux?.adults,
         children: searchParamsFromRedux?.children,
-        tour_id: numericTourId || searchParamsFromRedux?.tour_id, // Use numeric tour_id
+        tour_id: numericTourId || searchParamsFromRedux?.tour_id,
         selectedDate: searchParamsFromRedux?.selectedDate ? moment(searchParamsFromRedux.selectedDate) : null,
-        start: start,
-        limit: itemsPerPage,
+        start: listingMode === "online" ? undefined : start,
+        limit: listingMode === "online" ? undefined : itemsPerPage,
+        currentPage: listingMode === "online" ? currentPage : undefined,
+        listingMode,
       })).then((response) => {
-        // Check if we have more data to load
-        if (!response.payload || response.payload.length < itemsPerPage) {
-          setHasMore(false);
-        } else {
-          // If we got exactly itemsPerPage items, there might be more
-          setHasMore(response.payload.length === itemsPerPage);
-        }
+        const resultCount = Array.isArray(response.payload) ? response.payload.length : 0;
+        setHasMore(resultCount >= pageSize);
       }).catch((error) => {
         // Handle error and reset loading state
         console.error("Error loading more attractions:", error);
         setIsLoadingMore(false);
       });
     }
-  }, [currentPage, itemsPerPage, dispatch, searchParamsFromRedux]);
+  }, [currentPage, itemsPerPage, dispatch, searchParamsFromRedux, listingMode]);
 
   // Update the useEffect to handle search loading based on Redux state
   useEffect(() => {
@@ -583,14 +585,12 @@ const TourProperties = () => {
         
         // Check if we've reached the end of data
         if (attractionStatus === "succeeded") {
-          // For first page, check if there are any results
+          const pageSize = listingMode === "online" ? 20 : itemsPerPage;
           if (currentPage === 1) {
-            setHasMore(attractions.length >= itemsPerPage);
-          } 
-          // For subsequent pages, check if we got a full page of results
-          else {
-            const newItemsCount = attractions.length - ((currentPage - 1) * itemsPerPage);
-            setHasMore(newItemsCount >= itemsPerPage);
+            setHasMore(attractions.length >= pageSize);
+          } else {
+            const newItemsCount = attractions.length - ((currentPage - 1) * pageSize);
+            setHasMore(newItemsCount >= pageSize);
           }
         } else {
           // If the request failed, stop loading more
@@ -600,7 +600,7 @@ const TourProperties = () => {
 
       return () => clearTimeout(timer);
     }
-  }, [attractionStatus, currentPage, attractions.length, itemsPerPage]);
+  }, [attractionStatus, currentPage, attractions.length, itemsPerPage, listingMode]);
 
   // Modify the useEffect for initial loading to only run once
   useEffect(() => {

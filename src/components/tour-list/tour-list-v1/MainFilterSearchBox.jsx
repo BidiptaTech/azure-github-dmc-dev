@@ -7,6 +7,7 @@ import CityServiceChips from "@/components/common/CityServiceChips";
 import {
   setSearchParams,
   fetchAttractions,
+  selectAttractionListingMode,
 } from "../../../slice/attractions/attractionSlice";
 import { setSelectedCity, selectCityWiseDates } from "@/slice/common/commonSlice";
 import { clearTriggerSearch } from "@/slice/common/stepsSlice";
@@ -26,6 +27,7 @@ const MainFilterSearchBox = ({ layout = "default" }) => {
   const cityWiseDates = useSelector(selectCityWiseDates);
   const cityList = useSelector((state) => state.city?.city || []);
   const attractionServices = useSelector((state) => state.attractions.services || []);
+  const listingMode = useSelector(selectAttractionListingMode);
 
   const [locationError, setLocationError] = useState(false);
   const hasAutoSelectedCity = useRef(false);
@@ -185,6 +187,8 @@ const MainFilterSearchBox = ({ layout = "default" }) => {
         selectedDate: selectedDate,
         start: 0,
         limit: 5,
+        currentPage: 1,
+        listingMode,
       })
     );
   };
