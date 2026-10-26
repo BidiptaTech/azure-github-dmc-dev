@@ -26,7 +26,10 @@
         : ((isset($booking['guideOptions']) && is_array($booking['guideOptions'])) ? $booking['guideOptions'] : []);
     $isPro = (int) ($tour->is_pro ?? 0) === 1;
     $transferPrice = $isPro
-        ? (float) ($tf['totalPrice'] ?? $tf['cost'] ?? 0)
+        ? (float) (
+            ($tf['dmc_profile_markup']['price'] ?? 0)
+            ?: ($tf['totalPrice'] ?? $tf['sell'] ?? $tf['lineSell'] ?? $tf['cost'] ?? 0)
+        )
         : (float) ($tf['cost'] ?? $tf['totalPrice'] ?? 0);
     $guidePrice = (float) ($go['total_price'] ?? $go['cost'] ?? $go['Cost'] ?? $go['sell'] ?? $go['Sell'] ?? 0);
     $grandTotal = $mealPrice + $transferPrice + $guidePrice;

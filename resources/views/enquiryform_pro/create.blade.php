@@ -1681,7 +1681,8 @@
                             <th>Nights</th>
                             <th>Rooms</th>
                             <th>Avg Cost</th>
-                            <th>Sell</th>
+                            <th title="Sell before DMC markup">Sell</th>
+                            <th title="Sell after DMC hotel markup">Markup Price</th>
                             <th title="Adult Extra Bed Price">Extra Bed</th>
                             <th title="Child with Bed Price">CWB</th>
                             <th title="Child without Bed Price">CNB</th>
@@ -1757,13 +1758,16 @@
                             <th>Tour Name</th>
                             <th>Adults Qty</th>
                             <th>Cost/Pax</th>
-                            <th>Sell/Pax</th>
+                            <th title="Sell before DMC markup">Sell/Pax</th>
+                            <th title="Sell after DMC markup">Markup</th>
                             <th>Child Qty</th>
                             <th>Cost/Pax</th>
-                            <th>Sell/Pax</th>
+                            <th title="Sell before DMC markup">Sell/Pax</th>
+                            <th title="Sell after DMC markup">Markup</th>
                             <th>Infant Qty</th>
                             <th>Cost/Pax</th>
-                            <th>Sell/Pax</th>
+                            <th title="Sell before DMC markup">Sell/Pax</th>
+                            <th title="Sell after DMC markup">Markup</th>
                             <th class="group-foc-outside-discount-ui">FOC</th>
                             <th>Supplement</th>
                         </tr>
@@ -1793,13 +1797,16 @@
                             <th>Restaurant</th>
                             <th>Adults Qty</th>
                             <th>Cost/Pax</th>
-                            <th>Sell/Pax</th>
+                            <th title="Sell before DMC markup">Sell/Pax</th>
+                            <th title="Sell after DMC markup">Markup</th>
                             <th>Child Qty</th>
                             <th>Cost/Pax</th>
-                            <th>Sell/Pax</th>
+                            <th title="Sell before DMC markup">Sell/Pax</th>
+                            <th title="Sell after DMC markup">Markup</th>
                             <th>Infant Qty</th>
                             <th>Cost/Pax</th>
-                            <th>Sell/Pax</th>
+                            <th title="Sell before DMC markup">Sell/Pax</th>
+                            <th title="Sell after DMC markup">Markup</th>
                             <th class="group-foc-outside-discount-ui">FOC</th>
                             <th>Supplement</th>
                         </tr>
@@ -1835,7 +1842,8 @@
                             <th>Child</th>
                             <th>Infant</th>
                             <th>Cost</th>
-                            <th>Sell</th>
+                            <th title="Sell before DMC markup">Sell</th>
+                            <th title="Sell after DMC markup">Markup</th>
                             <th class="group-foc-outside-discount-ui">FOC</th>
                             <th>Supplement</th>
                         </tr>
@@ -1869,7 +1877,8 @@
                             <th>Child Qty</th>
                             <th>Infant Qty</th>
                             <th>Cost</th>
-                            <th>Sell</th>
+                            <th title="Sell before DMC markup">Sell</th>
+                            <th title="Sell after DMC markup">Markup</th>
                             <th class="group-foc-outside-discount-ui">FOC</th>
                             <th>Supplement</th>
                         </tr>
@@ -1936,13 +1945,16 @@
                             <th>ITEM</th>
                             <th>ADULTS QTY</th>
                             <th>COST/PAX</th>
-                            <th>SELL/PAX</th>
+                            <th title="Sell before DMC markup">SELL/PAX</th>
+                            <th title="Sell after DMC markup">MARKUP</th>
                             <th>CHILD QTY</th>
                             <th>COST/PAX</th>
-                            <th>SELL/PAX</th>
+                            <th title="Sell before DMC markup">SELL/PAX</th>
+                            <th title="Sell after DMC markup">MARKUP</th>
                             <th>INFANT QTY</th>
                             <th>COST/PAX</th>
-                            <th>SELL/PAX</th>
+                            <th title="Sell before DMC markup">SELL/PAX</th>
+                            <th title="Sell after DMC markup">MARKUP</th>
                             <th class="group-foc-outside-discount-ui">FOC</th>
                             <th>SUPPLEMENT</th>
                         </tr>
@@ -1993,79 +2005,29 @@
             </div>
         </div>
         
-        <div class="action-buttons" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
-            <!-- Left Side: Markup and Discount Controls -->
-            <div style="flex: 1; min-width: 0; margin-right: 8px;">
-                <!-- Single city -->
-                <div id="enquiryProMarkupSingleWrap" class="enquiry-md-panel" style="display: none;">
-                    <div class="enquiry-md-panel__head" role="button" tabindex="0" aria-expanded="true"
-                         onclick="toggleEnquiryMdAccordion(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleEnquiryMdAccordion(this);}">
-                        <div class="enquiry-md-panel__head-left">
-                            <span class="enquiry-md-panel__chevron" aria-hidden="true">▼</span>
-                            <p class="enquiry-md-panel__title">Pricing adjustments</p>
-                        </div>
-                        <p class="enquiry-md-panel__hint">Markup &amp; discount</p>
-                    </div>
-                    <div class="enquiry-md-panel__body">
-                        <div class="enquiry-md-single">
-                            <div class="enquiry-md-field enquiry-md-field--markup">
-                                <label class="enquiry-md-field__label" for="markupType">Markup</label>
-                                <select id="markupType" class="enquiry-md-control" onchange="handleMarkupTypeChange()">
-                                    <option value="" selected>Type</option>
-                                    <option value="percentage">%</option>
-                                    <option value="flat">Fixed</option>
-                                </select>
-                                <input type="number" id="markupValue" class="enquiry-md-control" value="0" step="1" min="0" disabled
-                                       oninput="applyMarkupDiscount()" placeholder="0">
-                            </div>
-                            <div class="enquiry-md-field enquiry-md-field--discount">
-                                <label class="enquiry-md-field__label" for="discountType">Discount</label>
-                                <select id="discountType" class="enquiry-md-control" onchange="handleDiscountTypeChange()">
-                                    <option value="" selected>Type</option>
-                                    <option value="percentage">%</option>
-                                    <option value="flat">Fixed</option>
-                                    <option value="foc" hidden>FOC</option>
-                                </select>
-                                <input type="number" id="discountValue" class="enquiry-md-control" value="0" step="1" min="0" disabled
-                                       oninput="applyMarkupDiscount()"
-                                       title="Discount value. When type = FOC, this is auto-computed and locked."
-                                       placeholder="0">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- Multi city: one markup/discount row per city -->
-                <div id="enquiryProMarkupMultiWrap" class="enquiry-md-panel" style="display: none;">
-                    <div class="enquiry-md-panel__head" role="button" tabindex="0" aria-expanded="true"
-                         onclick="toggleEnquiryMdAccordion(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleEnquiryMdAccordion(this);}">
-                        <div class="enquiry-md-panel__head-left">
-                            <span class="enquiry-md-panel__chevron" aria-hidden="true">▼</span>
-                            <p class="enquiry-md-panel__title">Pricing by city</p>
-                            <span class="enquiry-md-panel__count" id="enquiryProMarkupCityCount">0</span>
-                        </div>
-                        <p class="enquiry-md-panel__hint">Per destination currency</p>
-                    </div>
-                    <div class="enquiry-md-panel__body">
-                        <div class="enquiry-md-table-wrap">
-                            <table class="enquiry-md-table">
-                                <thead>
-                                    <tr>
-                                        <th scope="col">City</th>
-                                        <th scope="col" class="enquiry-md-th-markup">Markup type</th>
-                                        <th scope="col" class="enquiry-md-th-markup">Hotel markup</th>
-                                        <th scope="col" class="enquiry-md-th-markup">Other markup</th>
-                                        <th scope="col" class="enquiry-md-th-discount">Disc type</th>
-                                        <th scope="col" class="enquiry-md-th-discount">Disc value</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="enquiryProCityMarkupBody"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Right Side: Action Buttons -->
+        {{-- Markup/discount UI removed: hotel + other markups come from DMC profile markup_json (Lite parity).
+             Hidden fields kept so existing applyMarkupDiscount / save payload helpers keep working. --}}
+        <div id="enquiryProMarkupSingleWrap" class="d-none" aria-hidden="true">
+            <select id="markupType">
+                <option value="" selected>Type</option>
+                <option value="percentage">%</option>
+                <option value="flat">Fixed</option>
+            </select>
+            <input type="number" id="markupValue" value="0" step="1" min="0">
+            <select id="discountType">
+                <option value="" selected>Type</option>
+                <option value="percentage">%</option>
+                <option value="flat">Fixed</option>
+                <option value="foc" hidden>FOC</option>
+            </select>
+            <input type="number" id="discountValue" value="0" step="1" min="0">
+        </div>
+        <div id="enquiryProMarkupMultiWrap" class="d-none" aria-hidden="true">
+            <span id="enquiryProMarkupCityCount">0</span>
+            <tbody id="enquiryProCityMarkupBody"></tbody>
+        </div>
+
+        <div class="action-buttons" style="display: flex; justify-content: flex-end; align-items: flex-start; gap: 12px;">
             <div style="display: flex; gap: 6px; flex-shrink: 0;">
                 <span class="d-inline-block enquiry-submit-wrap enquiry-submit-wrap--disabled"
                       id="enquiry-submit-btn-wrap"
@@ -3464,7 +3426,7 @@
                     <!-- Transfer Details (shown when checkbox is checked) -->
                     <div id="restaurantTransferDetailsSection" style="display: none;">
                         <div class="row g-2 mb-1">
-                            <div class="col-3">
+                            <div class="col-6">
                                 <label class="form-label small">Drop off 
                                     <input type="checkbox" class="form-check-input ms-2" id="restaurantTransferIsPickup" title="Is Destination the PickUp?">
                                     <span class="small text-muted">Is PickUp?</span>
@@ -3493,45 +3455,41 @@
                                     </optgroup>
                                 </select>
                             </div>
-                            <div class="col-3">
-                                <label class="form-label small">Vehicle Type</label>
-                                <select class="form-select form-select-sm" id="restaurantTransferVehicleType" style="font-size: 10px;">
-                                    <option value="">Select Vehicle</option>
-                                    @php
-                                        $vehicleTypes = $vehicles->groupBy('vehicle_type');
-                                    @endphp
-                                    @foreach($vehicleTypes as $type => $typeVehicles)
-                                        <optgroup label="{{ ucfirst($type) }}">
-                                            @foreach($typeVehicles as $vehicle)
-                                                <option value="{{ $vehicle->vehicle_id }}" 
-                                                    data-type="{{ $vehicle->vehicle_type }}"
-                                                    data-seating="{{ $vehicle->seating_capacity }}"
-                                                    data-city-tour-seating="{{ $vehicle->city_tour_seating_capacity ?? $vehicle->seating_capacity }}"
-                                                    data-base-price="{{ $vehicle->base_price ?? 0 }}"
-                                                    data-sharable-price="{{ $vehicle->sharable_base_price ?? 0 }}"
-                                                    data-sharable="{{ $vehicle->sharable ?? 3 }}"
-                                                    data-city="{{ $vehicle->city ?? '' }}">
-                                                    {{ $vehicle->vehicle_name }} ({{ $vehicle->seating_capacity }} seats)
-                                                </option>
-                                            @endforeach
-                                        </optgroup>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="col-3">
-                                <label class="form-label small">Way</label>
-                                <select class="form-select form-select-sm" id="restaurantTransferWay" style="font-size: 10px;">
-                                    <option value="one-way">One Way</option>
-                                    <option value="both-way">Two Way</option>
-                                </select>
-                            </div>
-                            <div class="col-3">
-                                <label class="form-label small">Transfer Type</label>
-                                <select class="form-select form-select-sm" id="restaurantTransferType" style="font-size: 10px;" onchange="filterRestaurantVehiclesByServiceType()">
-                                    <option value="S">Shared</option>
-                                    <option value="P">Private</option>
-                                </select>
-                            </div>
+                        </div>
+                        {{-- Multi-vehicle transfer panel (attraction-style pax flow + zone Cost/Sell) --}}
+                        <div id="restaurantMvPanelHost"></div>
+                        {{-- Legacy sync selects (hidden) — kept for existing filter/save fallbacks --}}
+                        <div class="restaurant-mv-legacy-sync" aria-hidden="true">
+                            <select class="form-select form-select-sm" id="restaurantTransferVehicleType" tabindex="-1">
+                                <option value="">Select Vehicle</option>
+                                @php
+                                    $vehicleTypes = $vehicles->groupBy('vehicle_type');
+                                @endphp
+                                @foreach($vehicleTypes as $type => $typeVehicles)
+                                    <optgroup label="{{ ucfirst($type) }}">
+                                        @foreach($typeVehicles as $vehicle)
+                                            <option value="{{ $vehicle->vehicle_id }}" 
+                                                data-type="{{ $vehicle->vehicle_type }}"
+                                                data-seating="{{ $vehicle->seating_capacity }}"
+                                                data-city-tour-seating="{{ $vehicle->city_tour_seating_capacity ?? $vehicle->seating_capacity }}"
+                                                data-base-price="{{ $vehicle->base_price ?? 0 }}"
+                                                data-sharable-price="{{ $vehicle->sharable_base_price ?? 0 }}"
+                                                data-sharable="{{ $vehicle->sharable ?? 3 }}"
+                                                data-city="{{ $vehicle->city ?? '' }}">
+                                                {{ $vehicle->vehicle_name }} ({{ $vehicle->seating_capacity }} seats)
+                                            </option>
+                                        @endforeach
+                                    </optgroup>
+                                @endforeach
+                            </select>
+                            <select class="form-select form-select-sm" id="restaurantTransferWay" tabindex="-1">
+                                <option value="one-way">One Way</option>
+                                <option value="both-way">Two Way</option>
+                            </select>
+                            <select class="form-select form-select-sm" id="restaurantTransferType" tabindex="-1" onchange="filterRestaurantVehiclesByServiceType()">
+                                <option value="S">Shared</option>
+                                <option value="P">Private</option>
+                            </select>
                         </div>
                         <div class="row g-2 mb-1 group-foc-service-discount-ui">
                             <div class="col-12">
@@ -3778,55 +3736,46 @@
                     </div>
                                         <div class="row g-2 mb-2">
                             <div class="col-12" id="localVehicleTypeField">
-                                <div class="mv-vehicle-panel">
+                                <div class="attraction-mv-panel mv-vehicle-panel">
                                     <div class="mv-info-banner">
                                         <i class="ri-information-line"></i>
-                                        <span>Add vehicles as per total tour pax. You can use quantity or add multiple vehicles.</span>
+                                        <span>Add vehicles as per total tour pax. Shared multiplies by assigned pax; Private by quantity. Same flow as Attraction / Restaurant transfer.</span>
                                     </div>
-                                    <div class="mv-panel-head">
-                                        <h6 class="mv-panel-title"><i class="ri-car-line"></i> Vehicles</h6>
-                                        <button type="button" class="btn btn-sm btn-primary" style="font-size:11px;" onclick="addLocalVehicleRow()">
-                                            <i class="ri-add-line"></i> Add Vehicle
-                                        </button>
-                                    </div>
-                                    <div class="table-responsive">
-                                        <table class="table mv-vehicle-table mb-0">
-                                            <thead>
-                                                <tr>
-                                                    <th style="width:32px;">#</th>
-                                                    <th>Vehicle</th>
-                                                    <th style="width:70px;">Seats</th>
-                                                    <th style="width:88px;">Type</th>
-                                                    <th style="width:110px;">Quantity</th>
-                                                    <th style="width:70px;">Adults</th>
-                                                    <th style="width:70px;">Child</th>
-                                                    <th style="width:70px;">Infant</th>
-                                                    <th style="width:90px;">Cost (Per)</th>
-                                                    <th style="width:90px;">Sell (Per)</th>
-                                                    <th style="width:100px;">Total Cost</th>
-                                                    <th style="width:100px;">Total Sell</th>
-                                                    <th style="width:44px;">Action</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="localVehicleRows" class="arr-dep-vehicle-rows"></tbody>
-                                        </table>
-                                    </div>
-                                    <div id="localVehicleCoverage" class="mv-coverage-wrap" style="display:none;">
-                                        <div class="mv-coverage-cards">
-                                            <div class="mv-coverage-card" data-mv-card="total">
-                                                <div class="mv-card-label"><i class="ri-group-line"></i> Total Guests (Pax)</div>
-                                                <div class="mv-card-value" data-mv-total>0</div>
-                                            </div>
-                                            <div class="mv-coverage-card" data-mv-card="covered">
-                                                <div class="mv-card-label"><i class="ri-checkbox-circle-line"></i> Covered Guests</div>
-                                                <div class="mv-card-value" data-mv-covered>0</div>
-                                            </div>
-                                            <div class="mv-coverage-card" data-mv-card="remaining">
-                                                <div class="mv-card-label"><i class="ri-user-unfollow-line"></i> Remaining Guests</div>
-                                                <div class="mv-card-value" data-mv-remaining>0</div>
-                                            </div>
+                                    <div class="attr-mv-head">
+                                        <div class="attr-mv-head-left">
+                                            <h6 class="attr-mv-title"><i class="ri-car-line"></i> Transfer Vehicles</h6>
+                                            <p class="attr-mv-sub">full-width · add vehicles by pax</p>
                                         </div>
-                                        <div class="mv-coverage-banner" data-mv-banner></div>
+                                        <div class="attr-mv-head-actions">
+                                            <button type="button" class="attr-mv-collapse-btn" title="Collapse / expand vehicles"
+                                                onclick="toggleAttractionMvPanel(this)">
+                                                <i class="ri-arrow-down-s-line"></i><span>Vehicles</span>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-primary attr-mv-add-btn" style="font-size:10px;white-space:nowrap;padding:3px 8px;"
+                                                onclick="addLocalMvVehicle()">
+                                                <i class="ri-add-line"></i> Add Vehicle
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="attr-mv-body">
+                                        <div id="localVehicleRows" class="attraction-mv-accordion arr-dep-vehicle-rows"></div>
+                                        <div id="localVehicleCoverage" class="mv-coverage-wrap" style="display:none;">
+                                            <div class="mv-coverage-cards">
+                                                <div class="mv-coverage-card" data-mv-card="total">
+                                                    <div class="mv-card-label"><i class="ri-group-line"></i> Total Pax</div>
+                                                    <div class="mv-card-value" data-mv-total>0</div>
+                                                </div>
+                                                <div class="mv-coverage-card" data-mv-card="covered">
+                                                    <div class="mv-card-label"><i class="ri-checkbox-circle-line"></i> Covered</div>
+                                                    <div class="mv-card-value" data-mv-covered>0</div>
+                                                </div>
+                                                <div class="mv-coverage-card" data-mv-card="remaining">
+                                                    <div class="mv-card-label"><i class="ri-user-unfollow-line"></i> Remaining</div>
+                                                    <div class="mv-card-value" data-mv-remaining>0</div>
+                                                </div>
+                                            </div>
+                                            <div class="mv-coverage-banner" data-mv-banner></div>
+                                        </div>
                                     </div>
                                     <select class="d-none" id="localVehicleType" aria-hidden="true" tabindex="-1">
                                         <option value="">Select Vehicle</option>
@@ -3862,7 +3811,7 @@
                                 <option value="S" selected>Shared</option>
                             </select>
                         </div>
-                        <div class="col-3">
+                        <div class="col-3" style="display:none;">
                             <label class="form-label small" style="margin-bottom: 2px;">Way</label>
                             <select class="form-select form-select-sm" id="localWay">
                                 <option value="one-way">One Way</option>
@@ -4734,6 +4683,12 @@
 @include('enquiryform_pro.partials.remove-form-selection-alert-js')
 @include('enquiryform_pro.partials.hotel-check-times-js')
 @include('enquiryform_pro.partials.stay-rate-full-calendar')
+<script>
+    window.enquiryProDmcProfileMarkup = @json(\App\Helpers\CommonHelper::getDmcProfileMarkupConfig(auth()->user()));
+    window.STP_LITE_CONFIG = window.STP_LITE_CONFIG || {};
+    window.STP_LITE_CONFIG.dmcProfileMarkup = window.enquiryProDmcProfileMarkup;
+</script>
+@include('enquiryform_pro.partials.dmc-price-breakdown-scripts')
 @include('enquiryform_pro.partials.hotel-cost-sell-js')
 @include('enquiryform_pro.partials.online-booking-js')
 <script>window.hasNegotiationHistory = false;</script>
@@ -6115,11 +6070,18 @@
         return Math.max(0, adults + child);
     }
 
-    function addLocalVehicleRow(selectedId, qty) {
-        return addArrDepVehicleRow('local', selectedId, qty);
+    function addLocalVehicleRow(selectedId, qty, transferType, paxOpts) {
+        // Prefer window patch (accordion UI for local)
+        if (typeof window.addArrDepVehicleRow === 'function') {
+            return window.addArrDepVehicleRow('local', selectedId, qty, transferType, paxOpts);
+        }
+        return addArrDepVehicleRow('local', selectedId, qty, transferType, paxOpts);
     }
 
     function ensureLocalVehicleRows(vehicles) {
+        if (typeof window.ensureLocalMvPanel === 'function') {
+            return window.ensureLocalMvPanel(vehicles);
+        }
         return ensureArrDepVehicleRows('local', vehicles);
     }
 
@@ -6928,12 +6890,18 @@
     }
 
     function ensureArrDepVehicleRows(side, vehicles) {
+        if (side === 'local' && typeof window.ensureLocalMvPanel === 'function') {
+            return window.ensureLocalMvPanel(vehicles);
+        }
         const container = getArrDepVehicleRowsContainer(side);
         if (!container) return;
         container.innerHTML = '';
         const list = (Array.isArray(vehicles) && vehicles.length) ? vehicles : [{ vehicleId: '', qty: 1, transferType: 'S' }];
+        const addFn = (typeof window.addArrDepVehicleRow === 'function')
+            ? window.addArrDepVehicleRow
+            : addArrDepVehicleRow;
         list.forEach(function (v) {
-            addArrDepVehicleRow(
+            addFn(
                 side,
                 v.vehicleId || v.vehicle_id || '',
                 v.qty || v.quantity || 1,
@@ -7151,6 +7119,10 @@
     window.getArrDepHeaderPax = getArrDepHeaderPax;
 
     @include('enquiryform_pro.partials.attraction-multi-vehicle-js')
+    @include('enquiryform_pro.partials.restaurant-multi-vehicle-js')
+    window.refreshLocalMultiVehiclePrices = refreshLocalMultiVehiclePrices;
+    window.scheduleLocalMultiVehiclePriceRefresh = scheduleLocalMultiVehiclePriceRefresh;
+    @include('enquiryform_pro.partials.local-multi-vehicle-js')
 
     // Init multi-vehicle rows when accommodation modal opens / transfer shown
     document.addEventListener('DOMContentLoaded', function () {
@@ -8027,6 +7999,10 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         return $id ? [ (string)$c->name => (int)$id ] : [];
     }));
     window.enquiryProGetHotelsUrl = @json(route('enquiry-form-pro.get-hotels'));
+    {{-- DMC profile markup_json (hotel / other) — same source Lite uses via STP_LITE_CONFIG.dmcProfileMarkup --}}
+    window.enquiryProDmcProfileMarkup = @json(\App\Helpers\CommonHelper::getDmcProfileMarkupConfig(auth()->user()));
+    window.STP_LITE_CONFIG = window.STP_LITE_CONFIG || {};
+    window.STP_LITE_CONFIG.dmcProfileMarkup = window.enquiryProDmcProfileMarkup;
     @include('enquiryform_pro.partials.city-destination-scripts')
     @include('enquiryform_pro.partials.markup-discount-currency-scripts')
     
@@ -10878,21 +10854,8 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             console.log('  endInput.value:', endDateInput.value);
             console.log('  endInput.valueAsDate:', endDateInput.valueAsDate);
             
-            // IMPORTANT: Also update popup date fields if they exist
-            const checkInDate = document.getElementById('checkInDate');
-            const checkOutDate = document.getElementById('checkOutDate');
-            
-            if (checkInDate) {
-                checkInDate.value = targetStartValue;
-                checkInDate.setAttribute('value', targetStartValue);
-                console.log('Updated popup checkInDate to:', targetStartValue);
-            }
-            
-            if (checkOutDate) {
-                checkOutDate.value = targetEndValue;
-                checkOutDate.setAttribute('value', targetEndValue);
-                console.log('Updated popup checkOutDate to:', targetEndValue);
-            }
+            // Do NOT overwrite hotel modal check-in/out with the full tour range —
+            // that resets a mid-stay edit back to tour start/end.
             
             // Recalculate nights
             if (typeof calculateNights === 'function') {
@@ -12509,24 +12472,41 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         
         if (checkInDate) {
             checkInDate.addEventListener('change', function() {
-                console.log('Popup Check-In changed to:', this.value);
-                const tourStartDate = getHeaderStartInput();
-                if (tourStartDate) {
-                    tourStartDate.value = this.value;
-                    console.log('Header Start Date set to:', tourStartDate.value);
-                    updateStartDate(); // Trigger header validation
+                // type=date header must get YYYY-MM-DD only — assigning datetime-local clears the tour start
+                const dateOnly = (typeof normalizeDateToYYYYMMDD === 'function')
+                    ? normalizeDateToYYYYMMDD(this.value)
+                    : String(this.value || '').split('T')[0];
+                console.log('Popup Check-In changed to:', this.value, '→ header expand', dateOnly);
+                if (dateOnly && typeof expandHeaderDatesIfNeeded === 'function') {
+                    expandHeaderDatesIfNeeded(dateOnly, false);
+                }
+                if (dateOnly && typeof expandCityDateRangeToCover === 'function') {
+                    const city = document.getElementById('hotelDestination')?.value || '';
+                    const checkOutOnly = (typeof normalizeDateToYYYYMMDD === 'function')
+                        ? normalizeDateToYYYYMMDD(document.getElementById('checkOutDate')?.value)
+                        : String(document.getElementById('checkOutDate')?.value || '').split('T')[0];
+                    expandCityDateRangeToCover(city, dateOnly, checkOutOnly || dateOnly);
                 }
             });
         }
         
         if (checkOutDate) {
             checkOutDate.addEventListener('change', function() {
-                console.log('Popup Check-Out changed to:', this.value);
-                const tourEndDate = getHeaderEndInput();
-                if (tourEndDate) {
-                    tourEndDate.value = this.value;
-                    console.log('Header End Date set to:', tourEndDate.value);
-                    updateEndDate(); // Trigger header validation
+                // type=date header must get YYYY-MM-DD only — assigning datetime-local clears the tour end
+                // (then city validation fails on Save and restoreHotelModalPreview reverts prior nights)
+                const dateOnly = (typeof normalizeDateToYYYYMMDD === 'function')
+                    ? normalizeDateToYYYYMMDD(this.value)
+                    : String(this.value || '').split('T')[0];
+                console.log('Popup Check-Out changed to:', this.value, '→ header expand', dateOnly);
+                if (dateOnly && typeof expandHeaderDatesIfNeeded === 'function') {
+                    expandHeaderDatesIfNeeded(dateOnly, false);
+                }
+                if (dateOnly && typeof expandCityDateRangeToCover === 'function') {
+                    const city = document.getElementById('hotelDestination')?.value || '';
+                    const checkInOnly = (typeof normalizeDateToYYYYMMDD === 'function')
+                        ? normalizeDateToYYYYMMDD(document.getElementById('checkInDate')?.value)
+                        : String(document.getElementById('checkInDate')?.value || '').split('T')[0];
+                    expandCityDateRangeToCover(city, checkInOnly || dateOnly, dateOnly);
                 }
             });
         }
@@ -12877,7 +12857,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             checkIn.setDate(checkIn.getDate() + 1);
             const minCheckOut = checkIn.toISOString().split('T')[0];
             checkOutInput.setAttribute('min', minCheckOut);
-            checkOutInput.removeAttribute('max'); // Allow all future dates
+            checkOutInput.removeAttribute('max');
             
             // Auto-set checkout to check-in + 1 or update if invalid
             if (!checkOutInput.value || new Date(checkOutInput.value) < checkIn) {
@@ -12888,6 +12868,12 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             if (checkOutInput.value) {
                 expandHeaderDatesIfNeeded(checkOutInput.value, false);
             }
+
+            // Restore city-window max after stripping max above
+            const hotelCity = document.getElementById('hotelDestination')?.value || '';
+            if (hotelCity && typeof applyCityDateRangeToContext === 'function') {
+                applyCityDateRangeToContext(hotelCity, 'accommodation', { reset: false });
+            }
             
             // Calculate nights after updating
             calculateAccommodationNights();
@@ -12895,7 +12881,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             // Reset checkout minimum to today if check-in is cleared
             const todayStr = today.toISOString().split('T')[0];
             checkOutInput.setAttribute('min', todayStr);
-            checkOutInput.removeAttribute('max'); // Allow all future dates
+            checkOutInput.removeAttribute('max');
             checkOutInput.value = '';
         }
     }
@@ -16931,10 +16917,21 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
 
     // Save selected hotels to main accommodation table
     async function saveSelectedHotels() {
-        if (!window.isArrivalDepartureOnlyMode
-            && typeof ensureModalServiceDateWithinCity === 'function'
-            && !ensureModalServiceDateWithinCity('hotelDestination', 'checkInDate', 'checkOutDate', 'Accommodation')) {
-            return;
+        if (!window.isArrivalDepartureOnlyMode) {
+            const hotelCity = document.getElementById('hotelDestination')?.value || '';
+            const hotelIn = document.getElementById('checkInDate')?.value || '';
+            const hotelOut = document.getElementById('checkOutDate')?.value || '';
+            if (typeof expandHeaderDatesIfNeeded === 'function') {
+                if (hotelIn) expandHeaderDatesIfNeeded(hotelIn, false);
+                if (hotelOut) expandHeaderDatesIfNeeded(hotelOut, false);
+            }
+            if (typeof expandCityDateRangeToCover === 'function' && hotelCity && hotelIn) {
+                expandCityDateRangeToCover(hotelCity, hotelIn, hotelOut || hotelIn);
+            }
+            if (typeof ensureModalServiceDateWithinCity === 'function'
+                && !ensureModalServiceDateWithinCity('hotelDestination', 'checkInDate', 'checkOutDate', 'Accommodation')) {
+                return;
+            }
         }
         // Check if we're in arrival/departure only mode
         if (window.isArrivalDepartureOnlyMode) {
@@ -17294,6 +17291,12 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             const displayCwbPrice = hotel.hasCwb ? (parseFloat(hotel.cwbPrice) || 0).toFixed(2) : '0.00';
             const displayCnbPrice = hotel.hasCnb ? (parseFloat(hotel.cnbPrice) || 0).toFixed(2) : '0.00';
             const displayInfantPrice = hotel.hasInfant ? (parseFloat(hotel.infantPrice) || 0).toFixed(2) : '0.00';
+            const sellBase = (typeof enquiryProResolveDisplayBaseSell === 'function')
+                ? enquiryProResolveDisplayBaseSell(hotel.sell || hotel.roomPrice || 0, 'hotel', hotel)
+                : (parseFloat(hotel.sell || hotel.roomPrice) || 0);
+            const markupPrice = (typeof enquiryProFormatMarkupPrice === 'function')
+                ? enquiryProFormatMarkupPrice(sellBase, 'hotel')
+                : sellBase;
             
             return `
             <tr>
@@ -17314,7 +17317,8 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 <td><input type="number" value="${hotel.nights}" readonly style="background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${hotel.rooms}" min="1" onchange="updateAccommodationField(${index}, 'rooms', this.value)"></td>
                 <td><input type="text" class="accommodation-price-field" value="${(hotel.cost || hotel.roomPrice || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
-                <td><input type="text" class="accommodation-price-field" value="${(hotel.sell || hotel.roomPrice || 0).toFixed(2)}" onchange="updateAccommodationField(${index}, 'sell', parseFloat(this.value) || 0)" onblur="this.value = (parseFloat(this.value) || 0).toFixed(2)"></td>
+                <td><input type="text" class="accommodation-price-field" value="${sellBase.toFixed(2)}" title="Sell before DMC markup" onchange="updateAccommodationField(${index}, 'sell', parseFloat(this.value) || 0); updateAccommodationTable(); recalculateTotals();" onblur="this.value = (parseFloat(this.value) || 0).toFixed(2)"></td>
+                <td><input type="text" class="accommodation-price-field ep-markup-price-field" value="${Number(markupPrice).toFixed(2)}" readonly style="background-color: #f3e8ff; color: #6b21a8;" title="Sell after DMC hotel markup"></td>
                 <td><input type="text" value="${displayExtraBedPrice}" readonly style="background-color: #f5f5f5;" title="Edit in popup to change"></td>
                 <td><input type="text" value="${displayCwbPrice}" readonly style="background-color: #f5f5f5;" title="Edit in popup to change"></td>
                 <td><input type="text" value="${displayCnbPrice}" readonly style="background-color: #f5f5f5;" title="Edit in popup to change"></td>
@@ -18412,6 +18416,14 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                             String(g.linkedTo || '').toLowerCase() === linkedKey
                             && serviceCityKey(g.city || g.destination || '') === cityKey);
                     }
+                    if (existingIdx === -1 && cityGroups.size === 1) {
+                        existingIdx = guideList.findIndex(g =>
+                            g && g.isStandalone === false
+                            && String(g.linkedTo || '').toLowerCase() === linkedKey);
+                    }
+                    if (existingIdx === -1 && entry.guideId) {
+                        existingIdx = guideList.findIndex(g => String(g.id) === String(entry.guideId));
+                    }
 
                     const guideObj = {
                         dateTime: entry.dateTime,
@@ -18436,6 +18448,19 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                         guideList.push({ id: guideEntryId, ...guideObj });
                         entry.guideId = guideEntryId;
                     }
+                    const keepGuideId = String(entry.guideId);
+                    guideList = guideList.filter(function (g) {
+                        if (!g || String(g.id) === keepGuideId) return true;
+                        if (g.isStandalone === true) return true;
+                        if (String(g.linkedTo || '').toLowerCase() !== linkedKey) return true;
+                        const gCity = (typeof serviceCityKey === 'function')
+                            ? serviceCityKey(g.city || g.destination || '')
+                            : String(g.city || g.destination || '').toLowerCase();
+                        if (cityKey && gCity && gCity !== cityKey) return true;
+                        if (cityKey && gCity === cityKey) return false;
+                        if (!gCity && cityGroups.size === 1) return false;
+                        return true;
+                    });
                 } else if (!guideChecked && entry?.guideId && !preserveGuideSelection) {
                     const idx = guideList.findIndex(g => String(g.id) === String(entry.guideId));
                     if (idx !== -1) guideList.splice(idx, 1);
@@ -18531,6 +18556,33 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             if (pair) {
                 hotel.arrivalDepartureIds = [pair.arrEntry?.id, pair.depEntry?.id].filter(Boolean);
             }
+        });
+
+        // Prune orphan hotel A/D guides (same-city multi-hotel can leave mid-stay duplicates)
+        const validGuideIds = new Set();
+        const validArrDepIds = new Set();
+        arrivalDepartureList.forEach(function (e) {
+            if (!e) return;
+            if (e.id != null) validArrDepIds.add(String(e.id));
+            if (e.guideId != null && String(e.guideId) !== '') validGuideIds.add(String(e.guideId));
+        });
+        syncedEntries.forEach(function (p) {
+            if (p.arrEntry?.guideId) validGuideIds.add(String(p.arrEntry.guideId));
+            if (p.depEntry?.guideId) validGuideIds.add(String(p.depEntry.guideId));
+        });
+        guideList = guideList.filter(function (g) {
+            if (!g || g.isStandalone === true) return true;
+            const lt = String(g.linkedTo || '').toLowerCase();
+            if (lt !== 'arrival' && lt !== 'departure') return true;
+            if (validGuideIds.has(String(g.id))) return true;
+            const src = String(g.arrivalId || g.departureId || g.sourceId || '');
+            if (src && validArrDepIds.has(src)) {
+                const owner = arrivalDepartureList.find(function (e) { return String(e.id) === src; });
+                if (owner && owner.guideId && String(owner.guideId) === String(g.id)) return true;
+                if (owner && (!owner.guideId || String(owner.guideId) === '')) return true;
+                return false;
+            }
+            return false;
         });
 
         if (typeof updateGuideTable === 'function') updateGuideTable();
@@ -18781,6 +18833,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         const roomCombinationsSection = document.getElementById('roomCombinationsSection');
         if (roomCombinationsSection) roomCombinationsSection.style.display = 'block';
 
+        window._populatingAccommodationEdit = true;
         try {
             const destinationSelect = document.getElementById('hotelDestination');
             if (destinationSelect && hotel.destination) {
@@ -18840,6 +18893,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             setAccommodationRatePanelLoading(false);
         } finally {
             window._skipHotelAutoSelect = false;
+            window._populatingAccommodationEdit = false;
         }
     }
 
@@ -19401,6 +19455,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     <a href="javascript:void(0)" onclick="editArrivalDeparture(${item.originalIndex})" style="color: #0d6efd; text-decoration: underline; cursor: pointer;">
                         ${item.portName || '-'}
                     </a>
+                    ${typeof enquiryProPriceBreakBtnHtml === 'function' ? enquiryProPriceBreakBtnHtml('arrivaldeparture', item.originalIndex) : ''}
                 </td>
                 <td>${pickupDropDisplay}</td>
                 <td>${item.flightNo || '-'}</td>
@@ -21880,22 +21935,24 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     childQty: childQty
                 });
                 
-                guideInfo = {
-                    guide_id: guideId,
-                    name: guideName,
-                    languages: guideLanguages
-                };
-                
                 // Guide price is fixed for 12 hours, not dependent on pax
-                // Use the 12-hour cost/sell directly without multiplying by pax
                 const adultCost = defaultCost;
                 const adultSell = defaultPrice;
                 const childCost = defaultCost;
                 const childSell = defaultPrice;
-                
-                // Total cost and sell - guide price is fixed, not per person
                 const totalCost = defaultCost;
                 const totalSell = defaultPrice;
+
+                guideInfo = {
+                    guide_id: guideId,
+                    name: guideName,
+                    languages: guideLanguages,
+                    cost: totalCost,
+                    sell: totalSell,
+                    adultCost: adultCost,
+                    adultSell: adultSell,
+                    price: totalSell
+                };
                 
                 // Use existing guide ID or generate new one
                 if (!guideEntryId) {
@@ -21938,6 +21995,12 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             let guide_options = null;
             if (guideChecked && guideId && guideInfo) {
                 const guideOptionForPrice = guideSelect.options[guideSelect.selectedIndex];
+                const guideOptSell = (typeof resolveGuideCostSellFromOption === 'function')
+                    ? resolveGuideCostSellFromOption(guideOptionForPrice, 12)
+                    : {
+                        cost: parseFloat(guideOptionForPrice?.getAttribute('data-twelve-hour-cost-price') || '0') || 0,
+                        sell: parseFloat(guideOptionForPrice?.getAttribute('data-twelve-hour-price') || '0') || 0
+                    };
                 guide_options = {
                     guideId: guideId,
                     guide_id: guideId,
@@ -21955,12 +22018,9 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     child_qty: childQty,
                     childrenQty: childQty,
                     children_qty: childQty,
-                    cost: (typeof resolveGuideCostSellFromOption === 'function')
-                        ? resolveGuideCostSellFromOption(guideOptionForPrice, 12).cost
-                        : (parseFloat(guideOptionForPrice?.getAttribute('data-twelve-hour-cost-price') || '0') || 0),
-                    sell: (typeof resolveGuideCostSellFromOption === 'function')
-                        ? resolveGuideCostSellFromOption(guideOptionForPrice, 12).sell
-                        : (parseFloat(guideOptionForPrice?.getAttribute('data-twelve-hour-price') || '0') || 0),
+                    cost: guideOptSell.cost,
+                    sell: guideOptSell.sell,
+                    total_price: guideOptSell.sell,
                     serviceType: 'Full Day',
                     service_type: 'Full Day',
                     tourActivity: `${attractionName} - ${guideName}`,
@@ -22253,22 +22313,24 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     childQty: childQty
                 });
                 
-                guideInfo = {
-                    guide_id: guideId,
-                    name: guideName,
-                    languages: guideLanguages
-                };
-                
                 // Guide price is fixed for 12 hours, not dependent on pax
-                // Use the 12-hour cost/sell directly without multiplying by pax
                 const adultCost = defaultCost;
                 const adultSell = defaultPrice;
                 const childCost = defaultCost;
                 const childSell = defaultPrice;
-                
-                // Total cost and sell - guide price is fixed, not per person
                 const totalCost = defaultCost;
                 const totalSell = defaultPrice;
+
+                guideInfo = {
+                    guide_id: guideId,
+                    name: guideName,
+                    languages: guideLanguages,
+                    cost: totalCost,
+                    sell: totalSell,
+                    adultCost: adultCost,
+                    adultSell: adultSell,
+                    price: totalSell
+                };
                 
                 // Add guide(s) to guide list based on quantity
                 guideEntryId = generateId('guide');
@@ -22327,6 +22389,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     children_qty: childQty,
                     cost: _gpOpt.cost,
                     sell: _gpOpt.sell,
+                    total_price: _gpOpt.sell,
                     serviceType: 'Full Day',
                     service_type: 'Full Day',
                     tourActivity: `${attractionName} - ${guideName}`,
@@ -22586,6 +22649,13 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             if (dateTimeValue && !dateTimeValue.includes('T')) {
                 dateTimeValue = dateTimeValue + 'T10:00';
             }
+            // Per-pax sell is ticket base (do not resolve via tour.base_grand_total)
+            const adultSellBase = parseFloat(String(tour.adultSell).replace(/[^0-9.-]/g, '') || 0) || 0;
+            const childSellBase = parseFloat(String(tour.childSell).replace(/[^0-9.-]/g, '') || 0) || 0;
+            const infantSellBase = parseFloat(String(tour.infantSell || 0).replace(/[^0-9.-]/g, '') || 0) || 0;
+            const mkTd = (typeof enquiryProMarkupPriceTdHtml === 'function')
+                ? enquiryProMarkupPriceTdHtml
+                : (v) => `<td><input type="text" value="${Number(v).toFixed(2)}" readonly style="background-color: #f3e8ff;"></td>`;
             
             return `
             <tr>
@@ -22597,16 +22667,20 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     <a href="javascript:void(0)" onclick="editTour(${index})" style="color: #0d6efd; text-decoration: underline; cursor: pointer;">
                         ${tour.attractionName}
                     </a>
+                    ${typeof enquiryProPriceBreakBtnHtml === 'function' ? enquiryProPriceBreakBtnHtml('tour', index) : ''}
                 </td>
                 <td><input type="number" value="${tour.adultsQty}" min="${tourPaxBounds.adultMin}" max="${tourPaxBounds.adultMax}" ${tourPaxBounds.adults <= 0 ? 'disabled' : ''} onchange="updateTourField(${index}, 'adultsQty', this.value); this.value = tourList[${index}].adultsQty;" ${tourPaxBounds.adults <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}></td>
                 <td><input type="text" value="${parseFloat(String(tour.adultCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
-                <td><input type="number" value="${parseFloat(String(tour.adultSell).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateTourField(${index}, 'adultSell', this.value)" step="1"></td>
+                <td><input type="number" value="${Number(adultSellBase).toFixed(2)}" title="Sell before DMC markup" onchange="updateTourField(${index}, 'adultSell', this.value); updateTourTable(); recalculateTotals();" step="1"></td>
+                ${mkTd(adultSellBase, 'other')}
                 <td><input type="number" value="${tour.childQty}" min="${tourPaxBounds.childMin}" max="${tourPaxBounds.childMax}" ${tourPaxBounds.children <= 0 ? 'disabled' : ''} onchange="updateTourField(${index}, 'childQty', this.value); this.value = tourList[${index}].childQty;" ${tourPaxBounds.children <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}></td>
                 <td><input type="text" value="${parseFloat(String(tour.childCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
-                <td><input type="number" value="${parseFloat(String(tour.childSell).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateTourField(${index}, 'childSell', this.value)" step="1"></td>
+                <td><input type="number" value="${Number(childSellBase).toFixed(2)}" title="Sell before DMC markup" onchange="updateTourField(${index}, 'childSell', this.value); updateTourTable(); recalculateTotals();" step="1"></td>
+                ${mkTd(childSellBase, 'other')}
                 <td><input type="number" value="${tour.infantQty || 0}" min="${tourPaxBounds.infantMin || 0}" max="${tourPaxBounds.infantMax || 0}" ${(tourPaxBounds.infants || 0) <= 0 ? 'disabled' : ''} onchange="updateTourField(${index}, 'infantQty', this.value); this.value = tourList[${index}].infantQty;" ${(tourPaxBounds.infants || 0) <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}></td>
                 <td><input type="text" value="${parseFloat(String(tour.infantCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
-                <td><input type="number" value="${parseFloat(String(tour.infantSell || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateTourField(${index}, 'infantSell', this.value)" step="1"></td>
+                <td><input type="number" value="${Number(infantSellBase).toFixed(2)}" title="Sell before DMC markup" onchange="updateTourField(${index}, 'infantSell', this.value); updateTourTable(); recalculateTotals();" step="1"></td>
+                ${mkTd(infantSellBase, 'other')}
                 ${buildOutsideFocCellHtml(isServiceFocChecked(tour, false), `updateTourField(${index}, 'focServiceDiscount', this.checked)`)}
                 <td style="text-align: center;"><input type="checkbox" ${tour.supplement ? 'checked' : ''} onchange="updateTourField(${index}, 'supplement', this.checked)"></td>
             </tr>
@@ -23040,24 +23114,21 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                         // Get first language for saving (or all languages as comma-separated)
                         const languagesForSave = guide.languages.map(l => l.language).join(', ') || 'N/A';
                         
-                        // Parse prices as numbers, ensuring they are valid
-                        const twoHourPrice = parseFloat(guide.two_hour_price) || 0;
-                        const fourHourPrice = parseFloat(guide.four_hour_price) || 0;
-                        const sixHourPrice = parseFloat(guide.six_hour_price) || 0;
-                        const eightHourPrice = parseFloat(guide.eight_hour_price) || 0;
-                        const tenHourPrice = parseFloat(guide.ten_hour_price) || 0;
+                        // Parse sell + cost prices (12h default for standalone guide modal)
                         const twelveHourPrice = parseFloat(guide.twelve_hour_price) || parseFloat(guide.day_rate) || 0;
-                        
-                        // Ensure all prices are valid numbers (not NaN)
-                        const validTwoHour = isNaN(twoHourPrice) ? 0 : twoHourPrice;
-                        const validFourHour = isNaN(fourHourPrice) ? 0 : fourHourPrice;
-                        const validSixHour = isNaN(sixHourPrice) ? 0 : sixHourPrice;
-                        const validEightHour = isNaN(eightHourPrice) ? 0 : eightHourPrice;
-                        const validTenHour = isNaN(tenHourPrice) ? 0 : tenHourPrice;
+                        const twelveHourCost = parseFloat(guide.twelve_hour_cost_price) || 0;
                         const validTwelveHour = isNaN(twelveHourPrice) ? 0 : twelveHourPrice;
-                        
-                        // Format the default sell price (12 hour price)
+                        const validTwelveCost = isNaN(twelveHourCost) ? 0 : twelveHourCost;
+                        // Cost = DB twelve_hour_cost_price; Sell = DB twelve_hour_price (do not copy sell into cost)
                         const defaultSellPrice = validTwelveHour > 0 ? validTwelveHour.toFixed(2) : '0.00';
+                        const defaultCostPrice = validTwelveCost > 0
+                            ? validTwelveCost.toFixed(2)
+                            : (typeof lookupGuidePriceFromMap === 'function'
+                                ? (function () {
+                                    const m = lookupGuidePriceFromMap(guide.guide_id || guide.name, 12);
+                                    return m.cost > 0 ? m.cost.toFixed(2) : defaultSellPrice;
+                                })()
+                                : defaultSellPrice);
                         
                         html += `
                             <tr class="guide-row" data-guide-id="${guide.guide_id}" data-guide-name="${guide.name}" data-guide-languages="${languagesForSave}">
@@ -23087,7 +23158,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                                 </td>
                                 <td style="padding: 2px 8px; text-align: right;">
                                     <input type="text" class="form-control form-control-sm guide-cost" data-guide-id="${guide.guide_id}" 
-                                           value="${defaultSellPrice}" readonly
+                                           value="${defaultCostPrice}" readonly
                                            style="font-size: 10px; padding: 2px 4px; text-align: right; background-color: #f5f5f5;">
                                 </td>
                                 <td style="padding: 2px 8px; text-align: right;">
@@ -23223,7 +23294,16 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 : (parseInt(childQtyInput?.value || 0) || 0);
             
             if (isNaN(baseCost) || baseCost < 0) baseCost = 0;
-            if (isNaN(baseSell) || baseSell < 0) baseSell = baseCost;
+            if (isNaN(baseSell) || baseSell < 0) baseSell = 0;
+            
+            if (typeof lookupGuidePriceFromMap === 'function') {
+                const fromMap = lookupGuidePriceFromMap(guideId || guideName, 12);
+                if (fromMap.cost > 0 && (baseCost <= 0 || (baseCost === baseSell && fromMap.cost !== fromMap.sell))) {
+                    baseCost = fromMap.cost;
+                }
+                if (baseSell <= 0 && fromMap.sell > 0) baseSell = fromMap.sell;
+            }
+            if (baseSell <= 0) baseSell = baseCost;
             
             if (baseSell === 50 || baseSell === 30 || baseSell === 20) {
                 console.warn(`Guide sell price had default value ${baseSell}, replacing with cost price ${baseCost}`);
@@ -23327,7 +23407,16 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 : (parseInt(childQtyInput?.value || 0) || 0);
             
             if (isNaN(baseCost) || baseCost < 0) baseCost = 0;
-            if (isNaN(baseSell) || baseSell < 0) baseSell = baseCost;
+            if (isNaN(baseSell) || baseSell < 0) baseSell = 0;
+            
+            if (typeof lookupGuidePriceFromMap === 'function') {
+                const fromMap = lookupGuidePriceFromMap(guideId || guideName, 12);
+                if (fromMap.cost > 0 && (baseCost <= 0 || (baseCost === baseSell && fromMap.cost !== fromMap.sell))) {
+                    baseCost = fromMap.cost;
+                }
+                if (baseSell <= 0 && fromMap.sell > 0) baseSell = fromMap.sell;
+            }
+            if (baseSell <= 0) baseSell = baseCost;
             
             if (baseSell === 50 || baseSell === 30 || baseSell === 20) {
                 console.warn(`Guide sell price had default value ${baseSell}, replacing with cost price ${baseCost}`);
@@ -23408,18 +23497,27 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
     }
     window.lookupGuidePriceFromMap = lookupGuidePriceFromMap;
 
-    /** Fill missing guideList.cost from DB map (fixes COST=0 after prior saves / missing option attrs). */
+    /** Fill missing guideList.cost from DB map (fixes COST=0 / cost wrongly stamped as sell). */
     function hydrateGuideListCostsFromMap() {
         if (!Array.isArray(guideList)) return;
         guideList.forEach(function (g) {
             const hours = parseInt(g.hours || 12, 10) || 12;
-            const curCost = parseFloat(g.cost) || 0;
-            const curSell = parseFloat(g.sell) || 0;
-            if (curCost > 0 && curSell > 0) return;
+            let curCost = parseFloat(g.cost) || 0;
+            let curSell = parseFloat(g.sell) || 0;
             const fromMap = lookupGuidePriceFromMap(
                 g.guideId || g.guide_id || g.guideName || g.name,
                 hours
             );
+            // Standalone guide modal previously set cost = sell; restore DB cost when sell matches map sell
+            if (fromMap.cost > 0 && fromMap.sell > 0 && fromMap.cost !== fromMap.sell
+                && curCost > 0 && curCost === curSell && Math.abs(curSell - fromMap.sell) < 0.01) {
+                g.cost = fromMap.cost;
+                if (!(parseFloat(g.adultCost) > 0) || Math.abs(parseFloat(g.adultCost) - curSell) < 0.01) {
+                    g.adultCost = fromMap.cost;
+                }
+                curCost = fromMap.cost;
+            }
+            if (curCost > 0 && curSell > 0) return;
             if (curCost <= 0 && fromMap.cost > 0) {
                 g.cost = fromMap.cost;
                 if (!(parseFloat(g.adultCost) > 0)) g.adultCost = fromMap.cost;
@@ -23524,7 +23622,8 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
 
             // Make Tour/Activity clickable - opens guide modal for standalone, or tour modal for linked
             const tourActivityValue = guide.tourActivity || guide.tourName || '-';
-            const tourActivityHtml = `<a href="javascript:void(0)" onclick="editGuide(${index})" style="color: #0d6efd; text-decoration: underline; cursor: pointer;">${tourActivityValue}</a>`;
+            const tourActivityHtml = `<a href="javascript:void(0)" onclick="editGuide(${index})" style="color: #0d6efd; text-decoration: underline; cursor: pointer;">${tourActivityValue}</a>`
+                + (typeof enquiryProPriceBreakBtnHtml === 'function' ? enquiryProPriceBreakBtnHtml('guide', index) : '');
 
             return `
             <tr>
@@ -23537,7 +23636,8 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 <td><input type="number" value="${guide.childQty || 0}" min="${guidePaxBounds.childMin}" max="${guidePaxBounds.childMax}" ${guidePaxBounds.children <= 0 ? 'disabled' : ''} onchange="updateGuideField(${index}, 'childQty', this.value); this.value = guideList[${index}].childQty;" step="1" ${guidePaxBounds.children <= 0 ? 'style="width: 70px; text-align: center; background-color: #f5f5f5; cursor: not-allowed;"' : 'style="width: 70px; text-align: center;"'}></td>
                 <td><input type="number" value="${guide.infantQty || 0}" min="${guidePaxBounds.infantMin || 0}" max="${guidePaxBounds.infantMax || 0}" ${(guidePaxBounds.infants || 0) <= 0 ? 'disabled' : ''} onchange="updateGuideField(${index}, 'infantQty', this.value); this.value = guideList[${index}].infantQty;" step="1" ${(guidePaxBounds.infants || 0) <= 0 ? 'style="width: 70px; text-align: center; background-color: #f5f5f5; cursor: not-allowed;"' : 'style="width: 70px; text-align: center;"'}></td>
                 <td><input type="text" class="guide-cost-input" value="${guide.cost}" readonly style="background-color: #f5f5f5;"></td>
-                <td><input type="number" class="guide-sell-input" value="${guide.sell}" onchange="updateGuideField(${index}, 'sell', this.value)" step="1"></td>
+                <td><input type="number" class="guide-sell-input" value="${(typeof enquiryProResolveDisplayBaseSell === 'function' ? enquiryProResolveDisplayBaseSell(guide.sell, 'other', guide) : (parseFloat(guide.sell) || 0)).toFixed(2)}" title="Sell before DMC markup" onchange="updateGuideField(${index}, 'sell', this.value); updateGuideTable(); recalculateTotals();" step="1"></td>
+                ${(typeof enquiryProMarkupPriceTdHtml === 'function' ? enquiryProMarkupPriceTdHtml((typeof enquiryProResolveDisplayBaseSell === 'function' ? enquiryProResolveDisplayBaseSell(guide.sell, 'other', guide) : guide.sell), 'other') : '')}
                 ${buildOutsideFocCellHtml(isServiceFocChecked(guide, false), `updateGuideField(${index}, 'focServiceDiscount', this.checked)`)}
                 <td style="text-align: center;">${supplementCheckboxHtml}</td>
             </tr>
@@ -23782,6 +23882,13 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             }
             guide[field] = value;
             if (field === 'infantQty') guide.infant = value;
+            if (field === 'sell') {
+                const base = parseFloat(value) || 0;
+                guide.base_grand_total = base;
+                if (guide.dmc_profile_markup && typeof guide.dmc_profile_markup === 'object') {
+                    guide.dmc_profile_markup.base_price = base;
+                }
+            }
             
             // If dateTime field is changed, update linked tour date and expand header dates
             if (field === 'dateTime' && value) {
@@ -24190,16 +24297,20 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     <a href="javascript:void(0)" onclick="editMisc(${index})" style="color: #0d6efd; text-decoration: underline; cursor: pointer;">
                         ${item.itemName}
                     </a>
+                    ${typeof enquiryProPriceBreakBtnHtml === 'function' ? enquiryProPriceBreakBtnHtml('misc', index) : ''}
                 </td>
                 <td><input type="number" value="${item.adultsQty}" min="${miscPaxBounds.adultMin}" max="${miscPaxBounds.adultMax}" ${miscPaxBounds.adults <= 0 ? 'disabled' : ''} onchange="updateMiscField(${index}, 'adultsQty', this.value); this.value = miscList[${index}].adultsQty;" ${miscPaxBounds.adults <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}></td>
                 <td><input type="text" value="${parseFloat(String(item.adultCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
-                <td><input type="number" value="${parseFloat(String(item.adultSell).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateMiscField(${index}, 'adultSell', this.value)" step="1"></td>
+                <td><input type="number" value="${(parseFloat(String(item.adultSell).replace(/[^0-9.-]/g, '') || 0) || 0).toFixed(2)}" title="Sell before DMC markup" onchange="updateMiscField(${index}, 'adultSell', this.value); updateMiscTable(); recalculateTotals();" step="1"></td>
+                ${(typeof enquiryProMarkupPriceTdHtml === 'function' ? enquiryProMarkupPriceTdHtml(item.adultSell, 'other') : '')}
                 <td><input type="number" value="${item.childQty}" min="${miscPaxBounds.childMin}" max="${miscPaxBounds.childMax}" ${miscPaxBounds.children <= 0 ? 'disabled' : ''} onchange="updateMiscField(${index}, 'childQty', this.value); this.value = miscList[${index}].childQty;" ${miscPaxBounds.children <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}></td>
                 <td><input type="text" value="${parseFloat(String(item.childCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
-                <td><input type="number" value="${parseFloat(String(item.childSell).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateMiscField(${index}, 'childSell', this.value)" step="1"></td>
+                <td><input type="number" value="${(parseFloat(String(item.childSell).replace(/[^0-9.-]/g, '') || 0) || 0).toFixed(2)}" title="Sell before DMC markup" onchange="updateMiscField(${index}, 'childSell', this.value); updateMiscTable(); recalculateTotals();" step="1"></td>
+                ${(typeof enquiryProMarkupPriceTdHtml === 'function' ? enquiryProMarkupPriceTdHtml(item.childSell, 'other') : '')}
                 <td><input type="number" value="${item.infantQty}" onchange="updateMiscField(${index}, 'infantQty', this.value)"></td>
                 <td><input type="text" value="${parseFloat(String(item.infantCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
-                <td><input type="number" value="${parseFloat(String(item.infantSell).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateMiscField(${index}, 'infantSell', this.value)" step="1"></td>
+                <td><input type="number" value="${(parseFloat(String(item.infantSell).replace(/[^0-9.-]/g, '') || 0) || 0).toFixed(2)}" title="Sell before DMC markup" onchange="updateMiscField(${index}, 'infantSell', this.value); updateMiscTable(); recalculateTotals();" step="1"></td>
+                ${(typeof enquiryProMarkupPriceTdHtml === 'function' ? enquiryProMarkupPriceTdHtml(item.infantSell, 'other') : '')}
                 ${buildOutsideFocCellHtml(isServiceFocChecked(item, false), `updateMiscField(${index}, 'focServiceDiscount', this.checked)`)}
                 <td style="text-align: center;"><input type="checkbox" ${item.supplement ? 'checked' : ''} onchange="updateMiscSupplement(${index}, this.checked)"></td>
             </tr>
@@ -24634,6 +24745,9 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         }
         const rtFoc = document.getElementById('restaurantTransferFocServiceDiscount');
         if (rtFoc) rtFoc.checked = false;
+        if (typeof resetRestaurantMvPanel === 'function') {
+            resetRestaurantMvPanel();
+        }
     }
     
     // Helper function to get hotel from accommodation list (prioritizes accommodation list over default)
@@ -24768,6 +24882,9 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     // Auto-select vehicle based on pax and seat_capacity using the filter function
                     setTimeout(() => {
                         filterRestaurantVehiclesByServiceType();
+                        if (typeof ensureRestaurantMvPanel === 'function') {
+                            ensureRestaurantMvPanel();
+                        }
                     }, 50);
                 }
             }, 100);
@@ -25568,7 +25685,40 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             
             if (transferChecked && transferDestination) {
                 console.log('Creating/updating transfer for restaurant:', restaurantName);
-                
+
+                // Prefer attraction-style multi-vehicle transfer (pax / Shared×pax / zone Cost&Sell)
+                if (typeof buildRestaurantTransferInfoFromMv === 'function') {
+                    try {
+                        const mvTransfer = await buildRestaurantTransferInfoFromMv({
+                            transferId: transferId || generateId('transfer'),
+                            dateTime: dateTime,
+                            adultsQty: adultsQty,
+                            childQty: childQty,
+                            infantQty: infantQty,
+                            sourceId: mealId
+                        });
+                        if (mvTransfer && Array.isArray(mvTransfer.vehicles) && mvTransfer.vehicles.length) {
+                            transferInfo = mvTransfer;
+                            if (transferId) {
+                                const existingTransferIndex = transferList.findIndex(t => t.id === transferId);
+                                if (existingTransferIndex !== -1) {
+                                    transferList[existingTransferIndex] = mvTransfer;
+                                } else {
+                                    transferList.push(mvTransfer);
+                                }
+                                transferEntryId = transferId;
+                            } else {
+                                transferEntryId = mvTransfer.id;
+                                transferId = mvTransfer.id;
+                                transferList.push(mvTransfer);
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Restaurant multi-vehicle transfer build failed, falling back', e);
+                    }
+                }
+
+                if (!transferInfo || !transferInfo.vehicles) {
                 // Get "Is PickUp?" checkbox state
                 const isDestinationPickup = document.getElementById('restaurantTransferIsPickup')?.checked || false;
                 
@@ -25702,6 +25852,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     transferId = transferEntryId;
                     console.log('Created new transfer with ID:', transferEntryId);
                 }
+                } // end legacy single-vehicle fallback
             } else if (!transferChecked && transferId) {
                 // Transfer checkbox unchecked and there was an existing transfer - remove it
                 console.log('Removing transfer with ID:', transferId);
@@ -25964,7 +26115,31 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 const firstRow = selectedRows[0]?.closest('tr');
                 const totalAdults = parseInt(firstRow?.querySelector('.meal-adult-qty')?.value) || 0;
                 const totalChild = parseInt(firstRow?.querySelector('.meal-child-qty')?.value) || 0;
-                
+                const totalInfant = parseInt(firstRow?.querySelector('.meal-infant-qty')?.value) || 0;
+
+                // Prefer attraction-style multi-vehicle transfer (pax / Shared×pax / zone Cost&Sell)
+                if (typeof buildRestaurantTransferInfoFromMv === 'function') {
+                    try {
+                        const mvTransfer = await buildRestaurantTransferInfoFromMv({
+                            transferId: generateId('transfer'),
+                            dateTime: dateTime,
+                            adultsQty: totalAdults,
+                            childQty: totalChild,
+                            infantQty: totalInfant,
+                            sourceId: mealIdsPerRow[0][0]
+                        });
+                        if (mvTransfer && Array.isArray(mvTransfer.vehicles) && mvTransfer.vehicles.length) {
+                            transferEntryId = mvTransfer.id;
+                            transferId = mvTransfer.id;
+                            transferList.push(mvTransfer);
+                            transferInfo = Object.assign({}, mvTransfer);
+                        }
+                    } catch (e) {
+                        console.warn('Restaurant multi-vehicle transfer build failed, falling back', e);
+                    }
+                }
+
+                if (!transferInfo || !transferInfo.vehicles) {
                 transferEntryId = generateId('transfer');
                 
                 // Get "Is PickUp?" checkbox state
@@ -26105,6 +26280,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     zoneSharedCostPrice: restaurantZonePrice.shared_cost_price,
                     focServiceDiscount: restaurantTransferFocSvc
                 };
+                } // end legacy single-vehicle fallback
             }
             
             // Get guide info from restaurant guide section (shared by all meals)
@@ -26244,10 +26420,16 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                             const firstTransferEntry = transferList.find(t => t.id === transferId);
                             if (firstTransferEntry) {
                                 const cloneEntry = Object.assign({}, firstTransferEntry, { id: newTransferEntryId, sourceId: rowIds[mc], dateTime: dateTimeForMc });
+                                if (Array.isArray(firstTransferEntry.vehicles)) {
+                                    cloneEntry.vehicles = firstTransferEntry.vehicles.map(function (v) { return Object.assign({}, v); });
+                                }
                                 transferList.push(cloneEntry);
                             }
                             thisTransferId = newTransferEntryId;
                             thisTransferInfo = Object.assign({}, transferInfo, { id: newTransferEntryId });
+                            if (Array.isArray(transferInfo.vehicles)) {
+                                thisTransferInfo.vehicles = transferInfo.vehicles.map(function (v) { return Object.assign({}, v); });
+                            }
                         }
                     }
                     
@@ -26524,16 +26706,20 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     <a href="javascript:void(0)" onclick="editMeal(${index})" style="color: #0d6efd; text-decoration: underline; cursor: pointer;">
                         ${meal.restaurantName || 'Restaurant'} - ${displayMealType}${mealSpecificDisplay}
                     </a>
+                    ${typeof enquiryProPriceBreakBtnHtml === 'function' ? enquiryProPriceBreakBtnHtml('restaurant', index) : ''}
                 </td>
                 <td><input type="number" value="${meal.adultsQty}" min="${mealPaxBounds.adultMin}" max="${mealPaxBounds.adultMax}" ${mealPaxBounds.adults <= 0 ? 'disabled' : ''} onchange="updateMealField(${index}, 'adultsQty', this.value); this.value = mealList[${index}].adultsQty;" ${mealPaxBounds.adults <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}></td>
                 <td><input type="text" value="${parseFloat(String(meal.adultCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
-                <td><input type="number" value="${parseFloat(String(meal.adultSell).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateMealField(${index}, 'adultSell', this.value)" step="1"></td>
+                <td><input type="number" value="${(parseFloat(String(meal.adultSell).replace(/[^0-9.-]/g, '') || 0) || 0).toFixed(2)}" title="Sell before DMC markup" onchange="updateMealField(${index}, 'adultSell', this.value); updateMealTable(); recalculateTotals();" step="1"></td>
+                ${(typeof enquiryProMarkupPriceTdHtml === 'function' ? enquiryProMarkupPriceTdHtml(meal.adultSell, 'other') : '')}
                 <td><input type="number" value="${meal.childQty}" min="${mealPaxBounds.childMin}" max="${mealPaxBounds.childMax}" ${mealPaxBounds.children <= 0 ? 'disabled' : ''} onchange="updateMealField(${index}, 'childQty', this.value); this.value = mealList[${index}].childQty;" ${mealPaxBounds.children <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}></td>
                 <td><input type="text" value="${parseFloat(String(meal.childCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
-                <td><input type="number" value="${parseFloat(String(meal.childSell).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateMealField(${index}, 'childSell', this.value)" step="1"></td>
+                <td><input type="number" value="${(parseFloat(String(meal.childSell).replace(/[^0-9.-]/g, '') || 0) || 0).toFixed(2)}" title="Sell before DMC markup" onchange="updateMealField(${index}, 'childSell', this.value); updateMealTable(); recalculateTotals();" step="1"></td>
+                ${(typeof enquiryProMarkupPriceTdHtml === 'function' ? enquiryProMarkupPriceTdHtml(meal.childSell, 'other') : '')}
                 <td><input type="number" value="${meal.infantQty || 0}" min="${mealPaxBounds.infantMin || 0}" max="${mealPaxBounds.infantMax || 0}" ${(mealPaxBounds.infants || 0) <= 0 ? 'disabled' : ''} onchange="updateMealField(${index}, 'infantQty', this.value); this.value = mealList[${index}].infantQty;" ${(mealPaxBounds.infants || 0) <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}></td>
                 <td><input type="text" value="${parseFloat(String(meal.infantCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
-                <td><input type="number" value="${parseFloat(String(meal.infantSell || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" onchange="updateMealField(${index}, 'infantSell', this.value)" step="1"></td>
+                <td><input type="number" value="${(parseFloat(String(meal.infantSell || 0).replace(/[^0-9.-]/g, '') || 0) || 0).toFixed(2)}" title="Sell before DMC markup" onchange="updateMealField(${index}, 'infantSell', this.value); updateMealTable(); recalculateTotals();" step="1"></td>
+                ${(typeof enquiryProMarkupPriceTdHtml === 'function' ? enquiryProMarkupPriceTdHtml(meal.infantSell || 0, 'other') : '')}
                 ${buildOutsideFocCellHtml(isServiceFocChecked(meal, false), `updateMealField(${index}, 'focServiceDiscount', this.checked)`)}
                 <td style="text-align: center;"><input type="checkbox" ${meal.supplement ? 'checked' : ''} onchange="updateMealSupplement(${index}, this.checked)"></td>
             </tr>
@@ -26818,6 +27004,29 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                         }
                         typeSelect.value = typeValue;
                         console.log('Set type to:', typeValue);
+                    }
+
+                    // Restore multi-vehicle panel (pax / Shared / Private / zone Cost&Sell)
+                    if (typeof ensureRestaurantMvPanel === 'function') {
+                        const linked = (meal.transferId && typeof transferList !== 'undefined')
+                            ? transferList.find(t => t.id === meal.transferId)
+                            : null;
+                        const src = linked || meal.transferInfo || tInfo;
+                        let seedVehicles = Array.isArray(src?.vehicles) ? src.vehicles : null;
+                        if (!seedVehicles || !seedVehicles.length) {
+                            seedVehicles = [{
+                                vehicleId: tInfo.vehicleId || '',
+                                qty: 1,
+                                transferType: tInfo.type || 'S',
+                                way: tInfo.way || 'one-way',
+                                adults: parseInt(meal.adultsQty || src?.adults || 0, 10) || 0,
+                                child: parseInt(meal.childQty || src?.child || 0, 10) || 0,
+                                infant: parseInt(meal.infantQty || src?.infant || 0, 10) || 0
+                            }];
+                        }
+                        setTimeout(function () {
+                            ensureRestaurantMvPanel(seedVehicles);
+                        }, 80);
                     }
                 } else {
                     console.warn('No transfer info found for meal');
@@ -27266,7 +27475,8 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             const checkboxHtml = `<input type="checkbox" class="transfer-checkbox" value="${transfer.id}">`;
             
             // Make service name clickable for both standalone and linked transfers
-            const serviceHtml = `<a href="javascript:void(0)" onclick="editTransfer(${index})" style="color: #0d6efd; text-decoration: underline; cursor: pointer;">${displayName || '-'}</a>`;
+            const serviceHtml = `<a href="javascript:void(0)" onclick="editTransfer(${index})" style="color: #0d6efd; text-decoration: underline; cursor: pointer;">${displayName || '-'}</a>`
+                + (typeof enquiryProPriceBreakBtnHtml === 'function' ? enquiryProPriceBreakBtnHtml('transfer', index) : '');
             
             // Get adult and child values from parent header (min 1 when that pax type exists)
             const transferPaxBounds = typeof getTourSitePaxBounds === 'function'
@@ -27459,7 +27669,8 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 <td><input type="number" value="${child}" min="${transferPaxBounds.childMin}" max="${transferPaxBounds.childMax}" ${transferPaxBounds.children <= 0 ? 'disabled' : ''} onchange="updateTransferField(${index}, 'child', this.value, ${vIdxArg}); this.value = (transferList[${index}].vehicles && transferList[${index}].vehicles[${vIdxArg}] ? transferList[${index}].vehicles[${vIdxArg}].child : transferList[${index}].child);" ${transferPaxBounds.children <= 0 ? 'style="width: 50px; background-color: #f5f5f5; cursor: not-allowed;"' : 'style="width: 50px;"'}></td>
                 <td><input type="number" value="${infant}" min="${transferPaxBounds.infantMin || 0}" max="${transferPaxBounds.infantMax || 0}" ${(transferPaxBounds.infants || 0) <= 0 ? 'disabled' : ''} onchange="updateTransferField(${index}, 'infant', this.value, ${vIdxArg}); this.value = (transferList[${index}].vehicles && transferList[${index}].vehicles[${vIdxArg}] ? (transferList[${index}].vehicles[${vIdxArg}].infant ?? transferList[${index}].vehicles[${vIdxArg}].infantQty) : transferList[${index}].infant);" ${(transferPaxBounds.infants || 0) <= 0 ? 'style="width: 50px; background-color: #f5f5f5; cursor: not-allowed;"' : 'style="width: 50px;"'}></td>
                 <td><input type="text" class="transfer-cost-input" value="${displayCost}" readonly style="width: 70px; background-color: #f5f5f5;"></td>
-                <td><input type="number" class="transfer-sell-input" value="${displaySell}" ${vehicleCount > 1 ? 'readonly' : `onchange="updateTransferField(${index}, 'sell', this.value)"`} step="1" style="width: 70px;${vehicleCount > 1 ? ' background-color: #f5f5f5;' : ''}"></td>
+                <td><input type="number" class="transfer-sell-input" value="${Number(displaySell).toFixed(2)}" title="Sell before DMC markup" ${vehicleCount > 1 ? 'readonly' : `onchange="updateTransferField(${index}, 'sell', this.value); updateTransferTable(); recalculateTotals();"`} step="1" style="width: 70px;${vehicleCount > 1 ? ' background-color: #f5f5f5;' : ''}"></td>
+                ${(typeof enquiryProMarkupPriceTdHtml === 'function' ? enquiryProMarkupPriceTdHtml(displaySell, 'other') : '')}
                 ${buildOutsideFocCellHtml(isServiceFocChecked(transfer, false), `updateTransferField(${index}, 'focServiceDiscount', this.checked)`)}
                 <td style="text-align: center;">${supplementCheckboxHtml}</td>
             </tr>
@@ -28841,7 +29052,13 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             const type = (typeof normalizeTransferTypePS === 'function')
                 ? normalizeTransferTypePS(primary?.transferType || primary?.type || document.getElementById('localType')?.value || 'S')
                 : (primary?.transferType || document.getElementById('localType').value || 'S');
-            const way = document.getElementById('localWay').value;
+            const way = primary?.way
+                || document.querySelector('#localVehicleRows .arr-dep-vehicle-way')?.value
+                || document.getElementById('localWay')?.value
+                || 'both-way';
+            if (document.getElementById('localWay')) {
+                document.getElementById('localWay').value = way;
+            }
             const adults = parseInt(document.getElementById('localAdults').value) || 0;
             const child = parseInt(document.getElementById('localChild').value) || 0;
             
@@ -28855,8 +29072,9 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             let prices = { cost: 0, sell: 0, privatePrice: 0, sharedPrice: 0, privateCostPrice: 0, sharedCostPrice: 0 };
             const multi = window._localMultiVehicleResult;
             if (multi && multi.vehicles && multi.vehicles.length) {
-                prices.cost = multi.storedCost || 0;
-                prices.sell = multi.storedSell || 0;
+                // Line totals (Shared × assigned pax / Private × qty) — same as attraction MV
+                prices.cost = parseFloat(multi.totalCost != null ? multi.totalCost : multi.storedCost) || 0;
+                prices.sell = parseFloat(multi.totalSell != null ? multi.totalSell : multi.storedSell) || 0;
                 // Keep first vehicle zone refs for compatibility
                 try {
                     zonePrice = await fetchZonePrice(vehicleId, pickupIdForFetch, pickupType, dropIdForFetch, dropType, dmcId);
@@ -29808,32 +30026,38 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         
         // Update table header based on whether hotels exist
         if (hasHotels) {
-            // Show hotel-style columns (Single, Twin, Triple, Child w/bed, Child w/o bed, Infant)
+            // Cost | Sell (base) | Markup (after DMC) per occupancy — see docs/enquiry-pro-cost-sell-markup-price.md
             thead.innerHTML = `
                 <tr>
                     <th rowspan="2" style="padding: 3px 5px; vertical-align: middle; border-right: 2px solid #dee2e6; min-width: 180px; background: #e9ecef;">
                         <input type="checkbox" style="width: 12px; height: 12px;"> Hotel / Room
                     </th>
-                    <th colspan="2" style="padding: 3px 5px; text-align: center; background: #fff3cd; min-width: 100px;">Single</th>
-                    <th colspan="2" style="padding: 3px 5px; text-align: center; background: #d1ecf1; min-width: 100px;">Twin</th>
-                    <th colspan="2" style="padding: 3px 5px; text-align: center; background: #f8d7da; min-width: 100px;">Triple</th>
-                    <th colspan="2" style="padding: 3px 5px; text-align: center; background: #d4edda; min-width: 120px;">Child w/ bed</th>
-                    <th colspan="2" style="padding: 3px 5px; text-align: center; background: #e7d6f5; min-width: 120px;">Child w/o bed</th>
-                    <th colspan="2" style="padding: 3px 5px; text-align: center; background: #e2e3e5; min-width: 100px;">Infant</th>
+                    <th colspan="3" style="padding: 3px 5px; text-align: center; background: #fff3cd; min-width: 150px;">Single</th>
+                    <th colspan="3" style="padding: 3px 5px; text-align: center; background: #d1ecf1; min-width: 150px;">Twin</th>
+                    <th colspan="3" style="padding: 3px 5px; text-align: center; background: #f8d7da; min-width: 150px;">Triple</th>
+                    <th colspan="3" style="padding: 3px 5px; text-align: center; background: #d4edda; min-width: 150px;">Child w/ bed</th>
+                    <th colspan="3" style="padding: 3px 5px; text-align: center; background: #e7d6f5; min-width: 150px;">Child w/o bed</th>
+                    <th colspan="3" style="padding: 3px 5px; text-align: center; background: #e2e3e5; min-width: 150px;">Infant</th>
                 </tr>
                 <tr>
                     <th style="padding: 3px 5px; text-align: center; background: #fff3cd; font-size: 8px; font-weight: normal;">Cost</th>
                     <th style="padding: 3px 5px; text-align: center; background: #fff3cd; font-size: 8px; font-weight: normal;">Sell</th>
+                    <th style="padding: 3px 5px; text-align: center; background: #fff3cd; font-size: 8px; font-weight: normal;" title="After DMC markup">Markup</th>
                     <th style="padding: 3px 5px; text-align: center; background: #d1ecf1; font-size: 8px; font-weight: normal;">Cost</th>
                     <th style="padding: 3px 5px; text-align: center; background: #d1ecf1; font-size: 8px; font-weight: normal;">Sell</th>
+                    <th style="padding: 3px 5px; text-align: center; background: #d1ecf1; font-size: 8px; font-weight: normal;" title="After DMC markup">Markup</th>
                     <th style="padding: 3px 5px; text-align: center; background: #f8d7da; font-size: 8px; font-weight: normal;">Cost</th>
                     <th style="padding: 3px 5px; text-align: center; background: #f8d7da; font-size: 8px; font-weight: normal;">Sell</th>
+                    <th style="padding: 3px 5px; text-align: center; background: #f8d7da; font-size: 8px; font-weight: normal;" title="After DMC markup">Markup</th>
                     <th style="padding: 3px 5px; text-align: center; background: #d4edda; font-size: 8px; font-weight: normal;">Cost</th>
                     <th style="padding: 3px 5px; text-align: center; background: #d4edda; font-size: 8px; font-weight: normal;">Sell</th>
+                    <th style="padding: 3px 5px; text-align: center; background: #d4edda; font-size: 8px; font-weight: normal;" title="After DMC markup">Markup</th>
                     <th style="padding: 3px 5px; text-align: center; background: #e7d6f5; font-size: 8px; font-weight: normal;">Cost</th>
                     <th style="padding: 3px 5px; text-align: center; background: #e7d6f5; font-size: 8px; font-weight: normal;">Sell</th>
+                    <th style="padding: 3px 5px; text-align: center; background: #e7d6f5; font-size: 8px; font-weight: normal;" title="After DMC markup">Markup</th>
                     <th style="padding: 3px 5px; text-align: center; background: #e2e3e5; font-size: 8px; font-weight: normal;">Cost</th>
                     <th style="padding: 3px 5px; text-align: center; background: #e2e3e5; font-size: 8px; font-weight: normal;">Sell</th>
+                    <th style="padding: 3px 5px; text-align: center; background: #e2e3e5; font-size: 8px; font-weight: normal;" title="After DMC markup">Markup</th>
                 </tr>
             `;
         } else {
@@ -29843,14 +30067,16 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     <th rowspan="2" style="padding: 3px 5px; vertical-align: middle; border-right: 2px solid #dee2e6; min-width: 180px; background: #e9ecef;">
                         <input type="checkbox" style="width: 12px; height: 12px;"> Package Total
                     </th>
-                    <th colspan="2" style="padding: 3px 5px; text-align: center; background: #fff3cd; min-width: 120px;">Adult</th>
-                    <th colspan="2" style="padding: 3px 5px; text-align: center; background: #d4edda; min-width: 120px;">Child</th>
+                    <th colspan="3" style="padding: 3px 5px; text-align: center; background: #fff3cd; min-width: 150px;">Adult</th>
+                    <th colspan="3" style="padding: 3px 5px; text-align: center; background: #d4edda; min-width: 150px;">Child</th>
                 </tr>
                 <tr>
                     <th style="padding: 3px 5px; text-align: center; background: #fff3cd; font-size: 8px; font-weight: normal;">Cost</th>
                     <th style="padding: 3px 5px; text-align: center; background: #fff3cd; font-size: 8px; font-weight: normal;">Sell</th>
+                    <th style="padding: 3px 5px; text-align: center; background: #fff3cd; font-size: 8px; font-weight: normal;" title="After DMC markup">Markup</th>
                     <th style="padding: 3px 5px; text-align: center; background: #d4edda; font-size: 8px; font-weight: normal;">Cost</th>
                     <th style="padding: 3px 5px; text-align: center; background: #d4edda; font-size: 8px; font-weight: normal;">Sell</th>
+                    <th style="padding: 3px 5px; text-align: center; background: #d4edda; font-size: 8px; font-weight: normal;" title="After DMC markup">Markup</th>
                 </tr>
             `;
         }
@@ -29878,11 +30104,11 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 if (tourTableBody) {
                     const tableRows = Array.from(tourTableBody.querySelectorAll('tr'));
                     if (tourIndex < tableRows.length) {
-                        // Tour table columns: 1-checkbox, 2-date, 3-tour name, 4-adult qty, 5-adult cost, 6-adult sell, 7-child qty, 8-child cost, 9-child sell, 10-supplement
+                        // Tour: …5 adult cost, 6 adult sell, 7 adult markup, 8 child qty, 9 child cost, 10 child sell, 11 child markup…
                         const adultCostInput = tableRows[tourIndex].querySelector('td:nth-child(5) input');
                         const adultSellInput = tableRows[tourIndex].querySelector('td:nth-child(6) input');
-                        const childCostInput = tableRows[tourIndex].querySelector('td:nth-child(8) input');
-                        const childSellInput = tableRows[tourIndex].querySelector('td:nth-child(9) input');
+                        const childCostInput = tableRows[tourIndex].querySelector('td:nth-child(9) input');
+                        const childSellInput = tableRows[tourIndex].querySelector('td:nth-child(10) input');
                         
                         if (adultCostInput && adultCostInput.value !== '') {
                             adultCost = parseFloat(adultCostInput.value) || 0;
@@ -29935,11 +30161,11 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 if (mealTableBody) {
                     const tableRows = Array.from(mealTableBody.querySelectorAll('tr'));
                     if (mealIndex < tableRows.length) {
-                        // Meal table columns: 1-checkbox, 2-date, 3-restaurant, 4-adult qty, 5-adult cost, 6-adult sell, 7-child qty, 8-child cost, 9-child sell, 10-supplement
+                        // Meal: …5 adult cost, 6 adult sell, 7 adult markup, 8 child qty, 9 child cost, 10 child sell…
                         const adultCostInput = tableRows[mealIndex].querySelector('td:nth-child(5) input');
                         const adultSellInput = tableRows[mealIndex].querySelector('td:nth-child(6) input');
-                        const childCostInput = tableRows[mealIndex].querySelector('td:nth-child(8) input');
-                        const childSellInput = tableRows[mealIndex].querySelector('td:nth-child(9) input');
+                        const childCostInput = tableRows[mealIndex].querySelector('td:nth-child(9) input');
+                        const childSellInput = tableRows[mealIndex].querySelector('td:nth-child(10) input');
                         
                         if (adultCostInput && adultCostInput.value !== '') {
                             adultCost = parseFloat(adultCostInput.value) || 0;
@@ -29978,11 +30204,11 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 if (miscTableBody) {
                     const tableRows = Array.from(miscTableBody.querySelectorAll('tr'));
                     if (miscIndex < tableRows.length) {
-                        // Misc table columns: 1-checkbox, 2-date, 3-item, 4-adult qty, 5-adult cost, 6-adult sell, 7-child qty, 8-child cost, 9-child sell, 10-infant qty, 11-infant cost, 12-infant sell, 13-FOC, 14-supplement
+                        // Misc: …5 adult cost, 6 adult sell, 7 adult markup, 8 child qty, 9 child cost, 10 child sell…
                         const adultCostInput = tableRows[miscIndex].querySelector('td:nth-child(5) input');
                         const adultSellInput = tableRows[miscIndex].querySelector('td:nth-child(6) input');
-                        const childCostInput = tableRows[miscIndex].querySelector('td:nth-child(8) input');
-                        const childSellInput = tableRows[miscIndex].querySelector('td:nth-child(9) input');
+                        const childCostInput = tableRows[miscIndex].querySelector('td:nth-child(9) input');
+                        const childSellInput = tableRows[miscIndex].querySelector('td:nth-child(10) input');
                         
                         if (adultCostInput && adultCostInput.value !== '') {
                             adultCost = parseFloat(adultCostInput.value) || 0;
@@ -30043,11 +30269,11 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     if (guideTableBody) {
                         const tableRows = Array.from(guideTableBody.querySelectorAll('tr'));
                         if (guideIndex < tableRows.length) {
-                            // Cost = col 8 (.guide-cost-input), Sell = col 9 (.guide-sell-input) — not FOC col
+                            // Cost = col 9 (.guide-cost-input), Sell = col 10 (.guide-sell-input), Markup = col 11
                             const costInput = tableRows[guideIndex].querySelector('.guide-cost-input')
-                                || tableRows[guideIndex].querySelector('td:nth-child(8) input');
+                                || tableRows[guideIndex].querySelector('td:nth-child(9) input');
                             const sellInput = tableRows[guideIndex].querySelector('.guide-sell-input')
-                                || tableRows[guideIndex].querySelector('td:nth-child(9) input[type="number"]');
+                                || tableRows[guideIndex].querySelector('td:nth-child(10) input[type="number"]');
                             if (costInput && costInput.value !== '') {
                                 guideCost = parseFloat(costInput.value) || 0;
                             }
@@ -30315,9 +30541,22 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 const nights = parseInt(hotel.nights) || 0;
                 const numberOfRooms = Math.max(1, parseInt(hotel.rooms, 10) || 1);
                 const hotelCostPerNight = parseFloat(hotel.cost) || 0;
-                const hotelSellPerNight = parseFloat(hotel.sell) || 0;
+                // Sell = base (before DMC); Markup Price = after hotel DMC markup
+                const hotelSellPerNight = (typeof enquiryProResolveDisplayBaseSell === 'function')
+                    ? enquiryProResolveDisplayBaseSell(hotel.sell || 0, 'hotel', hotel)
+                    : (parseFloat(hotel.sell) || 0);
+                const hotelMarkupPerNight = (typeof enquiryProFormatMarkupPrice === 'function')
+                    ? enquiryProFormatMarkupPrice(hotelSellPerNight, 'hotel')
+                    : hotelSellPerNight;
+                const mkOther = (amt) => (typeof enquiryProApplyDmcMarkup === 'function')
+                    ? enquiryProApplyDmcMarkup(amt, 'other').price
+                    : (parseFloat(amt) || 0);
+                const mkHotelAmt = (amt) => (typeof enquiryProApplyDmcMarkup === 'function')
+                    ? enquiryProApplyDmcMarkup(amt, 'hotel').price
+                    : (parseFloat(amt) || 0);
                 const totalHotelCost = nights * hotelCostPerNight;
                 const totalHotelSell = nights * hotelSellPerNight;
+                const totalHotelMarkup = nights * hotelMarkupPerNight;
                 
                 // Check if extra bed, cwb, cnb, infant checkboxes are selected
                 // If not selected, these prices should be 0 (not included in calculations)
@@ -30332,17 +30571,12 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 const cnbPricePerNight = hasCnb ? (parseFloat(hotel.cnbPrice) || 0) : 0;
                 const infantPricePerNight = hasInfant ? (parseFloat(hotel.infantPrice) || 0) : 0;
                 
-                // Calculate per-person cost based on sharing
-                // New formulas as per user request:
-                // Single = sell * nights
-                // Twin = (sell * nights) / 2
-                // Triple = ((sell * nights) + (extra bed amount * nights)) / 3
-                // Child with bed = child with bed amount * nights
-                // Child without bed = child without bed amount * nights
-                // Infant = infant amount * nights
+                // Single = stay total; Twin = /2; Triple = (stay + extra bed) / 3
+                // Sell cols = base; Markup cols = after DMC markup
                 
                 const scaledTotalHotelCost = totalHotelCost * htlF;
                 const scaledTotalHotelSell = totalHotelSell * htlF;
+                const scaledTotalHotelMarkup = totalHotelMarkup * htlF;
                 const extraBedQty = hasExtraBed ? numberOfRooms : 0;
                 const cwbQty = hasCwb ? numberOfRooms : 0;
                 const cnbQty = hasCnb ? numberOfRooms : 0;
@@ -30350,38 +30584,53 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 const scaledExtraBedCost = totalExtraBedCost * htlF;
                 const scaledCwbNight = (cwbPricePerNight * nights * cwbQty) * htlF;
                 const scaledCnbNight = (cnbPricePerNight * nights * cnbQty) * htlF;
+                const otherSingleSell = scaledTourSell + scaledTransferSell + scaledGuideSingleSell + scaledLocalTransferSingleSell;
+                const otherTwinSell = scaledTourSell + scaledTransferSell + scaledGuideTwinSell + scaledLocalTransferTwinSell;
+                const otherTripleSell = scaledTourSell + scaledTransferSell + scaledGuideTripleSell + scaledLocalTransferTripleSell;
 
                 const singleCost = scaledTotalHotelCost + scaledTourCost + scaledTransferCost + scaledGuideSingleCost + scaledLocalTransferSingleCost;
-                const singleSell = scaledTotalHotelSell + scaledTourSell + scaledTransferSell + scaledGuideSingleSell + scaledLocalTransferSingleSell;
+                const singleSell = scaledTotalHotelSell + otherSingleSell;
+                const singleMarkup = scaledTotalHotelMarkup + mkOther(otherSingleSell);
                 
                 const twinCost = (scaledTotalHotelCost / 2) + scaledTourCost + scaledTransferCost + scaledGuideTwinCost + scaledLocalTransferTwinCost;
-                const twinSell = (scaledTotalHotelSell / 2) + scaledTourSell + scaledTransferSell + scaledGuideTwinSell + scaledLocalTransferTwinSell;
+                const twinSell = (scaledTotalHotelSell / 2) + otherTwinSell;
+                const twinMarkup = (scaledTotalHotelMarkup / 2) + mkOther(otherTwinSell);
                 
                 const tripleCost = ((scaledTotalHotelCost + scaledExtraBedCost) / 3) + scaledTourCost + scaledTransferCost + scaledGuideTripleCost + scaledLocalTransferTripleCost;
-                const tripleSell = ((scaledTotalHotelSell + scaledExtraBedCost) / 3) + scaledTourSell + scaledTransferSell + scaledGuideTripleSell + scaledLocalTransferTripleSell;
+                const tripleSell = ((scaledTotalHotelSell + scaledExtraBedCost) / 3) + otherTripleSell;
+                const tripleMarkup = ((scaledTotalHotelMarkup + mkHotelAmt(scaledExtraBedCost)) / 3) + mkOther(otherTripleSell);
                 
                 const childWithBedCost = scaledCwbNight + scaledChildCost;
                 const childWithBedSell = scaledCwbNight + scaledChildSell;
+                const childWithBedMarkup = mkHotelAmt(scaledCwbNight) + mkOther(scaledChildSell);
                 
                 const childWithoutBedCost = scaledCnbNight + scaledChildCost;
                 const childWithoutBedSell = scaledCnbNight + scaledChildSell;
+                const childWithoutBedMarkup = mkHotelAmt(scaledCnbNight) + mkOther(scaledChildSell);
                 
                 const infantCost = infantPricePerNight * nights;
                 const infantSell = infantPricePerNight * nights;
+                const infantMarkup = mkHotelAmt(infantSell);
                 
                 // Round all prices to next 0 (ceiling)
                 const singleCostRounded = roundToNextZero(singleCost);
                 const singleSellRounded = roundToNextZero(singleSell);
+                const singleMarkupRounded = roundToNextZero(singleMarkup);
                 const twinCostRounded = roundToNextZero(twinCost);
                 const twinSellRounded = roundToNextZero(twinSell);
+                const twinMarkupRounded = roundToNextZero(twinMarkup);
                 const tripleCostRounded = roundToNextZero(tripleCost);
                 const tripleSellRounded = roundToNextZero(tripleSell);
+                const tripleMarkupRounded = roundToNextZero(tripleMarkup);
                 const childWithBedCostRounded = roundToNextZero(childWithBedCost);
                 const childWithBedSellRounded = roundToNextZero(childWithBedSell);
+                const childWithBedMarkupRounded = roundToNextZero(childWithBedMarkup);
                 const childWithoutBedCostRounded = roundToNextZero(childWithoutBedCost);
                 const childWithoutBedSellRounded = roundToNextZero(childWithoutBedSell);
+                const childWithoutBedMarkupRounded = roundToNextZero(childWithoutBedMarkup);
                 const infantCostRounded = roundToNextZero(infantCost);
                 const infantSellRounded = roundToNextZero(infantSell);
+                const infantMarkupRounded = roundToNextZero(infantMarkup);
                 
                 // Generate unique IDs for sell inputs
                 const hotelId = `hotel_${index}_${Date.now()}`;
@@ -30392,6 +30641,10 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     ? resolveServiceCity(hotel)
                     : String(hotel.destination || hotel.city || '').trim();
                 
+                const mkCell = (val) => `
+                        <td style="padding: 3px 5px; text-align: center;">
+                            <input type="text" value="${Number(val).toFixed(2)}" readonly style="width: 60px; background-color: #f3e8ff; color: #6b21a8;" title="After DMC markup">
+                        </td>`;
                 rows.push(`
                     <tr data-currency="${hotelCurrency || ''}" data-city="${hotelCity || ''}" data-row-kind="hotel">
                         <td style="padding: 3px 5px; border-right: 2px solid #dee2e6;">
@@ -30403,38 +30656,44 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                             <input type="text" value="${singleCostRounded.toFixed(0)}" readonly style="width: 60px; background-color: #f5f5f5;">
                         </td>
                         <td style="padding: 3px 5px; text-align: center;">
-                            <input type="number" value="${singleSellRounded.toFixed(2)}" data-original-value="${singleSellRounded.toFixed(2)}" step="1" min="0" style="width: 60px;">
+                            <input type="number" value="${singleSellRounded.toFixed(2)}" data-original-value="${singleSellRounded.toFixed(2)}" step="1" min="0" style="width: 60px;" title="Sell before DMC markup">
                         </td>
+                        ${mkCell(singleMarkupRounded)}
                         <td style="padding: 3px 5px; text-align: center;">
                             <input type="text" value="${twinCostRounded.toFixed(0)}" readonly style="width: 60px; background-color: #f5f5f5;">
                         </td>
                         <td style="padding: 3px 5px; text-align: center;">
-                            <input type="number" value="${twinSellRounded.toFixed(2)}" data-original-value="${twinSellRounded.toFixed(2)}" step="1" min="0" style="width: 60px;">
+                            <input type="number" value="${twinSellRounded.toFixed(2)}" data-original-value="${twinSellRounded.toFixed(2)}" step="1" min="0" style="width: 60px;" title="Sell before DMC markup">
                         </td>
+                        ${mkCell(twinMarkupRounded)}
                         <td style="padding: 3px 5px; text-align: center;">
                             <input type="text" value="${tripleCostRounded.toFixed(0)}" readonly style="width: 60px; background-color: #f5f5f5;">
                         </td>
                         <td style="padding: 3px 5px; text-align: center;">
-                            <input type="number" value="${tripleSellRounded.toFixed(2)}" data-original-value="${tripleSellRounded.toFixed(2)}" step="1" min="0" style="width: 60px;">
+                            <input type="number" value="${tripleSellRounded.toFixed(2)}" data-original-value="${tripleSellRounded.toFixed(2)}" step="1" min="0" style="width: 60px;" title="Sell before DMC markup">
                         </td>
+                        ${mkCell(tripleMarkupRounded)}
                         <td style="padding: 3px 5px; text-align: center;">
                             <input type="text" value="${childWithBedCostRounded.toFixed(0)}" readonly style="width: 60px; background-color: #f5f5f5;">
                         </td>
                         <td style="padding: 3px 5px; text-align: center;">
-                            <input type="number" value="${childWithBedSellRounded.toFixed(2)}" data-original-value="${childWithBedSellRounded.toFixed(2)}" step="1" min="0" style="width: 60px;">
+                            <input type="number" value="${childWithBedSellRounded.toFixed(2)}" data-original-value="${childWithBedSellRounded.toFixed(2)}" step="1" min="0" style="width: 60px;" title="Sell before DMC markup">
                         </td>
+                        ${mkCell(childWithBedMarkupRounded)}
                         <td style="padding: 3px 5px; text-align: center;">
                             <input type="text" value="${childWithoutBedCostRounded.toFixed(0)}" readonly style="width: 60px; background-color: #f5f5f5;">
                         </td>
                         <td style="padding: 3px 5px; text-align: center;">
-                            <input type="number" value="${childWithoutBedSellRounded.toFixed(2)}" data-original-value="${childWithoutBedSellRounded.toFixed(2)}" step="1" min="0" style="width: 60px;">
+                            <input type="number" value="${childWithoutBedSellRounded.toFixed(2)}" data-original-value="${childWithoutBedSellRounded.toFixed(2)}" step="1" min="0" style="width: 60px;" title="Sell before DMC markup">
                         </td>
+                        ${mkCell(childWithoutBedMarkupRounded)}
                         <td style="padding: 3px 5px; text-align: center;">
                             <input type="text" value="${infantCostRounded.toFixed(0)}" readonly style="width: 60px; background-color: #f5f5f5;">
                         </td>
                         <td style="padding: 3px 5px; text-align: center;">
-                            <input type="number" value="${infantSellRounded.toFixed(2)}" data-original-value="${infantSellRounded.toFixed(2)}" step="1" min="0" style="width: 60px;">
+                            <input type="number" value="${infantSellRounded.toFixed(2)}" data-original-value="${infantSellRounded.toFixed(2)}" step="1" min="0" style="width: 60px;" title="Sell before DMC markup">
                         </td>
+                        ${mkCell(infantMarkupRounded)}
                     </tr>
                 `);
             });
@@ -30463,8 +30722,18 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             // Round prices
             const adultCostRounded = roundToNextZero(adultCost);
             const adultSellRounded = roundToNextZero(adultSell);
+            const adultMarkupRounded = roundToNextZero(
+                (typeof enquiryProApplyDmcMarkup === 'function')
+                    ? enquiryProApplyDmcMarkup(adultSell, 'other').price
+                    : adultSell
+            );
             const childCostRounded = roundToNextZero(childCost);
             const childSellRounded = roundToNextZero(childSell);
+            const childMarkupRounded = roundToNextZero(
+                (typeof enquiryProApplyDmcMarkup === 'function')
+                    ? enquiryProApplyDmcMarkup(childSell, 'other').price
+                    : childSell
+            );
             
             // Show simplified Package Total row with Adult and Child columns only
             const pkgCurrency = (typeof getEnquiryProPrimaryCurrency === 'function')
@@ -30484,13 +30753,19 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                         <input type="text" value="${adultCostRounded.toFixed(0)}" readonly style="width: 60px; background-color: #f5f5f5;">
                     </td>
                     <td style="padding: 3px 5px; text-align: center;">
-                        <input type="number" value="${adultSellRounded.toFixed(2)}" data-original-value="${adultSellRounded.toFixed(2)}" step="1" min="0" style="width: 60px;">
+                        <input type="number" value="${adultSellRounded.toFixed(2)}" data-original-value="${adultSellRounded.toFixed(2)}" step="1" min="0" style="width: 60px;" title="Sell before DMC markup">
+                    </td>
+                    <td style="padding: 3px 5px; text-align: center;">
+                        <input type="text" value="${adultMarkupRounded.toFixed(2)}" readonly style="width: 60px; background-color: #f3e8ff; color: #6b21a8;" title="After DMC markup">
                     </td>
                     <td style="padding: 3px 5px; text-align: center;">
                         <input type="text" value="${childCostRounded.toFixed(0)}" readonly style="width: 60px; background-color: #f5f5f5;">
                     </td>
                     <td style="padding: 3px 5px; text-align: center;">
-                        <input type="number" value="${childSellRounded.toFixed(2)}" data-original-value="${childSellRounded.toFixed(2)}" step="1" min="0" style="width: 60px;">
+                        <input type="number" value="${childSellRounded.toFixed(2)}" data-original-value="${childSellRounded.toFixed(2)}" step="1" min="0" style="width: 60px;" title="Sell before DMC markup">
+                    </td>
+                    <td style="padding: 3px 5px; text-align: center;">
+                        <input type="text" value="${childMarkupRounded.toFixed(2)}" readonly style="width: 60px; background-color: #f3e8ff; color: #6b21a8;" title="After DMC markup">
                     </td>
                 </tr>
             `);
@@ -30663,7 +30938,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 if (tourIndex < tableRows.length) {
                     const tr = tableRows[tourIndex];
                     const adultSellInput = tr.querySelector('td:nth-child(6) input');
-                    const childSellInput = tr.querySelector('td:nth-child(9) input');
+                    const childSellInput = tr.querySelector('td:nth-child(10) input');
                     if (adultSellInput && adultSellInput.value !== '') adultSell = parseFloat(adultSellInput.value) || 0;
                     if (childSellInput && childSellInput.value !== '') childSell = parseFloat(childSellInput.value) || 0;
                 }
@@ -30716,7 +30991,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     const gRows = Array.from(guideTableBody.querySelectorAll('tr'));
                     if (guideIndex < gRows.length) {
                         const sellInput = gRows[guideIndex].querySelector('.guide-sell-input')
-                            || gRows[guideIndex].querySelector('td:nth-child(9) input[type="number"]');
+                            || gRows[guideIndex].querySelector('td:nth-child(10) input[type="number"]');
                         if (sellInput && sellInput.value !== '') guideSell = parseFloat(sellInput.value) || 0;
                     }
                 }
@@ -30822,7 +31097,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 const tableRows = Array.from(guideTableBody.querySelectorAll('tr'));
                 if (guideIndex < tableRows.length) {
                     const sellInput = tableRows[guideIndex].querySelector('.guide-sell-input')
-                        || tableRows[guideIndex].querySelector('td:nth-child(9) input[type="number"]');
+                        || tableRows[guideIndex].querySelector('td:nth-child(10) input[type="number"]');
                     if (sellInput && sellInput.value !== '') guideSell = parseFloat(sellInput.value) || 0;
                 }
             }
@@ -30950,89 +31225,70 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     discount_type: discountTypeElem.value || '',
                     discount_value: parseFloat(discountValueElem.value || 0) || 0
                 };
-            let markupValue = parseFloat(settings.markup_value || 0) || 0;
-            let markupType = settings.markup_type || '';
             let discountType = settings.discount_type || '';
             let discountValue = parseFloat(settings.discount_value || 0) || 0;
-            const rowKind = String(row.getAttribute('data-row-kind') || '').toLowerCase();
-            const hotelMk = settings.hotel_markup != null ? (parseFloat(settings.hotel_markup) || 0) : null;
-            const otherMk = settings.other_markup != null ? (parseFloat(settings.other_markup) || 0) : null;
-            if (hotelMk != null || otherMk != null) {
-                markupValue = (rowKind === 'other') ? (otherMk || 0) : (hotelMk || 0);
-            }
             if (discountType === 'foc') {
                 // FOC is informational only — do not subtract from sell columns
                 discountValue = 0;
             }
 
-            // Get all sell input fields (columns: Single(2), Twin(4), Triple(6), Child w/bed(8), Child w/o bed(10), Infant(12))
+            // Cost | Sell | Markup per occupancy (docs/enquiry-pro-cost-sell-markup-price.md)
+            // Sell = base (before DMC). Markup Price already set by recalculateTotals — do not
+            // re-apply DMC onto Sell (that caused Single Sell === Markup).
             const cells = row.querySelectorAll('td');
-            
-            // Process each sell column with input fields (0-indexed)
-            const sellColumns = [2, 4, 6, 8, 10, 12];
-            
-            sellColumns.forEach(colIndex => {
-                if (cells[colIndex]) {
-                    const input = cells[colIndex].querySelector('input[type="number"]');
-                    if (input) {
-                        // Get original value
-                        let originalValue = parseFloat(input.getAttribute('data-original-value'));
-                        
-                        // If no original value stored, store current value as original
-                        if (isNaN(originalValue)) {
-                            originalValue = parseFloat(input.value) || 0;
-                            input.setAttribute('data-original-value', originalValue);
-                        }
-                        
-                        // If original value is 0, don't apply any markup or discount (0 stays 0)
-                        if (originalValue === 0) {
-                            input.value = '0.00';
-                            inputsProcessed++;
-                            return;
-                        }
-                        
-                        let newValue = originalValue;
-                        const oldValue = parseFloat(input.value);
-                        
-                        // Apply markup (only if type is selected and value > 0)
-                        if (markupValue > 0 && markupType !== '') {
-                            if (markupType === 'percentage') {
-                                newValue += (originalValue * markupValue / 100);
-                            } else {
-                                newValue += markupValue;
-                            }
-                        }
-                        
-                        // Apply discount (only if type is selected and value > 0).
-                        // FOC type is intentionally skipped — its value is informational only
-                        // (paying-pax sells are already correct at factor = 1).
-                        if (discountValue > 0 && discountType !== '' && discountType !== 'foc') {
-                            if (discountType === 'percentage') {
-                                newValue -= (newValue * discountValue / 100);
-                            } else {
-                                newValue -= discountValue;
-                            }
-                        }
-                        
-                        // Apply ceiling if there's any decimal part
-                        // If 50.01, it becomes 51; if 50.00, it stays 50
-                        if (newValue % 1 !== 0) {
-                            newValue = Math.ceil(newValue);
-                        }
-                        
-                        // Update the input value
-                        input.value = newValue.toFixed(2);
-                        
-                        if (inputsProcessed < 3) { // Only log first 3 to avoid console spam
-                            console.log(`  Row ${rowIndex} [${rowCurrency || '—'}], Col ${colIndex}: ${oldValue.toFixed(2)} → ${newValue.toFixed(2)} (original: ${originalValue.toFixed(2)})`);
-                        }
-                        inputsProcessed++;
+            const sellColumns = [2, 5, 8, 11, 14, 17];
+            const markupColumns = [3, 6, 9, 12, 15, 18];
+
+            const applyDiscountOnly = (amount) => {
+                let v = amount;
+                if (discountValue > 0 && discountType !== '' && discountType !== 'foc') {
+                    if (discountType === 'percentage') {
+                        v -= (v * discountValue / 100);
+                    } else {
+                        v -= discountValue;
                     }
                 }
+                if (v % 1 !== 0) v = Math.ceil(v);
+                return v;
+            };
+            
+            sellColumns.forEach((colIndex, groupIdx) => {
+                if (!cells[colIndex]) return;
+                const input = cells[colIndex].querySelector('input[type="number"]');
+                if (!input) return;
+
+                let originalValue = parseFloat(input.getAttribute('data-original-value'));
+                if (isNaN(originalValue)) {
+                    originalValue = parseFloat(input.value) || 0;
+                    input.setAttribute('data-original-value', originalValue);
+                }
+
+                // Sell stays base; optional enquiry discount only (never DMC hotel/other markup)
+                const sellValue = originalValue === 0 ? 0 : applyDiscountOnly(originalValue);
+                input.value = sellValue.toFixed(2);
+
+                // Markup Price: keep recalculateTotals value; apply same discount if any
+                const mkCol = markupColumns[groupIdx];
+                if (cells[mkCol] && discountValue > 0 && discountType !== '' && discountType !== 'foc') {
+                    const mkInput = cells[mkCol].querySelector('input');
+                    if (mkInput) {
+                        let markedBase = parseFloat(mkInput.getAttribute('data-original-value'));
+                        if (isNaN(markedBase)) {
+                            markedBase = parseFloat(mkInput.value) || 0;
+                            mkInput.setAttribute('data-original-value', markedBase);
+                        }
+                        mkInput.value = applyDiscountOnly(markedBase).toFixed(2);
+                    }
+                }
+
+                if (inputsProcessed < 3) {
+                    console.log(`  Row ${rowIndex} [${rowCurrency || '—'}], Sell col ${colIndex}: base ${originalValue.toFixed(2)} → sell ${sellValue.toFixed(2)}`);
+                }
+                inputsProcessed++;
             });
         });
         
-        console.log(`✅ Successfully updated ${inputsProcessed} sell values`);
+        console.log(`✅ Successfully updated ${inputsProcessed} sell/markup groups`);
         console.log('=== applyMarkupDiscount() complete ===\n');
     }
 
@@ -31850,13 +32106,38 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 entryRow.childQty = rowChild;
                 entryRow.infants = rowInfant;
                 entryRow.infantQty = rowInfant;
+                // Shared×pax / Private×qty base, then DMC other markup (Lite)
+                const entryTransferBase = (typeof enquiryProResolveTransferSellBase === 'function')
+                    ? enquiryProResolveTransferSellBase(Object.assign({}, item, slice, entryRow, {
+                        type: sliceTypeLabel,
+                        transferType: slice.transferType || item.transferType,
+                        sell: slice.unitSell != null ? slice.unitSell : (slice.adultSell || entryRow.sell),
+                        unitSell: slice.unitSell,
+                        lineSell: slice.lineSell != null ? slice.lineSell : entryRow.lineSell,
+                        adults: rowAdults,
+                        adultsQty: rowAdults,
+                        child: rowChild,
+                        childQty: rowChild,
+                        vehicleQty: slice.qty || 1
+                    })).base
+                    : (parseFloat(entryRow.totalPrice) || 0);
+                entryRow.base_grand_total = entryTransferBase;
+                if (typeof enquiryProAttachOtherServiceMarkup === 'function') {
+                    enquiryProAttachOtherServiceMarkup(entryRow, entryTransferBase);
+                }
                 entryPortData.push(entryRow);
                 
-                // Add guide_options once (first vehicle only) — avoid duplicating guide cost
+                // Add guide_options once (first vehicle only) — sell flat + markup (never × pax)
                 if (vi === 0 && item.guideId) {
                     const linkedGuide = guideList.find(g => g.id === item.guideId);
                     if (linkedGuide) {
                         const lastEntry = entryPortData[entryPortData.length - 1];
+                        const guideSellBase = (typeof enquiryProResolveGuideSellBase === 'function')
+                            ? enquiryProResolveGuideSellBase(linkedGuide)
+                            : (parseFloat(linkedGuide.sell) || 0);
+                        const guideMk = (typeof enquiryProApplyDmcMarkup === 'function')
+                            ? enquiryProApplyDmcMarkup(guideSellBase, 'other')
+                            : { base_price: guideSellBase, markup_amount: 0, price: guideSellBase };
                         lastEntry.guide_options = {
                             guide_required: true,
                             guideId: linkedGuide.guideId || linkedGuide.guide_id || '',
@@ -31872,8 +32153,12 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                             languages: linkedGuide.languages || linkedGuide.language || '',
                             cost: parseFloat(linkedGuide.cost) || 0,
                             Cost: parseFloat(linkedGuide.cost) || 0,
-                            sell: parseFloat(linkedGuide.sell) || 0,
-                            Sell: parseFloat(linkedGuide.sell) || 0,
+                            sell: guideMk.price,
+                            Sell: guideMk.price,
+                            total_price: guideMk.price,
+                            totalPrice: guideMk.price,
+                            base_grand_total: guideMk.base_price,
+                            dmc_profile_markup: guideMk,
                             tourActivity: `Arrival Guide - ${item.portName}`,
                             tour_activity: `Arrival Guide - ${item.portName}`,
                             Activity: `Arrival Guide - ${item.portName}`,
@@ -32058,13 +32343,37 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 exitRow.childQty = rowChild;
                 exitRow.infants = rowInfant;
                 exitRow.infantQty = rowInfant;
+                const exitTransferBase = (typeof enquiryProResolveTransferSellBase === 'function')
+                    ? enquiryProResolveTransferSellBase(Object.assign({}, item, slice, exitRow, {
+                        type: sliceTypeLabel,
+                        transferType: slice.transferType || item.transferType,
+                        sell: slice.unitSell != null ? slice.unitSell : (slice.adultSell || exitRow.sell),
+                        unitSell: slice.unitSell,
+                        lineSell: slice.lineSell != null ? slice.lineSell : exitRow.lineSell,
+                        adults: rowAdults,
+                        adultsQty: rowAdults,
+                        child: rowChild,
+                        childQty: rowChild,
+                        vehicleQty: slice.qty || 1
+                    })).base
+                    : (parseFloat(exitRow.totalPrice) || 0);
+                exitRow.base_grand_total = exitTransferBase;
+                if (typeof enquiryProAttachOtherServiceMarkup === 'function') {
+                    enquiryProAttachOtherServiceMarkup(exitRow, exitTransferBase);
+                }
                 exitPortData.push(exitRow);
                 
-                // Add guide_options if departure has linked guide
+                // Add guide_options if departure has linked guide — sell flat + markup
                 if (vi === 0 && item.guideId) {
                     const linkedGuide = guideList.find(g => g.id === item.guideId);
                     if (linkedGuide) {
                         const lastEntry = exitPortData[exitPortData.length - 1];
+                        const guideSellBase = (typeof enquiryProResolveGuideSellBase === 'function')
+                            ? enquiryProResolveGuideSellBase(linkedGuide)
+                            : (parseFloat(linkedGuide.sell) || 0);
+                        const guideMk = (typeof enquiryProApplyDmcMarkup === 'function')
+                            ? enquiryProApplyDmcMarkup(guideSellBase, 'other')
+                            : { base_price: guideSellBase, markup_amount: 0, price: guideSellBase };
                         lastEntry.guide_options = {
                             guide_required: true,
                             guideId: linkedGuide.guideId || linkedGuide.guide_id || '',
@@ -32080,8 +32389,12 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                             languages: linkedGuide.languages || linkedGuide.language || '',
                             cost: parseFloat(linkedGuide.cost) || 0,
                             Cost: parseFloat(linkedGuide.cost) || 0,
-                            sell: parseFloat(linkedGuide.sell) || 0,
-                            Sell: parseFloat(linkedGuide.sell) || 0,
+                            sell: guideMk.price,
+                            Sell: guideMk.price,
+                            total_price: guideMk.price,
+                            totalPrice: guideMk.price,
+                            base_grand_total: guideMk.base_price,
+                            dmc_profile_markup: guideMk,
                             tourActivity: `Departure Guide - ${item.portName}`,
                             tour_activity: `Departure Guide - ${item.portName}`,
                             Activity: `Departure Guide - ${item.portName}`,
@@ -32674,6 +32987,9 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 bedType: cleanBedType
             };
             
+            if (typeof enquiryProAttachHotelMarkupFields === 'function') {
+                enquiryProAttachHotelMarkupFields(hotelData, totalPrice);
+            }
             return hotelData;
         });
     }
@@ -32789,7 +33105,17 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                             true
                         ))
                     };
-                    tourData.transferInfo = blocks.transferInfo;
+                    if (typeof enquiryProStampTransferOptionsMarkup === 'function') {
+                        enquiryProStampTransferOptionsMarkup(tourData.transfer_options, linkedTransfer);
+                    }
+                    tourData.transferInfo = blocks.transferInfo || {};
+                    if (tourData.transfer_options) {
+                        tourData.transferInfo.sell = tourData.transfer_options.sell;
+                        tourData.transferInfo.totalPrice = tourData.transfer_options.totalPrice;
+                        tourData.transferInfo.lineSell = tourData.transfer_options.lineSell;
+                        tourData.transferInfo.dmc_profile_markup = tourData.transfer_options.dmc_profile_markup;
+                        tourData.transferInfo.base_grand_total = tourData.transfer_options.base_grand_total;
+                    }
                 }
             }
             
@@ -32812,6 +33138,9 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                         pickup_time: linkedGuide.time || '',
                         ...enquiryProOrderDiscountPayload(linkedGuide, () => computeGuideServiceDiscountAmount(linkedGuide, true))
                     };
+                    if (typeof enquiryProStampGuideOptionsMarkup === 'function') {
+                        enquiryProStampGuideOptionsMarkup(tourData.guide_options, linkedGuide);
+                    }
                     tourData.guideInfo = {
                         id: linkedGuide.id,
                         guide_id: linkedGuide.guideId || linkedGuide.guide_id,
@@ -32819,11 +33148,15 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                         language: linkedGuide.language || linkedGuide.languages,
                         hours: linkedGuide.hours,
                         cost: linkedGuide.cost,
-                        sell: linkedGuide.sell
+                        sell: tourData.guide_options.sell,
+                        dmc_profile_markup: tourData.guide_options.dmc_profile_markup
                     };
                 }
             }
             
+            if (typeof enquiryProAttachOtherServiceMarkup === 'function') {
+                enquiryProAttachOtherServiceMarkup(tourData, tourData.totalPrice);
+            }
             return tourData;
         });
     }
@@ -32903,16 +33236,30 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 const dropoffName = transferSource.dropoff || '';
                 const baseCost = parseFloat(transferSource.cost || transferSource.adultCost || 0);
                 const baseSell = parseFloat(transferSource.sell || transferSource.adultSell || 0);
-                const basePrice = baseSell || baseCost;
                 const adults = parseInt(transferSource.adults || transferSource.adultsQty || 0) || 0;
                 const child = parseInt(transferSource.child || transferSource.childQty || 0) || 0;
-                const totalPax = Math.max(1, adults + child);
-                const typeVal = String(transferSource.type || '').toLowerCase();
-                const isShared = (typeVal === 's' || typeVal === 'shared' || typeVal === 'sic');
-                const transferTotalPrice = isShared ? (basePrice * totalPax) : basePrice;
+                const typeLabel = (transferSource.type === 'P' || String(transferSource.type || '').toLowerCase() === 'private')
+                    ? 'Private'
+                    : ((transferSource.type === 'S' || String(transferSource.type || '').toLowerCase() === 'shared'
+                        || String(transferSource.type || '').toLowerCase() === 'sic') ? 'Shared' : 'Private');
+                const resolvedMealXfer = (typeof enquiryProResolveTransferSellBase === 'function')
+                    ? enquiryProResolveTransferSellBase(Object.assign({}, transferSource, {
+                        type: typeLabel,
+                        transferType: transferSource.type || transferSource.transferType,
+                        adults: adults,
+                        adultsQty: adults,
+                        child: child,
+                        childQty: child,
+                        lineSell: transferSource.lineSell != null ? transferSource.lineSell : transferSource.totalSell,
+                        totalSell: transferSource.totalSell != null ? transferSource.totalSell : transferSource.lineSell
+                    }))
+                    : { base: baseSell || baseCost };
+                const transferTotalPrice = parseFloat(resolvedMealXfer.base) || 0;
+                const explicitLineSell = parseFloat(transferSource.lineSell != null ? transferSource.lineSell
+                    : (transferSource.totalSell != null ? transferSource.totalSell : transferTotalPrice)) || transferTotalPrice;
                 mealData.transfer_options = {
                     transfer_required: true,
-                    type: transferSource.type === 'P' ? 'Private' : (transferSource.type === 'S' ? 'Shared' : 'Private'),
+                    type: typeLabel,
                     way: transferSource.way || 'one-way',
                     vehicle_id: transferSource.vehicleId || '',
                     vehicle_details: {
@@ -32920,8 +33267,11 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                         vehicle_type: transferSource.vehicleType || '',
                         seating_capacity: transferSource.capacity || 0
                     },
+                    vehicles: Array.isArray(transferSource.vehicles) ? transferSource.vehicles : undefined,
                     cost: parseFloat(baseCost) || 0,
                     sell: parseFloat(baseSell) || parseFloat(baseCost) || 0,
+                    lineSell: explicitLineSell,
+                    line_sell: explicitLineSell,
                     totalPrice: transferTotalPrice,
                     ...enquiryProOrderDiscountPayload(transferSource, () => computeTransferOptionsDiscountAmount(transferSource, true)),
                     adults: adults,
@@ -32937,6 +33287,9 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     pickupType: transferSource.pickupType || '',
                     dropType: transferSource.dropType || transferSource.dropoffType || ''
                 };
+                if (typeof enquiryProStampTransferOptionsMarkup === 'function') {
+                    enquiryProStampTransferOptionsMarkup(mealData.transfer_options, transferSource);
+                }
                 mealData.transferInfo = {
                     id: transferSource.id || meal.transferId,
                     destination: transferSource.destination || dropoffName,
@@ -32950,10 +33303,14 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     dropoff: dropoffName,
                     isDestinationPickup: transferSource.isDestinationPickup || false,
                     cost: parseFloat(baseCost) || 0,
-                    sell: parseFloat(baseSell) || parseFloat(baseCost) || 0,
-                    totalPrice: transferTotalPrice,
+                    sell: mealData.transfer_options.sell,
+                    totalPrice: mealData.transfer_options.totalPrice,
+                    lineSell: mealData.transfer_options.lineSell,
+                    dmc_profile_markup: mealData.transfer_options.dmc_profile_markup,
+                    base_grand_total: mealData.transfer_options.base_grand_total,
                     adults: adults,
-                    child: child
+                    child: child,
+                    vehicles: Array.isArray(transferSource.vehicles) ? transferSource.vehicles : undefined
                 };
             }
             
@@ -33018,9 +33375,16 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     };
                 }
                 
-                // Set guideInfo
+                if (typeof enquiryProStampGuideOptionsMarkup === 'function') {
+                    enquiryProStampGuideOptionsMarkup(mealData.guide_options, guideForDisc || guideSource);
+                }
+                // Set guideInfo (sell with markup)
                 if (meal.guideInfo && Object.keys(meal.guideInfo).length > 0) {
-                    mealData.guideInfo = meal.guideInfo;
+                    mealData.guideInfo = Object.assign({}, meal.guideInfo, {
+                        sell: mealData.guide_options.sell,
+                        dmc_profile_markup: mealData.guide_options.dmc_profile_markup,
+                        base_grand_total: mealData.guide_options.base_grand_total
+                    });
                 } else {
                     mealData.guideInfo = {
                         id: guideSource.id,
@@ -33031,11 +33395,15 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                         adultsQty: guideSource.adultsQty || guideSource.adults_qty || 0,
                         childQty: guideSource.childQty || guideSource.child_qty || 0,
                         cost: guideSource.cost || 0,
-                        sell: guideSource.sell || 0
+                        sell: mealData.guide_options.sell,
+                        dmc_profile_markup: mealData.guide_options.dmc_profile_markup
                     };
                 }
             }
             
+            if (typeof enquiryProAttachOtherServiceMarkup === 'function') {
+                enquiryProAttachOtherServiceMarkup(mealData, mealData.totalPrice);
+            }
             return mealData;
         });
     }
@@ -33060,7 +33428,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             // Get tour activity - use locationName if available, otherwise fall back to Guide Service
             const tourActivityValue = guide.tourName || guide.tourActivity || `${guide.locationName || 'Guide Service'} - ${guide.name || guide.guideName || ''}`;
             
-            return {
+            const guideData = {
                 id: guide.id || `guide-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                 Mode: "dmc",
                 dmc_Id: String(dmcId),
@@ -33123,6 +33491,10 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 booking_id: guide.booking_id || 0,
                 supplement: guide.supplement || false
             };
+            if (typeof enquiryProAttachOtherServiceMarkup === 'function') {
+                enquiryProAttachOtherServiceMarkup(guideData, guideData.totalPrice);
+            }
+            return guideData;
         });
     }
     
@@ -33236,17 +33608,32 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 pickupZoneId = transfer.from_zone_id;
             }
             
-            // Calculate total price for JSON based on shared/private and pax
+            // Calculate total price for JSON (Lite): Shared = unit×pax; Private = unit×vehicle qty
             const ltAdults = parseInt(transfer.adults || transfer.adultsQty || 0) || 0;
             const ltChild = parseInt(transfer.child || transfer.childQty || 0) || 0;
             const ltTotalPax = ltAdults + ltChild;
             const ltTripPrice = parseFloat(transfer.sell || transfer.cost || 0) || 0;
             const ltTypeVal = (transfer.type || transferType).toString().toLowerCase();
             const ltIsShared = ltTypeVal === 's' || ltTypeVal === 'shared' || ltTypeVal === 'sic';
+            const ltVehicleQty = (typeof enquiryProTransferVehicleQty === 'function')
+                ? enquiryProTransferVehicleQty(transfer)
+                : Math.max(1, parseInt(transfer.vehicleQty || transfer.vehicle_qty || transfer.booked_vehicles || 1, 10) || 1);
             let ltTotalPrice = ltTripPrice;
-            if (ltIsShared && ltTotalPax > 0) {
-                // Shared: per-pax pricing
+            if (typeof enquiryProResolveTransferSellBase === 'function') {
+                ltTotalPrice = enquiryProResolveTransferSellBase(Object.assign({}, transfer, {
+                    type: transferTypeLabel || transfer.type,
+                    transferType: transfer.type || transferType,
+                    sell: ltTripPrice,
+                    adults: ltAdults,
+                    adultsQty: ltAdults,
+                    child: ltChild,
+                    childQty: ltChild,
+                    vehicleQty: ltVehicleQty
+                })).base;
+            } else if (ltIsShared && ltTotalPax > 0) {
                 ltTotalPrice = ltTripPrice * ltTotalPax;
+            } else if (!ltIsShared && ltVehicleQty > 1) {
+                ltTotalPrice = ltTripPrice * ltVehicleQty;
             }
             
             const transferData = {
@@ -33362,6 +33749,9 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                         foc_service_discount: !!(linkedGuide.focServiceDiscount || linkedGuide.foc_service_discount),
                         ...enquiryProOrderDiscountPayload(linkedGuide, () => computeGuideServiceDiscountAmount(linkedGuide, true))
                     };
+                    if (typeof enquiryProStampGuideOptionsMarkup === 'function') {
+                        enquiryProStampGuideOptionsMarkup(transferData.guide_options, linkedGuide);
+                    }
                     transferData.guideId = linkedGuide.id;
                 }
             }
@@ -33369,7 +33759,12 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             const expandedTransfers = (typeof expandLocalTransferOrdersByVehicle === 'function')
                 ? expandLocalTransferOrdersByVehicle(transfer, transferData)
                 : [transferData];
-            expandedTransfers.forEach(function (row) { transformedData.push(row); });
+            expandedTransfers.forEach(function (row) {
+                if (typeof enquiryProAttachOtherServiceMarkup === 'function') {
+                    enquiryProAttachOtherServiceMarkup(row, row.totalPrice);
+                }
+                transformedData.push(row);
+            });
         }
         
         return transformedData;
@@ -33400,7 +33795,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             const lineSell = (adultSell * adultsQty) + (childSell * childQty) + (infantSell * infantQty);
             const misId = misc.mis_id || (String(misc.itemId || '').match(/(\d+)\s*$/) || [])[1] || null;
 
-            return {
+            const miscData = {
                 id: misc.id || `misc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
                 itemId: misc.itemId || (misId ? (`misc_${misId}`) : ''),
                 mis_id: misId ? parseInt(misId, 10) : null,
@@ -33424,6 +33819,10 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 focServiceDiscount: !!(misc.focServiceDiscount || misc.foc_service_discount),
                 foc_service_discount: !!(misc.focServiceDiscount || misc.foc_service_discount),
                 totalPrice: lineSell,
+                // Per-pax sells stay BASE; marked units for booking/view display
+                adultSellBase: adultSell,
+                childSellBase: childSell,
+                infantSellBase: infantSell,
                 ...enquiryProOrderDiscountPayload(misc, () => computeMiscDiscountAmount(misc)),
                 dmc_id: siblingDmc,
                 dmcId: siblingDmc,
@@ -33439,6 +33838,16 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 specialRequests: customerInfo.specialRequests,
                 bookingType: "enquiry"
             };
+            if (typeof enquiryProApplyDmcMarkup === 'function') {
+                miscData.adultSellMarked = enquiryProApplyDmcMarkup(adultSell, 'other').price;
+                miscData.childSellMarked = enquiryProApplyDmcMarkup(childSell, 'other').price;
+                miscData.infantSellMarked = enquiryProApplyDmcMarkup(infantSell, 'other').price;
+            }
+            if (typeof enquiryProAttachOtherServiceMarkup === 'function') {
+                // Store totalPrice WITH DMC other markup (base kept on base_grand_total)
+                enquiryProAttachOtherServiceMarkup(miscData, lineSell);
+            }
+            return miscData;
         });
     }
     
@@ -33540,7 +33949,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         formData.append('city_date_ranges', JSON.stringify(cityRangeValidation.ranges || []));
         if (childAges) formData.append('child_ages', childAges);
         
-        // Add markup and discount values (single-city inputs, or first city row for multi-city tour-level columns)
+        // Markup from DMC profile (hotel + other) via getCurrencyMarkupsPayload — Pricing-by-city UI removed
         if (typeof syncActiveCurrencyMarkupToStore === 'function') syncActiveCurrencyMarkupToStore();
         const currencyMarkupsPayload = (typeof getCurrencyMarkupsPayload === 'function')
             ? getCurrencyMarkupsPayload()
@@ -33549,15 +33958,23 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         let markupTypeOut = markupType;
         let discountValueOut = discountValue;
         let discountTypeOut = discountType;
-        if (Array.isArray(currencyMarkupsPayload) && currencyMarkupsPayload.length > 1) {
+        if (Array.isArray(currencyMarkupsPayload) && currencyMarkupsPayload.length > 0) {
             const primaryMd = currencyMarkupsPayload.find(function (r) {
-                return (r.markup_type && parseFloat(r.markup_value || 0) > 0)
+                return (r.markup_type && (
+                        parseFloat(r.hotel_markup || 0) > 0
+                        || parseFloat(r.other_markup || 0) > 0
+                        || parseFloat(r.markup_value || 0) > 0
+                    ))
                     || (r.discount_type && r.discount_type !== '');
             }) || currencyMarkupsPayload[0] || {};
-            markupTypeOut = primaryMd.markup_type || '';
-            markupValueOut = parseFloat(primaryMd.markup_value || 0) || 0;
+            markupTypeOut = primaryMd.markup_type || markupTypeOut || 'percentage';
+            markupValueOut = parseFloat(primaryMd.hotel_markup != null ? primaryMd.hotel_markup : primaryMd.markup_value || 0) || 0;
             discountTypeOut = primaryMd.discount_type || '';
             discountValueOut = parseFloat(primaryMd.discount_value || 0) || 0;
+        } else if (typeof enquiryProDmcMarkupDefaults === 'function') {
+            const dmc = enquiryProDmcMarkupDefaults();
+            markupTypeOut = dmc.markup_type || 'percentage';
+            markupValueOut = dmc.hotel_markup || 0;
         }
         formData.append('markup_value', markupValueOut);
         formData.append('markup_type', markupTypeOut);
@@ -34206,7 +34623,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 return sum + enquiryProHotelPayloadTotalPrice(room, nr, groupNights);
             }, 0);
 
-            return {
+            const groupedPayload = {
                 fullName: customerInfo.fullName,
                 email: customerInfo.email,
                 phone: customerInfo.phone,
@@ -34297,6 +34714,10 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 } : null,
                 tour_id: group.hotel.tour_id || defaultTourId || null
             };
+            if (typeof enquiryProAttachHotelMarkupFields === 'function') {
+                enquiryProAttachHotelMarkupFields(groupedPayload, groupedHotelJsonTotal);
+            }
+            return groupedPayload;
         });
     }
     
@@ -34378,6 +34799,21 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 vehicle_model: vehicleDetails.vehicle_model,
                 model_year: vehicleDetails.model_year
             });
+            {
+                const lastLt = localTransferData[localTransferData.length - 1];
+                const ltBase = (typeof enquiryProResolveTransferSellBase === 'function')
+                    ? enquiryProResolveTransferSellBase(Object.assign({}, transfer, lastLt, {
+                        sell: parseFloat(transfer.sell) || parseFloat(lastLt.totalPrice) || 0,
+                        adults: transfer.adults || 0,
+                        adultsQty: transfer.adults || 0,
+                        child: transfer.child || 0,
+                        childQty: transfer.child || 0
+                    })).base
+                    : (parseFloat(lastLt.totalPrice) || 0);
+                if (typeof enquiryProAttachOtherServiceMarkup === 'function') {
+                    enquiryProAttachOtherServiceMarkup(lastLt, ltBase);
+                }
+            }
         }
         
         return localTransferData;
