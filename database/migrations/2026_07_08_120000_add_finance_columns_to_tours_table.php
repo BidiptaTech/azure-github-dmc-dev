@@ -8,7 +8,7 @@ return new class extends Migration
     public function up(): void
     {
         $sql = file_get_contents(
-            base_path('finance-microservice/sql/002_alter_tours_finance_columns.sql')
+            base_path('database/sql/finance/002_alter_tours_finance_columns.sql')
         );
 
         if ($sql) {

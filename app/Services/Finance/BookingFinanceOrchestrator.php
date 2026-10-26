@@ -105,6 +105,25 @@ class BookingFinanceOrchestrator
             return null;
         }
 
+        // Online / Mix supplier-initial payments are handled by PaymentOrchestrator.
+        // Keep auto wallet debit only for offline (and legacy unclassified) tours.
+        $classification = (string) ($tour->order_classification ?? '');
+        if ($classification === '' && class_exists(\App\Services\Payment\OrderClassificationService::class)) {
+            try {
+                $classification = app(\App\Services\Payment\OrderClassificationService::class)->classifyTour($tour);
+            } catch (\Throwable) {
+                $classification = '';
+            }
+        }
+        if (in_array($classification, ['online', 'mix'], true)) {
+            Log::info('tour_confirm_finance_skipped_for_payment_orchestrator', [
+                'tour_id' => $tour->tour_id ?? $tour->id,
+                'order_classification' => $classification,
+            ]);
+
+            return null;
+        }
+
         $paymentMode = (string) config('finance.default_payment_mode_on_confirm', 'wallet');
         if ($paymentMode === '') {
             return null;
@@ -119,10 +138,29 @@ class BookingFinanceOrchestrator
             return null;
         }
 
+        $ledger = app(WalletLedgerService::class);
+        if ($ledger->tourHasBookingDebit((int) ($tour->tour_id ?? $tour->getKey()))) {
+            Log::info('tour_confirm_finance_skipped_existing_wallet_debit', [
+                'tour_id' => $tour->tour_id ?? $tour->id,
+            ]);
+
+            return null;
+        }
+
         $walletQuery = app(WalletQueryService::class);
         $currency = $walletQuery->resolveCurrencyForOwner($walletOwnerType, $walletOwnerId);
-        $markup = round($sellingPrice / 2, 4);
-        $commission = round($sellingPrice - $markup, 4);
+        // Use the commission already stored on the tour. Do not invent a 50/50
+        // split — that credited commission again after the selling price (which
+        // already includes DMC markup) was debited from the wallet.
+        $markup = round((float) ($tour->travclicks_markup ?? 0), 4);
+        $commission = round((float) ($tour->dmc_commission ?? 0), 4);
+        $dmcId = (int) ($tour->dmc_id ?? 0);
+        if ($commission > 0 && $dmcId > 0 && $ledger->tourCreditExists((int) ($tour->tour_id ?? $tour->getKey()), 'dmc', $dmcId)) {
+            $commission = 0.0;
+        }
+        if ($markup > 0 && $ledger->tourCreditExists((int) ($tour->tour_id ?? $tour->getKey()), 'travclicks', 1)) {
+            $markup = 0.0;
+        }
 
         $request = Request::create('/', 'POST', [
             'payment_mode' => $paymentMode,
@@ -137,7 +175,26 @@ class BookingFinanceOrchestrator
             'idempotency_key' => 'web-confirm-'.$tour->tour_id.'-'.Str::uuid(),
         ]);
 
-        return $this->processAfterBooking($tour, $request, $sellingPrice);
+        $result = $this->processAfterBooking($tour, $request, $sellingPrice);
+        try {
+            app(\App\Services\Payment\CommissionSettlementService::class)->record($tour, [
+                'attempt_uuid' => (string) $request->input('idempotency_key'),
+                'payment_method' => 'wallet',
+                'payment_stage' => 'dmc_collection',
+                'payment_recipient' => 'dmc',
+                'currency_code' => $currency,
+                'wallet_reservation_ref' => is_array($result)
+                    ? ($result['data']['finance_reference'] ?? ($result['finance_reference'] ?? null))
+                    : null,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('offline_confirm_commission_record_failed', [
+                'tour_id' => $tour->tour_id ?? null,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return $result;
     }
 
     /**
@@ -239,7 +296,7 @@ class BookingFinanceOrchestrator
     {
         $data = $result['data'] ?? $result;
 
-        $tour->update([
+        $fields = [
             'finance_reference' => $data['finance_reference'] ?? $tour->finance_reference,
             'payment_mode' => $paymentMode,
             'payment_status' => $paymentMode === 'wallet' ? 'captured' : $tour->payment_status,
@@ -250,6 +307,50 @@ class BookingFinanceOrchestrator
             'supplier_cost' => $data['supplier_cost'] ?? $tour->supplier_cost,
             'travclicks_markup' => $data['travclicks_markup'] ?? $tour->travclicks_markup,
             'dmc_commission' => $data['dmc_commission'] ?? $tour->dmc_commission,
-        ]);
+        ];
+
+        // Wallet deduct is final — auto-verify in payment_details (no manual approve).
+        if ($paymentMode === 'wallet') {
+            $amount = (float) ($data['selling_price'] ?? $tour->selling_price ?? 0);
+            $currency = strtoupper((string) (
+                $data['payment_received_currency']
+                ?? $tour->payment_received_currency
+                ?? 'SGD'
+            ));
+            $financeRef = (string) ($data['finance_reference'] ?? $tour->finance_reference ?? '');
+            $details = json_decode((string) ($tour->payment_details ?? '[]'), true) ?: [];
+            if (! is_array($details)) {
+                $details = [];
+            }
+
+            $alreadyRecorded = $financeRef !== '' && collect($details)->contains(
+                fn ($p) => is_array($p)
+                    && ($p['payment_type'] ?? '') === 'wallet'
+                    && (string) ($p['transaction_id'] ?? '') === $financeRef
+            );
+
+            if (! $alreadyRecorded && $amount > 0) {
+                $details[] = [
+                    'amount' => round($amount, 4),
+                    'original_amount' => round($amount, 4),
+                    'currency' => $currency,
+                    'exchange_rate' => 1,
+                    'transaction_id' => $financeRef ?: ('wallet-'.($tour->tour_id ?? $tour->getKey())),
+                    'remarks' => 'Wallet payment — auto verified',
+                    'date' => now()->format('Y-m-d H:i:s'),
+                    'payment_date' => now()->toDateString(),
+                    'payment_type' => 'wallet',
+                    'status' => 1,
+                    'auto_verified' => true,
+                ];
+                $fields['payment_details'] = json_encode($details);
+            }
+
+            if (($tour->tour_status ?? '') === 'Confirmed') {
+                $fields['tour_status'] = 'Definite';
+            }
+        }
+
+        $tour->update($fields);
     }
 }

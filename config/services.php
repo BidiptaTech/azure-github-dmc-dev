@@ -39,6 +39,8 @@ return [
         'key' => env('STRIPE_PUBLIC_KEY'),
         'secret' => env('STRIPE_SECRET_KEY'),
         'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+        'connect_webhook_secret' => env('STRIPE_CONNECT_WEBHOOK_SECRET', env('STRIPE_WEBHOOK_SECRET')),
+        'mode' => env('STRIPE_MODE', 'test'),
     ],
 
     'azure' => [

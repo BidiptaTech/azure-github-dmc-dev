@@ -161,7 +161,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
 
     Route::get('/city-country', 'App\Http\Controllers\Api\CountryController@cityCountry');
 
-    // Finance Microservice integration (Bearer via Laravel → Azure Functions)
+    // Finance API (Laravel-native wallet / settlement / Stripe)
     Route::prefix('finance')->group(function () {
         Route::post('/wallet/topup', [BookingFinanceController::class, 'walletTopup']);
         Route::post('/wallet/booking', [BookingFinanceController::class, 'walletBooking']);
