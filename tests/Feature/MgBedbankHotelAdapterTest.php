@@ -248,6 +248,115 @@ class MgBedbankHotelAdapterTest extends TestCase
         $this->assertSame([], $result['hotels']);
     }
 
+    public function test_prices_on_search_is_true_for_mg_bedbank(): void
+    {
+        $this->assertTrue((new MgBedbankHotelAdapter())->pricesOnSearch());
+    }
+
+    public function test_it_chunks_search_hotel_codes_and_merges_results(): void
+    {
+        $catalogueHotels = [];
+        for ($i = 1; $i <= 5; $i++) {
+            $catalogueHotels[] = [
+                'code' => 'SG1000000' . $i,
+                'name' => 'Hotel ' . $i,
+            ];
+        }
+
+        Http::fake([
+            'https://mg.example/GetHotelList' => Http::response([
+                'status' => true,
+                'hotels' => ['hotel' => $catalogueHotels],
+            ]),
+            'https://mg.example/SearchHotel' => function (Request $request) {
+                $codes = $request->data()['Hotels']['Code'] ?? [];
+                $hotels = array_map(function (string $code) {
+                    return [
+                        'code' => $code,
+                        'name' => 'Hotel ' . $code,
+                        'rating' => '4',
+                        'roomDetails' => [
+                            [
+                                'code' => 'RM_1',
+                                'name' => 'STANDARD',
+                                'mealPlan' => 'RO',
+                                'mealPlanName' => 'Room Only',
+                                'netPrice' => 100,
+                                'grossPrice' => 100,
+                                'rooms' => [
+                                    'room' => [
+                                        ['rateKey' => 'rk-' . $code, 'noOfAdults' => 2, 'noOfChild' => 0],
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ];
+                }, $codes);
+
+                return Http::response([
+                    'status' => true,
+                    'sessionID' => 'session-chunk',
+                    'currency' => 'SGD',
+                    'hotels' => ['hotel' => $hotels],
+                ]);
+            },
+        ]);
+
+        $result = (new MgBedbankHotelAdapter())->fetchHotels(
+            new HotelSearchRequest(
+                cityName: 'Singapore',
+                checkIn: '2026-08-01',
+                checkOut: '2026-08-03',
+                paxInfo: '2|0',
+                rooms: 1,
+            ),
+            [
+                'base_url' => 'https://mg.example',
+                'agency_code' => 'agency',
+                'username' => 'user',
+                'password' => 'secret',
+                'country_code' => 'SG',
+                'city_code' => 'SG-SIN',
+                'hotel_list_ttl' => '0',
+                'max_hotel_codes' => '5',
+                'search_hotel_chunk_size' => '2',
+                'api_environment' => 'demo',
+            ],
+        );
+
+        $searchPayloads = [];
+        Http::assertSent(function (Request $request) use (&$searchPayloads): bool {
+            if (! str_ends_with($request->url(), '/SearchHotel')) {
+                return false;
+            }
+            $codes = $request->data()['Hotels']['Code'] ?? [];
+            $searchPayloads[] = $codes;
+
+            return count($codes) <= 2;
+        });
+
+        $this->assertCount(3, $searchPayloads);
+        $this->assertSame(5, array_sum(array_map('count', $searchPayloads)));
+        $this->assertCount(5, $result['hotels']);
+        $this->assertNotEmpty($result['hotels'][0]['rooms'] ?? []);
+    }
+
+    public function test_it_builds_three_rooms_for_six_adults(): void
+    {
+        $this->fakeEmptySearch();
+
+        $this->search(paxInfo: '6|0', rooms: 3);
+
+        $this->assertSearchRooms(function (array $rooms): bool {
+            return count($rooms) === 3
+                && $rooms[0]['NoOfAdults'] === '2'
+                && $rooms[1]['NoOfAdults'] === '2'
+                && $rooms[2]['NoOfAdults'] === '2'
+                && $rooms[0]['RoomNo'] === '1'
+                && $rooms[2]['RoomNo'] === '3';
+        });
+    }
+
     /**
      * @param  callable(array<int, array<string, mixed>>): bool  $callback
      */
