@@ -444,11 +444,17 @@ class AgencyController extends Controller
         });
 
         $salesDmcUsers = $this->getSalesDmcUsers($dmc_id);
+        [$walletCurrency, $walletBalances] = $this->agencyWalletBalancesForDmc($dmc_id);
+        $selectedAgencies->each(function ($agency) use ($walletBalances, $walletCurrency) {
+            $agency->dmc_wallet_balance = (float) ($walletBalances[$agency->agency_id] ?? 0);
+            $agency->dmc_wallet_currency = $walletCurrency;
+        });
 
         return view('services.agencies', compact(
             'availableAgencies',
             'selectedAgencies',
-            'salesDmcUsers'
+            'salesDmcUsers',
+            'walletCurrency'
         ));
     }
 
@@ -813,6 +819,40 @@ class AgencyController extends Controller
             throw new \Exception('You do not have permission to access this page.');
         }
         return $dmc_id;
+    }
+
+    /**
+     * Remaining wallet this DMC has allocated to each agency.
+     *
+     * @return array{0: string, 1: \Illuminate\Support\Collection<int|string, float>}
+     */
+    protected function agencyWalletBalancesForDmc(mixed $dmcId): array
+    {
+        $currency = 'SGD';
+        $balances = collect();
+        if (! is_numeric($dmcId)) {
+            return [$currency, $balances];
+        }
+
+        $dmcId = (int) $dmcId;
+        $currency = app(\App\Services\Finance\WalletQueryService::class)
+            ->resolveCurrencyForOwner('dmc', $dmcId);
+
+        $rows = DB::table('wallet as w')
+            ->join('agents as a', 'a.agent_id', '=', 'w.wallet_owner_id')
+            ->where('w.wallet_owner_type', 'agent')
+            ->where('w.source_dmc_id', $dmcId)
+            ->whereRaw('UPPER(w.wallet_currency_code) = ?', [strtoupper($currency)])
+            ->whereNull('w.deleted_at')
+            ->whereNull('a.deleted_at')
+            ->groupBy('a.agency_id')
+            ->select('a.agency_id', DB::raw('SUM(w.available_balance) as balance'))
+            ->get();
+
+        return [
+            $currency,
+            $rows->mapWithKeys(fn ($row) => [(int) $row->agency_id => (float) $row->balance]),
+        ];
     }
 
     /**

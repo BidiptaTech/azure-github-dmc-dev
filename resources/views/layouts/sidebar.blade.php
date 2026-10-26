@@ -1,13 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <link rel="stylesheet" href="{{ asset('css/style.css') }}">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Document</title>
-</head>
-<body>
     <div class="layout-wrapper layout-content-navbar  ">
     <div class="layout-container">
         <!-- Menu -->
@@ -836,7 +826,39 @@
                 <!-- End Products Section -->
             @endif
 
-            @if(in_array(auth()->user()->role_id, [1,2,3,4,10,11,19,20,33,36,37,38,126,127,128, 129, 130, 134, 135, 136, 138]))
+            @if(in_array(auth()->user()->role_id, [1,2,3,4,10,11,20]))
+              <!-- Finance & Wallet -->
+                <li class="menu-header mt-5">
+                    <span class="menu-header-text" data-i18n="Finance">Finance</span>
+                </li>
+                <li class="menu-item @if(Request::is('finance/commission*')) active @endif">
+                    <a href="{{ route('finance.commission.index') }}" class="menu-link">
+                        <i class="menu-icon tf-icons ri-pie-chart-2-line"></i>
+                        <div data-i18n="Commission statement">Commission statement</div>
+                    </a>
+                </li>
+                <li class="menu-item @if(Request::is('finance/wallet*')) active @endif">
+                    <a href="{{ route('finance.wallet.index') }}" class="menu-link">
+                        <i class="menu-icon tf-icons ri-wallet-3-line"></i>
+                        <div data-i18n="Wallet Management">Wallet Management</div>
+                    </a>
+                </li>
+                @if($sidebarIsAdmin ?? false)
+                <li class="menu-item @if(Request::is('finance/payment-settings*')) active @endif">
+                    <a href="{{ route('payment-service.settings.page') }}" class="menu-link">
+                        <i class="menu-icon tf-icons ri-toggle-line"></i>
+                        <div data-i18n="Payment Settings">Payment Settings</div>
+                    </a>
+                </li>
+                @endif
+                @if(in_array((int) auth()->user()->role_id, [11, 36, 126, 127, 138], true) && \Illuminate\Support\Facades\Route::has('finance.stripe.connect.page'))
+                <li class="menu-item @if(Request::is('finance/stripe/connect*')) active @endif">
+                    <a href="{{ route('finance.stripe.connect.page') }}" class="menu-link">
+                        <i class="menu-icon tf-icons ri-secure-payment-line"></i>
+                        <div data-i18n="Stripe Merchant">Stripe Merchant</div>
+                    </a>
+                </li>
+                @endif
               <!-- Reports -->
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="View Reports">View Reports</span>
@@ -1542,7 +1564,7 @@
                         $sidebarRoleId = Auth::user()->role_id;
                         $sidebarIsAdmin = in_array($sidebarRoleId, [1]);
                         // 11 = DMC, 138 = Multi-role (same General Settings as DMC; stores use parent dmc_id)
-                        $sidebarIsDmc = in_array($sidebarRoleId, [11, 138]);-
+                        $sidebarIsDmc = in_array($sidebarRoleId, [11, 138]);
                         $sidebarIsOperational = in_array($sidebarRoleId, [34, 124,125]);
                         $sidebarIsFinance = in_array($sidebarRoleId, [36, 126,127]);
                         $sidebarIsLimitedGeneralSettings = $sidebarIsDmc || $sidebarIsOperational || $sidebarIsFinance;
@@ -1555,7 +1577,7 @@
                         <span class="menu-header-text" data-i18n="Setting">Setting</span>
                     </li>
                     
-                    <li class="menu-item @if(Request::is('master-setting*', 'country*', 'countries*', 'mail*', 'guide-languages*', 'suppliers*', 'cities*', 'app-management*', 'dmc-func-app*', 'itinerary_settings.pdf', 'quotation_settings.pdf')) open @endif">
+                    <li class="menu-item @if(Request::is('master-setting*', 'country*', 'countries*', 'mail*', 'guide-languages*', 'suppliers*', 'cities*', 'app-management*', 'dmc-func-app*', 'itinerary_settings.pdf', 'quotation_settings.pdf', 'finance/payment-settings*')) open @endif">
                         <a href="#" class="menu-link menu-toggle">
                             <i class="menu-icon tf-icons ri-settings-3-line"></i>
                             <div data-i18n="General Settings">General Settings</div>
@@ -1570,6 +1592,12 @@
                                 </a>
                             </li>
                             @endif
+
+                            <li class="menu-item @if(Request::is('finance/payment-settings*')) active @endif">
+                                <a href="{{ route('payment-service.settings.page') }}" class="menu-link">
+                                    <div data-i18n="Payment Settings">Payment Settings</div>
+                                </a>
+                            </li>
 
                             <!-- List City -->
                             @if(hasPermission('view country'))

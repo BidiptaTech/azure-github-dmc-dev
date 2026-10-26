@@ -13,6 +13,7 @@ use App\Models\EnquiryForm;
 use App\Models\Order;
 use App\Models\Tour;
 use App\Models\User;
+use App\Services\Finance\BookingFinanceOrchestrator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -217,6 +218,9 @@ class BookingsController extends Controller
 
         $tourIds = $items->pluck('tour_id')->filter()->unique()->values()->all();
         $orderColumns = ['booking_id', 'tour_id', 'type', 'status', 'bookingType', 'data', 'cost_price', 'country', 'currency'];
+        if (Schema::hasColumn('orders', 'order_type')) {
+            $orderColumns[] = 'order_type';
+        }
         if (Schema::hasColumn('orders', 'city')) {
             $orderColumns[] = 'city';
         }
@@ -247,13 +251,22 @@ class BookingsController extends Controller
                 ->get(['id', 'name', 'currency'])
                 ->keyBy(fn (Country $country) => mb_strtolower(trim($country->name)));
 
+        $acceptanceFlow = app(\App\Services\Payment\AcceptanceFlowService::class);
+
         foreach ($items as $tour) {
             $tourOrders = $ordersByTour->get($tour->tour_id, collect());
             $tour->setRelation('booking', $tourOrders);
+            $flow = $acceptanceFlow->forTour($tour);
+            $tour->acceptance_flow = $flow;
 
             $groups = [];
             foreach ($tourOrders as $order) {
                 if (! in_array((int) ($order->status ?? 0), [1, 3], true)) {
+                    continue;
+                }
+
+                $serviceChannel = strtolower(trim((string) ($order->order_type ?? '')));
+                if (! empty($flow['exclude_online_from_negotiation']) && $serviceChannel === 'online') {
                     continue;
                 }
 
@@ -1142,6 +1155,48 @@ class BookingsController extends Controller
 
         $tour = Tour::where('tour_id', $validated['tour_id'])->firstOrFail();
         $action = $validated['action'];
+        $acceptance = app(\App\Services\Payment\AcceptanceFlowService::class)->forTour($tour);
+
+        if (in_array($action, ['negotiate', 'confirm'], true) && empty($acceptance['allow_negotiate'])) {
+            $message = (string) ($acceptance['hint']
+                ?? 'This booking is not open for negotiation. Complete the required payment first.');
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'requires_payment' => ($acceptance['next_action'] ?? '') !== 'negotiate',
+                    'message' => $message,
+                    'acceptance' => $acceptance,
+                ], 422);
+            }
+
+            return back()->with('warning', $message);
+        }
+
+        if ($action === 'negotiate' && ($acceptance['classification'] ?? '') === \App\Services\Payment\OrderClassificationService::MIX) {
+            $this->hydrateTourNegotiationCurrencyData(collect([$tour]));
+            $caps = [];
+            foreach ((array) ($tour->negotiation_country_groups ?? []) as $group) {
+                $key = mb_strtolower(trim((string) ($group['country'] ?? ''))).'|'.strtoupper(trim((string) ($group['currency'] ?? '')));
+                $caps[$key] = (float) ($group['payable'] ?? $group['gross'] ?? 0);
+            }
+            foreach ((array) $request->input('offers', []) as $offer) {
+                if (! is_array($offer)) {
+                    continue;
+                }
+                $key = mb_strtolower(trim((string) ($offer['country'] ?? ''))).'|'.strtoupper(trim((string) ($offer['currency'] ?? '')));
+                $amount = (float) ($offer['amount'] ?? 0);
+                if (! array_key_exists($key, $caps)) {
+                    return back()->with('warning', 'Negotiation can only be done on offline services. Online services are already paid.');
+                }
+                if ($caps[$key] > 0 && $amount - $caps[$key] > 0.05) {
+                    return back()->with(
+                        'warning',
+                        'Offer for '.($offer['country'] ?? 'a country').' cannot exceed the offline total of '.number_format($caps[$key], 2).' '.($offer['currency'] ?? '').'.'
+                    );
+                }
+            }
+        }
 
         $currentUser = auth()->user();
         $changedByName = $currentUser ? ($currentUser->name ?? '') : null;
@@ -1223,6 +1278,45 @@ class BookingsController extends Controller
         }
 
         if ($action === 'confirm') {
+            // Online / Mix tours require supplier-initial payment before confirmation.
+            try {
+                $classificationService = app(\App\Services\Payment\OrderClassificationService::class);
+                $classification = $classificationService->persistClassification($tour);
+                $requiresSupplierPayment = in_array($classification, [
+                    \App\Services\Payment\OrderClassificationService::ONLINE,
+                    \App\Services\Payment\OrderClassificationService::MIX,
+                ], true);
+
+                if ($requiresSupplierPayment) {
+                    $paymentSatisfied = app(\App\Http\Controllers\PaymentServiceController::class)
+                        ->supplierInitialSatisfied((int) $tour->tour_id);
+                    $attemptUuid = (string) $request->input('payment_attempt_uuid', '');
+
+                    if (! $paymentSatisfied && $attemptUuid === '') {
+                        $eligibility = app(\App\Services\Payment\PaymentEligibilityService::class)->forTour($tour);
+
+                        if ($request->expectsJson() || $request->ajax()) {
+                            return response()->json([
+                                'success' => false,
+                                'requires_payment' => true,
+                                'message' => 'Payment for online items is required before confirmation.',
+                                'eligibility' => $eligibility,
+                            ], 422);
+                        }
+
+                        return back()->with(
+                            'warning',
+                            'Tour #'.$tour->tour_id.' requires payment for online items before confirmation. Open Add Payment / Accept payment to continue.'
+                        );
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::warning('tour_confirm_payment_gate_failed', [
+                    'tour_id' => $tour->tour_id ?? null,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
             $confirmCurrency = strtoupper(trim((string) ($validated['currency'] ?? '')));
             if ($confirmCurrency === '') {
                 return back()
@@ -1301,6 +1395,8 @@ class BookingsController extends Controller
 
             Order::where('tour_id', $tour->tour_id)->update(['bookingType' => 'booking']);
 
+            $actualAmount = 0;
+
             if ($tour->tour_status !== 'Confirmed') {
                 $oldStatus = $tour->tour_status;
 
@@ -1330,6 +1426,34 @@ class BookingsController extends Controller
                 );
 
                 $tour->update(['tour_status' => 'Confirmed']);
+            } else {
+                $actualAmount = (float) ($tour->selling_price ?? 0);
+                if ($actualAmount <= 0) {
+                    $actualAmount = $this->calculateOrdersTotalAmount((int) $tour->tour_id);
+                }
+            }
+
+            $tour->refresh();
+
+            try {
+                $sellingPrice = (float) ($actualAmount ?? 0);
+                if ($sellingPrice <= 0) {
+                    $sellingPrice = $this->calculateOrdersTotalAmount((int) $tour->tour_id);
+                }
+
+                if ($sellingPrice > 0) {
+                    app(BookingFinanceOrchestrator::class)->processOnTourConfirmation($tour, $sellingPrice);
+                }
+            } catch (\RuntimeException $e) {
+                Log::warning('tour_confirm_finance_failed', [
+                    'tour_id' => $tour->tour_id,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return back()->with(
+                    'warning',
+                    'Tour #'.$tour->tour_id.' confirmed, but wallet settlement failed: '.$e->getMessage()
+                );
             }
 
             if (!empty($tour->multi_enq_id)) {

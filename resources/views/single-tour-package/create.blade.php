@@ -1132,7 +1132,7 @@
                                     <select name="agency_id" id="agency_id" class="form-select" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;" {{ ($enquiry && $enquiry->agent_id) ? 'disabled' : '' }}>
                                         <option value="">Choose agency...</option>
                                         @foreach($agency as $agnc)
-                                            <option value="{{ $agnc->agency_id }}" {{ ($enquiry && $enquiry->agent && $enquiry->agent->agency_id == $agnc->agency_id) ? 'selected' : '' }}>{{ $agnc->agency_name }}</option>
+                                            <option value="{{ $agnc->agency_id }}" {{ ($enquiry && $enquiry->agent && $enquiry->agent->agency_id == $agnc->agency_id) ? 'selected' : '' }}{{ (!$enquiry && !empty($preselectedAgencyId) && (int)$preselectedAgencyId === (int)$agnc->agency_id) ? ' selected' : '' }}>{{ $agnc->agency_name }}</option>
                                         @endforeach
                                     </select>
                                     @if($enquiry && $enquiry->agent_id)
@@ -1146,7 +1146,7 @@
                                     <select name="agent_id" id="agent_id" class="form-select" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;" required {{ ($enquiry && $enquiry->agent_id) ? 'disabled' : '' }}>
                                         <option value="">Choose agent...</option>
                                         @foreach($agents as $agent)
-                                            <option value="{{ $agent->agent_id }}" {{ ($enquiry && $enquiry->agent_id == $agent->agent_id) ? 'selected' : '' }}>{{ $agent->name }}</option>
+                                            <option value="{{ $agent->agent_id }}" {{ ($enquiry && $enquiry->agent_id == $agent->agent_id) ? 'selected' : '' }}{{ (!$enquiry && !empty($preselectedAgentId) && (int)$preselectedAgentId === (int)$agent->agent_id) ? ' selected' : '' }}>{{ $agent->name }}</option>
                                         @endforeach
                                     </select>
                                     @if($enquiry && $enquiry->agent_id)
@@ -1326,7 +1326,7 @@
                                     <select name="agent_id" id="agent_id" class="form-select" style="height: 40px; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9rem;" required>
                                         <option value="">Choose agency contact...</option>
                                         @foreach($agents as $agent)
-                                            <option value="{{ $agent->agent_id }}">{{ $agent->name }}</option>
+                                            <option value="{{ $agent->agent_id }}"{{ (!empty($preselectedAgentId) && (int)$preselectedAgentId === (int)$agent->agent_id) ? ' selected' : '' }}>{{ $agent->name }}</option>
                                         @endforeach
                                     </select>
                                 </div>
