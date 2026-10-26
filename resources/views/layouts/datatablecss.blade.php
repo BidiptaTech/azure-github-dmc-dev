@@ -1,5 +1,6 @@
 @section('css')
-@php $assetBase = rtrim(config('app.url'), '/'); @endphp
+{{-- url('/') follows the live request (including a subfolder). config('app.url') is often a different host after config:cache. --}}
+@php $assetBase = rtrim(url('/'), '/'); @endphp
 <link rel="stylesheet" href="{{ $assetBase }}/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.css" />
 <link rel="stylesheet" href="{{ $assetBase }}/assets/vendor/libs/datatables-bs5/datatables.bootstrap5.css" />
 <link rel="stylesheet" href="{{ $assetBase }}/assets/vendor/libs/datatables-responsive-bs5/responsive.bootstrap5.css" />
