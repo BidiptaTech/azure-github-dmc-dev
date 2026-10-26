@@ -12,18 +12,20 @@ if (! function_exists('azure_supplier_env_fields')) {
 
         foreach ($fields as $key => $field) {
             $suffix = (string) ($field['env_suffix'] ?? '');
+            $legacySuffix = $fields[$key]['legacy_suffix'] ?? null;
+            $legacySuffixes = $fields[$key]['legacy_suffixes'] ?? [];
             unset($field['env_suffix'], $field['legacy_suffix'], $field['legacy_suffixes']);
 
             $field['env'] = $prefix . '_' . $envName . '_' . $suffix;
 
+            $legacy = [];
             if ($isDemo) {
-                $legacy = [];
-                if (! empty($fields[$key]['legacy_suffix'])) {
-                    $legacy[] = $prefix . '_' . $fields[$key]['legacy_suffix'];
+                if (! empty($legacySuffix)) {
+                    $legacy[] = $prefix . '_' . $legacySuffix;
                 }
-                foreach ($fields[$key]['legacy_suffixes'] ?? [] as $legacySuffix) {
-                    if (is_string($legacySuffix) && $legacySuffix !== '') {
-                        $legacy[] = $prefix . '_' . $legacySuffix;
+                foreach ($legacySuffixes as $legacyItem) {
+                    if (is_string($legacyItem) && $legacyItem !== '') {
+                        $legacy[] = $prefix . '_' . $legacyItem;
                     }
                 }
                 if ($legacy !== []) {
@@ -32,6 +34,22 @@ if (! function_exists('azure_supplier_env_fields')) {
                         $field['legacy_envs'] = $legacy;
                     }
                 }
+            }
+
+            // Resolve at config-load time so `php artisan config:cache` bakes credentials in.
+            // Runtime env() is empty when the config cache is present.
+            $resolved = env($field['env']);
+            if (($resolved === null || trim((string) $resolved) === '') && $legacy !== []) {
+                foreach ($legacy as $legacyKey) {
+                    $candidate = env($legacyKey);
+                    if ($candidate !== null && trim((string) $candidate) !== '') {
+                        $resolved = $candidate;
+                        break;
+                    }
+                }
+            }
+            if ($resolved !== null && trim((string) $resolved) !== '') {
+                $field['value'] = (string) $resolved;
             }
 
             $mapped[$key] = $field;
@@ -67,7 +85,8 @@ $mgBedbankFields = [
     'destination_map' => ['env_suffix' => 'DESTINATION_MAP', 'legacy_suffix' => 'DESTINATION_MAP', 'label' => 'City Map JSON (e.g. {"Singapore":"SG-SIN"})', 'type' => 'text'],
     'hotel_codes' => ['env_suffix' => 'HOTEL_CODES', 'legacy_suffix' => 'HOTEL_CODES', 'label' => 'Hotel Codes (optional, restricts the search)', 'type' => 'text'],
     'hotel_list_ttl' => ['env_suffix' => 'HOTEL_LIST_TTL', 'legacy_suffix' => 'HOTEL_LIST_TTL', 'label' => 'Hotel List Cache (minutes, 0 disables)', 'type' => 'number', 'default' => '1440'],
-    'max_hotel_codes' => ['env_suffix' => 'MAX_HOTEL_CODES', 'legacy_suffix' => 'MAX_HOTEL_CODES', 'label' => 'Max Hotel Codes Per Search', 'type' => 'number', 'default' => '200'],
+    'max_hotel_codes' => ['env_suffix' => 'MAX_HOTEL_CODES', 'legacy_suffix' => 'MAX_HOTEL_CODES', 'label' => 'Max Hotel Codes Per Search (0 = full catalogue)', 'type' => 'number', 'default' => '0'],
+    'search_hotel_chunk_size' => ['env_suffix' => 'SEARCH_HOTEL_CHUNK_SIZE', 'legacy_suffix' => 'SEARCH_HOTEL_CHUNK_SIZE', 'label' => 'SearchHotel Codes Per Request', 'type' => 'number', 'default' => '100'],
     'currency' => ['env_suffix' => 'CURRENCY', 'legacy_suffix' => 'CURRENCY', 'label' => 'Requested Currency', 'type' => 'text', 'default' => 'INR'],
     'language' => ['env_suffix' => 'LANGUAGE', 'legacy_suffix' => 'LANGUAGE', 'label' => 'Language', 'type' => 'text', 'default' => 'En'],
     'detail_level' => ['env_suffix' => 'DETAIL_LEVEL', 'legacy_suffix' => 'DETAIL_LEVEL', 'label' => 'Detail Level', 'type' => 'text', 'default' => 'Basic'],

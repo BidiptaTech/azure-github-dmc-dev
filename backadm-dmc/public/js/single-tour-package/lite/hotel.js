@@ -3203,7 +3203,10 @@
                 city: cityName,
                 cityLabel: cityName + (stay.isReturn ? ' (Return)' : ''),
                 checkIn: checkIn,
-                checkOut: checkOut
+                checkOut: checkOut,
+                // Fixed city stay window — online modal date pickers must stay inside this range.
+                stayStart: checkIn,
+                stayEnd: checkOut
             };
         };
         window.getHotelNightPlanStart = function () {
