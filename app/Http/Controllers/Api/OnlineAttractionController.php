@@ -623,7 +623,7 @@ class OnlineAttractionController extends Controller
         ];
 
         if (isset($raw['images']) && is_array($raw['images']) && $raw['images'] !== []) {
-            $first = $raw['images'][0];
+            $first = $raw['images'][array_key_first($raw['images'])];
             $candidates[] = is_array($first) ? ($first['url'] ?? $first['image'] ?? null) : $first;
         }
 

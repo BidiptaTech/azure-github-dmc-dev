@@ -27,6 +27,17 @@ class SupplierConfigResolver
             $values[$fieldKey] = $this->readField($field, $environment);
         }
 
+        // When config is cached, env() is blank at runtime. Fill DEMO gaps from
+        // config/services.php so isConfigured() and valuesFor() stay aligned.
+        if ($environment === ApiEnvironmentResolver::DEMO
+            && ! $this->credentialsLookComplete($code, $values)) {
+            foreach ($this->legacyServicesValues($code) as $key => $legacyValue) {
+                if (! filled($values[$key] ?? null) && filled($legacyValue)) {
+                    $values[$key] = (string) $legacyValue;
+                }
+            }
+        }
+
         $values['api_environment'] = $environment;
 
         return $values;
@@ -36,19 +47,8 @@ class SupplierConfigResolver
     {
         $environment = $this->environment($environment);
         $code = $this->normalizeCode($code);
-        $values = $this->valuesFor($code, $environment);
 
-        if ($this->credentialsLookComplete($code, $values)) {
-            return true;
-        }
-
-        // Legacy config/services.php keys are DEMO-only so LIVE never silently
-        // reuses staging credentials.
-        if ($environment !== ApiEnvironmentResolver::DEMO) {
-            return false;
-        }
-
-        return $this->legacyServicesConfigured($code);
+        return $this->credentialsLookComplete($code, $this->valuesFor($code, $environment));
     }
 
     /**
@@ -102,15 +102,20 @@ class SupplierConfigResolver
      */
     public function definitions(): array
     {
+        // Prefer cached config so baked field values from config:cache are used.
+        $definitions = config('suppliers', []);
+
+        if (is_array($definitions) && $definitions !== []) {
+            return $definitions;
+        }
+
         if (is_file(config_path('suppliers.php'))) {
             $definitions = require config_path('suppliers.php');
 
             return is_array($definitions) ? $definitions : [];
         }
 
-        $definitions = config('suppliers', []);
-
-        return is_array($definitions) ? $definitions : [];
+        return [];
     }
 
     public function environmentLabel(string $environment): string
@@ -131,6 +136,10 @@ class SupplierConfigResolver
      */
     private function readField(array $field, string $environment): ?string
     {
+        if (array_key_exists('value', $field) && $field['value'] !== null && trim((string) $field['value']) !== '') {
+            return (string) $field['value'];
+        }
+
         $keys = [];
 
         if (! empty($field['env']) && is_string($field['env'])) {
@@ -144,15 +153,35 @@ class SupplierConfigResolver
         }
 
         foreach ($keys as $envKey) {
-            $value = env($envKey);
+            $value = $this->readEnvValue($envKey);
 
-            if ($value !== null && trim((string) $value) !== '') {
-                return (string) $value;
+            if ($value !== null && trim($value) !== '') {
+                return $value;
             }
         }
 
         if (array_key_exists('default', $field) && $field['default'] !== null && $field['default'] !== '') {
             return (string) $field['default'];
+        }
+
+        return null;
+    }
+
+    /**
+     * env() returns null when config is cached; $_ENV / $_SERVER still hold .env values.
+     */
+    private function readEnvValue(string $key): ?string
+    {
+        $value = env($key);
+
+        if ($value !== null && trim((string) $value) !== '') {
+            return (string) $value;
+        }
+
+        foreach ([$_ENV[$key] ?? null, $_SERVER[$key] ?? null, getenv($key) ?: null] as $fallback) {
+            if ($fallback !== null && trim((string) $fallback) !== '') {
+                return (string) $fallback;
+            }
         }
 
         return null;
@@ -214,43 +243,52 @@ class SupplierConfigResolver
         return filled($values['base_url'] ?? null) && filled($values['api_key'] ?? null);
     }
 
-    private function legacyServicesConfigured(string $code): bool
+    /**
+     * @return array<string, string|null>
+     */
+    private function legacyServicesValues(string $code): array
     {
         if ($code === 'tinivia') {
-            return filled(config('services.tiniva.base_url')) && filled(config('services.tiniva.api_key'));
+            return [
+                'base_url' => config('services.tiniva.base_url'),
+                'api_key' => config('services.tiniva.api_key'),
+                'jwt' => config('services.tiniva.jwt'),
+                'entity_id' => config('services.tiniva.entity_id'),
+                'timeout' => config('services.tiniva.timeout'),
+            ];
         }
 
         if ($code === 'hotelbeds') {
-            return filled(config('services.hotelbeds.base_url'))
-                && filled(config('services.hotelbeds.api_key'))
-                && filled(config('services.hotelbeds.api_secret'));
+            return [
+                'base_url' => config('services.hotelbeds.base_url'),
+                'api_key' => config('services.hotelbeds.api_key'),
+                'api_secret' => config('services.hotelbeds.api_secret'),
+                'timeout' => config('services.hotelbeds.timeout'),
+            ];
         }
 
         if ($code === 'mg_bedbank') {
-            return filled(config('services.mg_bedbank.base_url'))
-                && filled(config('services.mg_bedbank.agency_code'))
-                && filled(config('services.mg_bedbank.username'))
-                && filled(config('services.mg_bedbank.password'));
+            return [
+                'base_url' => config('services.mg_bedbank.base_url'),
+                'agency_code' => config('services.mg_bedbank.agency_code'),
+                'username' => config('services.mg_bedbank.username'),
+                'password' => config('services.mg_bedbank.password'),
+                'timeout' => config('services.mg_bedbank.timeout'),
+            ];
         }
 
         if ($code === 'sg_attractions') {
-            $baseUrl = config('services.sg_attractions.base_url');
-            $apiKey = config('services.sg_attractions.api_key');
-            $secretKey = config('services.sg_attractions.secret_key');
-            $bearerToken = config('services.sg_attractions.bearer_token');
-
-            if (! filled($baseUrl)) {
-                return false;
-            }
-
-            if (filled($bearerToken)) {
-                return true;
-            }
-
-            return filled($apiKey) && filled($secretKey);
+            return [
+                'base_url' => config('services.sg_attractions.base_url'),
+                'api_key' => config('services.sg_attractions.api_key'),
+                'secret_key' => config('services.sg_attractions.secret_key'),
+                'bearer_token' => config('services.sg_attractions.bearer_token'),
+                'api_version' => config('services.sg_attractions.api_version'),
+                'timeout' => config('services.sg_attractions.timeout'),
+            ];
         }
 
-        return false;
+        return [];
     }
 
     private function environment(string $environment): string
