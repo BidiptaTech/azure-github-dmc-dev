@@ -3094,7 +3094,7 @@ class SingleTourPackageController extends Controller
 
         return (float) ($mapping->private_price ?? 0);
     }
-
+    
     /**
      * Ports limited to DMC-accessible countries; optionally narrowed to one country.
      */

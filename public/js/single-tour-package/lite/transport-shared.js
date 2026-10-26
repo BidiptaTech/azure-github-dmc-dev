@@ -2490,6 +2490,44 @@
      * Zone-off car-cost pricing for arrival/departure/transport Get Price.
      * Shared = car × (adults+children); infants never charged. Private = car as-is.
      */
+    function vehicleHasZonePrice(opt, serviceType) {
+        if (!opt || !opt.value || String(opt.dataset.fromZone || '') !== '1') return false;
+        if (String(serviceType || 'private').toLowerCase() === 'shared') {
+            return (parseFloat(opt.dataset.sharedPrice) || 0) > 0
+                || (parseFloat(opt.dataset.adultPrice) || 0) > 0;
+        }
+        return (parseFloat(opt.dataset.privatePrice) || 0) > 0;
+    }
+
+    /**
+     * All city vehicles, with zone-route prices overlaid when that vehicle is mapped.
+     * Unmapped vehicles keep no sell price so the form can take a manual car cost.
+     */
+    function mergeZoneRouteVehicles(zoned, all) {
+        var byId = {};
+        (all || []).forEach(function (v) {
+            var id = String(v.vehicle_id || v.id || '');
+            if (!id) return;
+            var copy = Object.assign({}, v);
+            delete copy.mapping_id;
+            delete copy.private_price;
+            delete copy.shared_price;
+            delete copy.private_cost_price;
+            delete copy.shared_cost_price;
+            delete copy.adult_price;
+            delete copy.child_price;
+            copy.base_price = 0;
+            copy.sharable_base_price = 0;
+            byId[id] = copy;
+        });
+        (zoned || []).forEach(function (v) {
+            var id = String(v.vehicle_id || v.id || '');
+            if (!id) return;
+            byId[id] = v;
+        });
+        return Object.keys(byId).map(function (id) { return byId[id]; });
+    }
+
     function calcManualCarTotal(carCost, serviceType, adults, children, infants) {
         var car = parseFloat(carCost) || 0;
         if (car <= 0) return { total: 0, unit: 0, mode: String(serviceType || 'private').toLowerCase(), base: 0 };
@@ -2639,6 +2677,8 @@
         resetTransferGuideExtras: resetTransferGuideExtras,
         applyBookedHotelsToArrivalDeparture: applyBookedHotelsToArrivalDeparture,
         calcManualCarTotal: calcManualCarTotal,
+        vehicleHasZonePrice: vehicleHasZonePrice,
+        mergeZoneRouteVehicles: mergeZoneRouteVehicles,
         parseManualCarCost: parseManualCarCost,
         fetchInlineTransferZonePrice: fetchInlineTransferZonePrice
     };
