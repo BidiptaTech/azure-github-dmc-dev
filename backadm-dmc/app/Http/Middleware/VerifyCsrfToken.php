@@ -15,5 +15,6 @@ class VerifyCsrfToken extends Middleware
         'api/v1/external/receive',
         'api/external-api-receive',
         'stripe/webhook',
+        'stripe/connect/webhook',
     ];
 }

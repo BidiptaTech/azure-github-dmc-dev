@@ -8,7 +8,7 @@ return new class extends Migration
     public function up(): void
     {
         DB::unprepared(file_get_contents(
-            base_path('finance-microservice/sql/006_wallet_ledger_performance_indexes.sql')
+            base_path('database/sql/finance/006_wallet_ledger_performance_indexes.sql')
         ) ?: '');
     }
 

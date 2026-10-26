@@ -2555,19 +2555,12 @@ class SingleTourPackageController extends Controller
 
     private function mappingPriceForTransferType($mapping, string $transferType): float
     {
+        // Attraction/restaurant transfer on the lite form always uses zone sell price.
         if (strcasecmp($transferType, 'Shared') === 0) {
-            $price = (float) ($mapping->shared_cost_price ?? 0);
-            if ($price <= 0) {
-                $price = (float) ($mapping->shared_price ?? 0);
-            }
-            return $price;
+            return (float) ($mapping->shared_price ?? 0);
         }
 
-        $price = (float) ($mapping->private_cost_price ?? 0);
-        if ($price <= 0) {
-            $price = (float) ($mapping->private_price ?? 0);
-        }
-        return $price;
+        return (float) ($mapping->private_price ?? 0);
     }
 
     /**

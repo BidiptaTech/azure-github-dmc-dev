@@ -114,3 +114,5 @@
 })();
 </script>
 @endauth
+
+@include('finance.partials.payment-method-options-script')

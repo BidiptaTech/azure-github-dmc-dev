@@ -2487,7 +2487,8 @@
                 }
             }
 
-            $paxForOverall = max(1, (int) $totalPax);
+            // Other/supplement per-pax rates are amount ÷ tour headcount — multiply by tour adults
+            $paxForOverall = max(1, (int) (($adultTotal > 0) ? $adultTotal : (($payingPax > 0) ? $payingPax : ($displayAdults ?? $adults ?? 1))));
             $sharingLabel = function (int $sp): string {
                 return match (max(1, min(3, $sp))) {
                     3 => 'Triple Sharing',
@@ -2596,9 +2597,52 @@
                 }
             }
 
-            // Tour guest counts for Adult / Child multipliers
-            $overallAdultCount = max(1, (int) (($payingPax > 0) ? $payingPax : ($displayAdults ?? $adults ?? 1)));
+            // Per-pax rates (CommonHelper) = amount ÷ tour headcount.
+            // Other services → multiply by tour adults.
+            // Hotel lines → multiply/show by booked room occupancy (rooms × selected_persons).
+            $tourAdultForOverall = max(
+                1,
+                (int) (($adultTotal > 0) ? $adultTotal : (($payingPax > 0) ? $payingPax : ($displayAdults ?? $adults ?? 1)))
+            );
+            $overallAdultCount = $tourAdultForOverall;
             $overallChildCount = max(0, (int) ($children ?? 0));
+            $roomAdultsByCountry = [];
+            $roomChildrenByCountry = [];
+            $hotelBedSharesTotal = 0;
+            foreach (($tourPrices['hotel_price_options'] ?? []) as $hpOccRow) {
+                if (!is_array($hpOccRow)) {
+                    continue;
+                }
+                $hpCountryKey = mb_strtolower(trim((string) ($hpOccRow['country'] ?? 'Other')));
+                $spRoom = max(0, (int) ($hpOccRow['selected_persons'] ?? 0));
+                $roomsQty = 1;
+                if (isset($hpOccRow['number_of_rooms']) && is_numeric($hpOccRow['number_of_rooms'])) {
+                    $roomsQty = max(1, (int) $hpOccRow['number_of_rooms']);
+                } elseif (isset($hpOccRow['no_of_rooms']) && is_numeric($hpOccRow['no_of_rooms'])) {
+                    $roomsQty = max(1, (int) $hpOccRow['no_of_rooms']);
+                }
+                if ($spRoom > 0) {
+                    $bedShares = $spRoom * $roomsQty;
+                    $hotelBedSharesTotal += $bedShares;
+                    $roomAdultsByCountry[$hpCountryKey] = max(
+                        (int) ($roomAdultsByCountry[$hpCountryKey] ?? 0),
+                        $bedShares
+                    );
+                }
+                $hpKids = max(
+                    (int) ($hpOccRow['children'] ?? 0),
+                    (int) ($hpOccRow['children_with_bed'] ?? 0) + (int) ($hpOccRow['children_without_bed'] ?? 0)
+                );
+                if ($hpKids > 0) {
+                    $roomChildrenByCountry[$hpCountryKey] = max(
+                        (int) ($roomChildrenByCountry[$hpCountryKey] ?? 0),
+                        $hpKids
+                    );
+                }
+            }
+            if ($hotelBedSharesTotal < 1) {
+                $hotelBedSharesTotal = $tourAdultForOverall;
+            }
 
             // Total Package Price per city (per person display):
             // City (bold) | Hotel-Accommodation
@@ -2618,6 +2662,17 @@
                 }
                 $shareKey = (string) ($share['key'] ?? (mb_strtolower($shareCountry) . '|' . $shareCurrency));
                 $shareChildKey = mb_strtolower(trim($shareCountry)) . '|' . $shareCurrency;
+                $shareCountryKey = mb_strtolower(trim($shareCountry));
+                $cityRoomAdults = max(
+                    1,
+                    (int) ($roomAdultsByCountry[$shareCountryKey] ?? $hotelBedSharesTotal)
+                );
+                $cityTourAdults = $tourAdultForOverall;
+                $cityRoomChildren = max(
+                    0,
+                    (int) ($roomChildrenByCountry[$shareCountryKey] ?? $overallChildCount)
+                );
+                $cityTourChildren = $overallChildCount;
                 $shareCity = trim((string) ($share['city'] ?? ($countryMeta[$shareKey]['city'] ?? '')));
                 if ($shareCity === '') {
                     $shareCity = $preferredCityByCountry[mb_strtolower($shareCountry)] ?? $shareCountry;
@@ -2662,28 +2717,36 @@
                     ? (float) ($share['child_bed_total'] ?? 0)
                     : (float) ($countryChildBedTotals[$shareChildKey] ?? 0);
                 $otherChildNative = (float) ($share['other_services_child'] ?? 0);
-                $cityChildCount = $hasStayChild
+                $hotelChildCount = $hasStayChild
                     ? max(
                         (int) ($share['children'] ?? 0),
-                        ($childBedNative > 0 || $otherChildNative > 0) ? max(1, $overallChildCount) : 0
+                        ($childBedNative > 0) ? max(1, $cityRoomChildren) : 0
                     )
                     : max(
                     (int) ($countryChildCounts[$shareChildKey] ?? 0),
-                    $overallChildCount
+                    $cityRoomChildren
                 );
-                if (($childBedNative > 0 || $otherChildNative > 0) && $cityChildCount <= 0) {
-                    $cityChildCount = 1;
+                $otherChildCount = max(
+                    (int) ($countryChildCounts[$shareChildKey] ?? 0),
+                    $cityTourChildren,
+                    ($otherChildNative > 0) ? max(1, $cityTourChildren) : 0
+                );
+                if ($childBedNative > 0 && $hotelChildCount <= 0) {
+                    $hotelChildCount = 1;
+                }
+                if ($otherChildNative > 0 && $otherChildCount <= 0) {
+                    $otherChildCount = 1;
                 }
                 $hotelChildUnit = 0.0;
                 $otherChildUnit = 0.0;
-                if ($childBedNative > 0 && $cityChildCount > 0) {
+                if ($childBedNative > 0 && $hotelChildCount > 0) {
                     $hotelChildUnit = (float) ceil(
-                        (float) ceil($convertToOverall($childBedNative, $shareCurrency)) / $cityChildCount
+                        (float) ceil($convertToOverall($childBedNative, $shareCurrency)) / $hotelChildCount
                     );
                 }
-                if ($otherChildNative > 0 && $cityChildCount > 0) {
+                if ($otherChildNative > 0 && $otherChildCount > 0) {
                     $otherChildUnit = (float) ceil(
-                        (float) ceil($convertToOverall($otherChildNative, $shareCurrency)) / $cityChildCount
+                        (float) ceil($convertToOverall($otherChildNative, $shareCurrency)) / $otherChildCount
                     );
                 }
 
@@ -2698,21 +2761,31 @@
                         'other_adult_unit' => 0.0,
                         'hotel_child_unit' => 0.0,
                         'other_child_unit' => 0.0,
-                        'adult_count' => $overallAdultCount,
-                        'child_count' => 0,
+                        'hotel_adult_count' => $cityRoomAdults,
+                        'other_adult_count' => $cityTourAdults,
+                        'hotel_child_count' => 0,
+                        'other_child_count' => 0,
                     ];
                 }
                 $cityOverallBuckets[$shareKey]['hotel_adult_unit'] += $hotelAdultUnit;
                 $cityOverallBuckets[$shareKey]['other_adult_unit'] += $otherAdultUnit;
                 $cityOverallBuckets[$shareKey]['hotel_child_unit'] += $hotelChildUnit;
                 $cityOverallBuckets[$shareKey]['other_child_unit'] += $otherChildUnit;
-                $cityOverallBuckets[$shareKey]['adult_count'] = max(
-                    (int) $cityOverallBuckets[$shareKey]['adult_count'],
-                    $overallAdultCount
+                $cityOverallBuckets[$shareKey]['hotel_adult_count'] = max(
+                    (int) $cityOverallBuckets[$shareKey]['hotel_adult_count'],
+                    $cityRoomAdults
                 );
-                $cityOverallBuckets[$shareKey]['child_count'] = max(
-                    (int) $cityOverallBuckets[$shareKey]['child_count'],
-                    $cityChildCount
+                $cityOverallBuckets[$shareKey]['other_adult_count'] = max(
+                    (int) $cityOverallBuckets[$shareKey]['other_adult_count'],
+                    $cityTourAdults
+                );
+                $cityOverallBuckets[$shareKey]['hotel_child_count'] = max(
+                    (int) $cityOverallBuckets[$shareKey]['hotel_child_count'],
+                    $hotelChildCount
+                );
+                $cityOverallBuckets[$shareKey]['other_child_count'] = max(
+                    (int) $cityOverallBuckets[$shareKey]['other_child_count'],
+                    $otherChildCount
                 );
             }
 
@@ -2725,52 +2798,54 @@
                 $otherAdultUnit = (float) ($bucket['other_adult_unit'] ?? 0);
                 $hotelChildUnit = (float) ($bucket['hotel_child_unit'] ?? 0);
                 $otherChildUnit = (float) ($bucket['other_child_unit'] ?? 0);
-                $adultCnt = max(1, (int) ($bucket['adult_count'] ?? $overallAdultCount));
-                $childCnt = max(0, (int) ($bucket['child_count'] ?? 0));
+                $hotelAdultCnt = max(1, (int) ($bucket['hotel_adult_count'] ?? $hotelBedSharesTotal));
+                $otherAdultCnt = max(1, (int) ($bucket['other_adult_count'] ?? $tourAdultForOverall));
+                $hotelChildCnt = max(0, (int) ($bucket['hotel_child_count'] ?? 0));
+                $otherChildCnt = max(0, (int) ($bucket['other_child_count'] ?? 0));
                 $citySubtotal = 0.0;
                 $cityServiceRows = [];
 
                 if ($hotelAdultUnit > 0) {
-                    $lineTotal = $hotelAdultUnit * $adultCnt;
+                    $lineTotal = $hotelAdultUnit * $hotelAdultCnt;
                     $citySubtotal += $lineTotal;
                     $cityServiceRows[] = [
                         'service' => 'Hotel-Accommodation',
                         'price' => $hotelAdultUnit,
                         'total' => $lineTotal,
-                        'pax' => $adultCnt,
+                        'pax' => $hotelAdultCnt,
                         'pax_type' => 'adult',
                     ];
                 }
                 if ($otherAdultUnit > 0) {
-                    $lineTotal = $otherAdultUnit * $adultCnt;
+                    $lineTotal = $otherAdultUnit * $otherAdultCnt;
                     $citySubtotal += $lineTotal;
                     $cityServiceRows[] = [
                         'service' => 'Other Service(s)',
                         'price' => $otherAdultUnit,
                         'total' => $lineTotal,
-                        'pax' => $adultCnt,
+                        'pax' => $otherAdultCnt,
                         'pax_type' => 'adult',
                     ];
                 }
-                if ($hotelChildUnit > 0 && $childCnt > 0) {
-                    $lineTotal = $hotelChildUnit * $childCnt;
+                if ($hotelChildUnit > 0 && $hotelChildCnt > 0) {
+                    $lineTotal = $hotelChildUnit * $hotelChildCnt;
                     $citySubtotal += $lineTotal;
                     $cityServiceRows[] = [
                         'service' => 'Hotel-Accommodation (Child)',
                         'price' => $hotelChildUnit,
                         'total' => $lineTotal,
-                        'pax' => $childCnt,
+                        'pax' => $hotelChildCnt,
                         'pax_type' => 'child',
                     ];
                 }
-                if ($otherChildUnit > 0 && $childCnt > 0) {
-                    $lineTotal = $otherChildUnit * $childCnt;
+                if ($otherChildUnit > 0 && $otherChildCnt > 0) {
+                    $lineTotal = $otherChildUnit * $otherChildCnt;
                     $citySubtotal += $lineTotal;
                     $cityServiceRows[] = [
                         'service' => 'Other Service(s) (Child)',
                         'price' => $otherChildUnit,
                         'total' => $lineTotal,
-                        'pax' => $childCnt,
+                        'pax' => $otherChildCnt,
                         'pax_type' => 'child',
                     ];
                 }
@@ -2781,8 +2856,8 @@
                         'city' => $cityLabel,
                         'services' => $cityServiceRows,
                         'city_total' => $citySubtotal,
-                        'adult_count' => $adultCnt,
-                        'child_count' => $childCnt,
+                        'adult_count' => max($hotelAdultCnt, $otherAdultCnt),
+                        'child_count' => max($hotelChildCnt, $otherChildCnt),
                     ];
                 }
             }

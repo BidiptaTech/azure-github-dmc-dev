@@ -1156,7 +1156,11 @@
                                 // Hotel: use pickup total only (itemPrice) - transport/transfer is already included, do NOT add transfer price
                                 // Other services: base price + transfer price + guide price
                                 $tourTotalPrice = 0;
+                                $excludeOnlineFromNegotiation = ! empty($tour->acceptance_flow['exclude_online_from_negotiation']);
                                 foreach ($tour->booking as $booking) {
+                                    if ($excludeOnlineFromNegotiation && strtolower(trim((string) ($booking->order_type ?? ''))) === 'online') {
+                                        continue;
+                                    }
                                     if (in_array($booking->status, [1, 3])) {
                                         $data = is_string($booking->data) ? json_decode($booking->data, true) : $booking->data;
                                         if (is_array($data)) {
@@ -1323,6 +1327,18 @@
                             @if(in_array(auth()->user()->role_id, $role))
                             <td class="align-top">
                                 <div class="d-flex flex-column gap-2">
+                                    @if(isset($tour->acceptance_flow) && empty($tour->acceptance_flow['allow_negotiate']))
+                                        <button
+                                            type="button"
+                                            class="btn btn-sm btn-success"
+                                            onclick="window.TravclicksPaymentService && window.TravclicksPaymentService.openAcceptancePay({{ (int) $tour->tour_id }})"
+                                        >
+                                            {{ $tour->acceptance_flow['button_label'] ?? 'Pay' }}
+                                        </button>
+                                        @if(!empty($tour->acceptance_flow['hint']))
+                                            <small class="text-muted" style="font-size: 0.7rem;">{{ $tour->acceptance_flow['hint'] }}</small>
+                                        @endif
+                                    @else
                                     <button 
                                         type="button"
                                         class="btn btn-sm btn-outline-primary negotiation-btn negotiate-by-agent"
@@ -1381,6 +1397,10 @@
                                     </button>
                                     @if(!$canCheckNegotiation)
                                         <small class="text-muted" style="font-size: 0.7rem;">Awaiting agent</small>
+                                    @endif
+                                    @if(($tour->acceptance_flow['classification'] ?? '') === 'mix' && !empty($tour->acceptance_flow['hint']))
+                                        <small class="text-muted" style="font-size: 0.7rem;">{{ $tour->acceptance_flow['hint'] }}</small>
+                                    @endif
                                     @endif
                                 </div>
                             </td>

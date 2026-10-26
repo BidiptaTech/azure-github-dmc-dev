@@ -1,22 +1,42 @@
 <style>
-    /* Split negotiate body: left negotiates, right profit — right grows with content */
+    /* Split negotiate body: stay inside the viewport; long margins wrap in the right panel */
     #agentNegotiationModal .modal-dialog {
-        width: calc(100% - 2rem);
-        max-width: 1050px;
+        width: calc(100vw - 2rem);
+        max-width: min(1050px, calc(100vw - 2rem));
+        max-height: calc(100vh - 2rem);
+        margin: 1rem auto;
+    }
+    #agentNegotiationModal .modal-content {
+        max-height: calc(100vh - 2rem);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    #agentNegotiationModal .negotiation-modal-footer {
+        flex-shrink: 0;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    #agentNegotiationModal .negotiation-modal-footer .btn {
+        white-space: nowrap;
     }
     #agentNegotiationModal .negotiation-split-body {
         display: flex;
         align-items: stretch;
         gap: 0;
-        max-height: min(72vh, 640px);
+        flex: 1 1 auto;
+        min-height: 0;
+        max-height: none;
         overflow: hidden;
         padding: 0 !important;
     }
     #agentNegotiationModal .negotiation-main-scroll,
     #agentNegotiationModal .negotiation-profit-scroll {
         overflow-y: auto;
-        overflow-x: hidden;
-        max-height: min(72vh, 640px);
+        overflow-x: auto;
+        max-height: none;
+        min-height: 0;
+        min-width: 0;
         overscroll-behavior: contain;
         -webkit-overflow-scrolling: touch;
     }
@@ -28,10 +48,10 @@
         background: #fff;
     }
     #agentNegotiationModal .negotiation-profit-scroll {
-        flex: 0 0 auto;
-        width: max-content;
-        min-width: 300px;
-        max-width: min(44vw, 460px);
+        flex: 1 1 340px;
+        width: auto;
+        min-width: 0;
+        max-width: 420px;
         padding: 0 0.9rem 0.9rem;
         background: #f7f9fc;
     }
@@ -228,8 +248,9 @@
         background: #4f46e5;
     }
     .nego-profit-country {
-        width: max-content;
-        min-width: 100%;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
         box-sizing: border-box;
         background: #fff;
         border: 1px solid #e5e9f0;
@@ -262,8 +283,9 @@
         white-space: nowrap;
     }
     .nego-profit-table {
-        width: max-content;
-        min-width: 100%;
+        width: 100%;
+        min-width: 0;
+        table-layout: fixed;
         font-size: 0.7rem;
         margin-bottom: 0.6rem;
         border-collapse: collapse;
@@ -294,14 +316,14 @@
     }
     .nego-profit-table td:not(:first-child) {
         font-variant-numeric: tabular-nums;
-        white-space: nowrap;
+        white-space: normal;
+        overflow-wrap: anywhere;
         color: #475569;
     }
-    .nego-profit-table th:first-child,
-    .nego-profit-table td:first-child {
-        min-width: 7.5rem;
-        max-width: 11rem;
-    }
+    .nego-profit-table th:nth-child(1),
+    .nego-profit-table td:nth-child(1) { width: 34%; }
+    .nego-profit-table th:nth-child(n+2),
+    .nego-profit-table td:nth-child(n+2) { width: 16.5%; }
     .nego-profit-service {
         font-weight: 600;
         color: #1e293b;
@@ -349,15 +371,18 @@
     .nego-profit-segment .nego-profit-val {
         font-size: 0.84rem;
         font-weight: 700;
-        line-height: 1.15;
+        line-height: 1.2;
         font-variant-numeric: tabular-nums;
         letter-spacing: -0.01em;
-        white-space: nowrap;
+        white-space: normal;
+        overflow-wrap: anywhere;
     }
     .nego-profit-segment small {
         display: block;
         margin-top: 0.15rem;
         font-variant-numeric: tabular-nums;
+        overflow-wrap: anywhere;
+        line-height: 1.3;
     }
     .nego-profit-pos {
         color: #15803d !important;
@@ -456,6 +481,7 @@
             border-right: 0;
             width: 100%;
             max-width: none;
+            flex: 1 1 auto;
         }
         #agentNegotiationModal .negotiation-profit-scroll {
             border-top: 1px solid #e5e9f0;
