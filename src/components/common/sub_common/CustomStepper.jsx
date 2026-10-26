@@ -11,12 +11,12 @@ import {
   Snackbar,
 } from "@mui/material";
 
-import hotelIcon from "../../../../public/icons/hotel.png";
-import car from "../../../../public/icons/car.png";
-import attractionIcon from "../../../../public/icons/tourist-attraction.png";
-import ArrivalDeparture from "../../../../public/icons/ArrivalDeparture.png";
-import restaurantIcon from "../../../../public/icons/restaurant.png";
-import guideIcon from "../../../../public/icons/tour-guide.png";
+const hotelIcon = "/icons/hotel.png";
+const car = "/icons/car.png";
+const attractionIcon = "/icons/tourist-attraction.png";
+const ArrivalDeparture = "/icons/ArrivalDeparture.png";
+const restaurantIcon = "/icons/restaurant.png";
+const guideIcon = "/icons/tour-guide.png";
 import MuiAlert from "@mui/material/Alert";
 import { ToastContainer } from "react-toastify";
 import swal from "sweetalert";
