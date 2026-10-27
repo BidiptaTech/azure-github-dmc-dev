@@ -307,10 +307,7 @@ class JobSheetController extends Controller
                         ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                         ->whereIn('orders.type', $orderTypes)
                         ->whereRaw("data->0->>'dmc_id' = ?", [$dmcId])
-                        ->where(function ($q) use ($tomorrow) {
-                            $q->whereRaw("data->0->>'pickupdate' = ?", [$tomorrow])
-                              ->orWhereRaw("data->0->>'exitpickupdate' = ?", [$tomorrow]);
-                        })
+                        ->whereRaw("data->0->>'pickupdate' = ?", [$tomorrow])
                         ->whereNotNull('orders.tour_id')
                         ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
                         ->get();
@@ -616,10 +613,7 @@ class JobSheetController extends Controller
                     ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
                     ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                     ->whereIn('orders.type', $orderTypes)
-                    ->where(function ($q) use ($tomorrow) {
-                        $q->whereRaw("data->0->>'pickupdate' = ?", [$tomorrow])
-                          ->orWhereRaw("data->0->>'exitpickupdate' = ?", [$tomorrow]);
-                    })
+                    ->whereRaw("data->0->>'pickupdate' = ?", [$tomorrow])
                     ->whereNotNull('orders.tour_id')
                     ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
                     ->get();
@@ -2623,11 +2617,7 @@ class JobSheetController extends Controller
                         ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                         ->whereIn('orders.type', $orderTypes)
                         ->whereRaw("data->0->>'dmc_id' = ?", [$dmcId])
-                        ->where(function ($q) use ($date) {
-                            // Some orders use pickupdate, some use exitpickupdate – support both
-                            $q->whereRaw("data->0->>'pickupdate' = ?", [$date])
-                              ->orWhereRaw("data->0->>'exitpickupdate' = ?", [$date]);
-                        })
+                        ->whereRaw("data->0->>'pickupdate' = ?", [$date])
                         ->whereNotNull('orders.tour_id')
                         ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
                         ->get();
@@ -2645,7 +2635,8 @@ class JobSheetController extends Controller
                         ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
                         ->get();
                     
-                    // Filter to only include orders with transfer_required = true
+                    
+                        // Filter to only include orders with transfer_required = true
                     $attractionOrders = $allAttractionOrders->filter(function($order) {
                         $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
                         if (is_array($orderData) && isset($orderData[0])) {
@@ -2690,11 +2681,7 @@ class JobSheetController extends Controller
                     ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
                     ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                     ->whereIn('orders.type', $orderTypes)
-                    ->where(function ($q) use ($date) {
-                        // Some orders use pickupdate, some use exitpickupdate – support both
-                        $q->whereRaw("data->0->>'pickupdate' = ?", [$date])
-                          ->orWhereRaw("data->0->>'exitpickupdate' = ?", [$date]);
-                    })
+                    ->whereRaw("data->0->>'pickupdate' = ?", [$date])
                     ->whereNotNull('orders.tour_id')
                     ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
                     ->get();
