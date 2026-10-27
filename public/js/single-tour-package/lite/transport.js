@@ -67,7 +67,7 @@
             '      <input type="number" min="1" class="form-control form-control-sm stp-lite-int transport-adults" data-guest-cap="adults" value="1"></div>' +
             '    <div class="col-md-2" data-guest-child-ui><label class="stp-lite-label">Children</label>' +
             '      <input type="number" min="0" class="form-control form-control-sm stp-lite-int transport-children" data-guest-cap="children" value="0"></div>' +
-            '    <div class="col-md-3 transport-custom-price-wrap' + (zone ? ' d-none' : '') + '"><label class="stp-lite-label">Car cost</label>' +
+            '    <div class="col-md-3 transport-custom-price-wrap' + (zone ? ' d-none' : '') + '"><label class="stp-lite-label transport-custom-price-label">Car cost</label>' +
             '      <input type="number" min="0" step="0.01" class="form-control form-control-sm transport-custom-price" placeholder="Enter car price" value=""></div>' +
             '  </div>' +
             '  <div class="row g-2 mb-2">' +
@@ -112,8 +112,7 @@
         if (mapsRow) mapsRow.classList.toggle('d-none', isLocal);
         if (hoursWrap) hoursWrap.classList.toggle('d-none', !isHourly);
         // Hourly: package prices from vehicle hourly_price_1..12 (no manual car cost).
-        // Zone OFF: car cost for PTP. Zone ON: car cost for PTP, and for Local Transfer
-        // only when the chosen vehicle has no zone price for this route.
+        // Zone OFF: car cost for PTP. Zone ON: Cost always shown for Local (zone seed, editable).
         if (customWrap) {
             if (isHourly) customWrap.classList.add('d-none');
             else if (mapsMode || mode === 'point_to_point') customWrap.classList.remove('d-none');
@@ -148,17 +147,30 @@
         return (parseFloat(opt.dataset.privatePrice) || 0) > 0;
     }
 
-    /** Local Transfer: car cost appears only when the selected vehicle has no zone price. */
+    /** Local Transfer: Cost always visible when zone ON; zone unit prefilled and editable. */
     function syncLocalManualPrice(root) {
         var customWrap = root.querySelector('.transport-custom-price-wrap');
-        if (!customWrap) return;
-        var zone = S().zoneOn && S().zoneOn();
+        var costEl = root.querySelector('.transport-custom-price');
+        var label = root.querySelector('.transport-custom-price-label');
+        if (!customWrap || !costEl) return;
+        var T = S();
+        var zone = T.zoneOn && T.zoneOn();
         if (!(modeOf(root) === 'local' && zone)) return;
+        customWrap.classList.remove('d-none');
+        if (label) label.textContent = 'Cost';
+        costEl.placeholder = 'Zone / car cost';
         var vehicle = root.querySelector('.transport-vehicle');
         var opt = vehicle && vehicle.selectedIndex >= 0 ? vehicle.options[vehicle.selectedIndex] : null;
         var svc = (root.querySelector('.transport-service-type') || {}).value || 'private';
-        var needsManual = !!(opt && opt.value) && !vehicleHasZonePrice(opt, svc);
-        customWrap.classList.toggle('d-none', !needsManual);
+        if (opt && opt.value && vehicleHasZonePrice(opt, svc)) {
+            var unit = T.zoneUnitFromVehicleOpt
+                ? T.zoneUnitFromVehicleOpt(opt, svc)
+                : (String(svc).toLowerCase() === 'shared'
+                    ? (parseFloat(opt.dataset.adultPrice) || parseFloat(opt.dataset.sharedPrice) || 0)
+                    : (parseFloat(opt.dataset.privatePrice) || 0));
+            if (T.seedStandaloneCarCost) T.seedStandaloneCarCost(costEl, unit);
+            else if (unit > 0) costEl.value = String(unit);
+        }
     }
 
     function mergeLocalVehicles(zoned, all) {
@@ -491,36 +503,58 @@
             } else {
                 priced = { total: custom, mode: 'point_to_point', base: custom };
             }
-        } else if (mode === 'local' && vehicleHasZonePrice(opt, svc)) {
-            priced = T.calcVehiclePrice(
-                opt,
-                svc,
-                adultsEl ? adultsEl.value : 1,
-                childrenEl ? childrenEl.value : 0,
-                0,
-                0
-            );
-            if (!(priced && priced.total > 0)) {
-                alert('No zone price for this vehicle. Enter a car cost.');
-                return;
+        } else if (mode === 'local') {
+            var hasZone = vehicleHasZonePrice(opt, svc);
+            if (hasZone) syncLocalManualPrice(root);
+            var manual = parseFloat((customEl && customEl.value) || '0') || 0;
+            var zoneUnit = T.zoneUnitFromVehicleOpt
+                ? T.zoneUnitFromVehicleOpt(opt, svc)
+                : (String(svc).toLowerCase() === 'shared'
+                    ? (parseFloat(opt.dataset.adultPrice) || parseFloat(opt.dataset.sharedPrice) || 0)
+                    : (parseFloat(opt.dataset.privatePrice) || 0));
+            var userEdited = !!(customEl && customEl.getAttribute('data-user-edited') === '1')
+                || (manual > 0 && zoneUnit > 0 && Math.abs(manual - zoneUnit) >= 0.009);
+
+            if (hasZone && !userEdited) {
+                priced = T.calcVehiclePrice(
+                    opt,
+                    svc,
+                    adultsEl ? adultsEl.value : 1,
+                    childrenEl ? childrenEl.value : 0,
+                    0,
+                    0
+                );
+                if (!(priced && priced.total > 0) && manual > 0) {
+                    priced = T.calcManualCarTotal(manual, svc, adultsEl ? adultsEl.value : 1, childrenEl ? childrenEl.value : 0, 0);
+                    priced.source = 'manual';
+                }
+                if (!(priced && priced.total > 0)) {
+                    alert('No zone price for this vehicle. Enter a car cost.');
+                    syncLocalManualPrice(root);
+                    return;
+                }
+                priced.mode = 'local';
+            } else {
+                if (manual <= 0) {
+                    alert(hasZone
+                        ? 'Enter a car cost. Shared = cost × pax, Private = cost.'
+                        : 'This vehicle has no zone price for this route. Enter a car cost. Shared = cost × pax, Private = cost.');
+                    syncLocalManualPrice(root);
+                    return;
+                }
+                priced = T.calcManualCarTotal(
+                    manual,
+                    svc,
+                    adultsEl ? adultsEl.value : 1,
+                    childrenEl ? childrenEl.value : 0,
+                    0
+                );
+                priced.mode = 'local';
+                priced.source = 'manual';
             }
         } else {
-            // Local Transfer vehicle with no zone price: same manual car cost as Point to Point.
-            var manual = parseFloat((customEl && customEl.value) || '0') || 0;
-            if (manual <= 0) {
-                alert('This vehicle has no zone price for this route. Enter a car cost. Shared = cost × pax, Private = cost.');
-                syncLocalManualPrice(root);
-                return;
-            }
-            priced = T.calcManualCarTotal(
-                manual,
-                svc,
-                adultsEl ? adultsEl.value : 1,
-                childrenEl ? childrenEl.value : 0,
-                0
-            );
-            priced.mode = 'local';
-            priced.source = 'manual';
+            alert('Select a transport mode.');
+            return;
         }
 
         var vehCount = readVehicleCount(root);
@@ -538,20 +572,33 @@
             priced = Object.assign({}, priced, { trip_way: 'single' });
         }
 
+        var unitForDetail = parseFloat((customEl && customEl.value) || '0') || Number(priced.unit || priced.base || 0) || 0;
         var cur = root.getAttribute('data-currency') || 'SGD';
         var detailHtml = '';
-        if (String(svc).toLowerCase() === 'shared' && typeof T.vehiclePriceDetailHtml === 'function') {
+        if (mode !== 'hourly' && typeof T.vehiclePriceDetailHtml === 'function') {
             detailHtml = T.vehiclePriceDetailHtml({
-                type: 'shared',
-                mode: priced.mode || 'shared',
+                type: String(svc).toLowerCase() === 'shared' ? 'shared' : 'private',
+                mode: priced.mode || svc,
                 adults: adultsEl ? adultsEl.value : 1,
                 children: childrenEl ? childrenEl.value : 0,
-                adultUnit: priced.adultUnit,
-                childUnit: priced.childUnit,
+                adultUnit: priced.adultUnit != null ? priced.adultUnit : unitForDetail,
+                childUnit: priced.childUnit != null ? priced.childUnit : unitForDetail,
+                adult_price: priced.adultUnit != null ? priced.adultUnit : unitForDetail,
+                child_price: priced.childUnit != null ? priced.childUnit : unitForDetail,
                 shared_price: opt.dataset.sharedPrice,
-                unit: priced.unit,
+                private_price: unitForDetail,
+                car_cost: unitForDetail,
+                unit: unitForDetail,
+                base: unitForDetail,
                 total: priced.total,
-                vehicle_count: vehCount
+                vehicle_count: vehCount,
+                trip_way: tripWay,
+                pickup: (root.querySelector('.transport-from-zone') || {}).selectedOptions
+                    ? ((root.querySelector('.transport-from-zone').selectedOptions[0] || {}).textContent || '')
+                    : ((root.querySelector('.transport-pickup-text') || {}).value || ''),
+                dropoff: (root.querySelector('.transport-to-zone') || {}).selectedOptions
+                    ? ((root.querySelector('.transport-to-zone').selectedOptions[0] || {}).textContent || '')
+                    : ((root.querySelector('.transport-dropoff-text') || {}).value || '')
             }, cur);
         } else {
             var srcLabel = '';
@@ -707,20 +754,23 @@
         if (childrenEl) childrenEl.value = String(row.children || 0);
         if (typeEl) typeEl.value = row.type || 'private';
         if (hoursEl && row.selectedHours) hoursEl.value = String(row.selectedHours);
-        if (customEl && (row.travel_type === 'travel_point' || !S().zoneOn || !S().zoneOn())) {
-            var vcHydrate = Math.max(1, parseInt(String(row.vehicle_count || row.booked_vehicles || 1), 10) || 1);
-            var totalHydrate = Number(row.totalPrice || 0);
+        if (customEl) {
             if (row.car_cost != null && String(row.car_cost) !== '') {
-                totalHydrate = Number(row.car_cost) || 0;
-                vcHydrate = 1;
-            } else if (row.trip_way === 'both' && totalHydrate > 0) {
-                totalHydrate = totalHydrate / 2;
+                customEl.value = String(row.car_cost);
+                customEl.setAttribute('data-user-edited', '1');
+                customEl.setAttribute('data-seeded-unit', String(row.car_cost));
+            } else if (row.travel_type === 'travel_point' || !S().zoneOn || !S().zoneOn()) {
+                var vcHydrate = Math.max(1, parseInt(String(row.vehicle_count || row.booked_vehicles || 1), 10) || 1);
+                var totalHydrate = Number(row.totalPrice || 0);
+                if (row.trip_way === 'both' && totalHydrate > 0) {
+                    totalHydrate = totalHydrate / 2;
+                }
+                var unitHydrate = totalHydrate;
+                if (String(row.type || '').toLowerCase() !== 'shared' && vcHydrate > 1 && totalHydrate > 0) {
+                    unitHydrate = totalHydrate / vcHydrate;
+                }
+                customEl.value = String(unitHydrate || 0);
             }
-            var unitHydrate = totalHydrate;
-            if (String(row.type || '').toLowerCase() !== 'shared' && vcHydrate > 1 && totalHydrate > 0) {
-                unitHydrate = totalHydrate / vcHydrate;
-            }
-            customEl.value = String(unitHydrate || 0);
         }
         var countEl = root.querySelector('.transport-vehicle-count');
         if (countEl) {
@@ -874,11 +924,19 @@
             el.addEventListener('change', function () {
                 if (root.__hydrating) return;
                 if (el.classList.contains('transport-vehicle') || el.classList.contains('transport-service-type')) {
+                    var costEl = root.querySelector('.transport-custom-price');
+                    if (costEl && T.clearStandaloneCarCostSeed) T.clearStandaloneCarCostSeed(costEl);
                     syncLocalManualPrice(root);
                 }
                 invalidate(root);
             });
-            el.addEventListener('input', function () { if (!root.__hydrating) invalidate(root); });
+            el.addEventListener('input', function () {
+                if (root.__hydrating) return;
+                if (el.classList.contains('transport-custom-price') && T.markStandaloneCarCostEdited) {
+                    T.markStandaloneCarCostEdited(el);
+                }
+                invalidate(root);
+            });
         });
         // Focus on maps fields re-binds if Places loaded late
         root.querySelectorAll('.transport-pickup-text, .transport-dropoff-text').forEach(function (el) {
