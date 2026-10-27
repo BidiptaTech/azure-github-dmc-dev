@@ -8,7 +8,7 @@ return new class extends Migration
     public function up(): void
     {
         DB::unprepared(file_get_contents(
-            base_path('finance-microservice/sql/007_tours_agent_performance_index.sql')
+            base_path('database/sql/finance/007_tours_agent_performance_index.sql')
         ) ?: '');
     }
 

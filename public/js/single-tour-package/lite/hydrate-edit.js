@@ -369,6 +369,124 @@
         return row;
     }
 
+    /** Normalize Way so Pro "Two Way" / Lite "Both Way" both map to both. */
+    function normalizeTripWay(raw) {
+        var s = String(raw || '').trim().toLowerCase().replace(/[_-]+/g, ' ');
+        if (!s) return '';
+        if (/\bboth\b/.test(s) || /\btwo\b/.test(s) || s === '2' || /\b2\s*way\b/.test(s) || /\breturn\b/.test(s)) {
+            return 'both';
+        }
+        if (/\bsingle\b/.test(s) || /\bone\b/.test(s)) return 'single';
+        return s;
+    }
+
+    function deriveUnitCarCost(row) {
+        if (!row) return '';
+        if (row.car_cost != null && String(row.car_cost) !== '' && Number(row.car_cost) > 0) {
+            return String(row.car_cost);
+        }
+        var type = String(row.type || row.mode || row.price_detail || 'private').toLowerCase();
+        if (type === 'shared') {
+            var sharedUnit = Number(row.adult_price || row.adultUnit || row.shared_price || row.unit || 0) || 0;
+            if (sharedUnit > 0) return String(sharedUnit);
+        } else {
+            var priv = Number(row.private_price || row.unit || row.base || 0) || 0;
+            if (priv > 0) return String(priv);
+            var total = Number(row.totalPrice != null ? row.totalPrice : (row.grand_total || row.price || 0)) || 0;
+            var vc = Math.max(1, parseInt(row.vehicle_count || row.booked_vehicles || 1, 10) || 1);
+            var way = normalizeTripWay(row.trip_way || row.way);
+            if (way === 'both' && total > 0) total = total / 2;
+            if (total > 0) return String(total / vc);
+        }
+        return '';
+    }
+
+    function normalizeTransferOptions(xfer) {
+        if (!xfer || typeof xfer !== 'object') return xfer;
+        xfer = Object.assign({}, xfer);
+        var req = xfer.transfer_required;
+        if (req === true || req === 1 || req === '1' || String(req).toLowerCase() === 'yes' || String(req).toLowerCase() === 'true') {
+            xfer.transfer_required = true;
+        }
+        var way = normalizeTripWay(xfer.trip_way || xfer.way);
+        if (way) {
+            xfer.trip_way = way;
+            xfer.way = way === 'both' ? 'Both Way' : 'One Way';
+        }
+        if (xfer.vehicle_count == null) {
+            xfer.vehicle_count = xfer.booked_vehicles
+                || xfer.arrival_vehicle_count
+                || xfer.departure_vehicle_count
+                || 1;
+        }
+        var unit = '';
+        if (xfer.car_cost != null && String(xfer.car_cost) !== '' && Number(xfer.car_cost) > 0) {
+            unit = String(xfer.car_cost);
+        } else if (xfer.base_cost != null && Number(xfer.base_cost) > 0) {
+            unit = String(xfer.base_cost);
+        } else if (String(xfer.type || '').toLowerCase() === 'shared') {
+            unit = String(Number(xfer.adult_price || xfer.shared_price || 0) || '') || '';
+        } else if (Number(xfer.private_price || 0) > 0) {
+            unit = String(xfer.private_price);
+        } else if (Number(xfer.cost || 0) > 0) {
+            var bothFactor = way === 'both' ? 2 : 1;
+            var vc = Math.max(1, parseInt(xfer.vehicle_count, 10) || 1);
+            var oneWay = Number(xfer.cost) / bothFactor;
+            if (String(xfer.type || '').toLowerCase() === 'shared') {
+                var pax = Math.max(1, (parseInt(xfer.adults, 10) || 0) + (parseInt(xfer.children, 10) || 0));
+                unit = String(oneWay / pax);
+            } else {
+                unit = String(oneWay / vc);
+            }
+        }
+        if (unit !== '' && Number(unit) > 0) {
+            xfer.car_cost = unit;
+            if (!(Number(xfer.base_cost) > 0)) xfer.base_cost = Number(unit);
+        }
+        return xfer;
+    }
+
+    function normalizeTransportLikeRow(row) {
+        row = Object.assign({}, row || {});
+        if (!row.vehicles_name) {
+            row.vehicles_name = row.vehicle_name || row.vehicleName
+                || (row.vehicleDetails && (row.vehicleDetails.name || row.vehicleDetails.vehicle_name))
+                || (row.vehicle_details && (row.vehicle_details.name || row.vehicle_details.vehicle_name))
+                || 'Vehicle';
+        }
+        if (row.vehicles_id == null || row.vehicles_id === '') {
+            row.vehicles_id = row.vehicle_id || row.vehicleId
+                || (row.vehicleDetails && row.vehicleDetails.vehicle_id)
+                || (row.vehicle_details && row.vehicle_details.vehicle_id)
+                || '';
+        }
+        if (row.vehicle_count == null) {
+            row.vehicle_count = row.booked_vehicles || 1;
+        }
+        var way = normalizeTripWay(row.trip_way || row.way);
+        if (way) row.trip_way = way;
+        if (row.totalPrice == null) row.totalPrice = row.price || row.grand_total || 0;
+        if (row.private_price == null || row.private_price === '') {
+            row.private_price = (row.vehicleDetails && row.vehicleDetails.private_price)
+                || (row.vehicle_details && row.vehicle_details.private_price)
+                || '';
+        }
+        if (row.shared_price == null || row.shared_price === '') {
+            row.shared_price = (row.vehicleDetails && row.vehicleDetails.shared_price)
+                || (row.vehicle_details && row.vehicle_details.shared_price)
+                || '';
+        }
+        if (row.adult_price == null || row.adult_price === '') {
+            row.adult_price = row.adultUnit
+                || (row.vehicleDetails && row.vehicleDetails.adult_price)
+                || row.shared_price
+                || '';
+        }
+        var derivedCost = deriveUnitCarCost(row);
+        if (derivedCost) row.car_cost = derivedCost;
+        return row;
+    }
+
     function normalizeServiceRow(kind, row) {
         row = Object.assign({}, row || {});
         if (kind === 'hotel') return normalizeHotelRow(row);
@@ -379,12 +497,14 @@
             if (row.adultCount == null && row.adults != null) row.adultCount = row.adults;
             if (row.childCount == null && row.children != null) row.childCount = row.children;
             if (Array.isArray(row.bookingDate)) row.bookingDate = row.bookingDate[0] || '';
+            if (row.transfer_options) row.transfer_options = normalizeTransferOptions(row.transfer_options);
             // Keep totalPrice as ticket-only; UI composes via serviceRowDisplayTotal
         }
         if (kind === 'restaurant') {
             if (!row.restaurantName) row.restaurantName = row.restaurant_name || row.name || 'Restaurant';
             if (!row.mealTypeLabel && row.mealType) row.mealTypeLabel = row.mealType;
             if (Array.isArray(row.bookingDate)) row.bookingDate = row.bookingDate[0] || '';
+            if (row.transfer_options) row.transfer_options = normalizeTransferOptions(row.transfer_options);
             // Keep totalPrice as meal-only; UI composes via serviceRowDisplayTotal
         }
         if (kind === 'guide') {
@@ -392,12 +512,24 @@
             if (Array.isArray(row.bookingDate)) row.bookingDate = row.bookingDate[0] || '';
         }
         if (kind === 'arrival' || kind === 'departure' || kind === 'transport') {
-            if (!row.vehicles_name) {
-                row.vehicles_name = row.vehicle_name || row.vehicleName
-                    || (row.vehicleDetails && (row.vehicleDetails.name || row.vehicleDetails.vehicle_name))
-                    || 'Vehicle';
+            row = normalizeTransportLikeRow(row);
+            if (kind === 'arrival') {
+                row.travel_type = 'entry_port';
+                if (!row.pickupdate && row.bookingDate) {
+                    row.pickupdate = Array.isArray(row.bookingDate) ? (row.bookingDate[0] || '') : String(row.bookingDate).slice(0, 10);
+                }
+            } else if (kind === 'departure') {
+                row.travel_type = 'exit_port';
+                if (!row.exitpickupdate && !row.pickupdate && row.bookingDate) {
+                    row.pickupdate = Array.isArray(row.bookingDate) ? (row.bookingDate[0] || '') : String(row.bookingDate).slice(0, 10);
+                }
+            } else if (kind === 'transport' && !row.travel_type) {
+                row.travel_type = row.mode === 'hourly' ? 'travel_hourly'
+                    : (row.mode === 'local' || row.local_transport ? 'local_transport' : 'travel_point');
             }
-            if (row.totalPrice == null) row.totalPrice = row.price || row.grand_total || 0;
+            if (row.booked_vehicles == null && row.vehicle_count != null) {
+                row.booked_vehicles = row.vehicle_count;
+            }
         }
         if (kind === 'miscellaneous') {
             if (!row.itemName) row.itemName = row.item_name || row.miscellaneous_name || 'Miscellaneous';

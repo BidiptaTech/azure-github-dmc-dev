@@ -55,6 +55,8 @@ use App\Http\Controllers\MailController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinanceReportController;
 use App\Http\Controllers\WalletManagementController;
+use App\Http\Controllers\CommissionReportController;
+use App\Http\Controllers\PaymentServiceController;
 use App\Http\Controllers\AgentFinanceTestDashboardController;
 use App\Http\Controllers\MISReportController;
 use App\Http\Controllers\GuestController;
@@ -844,7 +846,41 @@ Route::get('/clear', function () {
         Route::get('/finance/daily-arrival', [BookingListController::class, 'financeDailyArrival'])->name('finance.daily-arrival');
         Route::get('booking-list/daily-arrival', [BookingListController::class, 'financeDailyArrival'])->name('booking-list.daily-arrival');
 
+        // Payment service (eligibility, orchestration, settings, Stripe Connect)
+        Route::get('/payment-service/tours/{tourId}/eligibility', [PaymentServiceController::class, 'eligibility'])
+            ->name('payment-service.eligibility');
+        Route::post('/payment-service/tours/{tourId}/pay', [PaymentServiceController::class, 'initiate'])
+            ->name('payment-service.initiate');
+        Route::post('/payment-service/tours/{tourId}/wallet/complete', [PaymentServiceController::class, 'completeWallet'])
+            ->name('payment-service.wallet-complete');
+        Route::post('/payment-service/tours/{tourId}/stripe/complete', [PaymentServiceController::class, 'completeStripe'])
+            ->name('payment-service.stripe-complete');
+        Route::get('/finance/payment-settings', [PaymentServiceController::class, 'settingsPage'])
+            ->name('payment-service.settings.page');
+        Route::post('/finance/payment-settings', [PaymentServiceController::class, 'settingsSave'])
+            ->name('payment-service.settings.save');
+        Route::get('/payment-service/settings', [PaymentServiceController::class, 'settingsShow'])
+            ->name('payment-service.settings.show');
+        Route::post('/payment-service/settings', [PaymentServiceController::class, 'settingsUpdate'])
+            ->name('payment-service.settings.update');
+        Route::get('/finance/stripe/connect', [PaymentServiceController::class, 'stripeConnectPage'])
+            ->name('finance.stripe.connect.page');
+        Route::match(['get', 'post'], '/finance/stripe/connect/start', [PaymentServiceController::class, 'stripeConnectStart'])
+            ->name('finance.stripe.connect.start');
+        Route::post('/finance/stripe/connect/reset-country', [PaymentServiceController::class, 'stripeConnectResetCountry'])
+            ->name('finance.stripe.connect.reset-country');
+        Route::get('/finance/stripe/connect/status', [PaymentServiceController::class, 'stripeConnectStatus'])
+            ->name('finance.stripe.connect.status');
+        Route::post('/finance/stripe/connect/onboard', [PaymentServiceController::class, 'stripeConnectOnboard'])
+            ->name('finance.stripe.connect.onboard');
+        Route::get('/finance/stripe/connect/return', [PaymentServiceController::class, 'stripeConnectReturn'])
+            ->name('finance.stripe.connect.return');
+        // Expired/reused Account Links must mint a fresh link (not just sync status).
+        Route::match(['get', 'post'], '/finance/stripe/connect/refresh', [PaymentServiceController::class, 'stripeConnectStart'])
+            ->name('finance.stripe.connect.refresh');
+
         // Finance wallet management (DMC / Agent / Admin)
+        Route::get('/finance/commission', [CommissionReportController::class, 'index'])->name('finance.commission.index');
         Route::get('/finance/wallet', [WalletManagementController::class, 'index'])->name('finance.wallet.index');
         Route::get('/finance/wallet/ledger', [WalletManagementController::class, 'ledger'])->name('finance.wallet.ledger');
         Route::get('/finance/wallet/transactions', [WalletManagementController::class, 'transactionsGlance'])->name('finance.wallet.transactions');
@@ -1261,7 +1297,8 @@ Route::post('/hotel-booking/upload-restaurant-files', [HotelBookingController::c
 });
 
 // Stripe webhook must be public (no auth / no CSRF) — Stripe servers call this.
-Route::post('/stripe/webhook', [StripePaymentController::class, 'webhook'])->name('stripe.webhook');    
+Route::post('/stripe/webhook', [StripePaymentController::class, 'webhook'])->name('stripe.webhook');
+Route::post('/stripe/connect/webhook', [PaymentServiceController::class, 'stripeWebhook'])->name('stripe.connect.webhook');    
 
 // Job Sheet routes added to the admin middleware group above
 

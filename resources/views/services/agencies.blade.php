@@ -56,10 +56,10 @@
                         <thead>
                             <tr>
                                 <th>Agency Name</th>
-                                <th>Location</th>
                                 <th>Contact</th>
                                 <th>Branches</th>
                                 <th>Special Discount</th>
+                                <th>Wallet Balance</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -88,12 +88,10 @@
                                             </div>
                                             <div>
                                                 <strong>{{ $agency->agency_name }}</strong>
-                                                <br>
-                                                {{-- <small class="text-muted">ID: {{ $agency->agency_id }}</small> --}}
+                                                <small class="text-muted d-block">{{ $agency->city }}, {{ $agency->country }}</small>
                                             </div>
                                         </div>
                                     </td>
-                                    <td>{{ $agency->city }}, {{ $agency->country }}</td>
                                     <td>
                                         <div>
                                             <small class="d-block">{{ $agency->email }}</small>
@@ -127,6 +125,10 @@
                                                 <i class="ri-check-line"></i>
                                             </button>
                                         </div>
+                                    </td>
+                                    <td class="fw-semibold text-nowrap">
+                                        {{ $agency->dmc_wallet_currency ?? ($walletCurrency ?? '') }}
+                                        {{ number_format((float) ($agency->dmc_wallet_balance ?? 0), 2) }}
                                     </td>
                                     <td>
                                         <div class="btn-group" role="group">
@@ -478,6 +480,7 @@ let pendingAgencySelection = null;
 const defaultAgencyCountry = '{{ strtolower(auth()->user()->country ?? '') }}';
 const csrfToken = '{{ csrf_token() }}';
 const specialDiscountUpdateUrl = '{{ route('services.agencies.special-discount') }}';
+const dmcWalletCurrency = @json($walletCurrency ?? '');
 let selectedAgenciesPaginator = null;
 
 function escapeHtml(text) {
@@ -538,10 +541,12 @@ function buildSelectedAgencyRowFromItem(item) {
         <td>
             <div class="d-flex align-items-center">
                 <div class="bg-light rounded me-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; overflow: hidden;">${logoHtml}</div>
-                <div><strong>${escapeHtml(name)}</strong></div>
+                <div>
+                    <strong>${escapeHtml(name)}</strong>
+                    <small class="text-muted d-block">${escapeHtml(city)}, ${escapeHtml(country)}</small>
+                </div>
             </div>
         </td>
-        <td>${escapeHtml(city)}, ${escapeHtml(country)}</td>
         <td><small class="d-block">${escapeHtml(email)}</small><small class="text-muted">${escapeHtml(phone)}</small></td>
         <td><span class="badge bg-label-info">${escapeHtml(branchLabel)}</span></td>
         <td class="special-discount-cell">
@@ -560,6 +565,7 @@ function buildSelectedAgencyRowFromItem(item) {
                 </button>
             </div>
         </td>
+        <td class="fw-semibold text-nowrap">${escapeHtml(dmcWalletCurrency)} 0.00</td>
         <td>
             <div class="btn-group" role="group">
                 <a href="${viewUrl}" class="btn btn-sm btn-icon btn-outline-primary" title="View" aria-label="View"><i class="ri-eye-line"></i></a>

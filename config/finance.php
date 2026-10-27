@@ -4,33 +4,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Finance Microservice (Azure Functions)
+    | Finance engine (Laravel-native)
     |--------------------------------------------------------------------------
     |
-    | Laravel delegates all financial operations to the Python finance
-    | microservice. This keeps payment/settlement logic isolated and
-    | independently scalable per microservice architecture.
+    | Former Azure Functions Python microservice has been retired.
+    | All wallet / settlement / refund operations run in App\Services\Finance.
     |
     */
 
-    'base_url' => env('FINANCE_SERVICE_BASE_URL', 'http://localhost:7071/api'),
-
-    'bearer_token' => env('FINANCE_API_BEARER_TOKEN', ''),
-
-    'webhook_secret' => env('FINANCE_WEBHOOK_SECRET', ''),
+    'engine' => 'laravel',
 
     'timeout_seconds' => (int) env('FINANCE_HTTP_TIMEOUT', 30),
 
-    /*
-    |--------------------------------------------------------------------------
-    | Web booking confirmation defaults
-    |--------------------------------------------------------------------------
-    |
-    | When a tour is confirmed via the web UI (BookingsController), finance is
-    | triggered automatically using this payment mode. Agent tours debit the
-    | agent wallet; DMC-only tours debit the DMC wallet.
-    |
-    */
     'default_payment_mode_on_confirm' => env('FINANCE_DEFAULT_PAYMENT_MODE_ON_CONFIRM', 'wallet'),
 
     'retry' => [
@@ -43,22 +28,28 @@ return [
         'wallet_allocate' => '/wallet/allocate',
         'wallet_booking' => '/wallet/booking',
         'wallet_booking_distribute_proceeds' => '/wallet/booking/distribute-proceeds',
+        'wallet_reserve' => '/wallet/reserve',
+        'wallet_commit' => '/wallet/commit',
+        'wallet_release' => '/wallet/release',
         'online_settlement' => '/settlement/online',
         'offline_settlement' => '/settlement/offline',
         'payment_callback' => '/payment/callback',
         'refund' => '/refund',
         'commission_calculate' => '/commission/calculate',
         'health' => '/health',
-        'webhook_verify' => '/webhook/verify',
     ],
 
     'payment_gateways' => [
-        'default' => env('FINANCE_DEFAULT_GATEWAY', 'razorpay'),
-        'razorpay' => [
-            'key_id' => env('RAZORPAY_KEY_ID', ''),
-            'key_secret' => env('RAZORPAY_KEY_SECRET', ''),
-            'webhook_secret' => env('RAZORPAY_WEBHOOK_SECRET', ''),
+        'default' => 'stripe',
+        'stripe' => [
+            'enabled' => (bool) env('PAYMENT_ONLINE_ENABLED', false),
+            'mode' => env('STRIPE_MODE', 'test'),
         ],
     ],
+
+    // Legacy keys kept empty so old env vars do not accidentally re-enable HTTP client.
+    'base_url' => '',
+    'bearer_token' => '',
+    'webhook_secret' => env('FINANCE_WEBHOOK_SECRET', ''),
 
 ];

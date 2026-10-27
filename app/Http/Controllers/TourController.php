@@ -733,6 +733,10 @@ class TourController extends Controller
                 $baseAmount = $originalAmount / $exchangeRate;
             }
 
+        // Wallet payments are deducted immediately — always auto-verify (no manual approve).
+        $paymentType = strtolower(trim((string) $request->payment_type));
+        $autoVerify = $request->boolean('auto_verify') || $paymentType === 'wallet';
+
         $paymentData = [
             'amount' => $baseAmount, // Store amount converted to the tour base currency
             'original_amount' => $originalAmount, // Store original amount in selected currency
@@ -744,7 +748,8 @@ class TourController extends Controller
             'payment_date' => $request->payment_date,
             'payment_type' => $request->payment_type,
             // status: 0 = unverified, 1 = verified
-            'status' => $request->boolean('auto_verify') ? 1 : 0,
+            'status' => $autoVerify ? 1 : 0,
+            'auto_verified' => $autoVerify && $paymentType === 'wallet',
         ];
         CommonHelper::appendTourStatusTrackById(
             (int) $tour->tour_id,
@@ -774,13 +779,20 @@ class TourController extends Controller
         
         // Update the payment_details column with the new array
         $tour->payment_details = json_encode($paymentDetails);
+
+        // Wallet auto-verify: same status promotion as manual verifyPayment
+        if ($autoVerify && $paymentType === 'wallet' && $tour->tour_status === 'Confirmed') {
+            $tour->tour_status = 'Definite';
+        }
+
         $tour->save();
         
         // Create success message from the amount the user actually paid (selected currency).
         // Do not show base-currency conversion in the success toast — that confuses operators.
         $paidCurrency = strtoupper(trim((string) $selectedCurrency));
         $paidAmountFormatted = number_format($originalAmount, 2);
-        $successMessage = $paidCurrency . ' ' . $paidAmountFormatted . ' payment is successfully recorded.';
+        $successMessage = $paidCurrency . ' ' . $paidAmountFormatted . ' payment is successfully recorded.'
+            . ($autoVerify && $paymentType === 'wallet' ? ' Wallet payment auto-verified.' : '');
         
         // Check if request is AJAX and return JSON response
         if ($request->expectsJson() || $request->ajax()) {
@@ -791,7 +803,7 @@ class TourController extends Controller
                 'payment_amount' => $originalAmount,
                 'payment_amount_formatted' => $paidAmountFormatted,
                 'payment_index' => $paymentIndex,
-                'verified' => (bool) ($request->boolean('auto_verify')),
+                'verified' => (bool) $autoVerify,
             ]);
         }
         

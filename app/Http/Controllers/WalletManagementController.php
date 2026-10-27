@@ -33,6 +33,9 @@ class WalletManagementController extends Controller
 
         $roleGroup = $this->resolveRoleGroup($user);
         $allocatorCurrency = $this->resolveAllocatorCurrency($user, $roleGroup);
+        $travclicksSpendByCurrency = $roleGroup === 'travclicks_owner'
+            ? $this->walletQuery->buildTravclicksDmcSpendByCurrency()
+            : [];
 
         return view('finance.wallet.index', array_merge($context, [
             'wallets' => $wallets,
@@ -41,6 +44,7 @@ class WalletManagementController extends Controller
             'roleGroup' => $roleGroup,
             'dmcIdForRole' => $this->resolveDmcId($user),
             'allocatorCurrency' => $allocatorCurrency,
+            'travclicksSpendByCurrency' => $travclicksSpendByCurrency,
         ]));
     }
 
@@ -406,9 +410,7 @@ class WalletManagementController extends Controller
         }
 
         return response()->json([
-            'items' => $this->walletQuery->formatAgentsForDropdown(
-                $this->walletQuery->getAgentsForDmc($dmcId)
-            ),
+            'items' => $this->walletQuery->formatSelectedAgenciesForDropdown($dmcId),
         ])->header('Cache-Control', 'no-store, no-cache, must-revalidate');
     }
 
@@ -496,16 +498,14 @@ class WalletManagementController extends Controller
             abort(403, 'Only Travclicks Owner can access this endpoint.');
         }
 
+        // Travclicks funds DMCs only — list all DMCs (optional filter by master).
+        $query = User::where('role_id', 11)->whereNull('deleted_at')->orderBy('company_name');
         $masterDmcId = (int) $request->query('master_dmc_id');
-        if ($masterDmcId <= 0) {
-            return response()->json(['items' => []]);
+        if ($masterDmcId > 0) {
+            $query->where('master_dmc_id', $masterDmcId);
         }
 
-        $dmcs = User::where('role_id', 11)
-            ->where('master_dmc_id', $masterDmcId)
-            ->whereNull('deleted_at')
-            ->orderBy('company_name')
-            ->get(['userId', 'company_name', 'name']);
+        $dmcs = $query->get(['userId', 'company_name', 'name']);
 
         return response()->json([
             'items' => $dmcs->map(fn ($d) => [
@@ -557,17 +557,29 @@ class WalletManagementController extends Controller
                 abort(403, 'Agents cannot allocate wallet amounts.');
             }
 
-            // Recipient currency = selected Master DMC / DMC configured currency.
-            $targetCurrency = strtoupper((string) ($validated['wallet_currency_code'] ?? ''));
-            $configured = $this->walletQuery->getConfiguredCurrenciesForOwner($recipientType, $recipientId);
-            $allowedCurrencies = $configured['currencies'];
+            // DMC allocations always credit the agency in the DMC country currency.
+            if ($roleGroup === 'dmc') {
+                $targetCurrency = $sourceCurrency;
+            } else {
+                $targetCurrency = strtoupper((string) ($validated['wallet_currency_code'] ?? ''));
+                $configured = $this->walletQuery->getConfiguredCurrenciesForOwner($recipientType, $recipientId);
+                $allowedCurrencies = $configured['currencies'];
 
-            if ($allowedCurrencies !== []) {
-                if ($targetCurrency === '' || ! in_array($targetCurrency, $allowedCurrencies, true)) {
-                    $targetCurrency = (string) ($configured['default'] ?: $allowedCurrencies[0]);
+                if ($allowedCurrencies !== []) {
+                    if ($targetCurrency === '' || ! in_array($targetCurrency, $allowedCurrencies, true)) {
+                        $targetCurrency = (string) ($configured['default'] ?: $allowedCurrencies[0]);
+                    }
+                } elseif ($targetCurrency === '') {
+                    $targetCurrency = 'SGD';
                 }
-            } elseif ($targetCurrency === '') {
-                $targetCurrency = 'SGD';
+            }
+
+            // Travclicks: amount is always in the DMC's currency (no FX / no Travclicks balance).
+            if ($roleGroup === 'travclicks_owner') {
+                if ($recipientType !== 'dmc') {
+                    abort(403, 'Travclicks can send wallet funds only to DMC wallets.');
+                }
+                $sourceCurrency = $targetCurrency;
             }
 
             $exchangeRate = 1.0;
@@ -608,13 +620,13 @@ class WalletManagementController extends Controller
                 }
 
                 $agent = Agent::where('agent_id', $recipientId)->where('status', 1)->first();
-                if (! $agent || ! $this->walletQuery->agentBelongsToDmc($agent, $dmcId)) {
+                $allowed = $agent && (
+                    $this->walletQuery->agentBelongsToDmc($agent, $dmcId)
+                    || $this->walletQuery->agencyIsSelectedByDmc($agent, $dmcId)
+                );
+                if (! $allowed) {
                     abort(403, 'Recipient Agency does not belong to this DMC.');
                 }
-            }
-
-            if ($roleGroup === 'travclicks_owner' && $recipientType !== 'master_dmc') {
-                abort(403, 'Travclicks Owner can allocate only to Master DMC wallets.');
             }
 
             $allocatorWalletOwnerType = match ($roleGroup) {
@@ -661,6 +673,7 @@ class WalletManagementController extends Controller
                 'allocator_amount' => number_format($sourceAmount, 4, '.', ''),
                 'recipient_amount' => number_format($creditAmount, 4, '.', ''),
                 'exchange_rate' => number_format($exchangeRate, 8, '.', ''),
+                'platform_spend' => $roleGroup === 'travclicks_owner',
                 'supplier_api_id' => null,
                 'ledger_description' => $ledgerContext['ledger_description'].$fxSuffix,
                 'debit_ledger_description' => $ledgerContext['debit_ledger_description'].$fxSuffix,
@@ -676,15 +689,17 @@ class WalletManagementController extends Controller
                 ]),
             ]);
 
-            $successMsg = $sourceCurrency === $targetCurrency
-                ? 'Wallet allocation successfully.'
-                : "Wallet allocation successfully ({$sourceAmount} {$sourceCurrency} → {$creditAmount} {$targetCurrency}).";
+            $successMsg = $roleGroup === 'travclicks_owner'
+                ? "Sent {$sourceAmount} {$targetCurrency} to DMC wallet."
+                : ($sourceCurrency === $targetCurrency
+                    ? 'Wallet allocation successfully.'
+                    : "Wallet allocation successfully ({$sourceAmount} {$sourceCurrency} → {$creditAmount} {$targetCurrency}).");
 
             return redirect()
                 ->route('finance.wallet.index', [
                     'owner_type' => $allocatorWalletOwnerType,
                     'owner_id' => $allocatorWalletOwnerId,
-                    'currency' => $sourceCurrency,
+                    'currency' => $targetCurrency,
                 ])
                 ->with('success', $successMsg);
         } catch (RuntimeException $e) {

@@ -15,6 +15,7 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Pagination\LengthAwarePaginator as Paginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Read-only queries against wallet and wallet_ledger (public schema).
@@ -195,6 +196,34 @@ class WalletQueryService
             'credit' => (float) ($row->credit_total ?? 0),
             'debit' => (float) ($row->debit_total ?? 0),
         ];
+    }
+
+    /**
+     * Travclicks spend-to-DMC totals grouped by currency (allocation_debit only).
+     *
+     * @return array<int, array{currency: string, amount: float}>
+     */
+    public function buildTravclicksDmcSpendByCurrency(): array
+    {
+        if (! Schema::hasTable('wallet') || ! Schema::hasTable('wallet_ledger')) {
+            return [];
+        }
+
+        $rows = DB::table('wallet_ledger as wl')
+            ->join('wallet as w', 'w.id', '=', 'wl.wallet_id')
+            ->whereNull('w.deleted_at')
+            ->where('w.wallet_owner_type', 'travclicks')
+            ->where('w.wallet_owner_id', 1)
+            ->where('wl.ledger_entry_type', 'allocation_debit')
+            ->groupBy('w.wallet_currency_code')
+            ->orderBy('w.wallet_currency_code')
+            ->selectRaw('w.wallet_currency_code as currency, COALESCE(SUM(wl.debit_amount), 0) as amount')
+            ->get();
+
+        return $rows->map(fn ($r) => [
+            'currency' => strtoupper((string) $r->currency),
+            'amount' => (float) $r->amount,
+        ])->values()->all();
     }
 
     /**
@@ -1027,6 +1056,66 @@ class WalletQueryService
             array_map('intval', $this->getDmcHierarchyIds($dmcUserId)),
             true
         );
+    }
+
+    /**
+     * One row per agency this DMC selected, including agencies whose agents
+     * were created under another DMC. Matches the Selected Agencies list.
+     *
+     * @return array<int, array{id: int|null, label: string, country: string, selectable: bool}>
+     */
+    public function formatSelectedAgenciesForDropdown(int $dmcUserId): array
+    {
+        $agencies = Agency::query()
+            ->where('status', 1)
+            ->where(function ($query) use ($dmcUserId) {
+                $query->whereRaw('dmc_id::jsonb @> ?', [json_encode([(int) $dmcUserId])])
+                    ->orWhereRaw('dmc_id::jsonb @> ?', [json_encode([(string) $dmcUserId])]);
+            })
+            ->orderBy('country')
+            ->orderBy('agency_name')
+            ->get(['agency_id', 'agency_name', 'country']);
+
+        $hierarchy = array_map('intval', $this->getDmcHierarchyIds($dmcUserId));
+        $fundedOwnerIds = collect();
+        if (Schema::hasTable('wallet') && Schema::hasColumn('wallet', 'source_dmc_id')) {
+            $fundedOwnerIds = DB::table('wallet')
+                ->where('wallet_owner_type', 'agent')
+                ->where('source_dmc_id', $dmcUserId)
+                ->whereNull('deleted_at')
+                ->pluck('wallet_owner_id')
+                ->map(fn ($id) => (int) $id);
+        }
+
+        return $agencies->map(function (Agency $agency) use ($hierarchy, $fundedOwnerIds) {
+            $agents = Agent::query()
+                ->where('agency_id', $agency->agency_id)
+                ->where('status', 1)
+                ->orderBy('agent_id')
+                ->get(['agent_id', 'sales_manager_dmc']);
+
+            $agent = $agents->first(fn (Agent $row) => $fundedOwnerIds->contains((int) $row->agent_id))
+                ?? $agents->first(fn (Agent $row) => in_array((int) $row->sales_manager_dmc, $hierarchy, true))
+                ?? $agents->first();
+
+            return [
+                'id' => $agent ? (int) $agent->agent_id : null,
+                'label' => (string) $agency->agency_name,
+                'country' => (string) ($agency->country ?: 'Other'),
+                'selectable' => $agent !== null,
+            ];
+        })->values()->all();
+    }
+
+    public function agencyIsSelectedByDmc(Agent $agent, int $dmcUserId): bool
+    {
+        $agent->loadMissing('agency:agency_id,agency_name,dmc_id');
+        $agency = $agent->agency;
+        if (! $agency) {
+            return false;
+        }
+
+        return $agency->hasSelectedByDmc($dmcUserId);
     }
 
     /**

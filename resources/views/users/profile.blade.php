@@ -60,16 +60,11 @@
                             $operationalDisplay = implode(', ', $operationalCountries);
                             $isDmcProfile = (int) ($user->role_id ?? 0) === 11;
                             $markupJson = is_array($user->markup_json) ? $user->markup_json : [];
-                            $hotelMarkupType = old('hotel_markup_type', $markupJson['hotel']['markup_type'] ?? 'percentage');
+                            // Profile markup is percentage-only (type is readonly).
+                            $hotelMarkupType = 'percentage';
                             $hotelMarkupValue = old('hotel_markup_value', $markupJson['hotel']['markup_value'] ?? '');
-                            $otherMarkupType = old('other_markup_type', $markupJson['other']['markup_type'] ?? 'percentage');
+                            $otherMarkupType = 'percentage';
                             $otherMarkupValue = old('other_markup_value', $markupJson['other']['markup_value'] ?? '');
-                            if (! in_array($hotelMarkupType, ['percentage', 'flat'], true)) {
-                                $hotelMarkupType = 'percentage';
-                            }
-                            if (! in_array($otherMarkupType, ['percentage', 'flat'], true)) {
-                                $otherMarkupType = 'percentage';
-                            }
                             @endphp
                             <img id="profile-image-preview" 
                                  src="{{ $profileImg }}" 
@@ -195,13 +190,13 @@
                                         <h6 class="mb-3">Hotel</h6>
                                         <div class="mb-3">
                                             <label for="hotel_markup_type" class="form-label">Type</label>
-                                            <select class="form-select" id="hotel_markup_type" name="hotel_markup_type">
-                                                <option value="percentage" {{ $hotelMarkupType === 'percentage' ? 'selected' : '' }}>Percentage</option>
-                                                <option value="flat" {{ $hotelMarkupType === 'flat' ? 'selected' : '' }}>Flat</option>
+                                            <input type="hidden" name="hotel_markup_type" value="percentage">
+                                            <select class="form-select" id="hotel_markup_type" disabled aria-readonly="true" title="Profile markup type is fixed to Percentage">
+                                                <option value="percentage" selected>Percentage</option>
                                             </select>
                                         </div>
                                         <div class="mb-0">
-                                            <label for="hotel_markup_value" class="form-label">Value</label>
+                                            <label for="hotel_markup_value" class="form-label">Value (%)</label>
                                             <input type="number" class="form-control" id="hotel_markup_value" name="hotel_markup_value"
                                                 value="{{ $hotelMarkupValue }}" min="0" step="0.01" placeholder="0">
                                         </div>
@@ -212,13 +207,13 @@
                                         <h6 class="mb-3">Other</h6>
                                         <div class="mb-3">
                                             <label for="other_markup_type" class="form-label">Type</label>
-                                            <select class="form-select" id="other_markup_type" name="other_markup_type">
-                                                <option value="percentage" {{ $otherMarkupType === 'percentage' ? 'selected' : '' }}>Percentage</option>
-                                                <option value="flat" {{ $otherMarkupType === 'flat' ? 'selected' : '' }}>Flat</option>
+                                            <input type="hidden" name="other_markup_type" value="percentage">
+                                            <select class="form-select" id="other_markup_type" disabled aria-readonly="true" title="Profile markup type is fixed to Percentage">
+                                                <option value="percentage" selected>Percentage</option>
                                             </select>
                                         </div>
                                         <div class="mb-0">
-                                            <label for="other_markup_value" class="form-label">Value</label>
+                                            <label for="other_markup_value" class="form-label">Value (%)</label>
                                             <input type="number" class="form-control" id="other_markup_value" name="other_markup_value"
                                                 value="{{ $otherMarkupValue }}" min="0" step="0.01" placeholder="0">
                                         </div>

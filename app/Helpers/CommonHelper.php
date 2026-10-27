@@ -12216,28 +12216,12 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     }
 
     /**
-     * Payment-modal style pricing for invoices: gross → hotel/other markup → discount →
-     * actual (pre-negotiation) → confirmed (post-negotiation), plus city/country markup rows.
-     * Does not change invoice totals — display only.
+     * Payment-modal style pricing for invoices (display only).
+     * Sell/gross already includes hotel/other markup — rates are purpose-only.
+     * Discount applies on gross. Actual = gross − discount.
      *
      * @param  array<string, mixed>|null  $thirdPartyNegotiation  from sumNegotiationDetailsInCurrency
-     * @return array{
-     *   currency: string,
-     *   gross: float,
-     *   hotel_markup_raw: float,
-     *   other_markup_raw: float,
-     *   hotel_markup_money: float,
-     *   other_markup_money: float,
-     *   markup_type: string,
-     *   discount_raw: float,
-     *   discount_money: float,
-     *   discount_type: string,
-     *   actual_price: float,
-     *   confirmed_price: float,
-     *   has_confirmed: bool,
-     *   markup_rows: list<array>,
-     *   has_markup_display: bool
-     * }
+     * @return array<string, mixed>
      */
     public static function buildInvoicePricingMarkupDisplay(
         $tour,
@@ -12249,35 +12233,27 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $selectedCurrency = strtoupper(trim($selectedCurrency));
         $markupRows = self::buildTourCurrencyMarkupRows($tour);
 
-        $markupType = 'flat';
-        $discountType = 'flat';
-        $hotelRaw = 0.0;
-        $otherRaw = 0.0;
+        $normalizeType = static function ($type, string $fallback = 'percentage'): string {
+            $type = strtolower(trim((string) $type));
+            if ($type === 'fixed') {
+                $type = 'flat';
+            }
+            return in_array($type, ['percentage', 'flat', 'foc'], true) ? $type : $fallback;
+        };
+
+        $profileMarkup = self::getDmcProfileMarkupConfig(null, $tour->userId ?? $tour->dmc_id ?? null);
+        $hotelMarkupType = $normalizeType($profileMarkup['hotel']['markup_type'] ?? 'percentage', 'percentage');
+        $otherMarkupType = $normalizeType($profileMarkup['other']['markup_type'] ?? 'percentage', 'percentage');
+        $hotelRaw = (float) ($profileMarkup['hotel']['markup_value'] ?? 0);
+        $otherRaw = (float) ($profileMarkup['other']['markup_value'] ?? 0);
+        $markupType = $hotelMarkupType;
+        $discountType = 'percentage';
         $discountRaw = 0.0;
+
+        // Markup money is never re-added (already in sell). Keep 0 for display.
         $hotelMoney = 0.0;
         $otherMoney = 0.0;
-        $discountMoney = 0.0;
 
-        // Hotel/other types come from DMC profile — shared markup_type alone mislabels flat other as %.
-        $profileMarkup = self::getDmcProfileMarkupConfig(null, $tour->userId ?? $tour->dmc_id ?? null);
-        $hotelMarkupType = strtolower(trim((string) ($profileMarkup['hotel']['markup_type'] ?? 'percentage')));
-        $otherMarkupType = strtolower(trim((string) ($profileMarkup['other']['markup_type'] ?? 'percentage')));
-        if ($hotelMarkupType === 'fixed') {
-            $hotelMarkupType = 'flat';
-        }
-        if ($otherMarkupType === 'fixed') {
-            $otherMarkupType = 'flat';
-        }
-        if (! in_array($hotelMarkupType, ['percentage', 'flat'], true)) {
-            $hotelMarkupType = 'percentage';
-        }
-        if (! in_array($otherMarkupType, ['percentage', 'flat'], true)) {
-            $otherMarkupType = 'percentage';
-        }
-
-        $hotelSumFlat = 0.0;
-        $otherSumFlat = 0.0;
-        $discSumFlat = 0.0;
         if ($markupRows !== []) {
             $preferred = $markupRows[0];
             foreach ($markupRows as $row) {
@@ -12286,40 +12262,22 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     break;
                 }
             }
-            $hotelRaw = (float) $preferred['hotel_raw'];
-            $otherRaw = (float) $preferred['other_raw'];
-            $discountRaw = (float) $preferred['discount_raw'];
-            $markupType = $preferred['markup_type'] !== '' ? $preferred['markup_type'] : $markupType;
-            $discountType = $preferred['discount_type'] !== '' ? $preferred['discount_type'] : $discountType;
+            if ((float) $preferred['hotel_raw'] > 0 || (float) $preferred['other_raw'] > 0 || (float) $preferred['discount_raw'] > 0) {
+                $hotelRaw = (float) $preferred['hotel_raw'];
+                $otherRaw = (float) $preferred['other_raw'];
+                $discountRaw = (float) $preferred['discount_raw'];
+            }
+            if (($preferred['markup_type'] ?? '') !== '') {
+                $markupType = $normalizeType($preferred['markup_type'], $markupType);
+            }
+            if (($preferred['discount_type'] ?? '') !== '') {
+                $discountType = $normalizeType($preferred['discount_type'], $discountType);
+            }
             if (($preferred['hotel_markup_type'] ?? '') !== '') {
-                $hotelMarkupType = (string) $preferred['hotel_markup_type'];
+                $hotelMarkupType = $normalizeType($preferred['hotel_markup_type'], $hotelMarkupType);
             }
             if (($preferred['other_markup_type'] ?? '') !== '') {
-                $otherMarkupType = (string) $preferred['other_markup_type'];
-            }
-
-            foreach ($markupRows as $row) {
-                $rowHotelType = ($row['hotel_markup_type'] ?? '') !== '' ? $row['hotel_markup_type'] : $hotelMarkupType;
-                $rowOtherType = ($row['other_markup_type'] ?? '') !== '' ? $row['other_markup_type'] : $otherMarkupType;
-                if ($rowHotelType === 'flat') {
-                    $hotelSumFlat += (float) $row['hotel_raw'];
-                }
-                if ($rowOtherType === 'flat') {
-                    $otherSumFlat += (float) $row['other_raw'];
-                }
-                $dt = $row['discount_type'] ?? '';
-                if ($dt === 'flat' || $dt === 'foc') {
-                    $discSumFlat += (float) $row['discount_raw'];
-                }
-            }
-            if ($hotelMarkupType === 'flat') {
-                $hotelMoney = $hotelSumFlat;
-            }
-            if ($otherMarkupType === 'flat') {
-                $otherMoney = $otherSumFlat;
-            }
-            if (($discountType === 'flat' || $discountType === 'foc') && $discSumFlat > 0) {
-                $discountMoney = $discSumFlat;
+                $otherMarkupType = $normalizeType($preferred['other_markup_type'], $otherMarkupType);
             }
         }
 
@@ -12328,98 +12286,61 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $negRows = is_array($thirdPartyNegotiation['rows'] ?? null) ? $thirdPartyNegotiation['rows'] : [];
         if ($negRows !== []) {
             foreach ($negRows as $row) {
-                if (!is_array($row)) {
+                if (! is_array($row)) {
                     continue;
                 }
                 $gross += (float) ($row['gross_selected'] ?? $row['gross'] ?? 0);
             }
             $gross = (float) ceil($gross);
 
-            // Fall back to negotiation_details markup rates only when currency_markups is empty.
+            // Fall back to negotiation_details rates only when currency_markups is empty.
             if ($markupRows === []) {
-                $hotelSumFlat = 0.0;
-                $otherSumFlat = 0.0;
-                $discSumFlat = 0.0;
                 $first = null;
                 foreach ($negRows as $row) {
-                    if (!is_array($row)) {
+                    if (! is_array($row)) {
                         continue;
                     }
                     if ($first === null) {
                         $first = $row;
                     }
-                    $mt = strtolower(trim((string) ($row['markup_type'] ?? 'flat')));
-                    if ($mt === 'fixed') {
-                        $mt = 'flat';
-                    }
-                    $dt = strtolower(trim((string) ($row['discount_type'] ?? 'flat')));
-                    if ($dt === 'fixed') {
-                        $dt = 'flat';
-                    }
-                    $h = (float) ($row['hotel_markup'] ?? 0);
-                    $o = (float) ($row['other_markup'] ?? 0);
-                    $d = (float) ($row['discount_value'] ?? 0);
-                    if ($mt === 'flat') {
-                        $hotelSumFlat += $h;
-                        $otherSumFlat += $o;
-                    }
-                    if ($dt === 'flat' || $dt === 'foc') {
-                        $discSumFlat += $d;
-                    }
                 }
                 if ($first !== null) {
-                    $markupType = strtolower(trim((string) ($first['markup_type'] ?? $markupType)));
-                    if ($markupType === 'fixed') {
-                        $markupType = 'flat';
+                    $markupType = $normalizeType($first['markup_type'] ?? $markupType, $markupType);
+                    $discountType = $normalizeType($first['discount_type'] ?? $discountType, $discountType);
+                    $hotelRaw = (float) ($first['hotel_markup'] ?? $hotelRaw);
+                    $otherRaw = (float) ($first['other_markup'] ?? $otherRaw);
+                    $discountRaw = (float) ($first['discount_value'] ?? $discountRaw);
+                    if (($first['hotel_markup_type'] ?? '') !== '') {
+                        $hotelMarkupType = $normalizeType($first['hotel_markup_type'], $hotelMarkupType);
                     }
-                    $discountType = strtolower(trim((string) ($first['discount_type'] ?? $discountType)));
-                    if ($discountType === 'fixed') {
-                        $discountType = 'flat';
+                    if (($first['other_markup_type'] ?? '') !== '') {
+                        $otherMarkupType = $normalizeType($first['other_markup_type'], $otherMarkupType);
                     }
-                    $hotelRaw = (float) ($first['hotel_markup'] ?? 0);
-                    $otherRaw = (float) ($first['other_markup'] ?? 0);
-                    $discountRaw = (float) ($first['discount_value'] ?? 0);
-                }
-                if ($markupType === 'flat') {
-                    $hotelMoney = $hotelSumFlat;
-                    $otherMoney = $otherSumFlat;
-                }
-                if (($discountType === 'flat' || $discountType === 'foc') && $discSumFlat > 0) {
-                    $discountMoney = $discSumFlat;
                 }
             }
         }
 
-        $actualPrice = (float) $actualAmount;
-        if ($gross <= 0 && ($hotelMoney > 0 || $otherMoney > 0 || $discountMoney > 0)) {
-            $gross = max(0, $actualPrice - $hotelMoney - $otherMoney + $discountMoney);
-        }
         if ($gross <= 0) {
-            $gross = $actualPrice;
+            $gross = (float) ceil(max(0, $actualAmount));
         }
 
-        // When flat city markups exist but money wasn't summed from negotiation, derive from gross/actual.
-        if ($markupType === 'flat' && $hotelMoney <= 0 && $otherMoney <= 0 && $gross > 0 && abs($actualPrice - $gross) > 0.009) {
-            $implied = max(0, $actualPrice - $gross + $discountMoney);
-            if ($hotelSumFlat + $otherSumFlat > 0) {
-                $hotelMoney = $hotelSumFlat;
-                $otherMoney = $otherSumFlat;
-            } elseif ($hotelRaw + $otherRaw > 0) {
-                $ratio = ($hotelRaw + $otherRaw) > 0 ? $hotelRaw / ($hotelRaw + $otherRaw) : 0.5;
-                $hotelMoney = round($implied * $ratio, 2);
-                $otherMoney = round($implied - $hotelMoney, 2);
-            } else {
-                $otherMoney = $implied;
-            }
+        // Discount once on gross (do not sum Fixed/% across every city row).
+        if ($discountType === 'percentage' && $discountRaw > 0) {
+            $discountMoney = round($gross * $discountRaw / 100, 2);
+        } elseif (in_array($discountType, ['flat', 'foc'], true) && $discountRaw > 0) {
+            $discountMoney = round($discountRaw, 2);
+        } else {
+            $discountMoney = 0.0;
         }
 
+        $actualPrice = max(0.0, $gross - $discountMoney);
         $confirmedPrice = (float) $negotiatedAmount;
         $hasConfirmed = $confirmedPrice > 0;
         $hasMarkupDisplay = $markupRows !== []
-            || abs($gross - $actualPrice) > 0.009
-            || $hotelMoney > 0
-            || $otherMoney > 0
+            || $hotelRaw > 0
+            || $otherRaw > 0
             || $discountMoney > 0
+            || abs($gross - $actualAmount) > 0.009
             || ($hasConfirmed && abs($confirmedPrice - $actualPrice) > 0.009);
 
         foreach ($markupRows as $i => $row) {
