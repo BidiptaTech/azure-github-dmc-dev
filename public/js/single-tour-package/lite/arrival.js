@@ -65,8 +65,8 @@
             '      <input type="number" min="1" class="form-control form-control-sm stp-lite-int arrival-adults" data-guest-cap="adults" value="1"></div>' +
             '    <div class="col-md-2" data-guest-child-ui><label class="stp-lite-label">Children</label>' +
             '      <input type="number" min="0" class="form-control form-control-sm stp-lite-int arrival-children" data-guest-cap="children" value="0"></div>' +
-            '    <div class="col-md-3 arrival-custom-price-wrap' + (zone ? ' d-none' : '') + '"><label class="stp-lite-label">Car cost</label>' +
-            '      <input type="number" min="0" step="0.01" class="form-control form-control-sm arrival-custom-price" placeholder="Enter car price" value=""></div>' +
+            '    <div class="col-md-3 arrival-custom-price-wrap"><label class="stp-lite-label arrival-custom-price-label">' + (zone ? 'Cost' : 'Car cost') + '</label>' +
+            '      <input type="number" min="0" step="0.01" class="form-control form-control-sm arrival-custom-price" placeholder="' + (zone ? 'Zone / car cost' : 'Enter car price') + '" value=""></div>' +
             '    <div class="col-md-3 d-flex align-items-end gap-2 flex-wrap">' +
             '      <button type="button" class="btn btn-sm stp-lite-get-price-btn arrival-get-price-btn" disabled>' +
             '        <i class="ri-price-tag-3-line me-1"></i>Get Price</button>' +
@@ -131,20 +131,30 @@
         syncArrivalManualPrice(root);
     }
 
+    /** Cost always visible: zone unit is prefilled and editable (same as attraction transfer). */
     function syncArrivalManualPrice(root, stay) {
         var wrap = root.querySelector('.arrival-custom-price-wrap');
-        if (!wrap) return;
+        var costEl = root.querySelector('.arrival-custom-price');
+        var label = root.querySelector('.arrival-custom-price-label');
+        if (!wrap || !costEl) return;
+        wrap.classList.remove('d-none');
         var T = S();
         var zone = stay ? stayZoneOn(T, stay) : !!root.querySelector('select.arrival-pickup');
-        if (!zone) {
-            wrap.classList.remove('d-none');
-            return;
-        }
+        if (label) label.textContent = zone ? 'Cost' : 'Car cost';
+        costEl.placeholder = zone ? 'Zone / car cost' : 'Enter car price';
+        if (!zone) return;
         var vehicle = root.querySelector('.arrival-vehicle');
         var opt = vehicle && vehicle.selectedIndex >= 0 ? vehicle.options[vehicle.selectedIndex] : null;
         var svc = (root.querySelector('.arrival-service-type') || {}).value || 'private';
-        var needsManual = !!(opt && opt.value) && !(T.vehicleHasZonePrice && T.vehicleHasZonePrice(opt, svc));
-        wrap.classList.toggle('d-none', !needsManual);
+        if (opt && opt.value && T.vehicleHasZonePrice && T.vehicleHasZonePrice(opt, svc)) {
+            var unit = T.zoneUnitFromVehicleOpt
+                ? T.zoneUnitFromVehicleOpt(opt, svc)
+                : (String(svc).toLowerCase() === 'shared'
+                    ? (parseFloat(opt.dataset.adultPrice) || parseFloat(opt.dataset.sharedPrice) || 0)
+                    : (parseFloat(opt.dataset.privatePrice) || 0));
+            if (T.seedStandaloneCarCost) T.seedStandaloneCarCost(costEl, unit);
+            else if (unit > 0) costEl.value = String(unit);
+        }
     }
 
     function loadPickupDropoff(root, stay) {
@@ -299,8 +309,18 @@
         var priced;
         var svc = typeEl ? typeEl.value : 'private';
         var customEl = root.querySelector('.arrival-custom-price');
-        var useZone = stayZoneOn(T, stay) && T.vehicleHasZonePrice && T.vehicleHasZonePrice(opt, svc);
-        if (useZone) {
+        var hasZone = stayZoneOn(T, stay) && T.vehicleHasZonePrice && T.vehicleHasZonePrice(opt, svc);
+        if (hasZone) syncArrivalManualPrice(root, stay);
+        var car = parseFloat((customEl && customEl.value) || '0') || 0;
+        var zoneUnit = T.zoneUnitFromVehicleOpt
+            ? T.zoneUnitFromVehicleOpt(opt, svc)
+            : (String(svc).toLowerCase() === 'shared'
+                ? (parseFloat(opt.dataset.adultPrice) || parseFloat(opt.dataset.sharedPrice) || 0)
+                : (parseFloat(opt.dataset.privatePrice) || 0));
+        var userEdited = !!(customEl && customEl.getAttribute('data-user-edited') === '1')
+            || (car > 0 && zoneUnit > 0 && Math.abs(car - zoneUnit) >= 0.009);
+
+        if (hasZone && !userEdited) {
             priced = T.calcVehiclePrice(
                 opt,
                 svc,
@@ -309,13 +329,16 @@
                 0,
                 0
             );
+            if (!(priced && priced.total > 0) && car > 0) {
+                priced = T.calcManualCarTotal(car, svc, adultsEl ? adultsEl.value : 1, childrenEl ? childrenEl.value : 0, 0);
+                priced.source = 'manual';
+            }
             if (!(priced && priced.total > 0)) {
                 alert('No zone price for this vehicle. Enter a car cost.');
                 syncArrivalManualPrice(root, stay);
                 return;
             }
         } else {
-            var car = parseFloat((customEl && customEl.value) || '0') || 0;
             if (car <= 0) {
                 alert(stayZoneOn(T, stay)
                     ? 'This vehicle has no zone price for this route. Enter a car cost. Shared = cost × pax, Private = cost.'
@@ -330,24 +353,36 @@
                 childrenEl ? childrenEl.value : 0,
                 0
             );
-            if (stayZoneOn(T, stay)) priced.source = 'manual';
+            priced.source = 'manual';
         }
         var vehCount = readVehicleCount(root, '.arrival-vehicle-count');
         priced = applyPrivateVehicleCount(priced, vehCount);
+        var unitForDetail = car > 0 ? car : (priced.unit || zoneUnit || 0);
         var cur = root.getAttribute('data-currency') || 'SGD';
         var detailHtml = '';
-        if (String(svc).toLowerCase() === 'shared' && typeof T.vehiclePriceDetailHtml === 'function') {
+        if (typeof T.vehiclePriceDetailHtml === 'function') {
             detailHtml = T.vehiclePriceDetailHtml({
-                type: 'shared',
-                mode: priced.mode || 'shared',
+                type: priced.mode || svc,
+                mode: priced.mode || svc,
                 adults: adultsEl ? adultsEl.value : 1,
                 children: childrenEl ? childrenEl.value : 0,
-                adultUnit: priced.adultUnit,
-                childUnit: priced.childUnit,
+                adultUnit: priced.adultUnit != null ? priced.adultUnit : unitForDetail,
+                childUnit: priced.childUnit != null ? priced.childUnit : unitForDetail,
+                adult_price: priced.adultUnit != null ? priced.adultUnit : unitForDetail,
+                child_price: priced.childUnit != null ? priced.childUnit : unitForDetail,
                 shared_price: opt.dataset.sharedPrice,
-                unit: priced.unit,
+                private_price: unitForDetail,
+                car_cost: unitForDetail,
+                unit: unitForDetail,
+                base: unitForDetail,
                 total: priced.total,
-                vehicle_count: vehCount
+                vehicle_count: vehCount,
+                entrypickup: (root.querySelector('.arrival-pickup') || {}).selectedOptions
+                    ? ((root.querySelector('.arrival-pickup').selectedOptions[0] || {}).dataset || {}).label
+                    : '',
+                entrydropoff: (root.querySelector('.arrival-dropoff') || {}).selectedOptions
+                    ? ((root.querySelector('.arrival-dropoff').selectedOptions[0] || {}).dataset || {}).label
+                    : ''
             }, cur);
         } else {
             var src = priced.source === 'zone' ? 'Zone price' : (priced.source === 'manual' ? 'Manual price' : (priced.source === 'base' ? 'Base price' : ''));
@@ -524,7 +559,11 @@
         if (pt) pt.value = row.entrypickup || '';
         if (dt) dt.value = row.entrydropoff || '';
         var customEl = root.querySelector('.arrival-custom-price');
-        if (customEl && row.car_cost != null && String(row.car_cost) !== '') customEl.value = String(row.car_cost);
+        if (customEl && row.car_cost != null && String(row.car_cost) !== '') {
+            customEl.value = String(row.car_cost);
+            customEl.setAttribute('data-user-edited', '1');
+            customEl.setAttribute('data-seeded-unit', String(row.car_cost));
+        }
         root.__preferredVehicleId = row.vehicles_id || '';
         root.__preferredVehicleName = row.vehicles_name || '';
         root.__lastPrice = { total: row.totalPrice || 0, mode: row.price_detail || row.type || '' };
@@ -617,11 +656,19 @@
             el.addEventListener('change', function () {
                 if (root.__hydrating) return;
                 if (el.classList.contains('arrival-vehicle') || el.classList.contains('arrival-service-type')) {
+                    var costEl = root.querySelector('.arrival-custom-price');
+                    if (costEl && T.clearStandaloneCarCostSeed) T.clearStandaloneCarCostSeed(costEl);
                     syncArrivalManualPrice(root, stay);
                 }
                 invalidate(root);
             });
-            el.addEventListener('input', function () { if (!root.__hydrating) invalidate(root); });
+            el.addEventListener('input', function () {
+                if (root.__hydrating) return;
+                if (el.classList.contains('arrival-custom-price') && T.markStandaloneCarCostEdited) {
+                    T.markStandaloneCarCostEdited(el);
+                }
+                invalidate(root);
+            });
         });
         root.addEventListener('stp:time-changed', function () { if (!root.__hydrating) invalidate(root); });
 
