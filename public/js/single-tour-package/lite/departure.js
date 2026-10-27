@@ -66,8 +66,8 @@
             '      <input type="number" min="1" class="form-control form-control-sm stp-lite-int departure-adults" data-guest-cap="adults" value="1"></div>' +
             '    <div class="col-md-2" data-guest-child-ui><label class="stp-lite-label">Children</label>' +
             '      <input type="number" min="0" class="form-control form-control-sm stp-lite-int departure-children" data-guest-cap="children" value="0"></div>' +
-            '    <div class="col-md-3 departure-custom-price-wrap"><label class="stp-lite-label departure-custom-price-label">' + (zone ? 'Cost' : 'Car cost') + '</label>' +
-            '      <input type="number" min="0" step="0.01" class="form-control form-control-sm departure-custom-price" placeholder="' + (zone ? 'Zone / car cost' : 'Enter car price') + '" value=""></div>' +
+            '    <div class="col-md-3 departure-custom-price-wrap"><label class="stp-lite-label departure-custom-price-label">' + (zone ? 'Price' : 'Car price') + '</label>' +
+            '      <input type="number" min="0" step="0.01" class="form-control form-control-sm departure-custom-price" placeholder="' + (zone ? 'Zone / car price' : 'Enter car price') + '" value=""></div>' +
             '    <div class="col-md-3 d-flex align-items-end gap-2 flex-wrap">' +
             '      <button type="button" class="btn btn-sm stp-lite-get-price-btn departure-get-price-btn" disabled>' +
             '        <i class="ri-price-tag-3-line me-1"></i>Get Price</button>' +
@@ -128,6 +128,12 @@
         }
         var getBtn = root.querySelector('.departure-get-price-btn');
         if (getBtn) getBtn.disabled = true;
+        var T = S();
+        var costEl = root.querySelector('.departure-custom-price');
+        if (costEl) {
+            if (T.clearStandaloneCarCostSeed) T.clearStandaloneCarCostSeed(costEl);
+            costEl.value = '';
+        }
         invalidate(root);
         syncDepartureManualPrice(root);
     }
@@ -141,8 +147,8 @@
         wrap.classList.remove('d-none');
         var T = S();
         var zone = stay ? stayZoneOn(T, stay) : !!root.querySelector('select.departure-dropoff');
-        if (label) label.textContent = zone ? 'Cost' : 'Car cost';
-        costEl.placeholder = zone ? 'Zone / car cost' : 'Enter car price';
+        if (label) label.textContent = zone ? 'Price' : 'Car price';
+        costEl.placeholder = zone ? 'Zone / car price' : 'Enter car price';
         if (!zone) return;
         var vehicle = root.querySelector('.departure-vehicle');
         var opt = vehicle && vehicle.selectedIndex >= 0 ? vehicle.options[vehicle.selectedIndex] : null;
@@ -375,15 +381,15 @@
                 priced.source = 'manual';
             }
             if (!(priced && priced.total > 0)) {
-                alert('No zone price for this vehicle. Enter a car cost.');
+                alert('No zone price for this vehicle. Enter a car price.');
                 syncDepartureManualPrice(root, stay);
                 return;
             }
         } else {
             if (car <= 0) {
                 alert(stayZoneOn(T, stay)
-                    ? 'This vehicle has no zone price for this route. Enter a car cost. Shared = cost × pax, Private = cost.'
-                    : 'Enter car cost (zone is off). Shared = cost × pax, Private = cost.');
+                    ? 'This vehicle has no zone price for this route. Enter a car price. Shared = price × pax, Private = price.'
+                    : 'Enter car price (zone is off). Shared = price × pax, Private = price.');
                 syncDepartureManualPrice(root, stay);
                 return;
             }
@@ -706,7 +712,10 @@
                 if (root.__hydrating) return;
                 if (el.classList.contains('departure-vehicle') || el.classList.contains('departure-service-type')) {
                     var costEl = root.querySelector('.departure-custom-price');
-                    if (costEl && T.clearStandaloneCarCostSeed) T.clearStandaloneCarCostSeed(costEl);
+                    if (costEl) {
+                        if (T.clearStandaloneCarCostSeed) T.clearStandaloneCarCostSeed(costEl);
+                        costEl.value = '';
+                    }
                     syncDepartureManualPrice(root, stay);
                 }
                 invalidate(root);
