@@ -122,13 +122,13 @@
                             <textarea class="form-control form-control-sm" id="onlineHotelRemarks" rows="2" placeholder="Optional notes for this online hotel booking..."></textarea>
                         </div>
 
-                        <div class="mb-2">
+                        <!-- <div class="mb-2">
                             <label class="form-label fw-semibold mb-2" style="font-size: 0.85rem;"><i class="ri-calendar-check-line me-1"></i>Select Hotel Nights</label>
                             <div id="onlineNightSelection" class="d-flex flex-wrap gap-2 mb-2"></div>
                             <div id="onlineNightSelectionSummary">
                                 <small class="text-muted">No nights selected.</small>
                             </div>
-                        </div>
+                        </div> -->
                     </div>
                 </div>
             </div>
@@ -960,16 +960,38 @@
         return { start: '', nights: 0 };
     }
 
+    /** Build [1..n] from stay check-in/out when night buttons UI is hidden. */
+    function nightsRangeFromPlan(nightPlanOverride) {
+        const plan = nightPlanOverride || getOnlineNightPlanContext();
+        const planNights = parseInt(plan.nights, 10) || 0;
+        const nights = [];
+        for (let i = 1; i <= planNights; i++) {
+            nights.push(i);
+        }
+        return { plan: plan, nights: nights };
+    }
+
     function generateOnlineNightButtons(autoSelectAll, nightPlanOverride) {
         const wrap = document.getElementById('onlineNightSelection');
         const summaryEl = document.getElementById('onlineNightSelectionSummary');
-        if (!wrap) return;
-        wrap.innerHTML = '';
-        onlineSelectedNights = [];
-
-        const plan = nightPlanOverride || getOnlineNightPlanContext();
+        const ranged = nightsRangeFromPlan(nightPlanOverride);
+        const plan = ranged.plan;
         const planNights = plan.nights;
         const planStart = plan.start;
+
+        onlineSelectedNights = [];
+
+        // Night picker UI may be commented out — still select all stay nights so Add works.
+        if (!wrap) {
+            if (autoSelectAll !== false && ranged.nights.length && planStart) {
+                onlineSelectedNights = ranged.nights.slice();
+            }
+            updateOnlineNightSummary();
+            validateOnlineAddBtn();
+            return;
+        }
+
+        wrap.innerHTML = '';
         if (!planNights || !planStart) {
             if (summaryEl) {
                 summaryEl.innerHTML = '<small class="text-muted">Set travel dates first.</small>';
@@ -993,20 +1015,27 @@
         }
 
         if (autoSelectAll) {
-            selectAllOnlineNights();
+            selectAllOnlineNights(nightPlanOverride);
         } else {
             updateOnlineNightSummary();
             validateOnlineAddBtn();
         }
     }
 
-    function selectAllOnlineNights() {
+    function selectAllOnlineNights(nightPlanOverride) {
+        const buttons = document.querySelectorAll('.online-night-btn');
         onlineSelectedNights = [];
-        document.querySelectorAll('.online-night-btn').forEach(function (btn) {
-            onlineSelectedNights.push(parseInt(btn.dataset.night, 10));
-        });
+
+        if (buttons.length) {
+            buttons.forEach(function (btn) {
+                onlineSelectedNights.push(parseInt(btn.dataset.night, 10));
+            });
+        } else {
+            onlineSelectedNights = nightsRangeFromPlan(nightPlanOverride).nights.slice();
+        }
+
         onlineSelectedNights.sort(function (a, b) { return a - b; });
-        document.querySelectorAll('.online-night-btn').forEach(function (btn) {
+        buttons.forEach(function (btn) {
             const n = parseInt(btn.dataset.night, 10);
             btn.classList.toggle('active', onlineSelectedNights.includes(n));
             btn.classList.toggle('btn-primary', onlineSelectedNights.includes(n));
@@ -1141,13 +1170,63 @@
         return Number.isFinite(n) ? n : 0;
     }
 
+    /**
+     * Normalize supplier meal text into "Room with …" display / storage labels.
+     * More-specific combinations are matched before single meals.
+     */
+    function formatRoomMealText(rawMeal) {
+        const meal = String(rawMeal || '').trim();
+        const upper = meal.toUpperCase();
+        if (!upper) return '';
+
+        if (upper === 'EP' || upper === 'RO' || upper.includes('ROOM ONLY') || upper === 'STANDARD') {
+            return 'Room only';
+        }
+
+        const hasBreakfast = upper.includes('BREAKFAST') || upper === 'CP' || upper === 'BB' || upper === 'BDBF';
+        const hasLunch = upper.includes('LUNCH');
+        const hasDinner = upper.includes('DINNER') || upper.includes('SUPPER');
+        const isHalfBoard = upper === 'MAP' || upper === 'HB' || upper.includes('HALF BOARD');
+        const isFullBoard = upper === 'AP' || upper === 'FB' || upper === 'AI'
+            || upper.includes('FULL BOARD') || upper.includes('ALL INCLUSIVE') || upper.includes('ALL MEALS');
+
+        if (isFullBoard || (hasBreakfast && hasLunch && hasDinner)) {
+            return 'Room with breakfast, lunch and dinner';
+        }
+        if (isHalfBoard || (hasBreakfast && hasDinner && !hasLunch)) {
+            return 'Room with breakfast and dinner';
+        }
+        if (hasBreakfast && hasLunch && !hasDinner) {
+            return 'Room with breakfast and lunch';
+        }
+        if (hasLunch && hasDinner && !hasBreakfast) {
+            return 'Room with lunch and dinner';
+        }
+        if (hasBreakfast) return 'Room with breakfast';
+        if (hasLunch) return 'Room with lunch';
+        if (hasDinner) return 'Room with dinner';
+
+        // Unknown supplier text — still prefix as a room meal plan when possible.
+        if (meal.toLowerCase().startsWith('room ')) return meal.charAt(0).toUpperCase() + meal.slice(1);
+        return 'Room with ' + meal.charAt(0).toLowerCase() + meal.slice(1);
+    }
+
     function roomMealLabel(room) {
-        const mealPlanName = String(room?.mealPlanName || room?.meal_plan || '').toUpperCase();
-        if (mealPlanName === 'EP' || mealPlanName === 'RO' || mealPlanName.includes('ROOM ONLY')) return 'room only';
-        if (mealPlanName === 'CP' || mealPlanName === 'BB' || mealPlanName.includes('BREAKFAST')) return 'room with breakfast';
-        if (mealPlanName === 'MAP' || mealPlanName === 'HB' || mealPlanName.includes('HALF BOARD')) return 'room with breakfast + dinner';
-        if (mealPlanName === 'AP' || mealPlanName === 'FB' || mealPlanName === 'AI' || mealPlanName.includes('FULL BOARD') || mealPlanName.includes('ALL INCLUSIVE')) return 'room with all meals (breakfast + lunch + dinner)';
-        if (room?.breakFast === true || room?.breakfast_included === true) return 'room with breakfast';
+        const raw = String(
+            room?.mealPlanName
+            || room?.meal_plan_name
+            || room?.meal_plan
+            || room?.board_code
+            || room?.booking?.room?.meal_plan_name
+            || ''
+        ).trim();
+
+        if (raw) {
+            return formatRoomMealText(raw).toLowerCase();
+        }
+        if (room?.breakFast === true || room?.breakfast_included === true) {
+            return 'room with breakfast';
+        }
         return '';
     }
 
@@ -1164,19 +1243,13 @@
         ).trim() || roomGroupKey(room);
     }
 
-    /** Supplier-facing meal label for the dropdown (dynamic per hotel). */
+    /** Dropdown label: "Room with breakfast", "Room with breakfast and lunch", etc. */
     function roomMealOptionLabel(room) {
-        const raw = String(
-            room?.mealPlanName
-            || room?.meal_plan_name
-            || room?.meal_plan
-            || room?.board_code
-            || room?.booking?.room?.meal_plan_name
-            || ''
-        ).trim();
-        if (raw) return raw;
         const mapped = roomMealLabel(room);
-        return mapped || 'Standard';
+        if (mapped) {
+            return mapped.charAt(0).toUpperCase() + mapped.slice(1);
+        }
+        return 'Room only';
     }
 
     function roomsForGroupKey(groupKey) {
@@ -2396,8 +2469,12 @@
             alert('Please add travel dates first before adding hotels.');
             return;
         }
+        // Night buttons UI may be hidden — fill from check-in/out automatically.
         if (!onlineSelectedNights.length) {
-            alert('Please select at least one hotel night.');
+            selectAllOnlineNights(nightPlan);
+        }
+        if (!onlineSelectedNights.length) {
+            alert('Please set hotel check-in and check-out dates before adding.');
             return;
         }
 

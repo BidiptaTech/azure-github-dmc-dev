@@ -66,8 +66,8 @@
             '      <input type="number" min="1" class="form-control form-control-sm stp-lite-int departure-adults" data-guest-cap="adults" value="1"></div>' +
             '    <div class="col-md-2" data-guest-child-ui><label class="stp-lite-label">Children</label>' +
             '      <input type="number" min="0" class="form-control form-control-sm stp-lite-int departure-children" data-guest-cap="children" value="0"></div>' +
-            '    <div class="col-md-3 departure-custom-price-wrap' + (zone ? ' d-none' : '') + '"><label class="stp-lite-label">Car cost</label>' +
-            '      <input type="number" min="0" step="0.01" class="form-control form-control-sm departure-custom-price" placeholder="Enter car price" value=""></div>' +
+            '    <div class="col-md-3 departure-custom-price-wrap"><label class="stp-lite-label departure-custom-price-label">' + (zone ? 'Cost' : 'Car cost') + '</label>' +
+            '      <input type="number" min="0" step="0.01" class="form-control form-control-sm departure-custom-price" placeholder="' + (zone ? 'Zone / car cost' : 'Enter car price') + '" value=""></div>' +
             '    <div class="col-md-3 d-flex align-items-end gap-2 flex-wrap">' +
             '      <button type="button" class="btn btn-sm stp-lite-get-price-btn departure-get-price-btn" disabled>' +
             '        <i class="ri-price-tag-3-line me-1"></i>Get Price</button>' +
@@ -132,20 +132,30 @@
         syncDepartureManualPrice(root);
     }
 
+    /** Cost always visible: zone unit is prefilled and editable (same as attraction transfer). */
     function syncDepartureManualPrice(root, stay) {
         var wrap = root.querySelector('.departure-custom-price-wrap');
-        if (!wrap) return;
+        var costEl = root.querySelector('.departure-custom-price');
+        var label = root.querySelector('.departure-custom-price-label');
+        if (!wrap || !costEl) return;
+        wrap.classList.remove('d-none');
         var T = S();
         var zone = stay ? stayZoneOn(T, stay) : !!root.querySelector('select.departure-dropoff');
-        if (!zone) {
-            wrap.classList.remove('d-none');
-            return;
-        }
+        if (label) label.textContent = zone ? 'Cost' : 'Car cost';
+        costEl.placeholder = zone ? 'Zone / car cost' : 'Enter car price';
+        if (!zone) return;
         var vehicle = root.querySelector('.departure-vehicle');
         var opt = vehicle && vehicle.selectedIndex >= 0 ? vehicle.options[vehicle.selectedIndex] : null;
         var svc = (root.querySelector('.departure-service-type') || {}).value || 'private';
-        var needsManual = !!(opt && opt.value) && !(T.vehicleHasZonePrice && T.vehicleHasZonePrice(opt, svc));
-        wrap.classList.toggle('d-none', !needsManual);
+        if (opt && opt.value && T.vehicleHasZonePrice && T.vehicleHasZonePrice(opt, svc)) {
+            var unit = T.zoneUnitFromVehicleOpt
+                ? T.zoneUnitFromVehicleOpt(opt, svc)
+                : (String(svc).toLowerCase() === 'shared'
+                    ? (parseFloat(opt.dataset.adultPrice) || parseFloat(opt.dataset.sharedPrice) || 0)
+                    : (parseFloat(opt.dataset.privatePrice) || 0));
+            if (T.seedStandaloneCarCost) T.seedStandaloneCarCost(costEl, unit);
+            else if (unit > 0) costEl.value = String(unit);
+        }
     }
 
     function loadPickupDropoff(root, stay) {
@@ -223,7 +233,7 @@
         var getBtn = root.querySelector('.departure-get-price-btn');
         var keepId = preferredVehicleId != null ? preferredVehicleId : root.__preferredVehicleId;
         var keepName = root.__preferredVehicleName || '';
-        invalidate(root);
+        if (!root.__hydrating) invalidate(root);
         if (btn) btn.disabled = true;
         if (vehicle) {
             vehicle.innerHTML = '<option value="">Searching…</option>';
@@ -275,6 +285,7 @@
             if (keepId) T.selectVehicleValue(vehicle, keepId, keepName);
             if (getBtn) getBtn.disabled = !(list.length || keepId);
             syncDepartureManualPrice(root, stay);
+            if (root.__hydrateSnapshot) restoreDepartureHydratePrice(root);
         }).catch(function () {
             if (vehicle) {
                 vehicle.innerHTML = '<option value="">Error loading vehicles</option>';
@@ -283,6 +294,45 @@
         }).finally(function () {
             if (btn) btn.disabled = false;
         });
+    }
+
+    function applyDepartureSavedCost(root, row) {
+        var customEl = root.querySelector('.departure-custom-price');
+        if (!customEl || !row) return;
+        var unit = null;
+        if (row.car_cost != null && String(row.car_cost) !== '') {
+            unit = Number(row.car_cost) || 0;
+        } else if (String(row.type || '').toLowerCase() === 'shared') {
+            unit = Number(row.adult_price || row.shared_price || 0) || 0;
+        } else {
+            unit = Number(row.private_price || 0) || 0;
+            if (!(unit > 0) && Number(row.totalPrice || 0) > 0) {
+                var vc = Math.max(1, parseInt(row.vehicle_count || row.booked_vehicles || 1, 10) || 1);
+                unit = Number(row.totalPrice) / vc;
+            }
+        }
+        if (!(unit > 0)) return;
+        customEl.value = String(unit);
+        customEl.setAttribute('data-user-edited', '1');
+        customEl.setAttribute('data-seeded-unit', String(unit));
+        customEl.setAttribute('data-ajax-base-price', String(unit));
+    }
+
+    function restoreDepartureHydratePrice(root) {
+        var snap = root.__hydrateSnapshot;
+        if (!snap) return;
+        root.__lastPrice = Object.assign({}, snap.priced);
+        var cur = root.getAttribute('data-currency') || 'SGD';
+        var panel = root.querySelector('[data-departure-price-panel]');
+        var totalEl = root.querySelector('.departure-price-total');
+        if (panel) panel.classList.remove('d-none');
+        if (totalEl) totalEl.textContent = cur + ' ' + Number(snap.priced.total || 0).toFixed(2);
+        var detail = root.querySelector('.departure-price-detail');
+        if (detail && snap.detailHtml) detail.innerHTML = snap.detailHtml;
+        var add = root.querySelector('.departure-add-btn');
+        if (add) add.disabled = false;
+        applyDepartureSavedCost(root, snap.row);
+        syncDepartureManualPrice(root, snap.stay);
     }
 
     function getPrice(root, stay) {
@@ -300,8 +350,18 @@
         var priced;
         var svc = typeEl ? typeEl.value : 'private';
         var customEl = root.querySelector('.departure-custom-price');
-        var useZone = stayZoneOn(T, stay) && T.vehicleHasZonePrice && T.vehicleHasZonePrice(opt, svc);
-        if (useZone) {
+        var hasZone = stayZoneOn(T, stay) && T.vehicleHasZonePrice && T.vehicleHasZonePrice(opt, svc);
+        if (hasZone) syncDepartureManualPrice(root, stay);
+        var car = parseFloat((customEl && customEl.value) || '0') || 0;
+        var zoneUnit = T.zoneUnitFromVehicleOpt
+            ? T.zoneUnitFromVehicleOpt(opt, svc)
+            : (String(svc).toLowerCase() === 'shared'
+                ? (parseFloat(opt.dataset.adultPrice) || parseFloat(opt.dataset.sharedPrice) || 0)
+                : (parseFloat(opt.dataset.privatePrice) || 0));
+        var userEdited = !!(customEl && customEl.getAttribute('data-user-edited') === '1')
+            || (car > 0 && zoneUnit > 0 && Math.abs(car - zoneUnit) >= 0.009);
+
+        if (hasZone && !userEdited) {
             priced = T.calcVehiclePrice(
                 opt,
                 svc,
@@ -310,13 +370,16 @@
                 0,
                 0
             );
+            if (!(priced && priced.total > 0) && car > 0) {
+                priced = T.calcManualCarTotal(car, svc, adultsEl ? adultsEl.value : 1, childrenEl ? childrenEl.value : 0, 0);
+                priced.source = 'manual';
+            }
             if (!(priced && priced.total > 0)) {
                 alert('No zone price for this vehicle. Enter a car cost.');
                 syncDepartureManualPrice(root, stay);
                 return;
             }
         } else {
-            var car = parseFloat((customEl && customEl.value) || '0') || 0;
             if (car <= 0) {
                 alert(stayZoneOn(T, stay)
                     ? 'This vehicle has no zone price for this route. Enter a car cost. Shared = cost × pax, Private = cost.'
@@ -331,24 +394,36 @@
                 childrenEl ? childrenEl.value : 0,
                 0
             );
-            if (stayZoneOn(T, stay)) priced.source = 'manual';
+            priced.source = 'manual';
         }
         var vehCount = readVehicleCount(root, '.departure-vehicle-count');
         priced = applyPrivateVehicleCount(priced, vehCount);
+        var unitForDetail = car > 0 ? car : (priced.unit || zoneUnit || 0);
         var cur = root.getAttribute('data-currency') || 'SGD';
         var detailHtml = '';
-        if (String(svc).toLowerCase() === 'shared' && typeof T.vehiclePriceDetailHtml === 'function') {
+        if (typeof T.vehiclePriceDetailHtml === 'function') {
             detailHtml = T.vehiclePriceDetailHtml({
-                type: 'shared',
-                mode: priced.mode || 'shared',
+                type: priced.mode || svc,
+                mode: priced.mode || svc,
                 adults: adultsEl ? adultsEl.value : 1,
                 children: childrenEl ? childrenEl.value : 0,
-                adultUnit: priced.adultUnit,
-                childUnit: priced.childUnit,
+                adultUnit: priced.adultUnit != null ? priced.adultUnit : unitForDetail,
+                childUnit: priced.childUnit != null ? priced.childUnit : unitForDetail,
+                adult_price: priced.adultUnit != null ? priced.adultUnit : unitForDetail,
+                child_price: priced.childUnit != null ? priced.childUnit : unitForDetail,
                 shared_price: opt.dataset.sharedPrice,
-                unit: priced.unit,
+                private_price: unitForDetail,
+                car_cost: unitForDetail,
+                unit: unitForDetail,
+                base: unitForDetail,
                 total: priced.total,
-                vehicle_count: vehCount
+                vehicle_count: vehCount,
+                exitpickup: (root.querySelector('.departure-pickup') || {}).selectedOptions
+                    ? ((root.querySelector('.departure-pickup').selectedOptions[0] || {}).dataset || {}).label
+                    : '',
+                exitdropoff: (root.querySelector('.departure-dropoff') || {}).selectedOptions
+                    ? ((root.querySelector('.departure-dropoff').selectedOptions[0] || {}).dataset || {}).label
+                    : ''
             }, cur);
         } else {
             var src = priced.source === 'zone' ? 'Zone price' : (priced.source === 'manual' ? 'Manual price' : (priced.source === 'base' ? 'Base price' : ''));
@@ -485,6 +560,7 @@
 
     function hydrate(root, stay, row) {
         if (!row) return;
+        var T = S();
         root.__hydrating = true;
         var flight = root.querySelector('.departure-flight-no');
         var dateEl = root.querySelector('.departure-date');
@@ -498,29 +574,55 @@
         if (childrenEl) childrenEl.value = String(row.children || 0);
         if (typeEl) typeEl.value = row.type || 'private';
         if (countEl) countEl.value = String(row.vehicle_count || row.booked_vehicles || 1);
-        S().setAmPmValue(root, 'departure', row.exittime || '');
-        var pickup = root.querySelector('.departure-pickup');
-        var dropoff = root.querySelector('.departure-dropoff');
-        if (pickup && row.exitpickup_zone_id) pickup.value = String(row.exitpickup_zone_id);
-        if (dropoff && row.exitdropoff_zone_id) dropoff.value = String(row.exitdropoff_zone_id);
+        T.setAmPmValue(root, 'departure', row.exittime || '');
         var pt = root.querySelector('.departure-pickup-text');
         var dt = root.querySelector('.departure-dropoff-text');
         if (pt) pt.value = row.exitpickup || '';
         if (dt) dt.value = row.exitdropoff || '';
-        var customEl = root.querySelector('.departure-custom-price');
-        if (customEl && row.car_cost != null && String(row.car_cost) !== '') customEl.value = String(row.car_cost);
+        applyDepartureSavedCost(root, row);
         root.__preferredVehicleId = row.vehicles_id || '';
         root.__preferredVehicleName = row.vehicles_name || '';
-        root.__lastPrice = { total: row.totalPrice || 0, mode: row.price_detail || row.type || '' };
+        var priced = {
+            total: Number(row.totalPrice || 0),
+            mode: row.price_detail || row.type || '',
+            source: row.price_source || '',
+            unit: Number(row.car_cost || row.private_price || row.adult_price || 0) || 0
+        };
+        root.__lastPrice = priced;
+        root.__hydrateSnapshot = { priced: priced, row: row, stay: stay, detailHtml: '' };
         var cur = root.getAttribute('data-currency') || 'SGD';
+        if (typeof T.vehiclePriceDetailHtml === 'function') {
+            root.__hydrateSnapshot.detailHtml = T.vehiclePriceDetailHtml(row, cur);
+            var detailEl = root.querySelector('.departure-price-detail');
+            if (detailEl) detailEl.innerHTML = root.__hydrateSnapshot.detailHtml;
+        }
         var panel = root.querySelector('[data-departure-price-panel]');
         var totalEl = root.querySelector('.departure-price-total');
         if (panel) panel.classList.remove('d-none');
         if (totalEl) totalEl.textContent = cur + ' ' + Number(row.totalPrice || 0).toFixed(2);
         var add = root.querySelector('.departure-add-btn');
         if (add) add.disabled = false;
-        searchVehicles(root, stay, row.vehicles_id);
-        root.__hydrating = false;
+        setAddMode(root, true);
+
+        function applyRouteAndSearch() {
+            var pickup = root.querySelector('.departure-pickup');
+            var dropoff = root.querySelector('.departure-dropoff');
+            if (pickup && row.exitpickup_zone_id) pickup.value = String(row.exitpickup_zone_id);
+            if (dropoff && row.exitdropoff_zone_id) dropoff.value = String(row.exitdropoff_zone_id);
+            return Promise.resolve(searchVehicles(root, stay, row.vehicles_id));
+        }
+
+        var locsReady = Promise.resolve();
+        if (stayZoneOn(T, stay)) {
+            var pickupSel = root.querySelector('.departure-pickup');
+            if (pickupSel && pickupSel.options.length <= 1) {
+                locsReady = Promise.resolve(loadPickupDropoff(root, stay));
+            }
+        }
+        locsReady.then(applyRouteAndSearch).finally(function () {
+            restoreDepartureHydratePrice(root);
+            root.__hydrating = false;
+        });
     }
 
     function addRow(root, stay) {
@@ -557,6 +659,9 @@
         T.clearSelectOrInput(root.querySelector('.departure-dropoff-text'), '');
         T.clearSelectOrInput(root.querySelector('.departure-flight-no'), '');
         T.clearSelectOrInput(root.querySelector('.departure-custom-price'), '');
+        var costClear = root.querySelector('.departure-custom-price');
+        if (costClear && T.clearStandaloneCarCostSeed) T.clearStandaloneCarCostSeed(costClear);
+        root.__hydrateSnapshot = null;
         T.clearSelectOrInput(root.querySelector('.departure-vehicle-count'), '1');
         T.setAmPmValue(root, 'departure', '');
         var getBtn = root.querySelector('.departure-get-price-btn');
@@ -600,11 +705,19 @@
             el.addEventListener('change', function () {
                 if (root.__hydrating) return;
                 if (el.classList.contains('departure-vehicle') || el.classList.contains('departure-service-type')) {
+                    var costEl = root.querySelector('.departure-custom-price');
+                    if (costEl && T.clearStandaloneCarCostSeed) T.clearStandaloneCarCostSeed(costEl);
                     syncDepartureManualPrice(root, stay);
                 }
                 invalidate(root);
             });
-            el.addEventListener('input', function () { if (!root.__hydrating) invalidate(root); });
+            el.addEventListener('input', function () {
+                if (root.__hydrating) return;
+                if (el.classList.contains('departure-custom-price') && T.markStandaloneCarCostEdited) {
+                    T.markStandaloneCarCostEdited(el);
+                }
+                invalidate(root);
+            });
         });
         root.addEventListener('stp:time-changed', function () { if (!root.__hydrating) invalidate(root); });
 
