@@ -680,10 +680,18 @@
         var tourAdults = Math.max(1, classified.adults || 1);
         var tourChildren = Math.max(0, classified.children || 0);
         var tourInfants = Math.max(0, classified.infants || 0);
-        var bedAdultCap = info.bedMaxAdults > 0 ? info.bedMaxAdults : maxRoom;
         var bedChildCap = info.bedMaxChildren >= 0 ? info.bedMaxChildren : 0;
         var extraBedSlots = info.extraBedAvailable ? 1 : 0;
-        var maxAdults = Math.min(tourAdults, bedAdultCap, maxRoom);
+        // Mattress adult cap (DB adult_count), not counting the extra-bed person
+        var adultBaseCap = info.bedMaxAdults > 0
+            ? Math.min(info.bedMaxAdults, info.maxOccupancy || maxRoom)
+            : (info.maxOccupancy || maxRoom);
+        // Extra bed may be used by a child with bed OR by an overflow adult (e.g. 2A mattress + 1 adult on extra)
+        var maxAdults = Math.min(
+            tourAdults,
+            adultBaseCap + (info.extraBedAvailable ? extraBedSlots : 0),
+            maxRoom
+        );
         // No-bed children use bed child slots (e.g. 1C). With-bed uses extra bed only.
         var maxChildrenNoBed = Math.min(tourChildren, Math.max(0, bedChildCap));
         var maxChildrenWithBed = Math.min(tourChildren, extraBedSlots);
@@ -699,6 +707,7 @@
         if (tourAdults > maxAdults) {
             capacityNotes.push('Tour needs ' + tourAdults + ' adult' + (tourAdults > 1 ? 's' : '') +
                 ' but this bed allows ' + maxAdults + 'A' +
+                (info.extraBedAvailable ? ' (incl. extra bed)' : '') +
                 (bedChildCap >= 0 ? ('+' + bedChildCap + 'C') : ''));
         }
         if (tourChildren > maxChildren) {
@@ -713,7 +722,7 @@
             maxChildrenNoBed: Math.max(0, maxChildrenNoBed),
             maxChildrenWithBed: Math.max(0, maxChildrenWithBed),
             maxInfants: maxInfants,
-            bedMaxAdults: bedAdultCap,
+            bedMaxAdults: adultBaseCap,
             bedMaxChildren: bedChildCap,
             extraBedSlots: extraBedSlots,
             tourAdults: tourAdults,
@@ -828,14 +837,23 @@
                 cNo = Math.max(0, cNo - overflow);
             }
         }
-        // Base occupancy: adults + no-bed children; with-bed uses extra bed slot
+        // Base mattress: adults + no-bed children. Extra bed = 1 overflow adult OR 1 child with bed.
         var baseOcc = lim.maxOccupancy || lim.maxRoom;
-        if (a + cNo > baseOcc) {
-            cNo = Math.max(0, baseOcc - a);
-            if (a + cNo > baseOcc) a = Math.max(1, baseOcc - cNo);
+        var maxRoom = lim.maxRoom || baseOcc;
+        a = Math.min(a, lim.maxAdults, maxRoom);
+        // Adults on the mattress (cannot exceed base without taking the extra-bed slot)
+        var adultsOnMattress = Math.min(a, baseOcc);
+        if (adultsOnMattress + cNo > baseOcc) {
+            cNo = Math.max(0, baseOcc - adultsOnMattress);
         }
-        if (a + cNo + cWith > lim.maxRoom) {
-            cWith = Math.max(0, lim.maxRoom - a - cNo);
+        // Adult overflow onto extra bed displaces child-with-bed
+        if (a > baseOcc) {
+            if (!lim.extraBedAvailable) a = baseOcc;
+            else a = Math.min(a, maxRoom);
+            cWith = 0;
+        }
+        if (a + cNo + cWith > maxRoom) {
+            cWith = Math.max(0, maxRoom - a - cNo);
         }
         i = Math.min(i, lim.maxInfants);
         return { adults: a, childrenNoBed: cNo, childrenWithBed: cWith, children: cNo + cWith, infants: i, lim: lim };
@@ -933,10 +951,10 @@
         if (adultHint) {
             adultHint.textContent = 'Max ' + lim.maxAdults +
                 (lim.bedMaxAdults > 0
-                    ? (' · bed ' + lim.bedMaxAdults + 'A' +
+                    ? (' · mattress ' + lim.bedMaxAdults + 'A' +
                         (lim.bedMaxChildren >= 0 ? ('+' + lim.bedMaxChildren + 'C') : ''))
                     : '') +
-                (lim.extraBedAvailable ? ' · +extra bed' : '');
+                (lim.extraBedAvailable ? ' · extra bed for +1 adult or child' : '');
         }
         if (noBedHint) {
             noBedHint.textContent = lim.maxChildrenNoBed > 0
@@ -972,17 +990,25 @@
         var minusI = root.querySelector('.hotel-infant-minus');
         var plusI = root.querySelector('.hotel-infant-plus');
         if (minusA) minusA.disabled = adults <= 1;
-        if (plusA) plusA.disabled = adults >= lim.maxAdults || (adults + childrenNoBed) >= lim.maxOccupancy;
+        // Adults may use the extra-bed slot (same as child-with-bed); cap by maxRoom not base only
+        if (plusA) {
+            plusA.disabled = adults >= lim.maxAdults
+                || (adults + childrenNoBed + childrenWithBed) >= lim.maxRoom;
+        }
         if (minusNo) minusNo.disabled = childrenNoBed <= 0;
         if (plusNo) {
+            var adultsOnBase = Math.min(adults, lim.maxOccupancy || lim.maxRoom);
             plusNo.disabled = lim.maxChildrenNoBed < 1 ||
                 childrenNoBed >= lim.maxChildrenNoBed ||
                 (childrenNoBed + childrenWithBed) >= lim.tourChildren ||
-                (adults + childrenNoBed) >= lim.maxOccupancy;
+                (adultsOnBase + childrenNoBed) >= lim.maxOccupancy;
         }
         if (minusWith) minusWith.disabled = childrenWithBed <= 0;
         if (plusWith) {
+            // Extra bed already taken by an overflow adult
+            var adultOnExtra = adults > (lim.maxOccupancy || lim.maxRoom);
             plusWith.disabled = lim.maxChildrenWithBed < 1 ||
+                adultOnExtra ||
                 childrenWithBed >= lim.maxChildrenWithBed ||
                 (childrenNoBed + childrenWithBed) >= lim.tourChildren ||
                 (adults + childrenNoBed + childrenWithBed) >= lim.maxRoom;
@@ -1011,17 +1037,21 @@
                 if (role === 'adults' && adults > lim.maxAdults) {
                     alert('This bed allows max ' + lim.maxAdults + ' adult' +
                         (lim.maxAdults === 1 ? '' : 's') +
+                        (lim.extraBedAvailable ? ' (mattress + extra bed)' : '') +
                         (lim.bedMaxAdults > 0
-                            ? ' (' + lim.bedMaxAdults + 'A' +
-                                (lim.bedMaxChildren >= 0 ? ('+' + lim.bedMaxChildren + 'C') : '') + ').'
-                            : '.'));
+                            ? ' · mattress ' + lim.bedMaxAdults + 'A' +
+                                (lim.bedMaxChildren >= 0 ? ('+' + lim.bedMaxChildren + 'C') : '')
+                            : '') + '.');
                 } else if ((role === 'children-no-bed' || role === 'children') && childrenNoBed > lim.maxChildrenNoBed) {
                     alert('This bed allows max ' + lim.maxChildrenNoBed + ' child' +
                         (lim.maxChildrenNoBed === 1 ? '' : 'ren') + ' without bed.');
-                } else if (role === 'children-with-bed' && childrenWithBed > lim.maxChildrenWithBed) {
-                    alert(lim.maxChildrenWithBed < 1
-                        ? 'This bed type has no extra bed for children with bed.'
-                        : ('Extra bed allows max ' + lim.maxChildrenWithBed + ' child with bed.'));
+                } else if (role === 'children-with-bed' && (childrenWithBed > lim.maxChildrenWithBed
+                    || adults > (lim.maxOccupancy || lim.maxRoom))) {
+                    alert(adults > (lim.maxOccupancy || lim.maxRoom)
+                        ? 'Extra bed is already used by an adult. Reduce adults to free it for a child.'
+                        : (lim.maxChildrenWithBed < 1
+                            ? 'This bed type has no extra bed for children with bed.'
+                            : ('Extra bed allows max ' + lim.maxChildrenWithBed + ' child with bed.')));
                 } else if (role === 'infants' && infants > lim.maxInfants) {
                     alert('Cannot exceed classified infants (' + lim.tourInfants + ').');
                 } else if ((adults + childrenNoBed + childrenWithBed) > lim.maxRoom) {
