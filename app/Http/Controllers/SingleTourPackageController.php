@@ -2117,8 +2117,46 @@ class SingleTourPackageController extends Controller
             if (empty($row['bookingType']) && !empty($order->bookingType)) {
                 $row['bookingType'] = $order->bookingType;
             }
-            if (empty($row['travel_type']) && in_array($order->type, ['travel_point', 'travel_hourly', 'local_transport'], true)) {
+            if (empty($row['travel_type']) && in_array($order->type, ['travel_point', 'travel_hourly', 'local_transport', 'entry_port', 'exit_port'], true)) {
                 $row['travel_type'] = $order->type;
+            }
+            // Transport / arrival / departure: keep Way + editable Cost fields for lite edit hydrate
+            if (in_array($order->type, ['travel_point', 'travel_hourly', 'local_transport', 'entry_port', 'exit_port'], true)) {
+                if (empty($row['trip_way']) && !empty($row['way'])) {
+                    $wayRaw = strtolower(trim((string) $row['way']));
+                    $row['trip_way'] = (str_contains($wayRaw, 'both') || str_contains($wayRaw, 'two') || $wayRaw === '2' || str_contains($wayRaw, 'return'))
+                        ? 'both'
+                        : 'single';
+                }
+                if (!isset($row['vehicle_count']) || $row['vehicle_count'] === '' || $row['vehicle_count'] === null) {
+                    $row['vehicle_count'] = $row['booked_vehicles'] ?? 1;
+                }
+                if ((!isset($row['car_cost']) || $row['car_cost'] === '' || $row['car_cost'] === null)
+                    && isset($row['private_price']) && (float) $row['private_price'] > 0
+                    && strtolower((string) ($row['type'] ?? 'private')) !== 'shared') {
+                    $row['car_cost'] = $row['private_price'];
+                }
+                if ((!isset($row['car_cost']) || $row['car_cost'] === '' || $row['car_cost'] === null)
+                    && isset($row['adult_price']) && (float) $row['adult_price'] > 0
+                    && strtolower((string) ($row['type'] ?? '')) === 'shared') {
+                    $row['car_cost'] = $row['adult_price'];
+                }
+            }
+            // Attraction / restaurant transfer_options: preserve car_cost / trip_way for edit Cost + Way
+            if (in_array($order->type, ['attraction', 'restaurant'], true)
+                && !empty($row['transfer_options']) && is_array($row['transfer_options'])) {
+                $xfer = &$row['transfer_options'];
+                if (empty($xfer['trip_way']) && !empty($xfer['way'])) {
+                    $wayRaw = strtolower(trim((string) $xfer['way']));
+                    $xfer['trip_way'] = (str_contains($wayRaw, 'both') || str_contains($wayRaw, 'two') || $wayRaw === '2' || str_contains($wayRaw, 'return'))
+                        ? 'both'
+                        : 'single';
+                }
+                if ((!isset($xfer['car_cost']) || $xfer['car_cost'] === '' || $xfer['car_cost'] === null)
+                    && isset($xfer['base_cost']) && (float) $xfer['base_cost'] > 0) {
+                    $xfer['car_cost'] = $xfer['base_cost'];
+                }
+                unset($xfer);
             }
             // Lite hotel table helpers when only hotelDetails exists (store reshape)
             if ($key === 'hotel_data') {
@@ -6759,15 +6797,15 @@ class SingleTourPackageController extends Controller
                             }
                             
                         } elseif ($type === 'entry_port' || $type === 'exit_port') {
-                            // For entry_port and exit_port, treat them as transport data
+                            // Arrival / Departure must stay entry_port / exit_port (never fall back to travel_point)
                             \Log::info("Processing {$type} data as transport", [
                                 'total_transports' => count($decodedData),
                                 'transport_data' => $decodedData
                             ]);
                             
                             foreach ($decodedData as $transport) {
-                                // Determine the correct type based on travel_type
-                                $orderType = $transport['travel_type'] ?? 'travel_point'; // Default to travel_point if not specified
+                                $orderType = $type;
+                                $transport['travel_type'] = $type;
                                 
                                 // Handle date formatting based on port type
                                 if ($type === 'entry_port' && isset($transport['bookingDate'])) {
