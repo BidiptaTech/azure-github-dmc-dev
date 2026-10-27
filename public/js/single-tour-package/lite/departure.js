@@ -233,7 +233,7 @@
         var getBtn = root.querySelector('.departure-get-price-btn');
         var keepId = preferredVehicleId != null ? preferredVehicleId : root.__preferredVehicleId;
         var keepName = root.__preferredVehicleName || '';
-        invalidate(root);
+        if (!root.__hydrating) invalidate(root);
         if (btn) btn.disabled = true;
         if (vehicle) {
             vehicle.innerHTML = '<option value="">Searching…</option>';
@@ -285,6 +285,7 @@
             if (keepId) T.selectVehicleValue(vehicle, keepId, keepName);
             if (getBtn) getBtn.disabled = !(list.length || keepId);
             syncDepartureManualPrice(root, stay);
+            if (root.__hydrateSnapshot) restoreDepartureHydratePrice(root);
         }).catch(function () {
             if (vehicle) {
                 vehicle.innerHTML = '<option value="">Error loading vehicles</option>';
@@ -293,6 +294,45 @@
         }).finally(function () {
             if (btn) btn.disabled = false;
         });
+    }
+
+    function applyDepartureSavedCost(root, row) {
+        var customEl = root.querySelector('.departure-custom-price');
+        if (!customEl || !row) return;
+        var unit = null;
+        if (row.car_cost != null && String(row.car_cost) !== '') {
+            unit = Number(row.car_cost) || 0;
+        } else if (String(row.type || '').toLowerCase() === 'shared') {
+            unit = Number(row.adult_price || row.shared_price || 0) || 0;
+        } else {
+            unit = Number(row.private_price || 0) || 0;
+            if (!(unit > 0) && Number(row.totalPrice || 0) > 0) {
+                var vc = Math.max(1, parseInt(row.vehicle_count || row.booked_vehicles || 1, 10) || 1);
+                unit = Number(row.totalPrice) / vc;
+            }
+        }
+        if (!(unit > 0)) return;
+        customEl.value = String(unit);
+        customEl.setAttribute('data-user-edited', '1');
+        customEl.setAttribute('data-seeded-unit', String(unit));
+        customEl.setAttribute('data-ajax-base-price', String(unit));
+    }
+
+    function restoreDepartureHydratePrice(root) {
+        var snap = root.__hydrateSnapshot;
+        if (!snap) return;
+        root.__lastPrice = Object.assign({}, snap.priced);
+        var cur = root.getAttribute('data-currency') || 'SGD';
+        var panel = root.querySelector('[data-departure-price-panel]');
+        var totalEl = root.querySelector('.departure-price-total');
+        if (panel) panel.classList.remove('d-none');
+        if (totalEl) totalEl.textContent = cur + ' ' + Number(snap.priced.total || 0).toFixed(2);
+        var detail = root.querySelector('.departure-price-detail');
+        if (detail && snap.detailHtml) detail.innerHTML = snap.detailHtml;
+        var add = root.querySelector('.departure-add-btn');
+        if (add) add.disabled = false;
+        applyDepartureSavedCost(root, snap.row);
+        syncDepartureManualPrice(root, snap.stay);
     }
 
     function getPrice(root, stay) {
@@ -520,6 +560,7 @@
 
     function hydrate(root, stay, row) {
         if (!row) return;
+        var T = S();
         root.__hydrating = true;
         var flight = root.querySelector('.departure-flight-no');
         var dateEl = root.querySelector('.departure-date');
@@ -533,33 +574,55 @@
         if (childrenEl) childrenEl.value = String(row.children || 0);
         if (typeEl) typeEl.value = row.type || 'private';
         if (countEl) countEl.value = String(row.vehicle_count || row.booked_vehicles || 1);
-        S().setAmPmValue(root, 'departure', row.exittime || '');
-        var pickup = root.querySelector('.departure-pickup');
-        var dropoff = root.querySelector('.departure-dropoff');
-        if (pickup && row.exitpickup_zone_id) pickup.value = String(row.exitpickup_zone_id);
-        if (dropoff && row.exitdropoff_zone_id) dropoff.value = String(row.exitdropoff_zone_id);
+        T.setAmPmValue(root, 'departure', row.exittime || '');
         var pt = root.querySelector('.departure-pickup-text');
         var dt = root.querySelector('.departure-dropoff-text');
         if (pt) pt.value = row.exitpickup || '';
         if (dt) dt.value = row.exitdropoff || '';
-        var customEl = root.querySelector('.departure-custom-price');
-        if (customEl && row.car_cost != null && String(row.car_cost) !== '') {
-            customEl.value = String(row.car_cost);
-            customEl.setAttribute('data-user-edited', '1');
-            customEl.setAttribute('data-seeded-unit', String(row.car_cost));
-        }
+        applyDepartureSavedCost(root, row);
         root.__preferredVehicleId = row.vehicles_id || '';
         root.__preferredVehicleName = row.vehicles_name || '';
-        root.__lastPrice = { total: row.totalPrice || 0, mode: row.price_detail || row.type || '' };
+        var priced = {
+            total: Number(row.totalPrice || 0),
+            mode: row.price_detail || row.type || '',
+            source: row.price_source || '',
+            unit: Number(row.car_cost || row.private_price || row.adult_price || 0) || 0
+        };
+        root.__lastPrice = priced;
+        root.__hydrateSnapshot = { priced: priced, row: row, stay: stay, detailHtml: '' };
         var cur = root.getAttribute('data-currency') || 'SGD';
+        if (typeof T.vehiclePriceDetailHtml === 'function') {
+            root.__hydrateSnapshot.detailHtml = T.vehiclePriceDetailHtml(row, cur);
+            var detailEl = root.querySelector('.departure-price-detail');
+            if (detailEl) detailEl.innerHTML = root.__hydrateSnapshot.detailHtml;
+        }
         var panel = root.querySelector('[data-departure-price-panel]');
         var totalEl = root.querySelector('.departure-price-total');
         if (panel) panel.classList.remove('d-none');
         if (totalEl) totalEl.textContent = cur + ' ' + Number(row.totalPrice || 0).toFixed(2);
         var add = root.querySelector('.departure-add-btn');
         if (add) add.disabled = false;
-        searchVehicles(root, stay, row.vehicles_id);
-        root.__hydrating = false;
+        setAddMode(root, true);
+
+        function applyRouteAndSearch() {
+            var pickup = root.querySelector('.departure-pickup');
+            var dropoff = root.querySelector('.departure-dropoff');
+            if (pickup && row.exitpickup_zone_id) pickup.value = String(row.exitpickup_zone_id);
+            if (dropoff && row.exitdropoff_zone_id) dropoff.value = String(row.exitdropoff_zone_id);
+            return Promise.resolve(searchVehicles(root, stay, row.vehicles_id));
+        }
+
+        var locsReady = Promise.resolve();
+        if (stayZoneOn(T, stay)) {
+            var pickupSel = root.querySelector('.departure-pickup');
+            if (pickupSel && pickupSel.options.length <= 1) {
+                locsReady = Promise.resolve(loadPickupDropoff(root, stay));
+            }
+        }
+        locsReady.then(applyRouteAndSearch).finally(function () {
+            restoreDepartureHydratePrice(root);
+            root.__hydrating = false;
+        });
     }
 
     function addRow(root, stay) {
@@ -596,6 +659,9 @@
         T.clearSelectOrInput(root.querySelector('.departure-dropoff-text'), '');
         T.clearSelectOrInput(root.querySelector('.departure-flight-no'), '');
         T.clearSelectOrInput(root.querySelector('.departure-custom-price'), '');
+        var costClear = root.querySelector('.departure-custom-price');
+        if (costClear && T.clearStandaloneCarCostSeed) T.clearStandaloneCarCostSeed(costClear);
+        root.__hydrateSnapshot = null;
         T.clearSelectOrInput(root.querySelector('.departure-vehicle-count'), '1');
         T.setAmPmValue(root, 'departure', '');
         var getBtn = root.querySelector('.departure-get-price-btn');

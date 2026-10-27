@@ -496,15 +496,15 @@
             } catch (eInf) { i = 0; }
         }
         var wayRaw = String(xfer.way || xfer.trip_way || '').trim();
+        var bothWay = normalizeTripWay(wayRaw) === 'both';
         var wayNote = '';
-        if (/both/i.test(wayRaw)) wayNote = ' · Both way';
-        else if (/one|single/i.test(wayRaw)) wayNote = ' · Single way';
+        if (bothWay) wayNote = ' · Both way';
+        else if (wayRaw) wayNote = ' · Single way';
         var header = '<div class="small text-muted mb-1 mt-2"><strong>Transfer'
             + (typeRaw ? ' (' + esc(typeRaw) + ')' : '')
             + wayNote
             + '</strong></div>';
 
-        var bothWay = /both/i.test(wayRaw);
         var bothFactor = bothWay ? 2 : 1;
 
         if (type === 'shared') {
@@ -640,7 +640,7 @@
             : '';
 
         if (type === 'shared') {
-            var bothShared = /both/i.test(String(row.trip_way || row.way || ''));
+            var bothShared = normalizeTripWay(row.trip_way || row.way) === 'both';
             var sharedBoth = bothShared ? 2 : 1;
             var sharedHtml = '';
             if (bothShared) {
@@ -681,7 +681,7 @@
             return sharedHtml;
         }
 
-        var bothWay = /both/i.test(String(row.trip_way || row.way || ''));
+        var bothWay = normalizeTripWay(row.trip_way || row.way) === 'both';
         var bothFactor = bothWay ? 2 : 1;
         var privateUnit = Number(
             row.unit != null && row.unit !== '' ? row.unit
@@ -735,7 +735,9 @@
         var current = parseFloat(String(costEl.value || '').replace(/[^\d.]/g, '')) || 0;
         var seeded = parseFloat(costEl.getAttribute('data-seeded-unit') || '') || 0;
         var userEdited = costEl.getAttribute('data-user-edited') === '1';
-        if (!userEdited || !(current > 0) || Math.abs(current - seeded) < 0.009) {
+        // Hydrate / user override: never clobber a locked positive cost
+        if (userEdited && current > 0) return;
+        if (!(current > 0) || Math.abs(current - seeded) < 0.009) {
             costEl.value = String(unit);
             costEl.setAttribute('data-seeded-unit', String(unit));
             costEl.removeAttribute('data-user-edited');
@@ -1137,7 +1139,7 @@
             ? ('<input type="number" min="0" step="0.01" class="form-control form-control-sm ' + prefix + '-transfer-cost" ' +
                'placeholder="Car cost" data-zone-off-cost="1">')
             : ('<input type="number" min="0" step="0.01" class="form-control form-control-sm ' + prefix + '-transfer-cost" ' +
-               'readonly placeholder="—" data-zone-cost="1">');
+               'placeholder="Zone / car cost" data-zone-off-cost="1">');
         var vehiclePlaceholder = maps ? 'Select type' : 'Select pickup first';
         return (
             '<div class="stp-lite-extras-block">' +
@@ -1176,11 +1178,18 @@
         );
     }
 
+    function normalizeTripWay(raw) {
+        var s = String(raw || '').trim().toLowerCase().replace(/[_-]+/g, ' ');
+        if (!s) return 'single';
+        if (/\bboth\b/.test(s) || /\btwo\b/.test(s) || s === '2' || /\b2\s*way\b/.test(s) || /\breturn\b/.test(s)) {
+            return 'both';
+        }
+        return 'single';
+    }
+
     function transferWayOf(root, prefix) {
         var el = root && root.querySelector('.' + prefix + '-transfer-way');
-        var raw = el ? String(el.value || '').toLowerCase() : 'single';
-        if (raw === 'both' || raw === 'both way' || raw === 'both_way') return 'both';
-        return 'single';
+        return normalizeTripWay(el ? el.value : 'single');
     }
 
     function transferWayLabel(way) {
@@ -1222,10 +1231,13 @@
         var current = parseManualCarCost(costEl);
         var seeded = parseFloat(costEl.getAttribute('data-seeded-unit') || '') || 0;
         var userEdited = costEl.getAttribute('data-user-edited') === '1';
-        if (!userEdited || !(current > 0) || Math.abs(current - seeded) < 0.009) {
-            costEl.value = String(unit);
-            costEl.setAttribute('data-seeded-unit', String(unit));
-            costEl.removeAttribute('data-user-edited');
+        // Hydrate / user override: keep locked positive cost (edit form + AdHoc override)
+        if (!(userEdited && current > 0)) {
+            if (!(current > 0) || Math.abs(current - seeded) < 0.009) {
+                costEl.value = String(unit);
+                costEl.setAttribute('data-seeded-unit', String(unit));
+                costEl.removeAttribute('data-user-edited');
+            }
         }
         syncInlineTransferManualCost(root, prefix);
     }
@@ -2258,8 +2270,7 @@
         if (typeEl) typeEl.value = transferOptions.type || '';
         var wayEl = root.querySelector('.' + prefix + '-transfer-way');
         if (wayEl) {
-            var savedWay = String(transferOptions.trip_way || transferOptions.way || '').toLowerCase();
-            wayEl.value = (/both/.test(savedWay) ? 'both' : 'single');
+            wayEl.value = normalizeTripWay(transferOptions.trip_way || transferOptions.way) === 'both' ? 'both' : 'single';
         }
         setAmPmValue(root, prefix + '-xfer', transferOptions.pickup_time || '');
         var stayObj = stay || stayFromPanel(root, prefix) || {};
@@ -2276,8 +2287,8 @@
             var costEl = root.querySelector('.' + prefix + '-transfer-cost');
             var g = guestsFn();
             var vehCount = readTransferVehicleCount(root, prefix);
-            var savedTripWay = String(transferOptions.trip_way || transferOptions.way || '').toLowerCase();
-            var bothFactor = /both/.test(savedTripWay) ? 2 : 1;
+            var savedTripWay = normalizeTripWay(transferOptions.trip_way || transferOptions.way);
+            var bothFactor = savedTripWay === 'both' ? 2 : 1;
             var unitSeed = Number(
                 transferOptions.car_cost != null && String(transferOptions.car_cost) !== ''
                     ? transferOptions.car_cost
@@ -2294,17 +2305,22 @@
                     unitSeed = oneWayCost / Math.max(1, vehCount);
                 }
             }
+            var hadSavedCarCost = transferOptions.car_cost != null && String(transferOptions.car_cost) !== '';
             if (costEl && unitSeed > 0) {
-                seedInlineTransferCostFromZone(root, prefix, unitSeed);
-                if (Number(transferOptions.zone_pricing || 0) !== 1
-                    || (transferOptions.car_cost != null && String(transferOptions.car_cost) !== '')) {
+                // Lock first so zone AJAX cannot overwrite the edited/saved unit
+                if (hadSavedCarCost || Number(transferOptions.zone_pricing || 0) !== 1) {
                     costEl.setAttribute('data-user-edited', '1');
                 }
+                costEl.value = String(unitSeed);
+                costEl.setAttribute('data-seeded-unit', String(unitSeed));
+                costEl.setAttribute('data-ajax-base-price', String(unitSeed));
+                syncInlineTransferManualCost(root, prefix, stayObj);
             } else {
                 syncInlineTransferManualCost(root, prefix, stayObj);
             }
             refreshTransferCostDisplay(root, prefix, g.adults, g.children, g.infants);
-            if (!mapsMode && Number(transferOptions.zone_pricing || 0) === 1) {
+            // Refresh live zone quote only when no explicit car_cost was saved on the row
+            if (!mapsMode && Number(transferOptions.zone_pricing || 0) === 1 && !hadSavedCarCost) {
                 fetchInlineTransferZonePrice(root, stayObj, prefix, guestsFn);
             }
         }
@@ -2898,6 +2914,7 @@
         mergeZoneRouteVehicles: mergeZoneRouteVehicles,
         transferWayOf: transferWayOf,
         transferWayLabel: transferWayLabel,
+        normalizeTripWay: normalizeTripWay,
         syncInlineTransferManualCost: syncInlineTransferManualCost,
         seedInlineTransferCostFromZone: seedInlineTransferCostFromZone,
         parseManualCarCost: parseManualCarCost,

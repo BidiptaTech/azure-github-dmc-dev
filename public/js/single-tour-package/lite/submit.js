@@ -549,7 +549,8 @@
                 merged = merged.concat(parseChunkJson(el.value));
             });
             var hidden = document.getElementById(spec.field);
-            if (hidden && merged.length) hidden.value = JSON.stringify(merged);
+            // Always write (including []) so cleared services do not resurrect from edit seed
+            if (hidden) hidden.value = JSON.stringify(merged);
         });
     }
 
