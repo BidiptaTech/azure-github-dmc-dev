@@ -41,6 +41,154 @@ class Country extends Model
         'footer_pdf'
     ];
 
+    /**
+     * ISO 3166-1 alpha-2 codes keyed by countries.name.
+     * Dial codes are not unique, so name is the reliable key.
+     *
+     * @return array<string, string>
+     */
+    public static function shortCodeMap(): array
+    {
+        return [
+            'Afghanistan' => 'AF',
+            'Albania' => 'AL',
+            'Algeria' => 'DZ',
+            'Andorra' => 'AD',
+            'Angola' => 'AO',
+            'Argentina' => 'AR',
+            'Armenia' => 'AM',
+            'Australia' => 'AU',
+            'Austria' => 'AT',
+            'Azerbaijan' => 'AZ',
+            'Bahamas' => 'BS',
+            'Bahrain' => 'BH',
+            'Bangladesh' => 'BD',
+            'Barbados' => 'BB',
+            'Belarus' => 'BY',
+            'Belgium' => 'BE',
+            'Belize' => 'BZ',
+            'Benin' => 'BJ',
+            'Bhutan' => 'BT',
+            'Bolivia' => 'BO',
+            'Bosnia and Herzegovina' => 'BA',
+            'Botswana' => 'BW',
+            'Brazil' => 'BR',
+            'Brunei' => 'BN',
+            'Bulgaria' => 'BG',
+            'Burkina Faso' => 'BF',
+            'Burundi' => 'BI',
+            'Cambodia' => 'KH',
+            'Cameroon' => 'CM',
+            'Canada' => 'CA',
+            'Cape Verde' => 'CV',
+            'Central African Republic' => 'CF',
+            'Chad' => 'TD',
+            'Chile' => 'CL',
+            'China' => 'CN',
+            'Colombia' => 'CO',
+            'Costa Rica' => 'CR',
+            'Croatia' => 'HR',
+            'Cyprus' => 'CY',
+            'Czech Republic' => 'CZ',
+            'Denmark' => 'DK',
+            'Dominican Republic' => 'DO',
+            'Ecuador' => 'EC',
+            'Egypt' => 'EG',
+            'El Salvador' => 'SV',
+            'Estonia' => 'EE',
+            'Eswatini' => 'SZ',
+            'Ethiopia' => 'ET',
+            'Fiji' => 'FJ',
+            'Finland' => 'FI',
+            'France' => 'FR',
+            'Germany' => 'DE',
+            'Ghana' => 'GH',
+            'Greece' => 'GR',
+            'Guatemala' => 'GT',
+            'Haiti' => 'HT',
+            'Honduras' => 'HN',
+            'Hungary' => 'HU',
+            'Iceland' => 'IS',
+            'India' => 'IN',
+            'Indonesia' => 'ID',
+            'Iran' => 'IR',
+            'Iraq' => 'IQ',
+            'Ireland' => 'IE',
+            'Israel' => 'IL',
+            'Italy' => 'IT',
+            'Jamaica' => 'JM',
+            'Japan' => 'JP',
+            'Jordan' => 'JO',
+            'Kazakhstan' => 'KZ',
+            'Kenya' => 'KE',
+            'Kuwait' => 'KW',
+            'Kyrgyzstan' => 'KG',
+            'Laos' => 'LA',
+            'Latvia' => 'LV',
+            'Lebanon' => 'LB',
+            'Liberia' => 'LR',
+            'Libya' => 'LY',
+            'Lithuania' => 'LT',
+            'Luxembourg' => 'LU',
+            'Malaysia' => 'MY',
+            'Maldives' => 'MV',
+            'Malta' => 'MT',
+            'Mexico' => 'MX',
+            'Moldova' => 'MD',
+            'Monaco' => 'MC',
+            'Morocco' => 'MA',
+            'Nepal' => 'NP',
+            'Netherlands' => 'NL',
+            'New Zealand' => 'NZ',
+            'Nicaragua' => 'NI',
+            'Nigeria' => 'NG',
+            'Norway' => 'NO',
+            'Pakistan' => 'PK',
+            'Peru' => 'PE',
+            'Philippines' => 'PH',
+            'Poland' => 'PL',
+            'Portugal' => 'PT',
+            'Qatar' => 'QA',
+            'Romania' => 'RO',
+            'Russia' => 'RU',
+            'Saudi Arabia' => 'SA',
+            'Singapore' => 'SG',
+            'South Africa' => 'ZA',
+            'South Korea' => 'KR',
+            'Spain' => 'ES',
+            'Sri Lanka' => 'LK',
+            'Sweden' => 'SE',
+            'Switzerland' => 'CH',
+            'Taiwan' => 'TW',
+            'Thailand' => 'TH',
+            'Turkey' => 'TR',
+            'Ukraine' => 'UA',
+            'United Arab Emirates' => 'AE',
+            'United Kingdom' => 'GB',
+            'United States' => 'US',
+            'Uruguay' => 'UY',
+            'Venezuela' => 'VE',
+            'Vietnam' => 'VN',
+        ];
+    }
+
+    public static function resolveShortCode(?string $name, ?string $storedShortCode = null): ?string
+    {
+        $code = strtoupper(trim((string) $storedShortCode));
+        if (strlen($code) === 2) {
+            return $code;
+        }
+
+        $name = trim((string) $name);
+        if ($name === '') {
+            return null;
+        }
+
+        $mapped = self::shortCodeMap()[$name] ?? null;
+
+        return $mapped ? strtoupper($mapped) : null;
+    }
+
      // Relationship with City
      public function cities()
      {
