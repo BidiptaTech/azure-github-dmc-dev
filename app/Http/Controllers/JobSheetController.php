@@ -2610,17 +2610,49 @@ class JobSheetController extends Controller
                 }
                 else{
                     // Get transportation orders
-                    $transportOrders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id',
-                            'dmc_user.company_code as dmc_company_code', 'created_by_user.user_code as created_by_user_code')
-                        ->leftJoin('tours', 'orders.tour_id', '=', 'tours.tour_id')
-                        ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
-                        ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
-                        ->whereIn('orders.type', $orderTypes)
-                        ->whereRaw("data->0->>'dmc_id' = ?", [$dmcId])
-                        ->whereRaw("data->0->>'pickupdate' = ?", [$date])
-                        ->whereNotNull('orders.tour_id')
-                        ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
-                        ->get();
+                    $transportOrders = Order::select(
+                        'orders.*',
+                        'tours.id as tour_id_numeric',
+                        'tours.tour_id',
+                        'tours.display_id',
+                        'dmc_user.company_code as dmc_company_code',
+                        'created_by_user.user_code as created_by_user_code'
+                    )
+                    ->leftJoin(
+                        'tours',
+                        'orders.tour_id',
+                        '=',
+                        'tours.tour_id'
+                    )
+                    ->leftJoin(
+                        'users as dmc_user',
+                        'tours.dmc_id',
+                        '=',
+                        'dmc_user.userId'
+                    )
+                    ->leftJoin(
+                        'users as created_by_user',
+                        'tours.created_by',
+                        '=',
+                        'created_by_user.userId'
+                    )
+                    ->whereIn('orders.type', $orderTypes)
+
+                    // Filter by the DMC that owns the tour
+                    ->where('tours.dmc_id', (int) $dmcId)
+
+                    // Filter by booking date
+                    ->whereRaw(
+                        "orders.data->0->>'pickupdate' = ?",
+                        [$date]
+                    )
+                    ->whereNotNull('orders.tour_id')
+                    ->whereIn('tours.tour_status', [
+                        'Confirmed',
+                        'Definite',
+                        'Actual'
+                    ])
+                    ->get();
                     
                     // Get attraction orders with transfer
                     $allAttractionOrders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id',
@@ -2629,7 +2661,7 @@ class JobSheetController extends Controller
                         ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
                         ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                         ->where('orders.type', 'attraction')
-                        ->whereRaw("data->0->>'dmc_id' = ?", [$dmcId])
+                        ->where('tours.dmc_id', (int) $dmcId)
                         ->whereRaw("data->0->>'bookingDate' = ?", [$date])
                         ->whereNotNull('orders.tour_id')
                         ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
@@ -2654,7 +2686,7 @@ class JobSheetController extends Controller
                         ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
                         ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                         ->where('orders.type', 'restaurant')
-                        ->whereRaw("data->0->>'dmc_id' = ?", [$dmcId])
+                        ->where('tours.dmc_id', (int) $dmcId)
                         ->whereRaw("data->0->>'bookingDate' = ?", [$date])
                         ->whereNotNull('orders.tour_id')
                         ->whereIn('tours.tour_status', ['Confirmed', 'Definite', 'Actual'])
@@ -2673,7 +2705,7 @@ class JobSheetController extends Controller
                     
                     $orders = $transportOrders->merge($attractionOrders)->merge($restaurantOrders);
                 }
-            } else {
+            } else if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3) {
                 // Otherwise just filter by date
                 $transportOrders = Order::select('orders.*', 'tours.id as tour_id_numeric', 'tours.tour_id', 'tours.display_id',
                         'dmc_user.company_code as dmc_company_code', 'created_by_user.user_code as created_by_user_code')

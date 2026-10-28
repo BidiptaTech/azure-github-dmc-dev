@@ -441,21 +441,24 @@ $(document).ready(function() {
                 console.log("item.vehicle === ", item.vehicle);
                 console.log("item.driver === ", item.driver);
                 console.log("item.assigned_vehicle_id === ", item.assigned_vehicle_id);
-                console.log("item.assigned_driver_id === ", item.assigned_driver_id);
-                
+                console.log("item.assigned_driver_iddddd === ", item.assigned_driver_id);
+                console.log("orderData === ", orderData);
                 // Check if data is array or object and extract the right data
                 if (Array.isArray(orderData) && orderData.length > 0) {
                     dataItem = orderData[0];
+                    console.log("dataItem array === ", dataItem);
                 } else if (typeof orderData === 'object') {
                     dataItem = orderData;
+                    console.log("dataItem object === ", dataItem);
                 } else {
                     dataItem = {};
+                    console.log("dataItem empty === ", dataItem);
                 }
-                
+                console.log("dataItem === ", dataItem);
                 tableHTML += `
                     <tr>
                         <td>${item.display_id || item.tour_id || 'N/A'}</td>
-                        <td>${dataItem.entrytime || 'N/A'}</td>
+                        <td>${dataItem.transfer_options?dataItem.transfer_options.pickup_time : dataItem.entrytime || dataItem.exittime || 'N/A'}</td>
                         <td>${dataItem.fullName || dataItem.name || 'N/A'}</td>
                         <td>${dataItem.countryCode && dataItem.phone ? dataItem.countryCode + ' ' + dataItem.phone : (dataItem.phone || 'N/A')}</td>
                         <td>${dataItem.adultCount || dataItem.adults || '0'}</td>
@@ -463,7 +466,7 @@ $(document).ready(function() {
                         <td>${dataItem.infantCount || dataItem.infants || '0'}</td>
                         <td>${formatOrderType(item.type) || 'N/A'}</td>
                         <td>${dataItem.type || 'N/A'}</td>
-                        <td>${dataItem.entrypickup || 'N/A'}</td>
+                        <td>${dataItem.transfer_options?dataItem.transfer_options.entrypickup : dataItem.entrypickup || 'N/A'}</td>
                         <td>${item.pickup_zone || 'N/A'}</td>
                         <td>${dataItem.entrydropoff || 'N/A'}</td>
                         <td>${item.dropoff_zone || 'N/A'}</td>
@@ -643,11 +646,11 @@ $(document).ready(function() {
                         } else {
                             dataItem = {};
                         }
-                        
+                        console.log("dataItem AJAX === ", dataItem);
                         tableHTML += `
                             <tr>
                                 <td>${item.display_id || item.tour_id || 'N/A'}</td>
-                                <td>${dataItem.entrytime || 'N/A'}</td>
+                                <td>${ dataItem.transfer_options?dataItem.transfer_options.pickup_time || 'N/A' : dataItem.entrytime || dataItem.exittime || 'N/A'}</td>
                                 <td>${dataItem.fullName || dataItem.name || 'N/A'}</td>
                                 <td>${dataItem.countryCode && dataItem.phone ? dataItem.countryCode + ' ' + dataItem.phone : (dataItem.phone || 'N/A')}</td>
                                 <td>${dataItem.adultCount || dataItem.adults || '0'}</td>
