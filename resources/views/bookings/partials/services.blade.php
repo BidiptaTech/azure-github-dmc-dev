@@ -1099,7 +1099,29 @@
         var dropoff = booking.dropoffPoint || booking.entrydropoff || booking.exitdropoff || booking.dropoffLocation || 'N/A';
         var city = booking.city || 'N/A';
         var country = booking.country || 'N/A';
-        var dateLabel = booking.bookingDate || booking.booking_date || 'N/A';
+        var rawDate = booking.pickupdate || booking.bookingDate || booking.booking_date || '';
+
+        var dateLabel = 'N/A';
+
+        if (rawDate) {
+            var match = String(rawDate).trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+            if (match) {
+                var date = new Date(
+                    Number(match[1]),
+                    Number(match[2]) - 1,
+                    Number(match[3])
+                );
+
+                dateLabel = date.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: '2-digit',
+                    year: 'numeric'
+                });
+            } else {
+                dateLabel = String(rawDate).trim();
+            }
+        }
         var timeLabel = booking.entrytime || booking.entry_time || booking.time || 'TBC';
         var thumb = booking.image
             ? '<img src="' + esc(booking.image) + '" alt="" class="svc-thumb" onerror="this.style.display=\'none\'">'

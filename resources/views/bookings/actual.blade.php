@@ -12453,7 +12453,7 @@ function loadIndividualTravelHourlyContent(modalId, tourId, travelHourlyOrderInd
                 vehicles_name: rawData.vehicles_name || travelHourlyDetails.vehicles_name,
                 image: travelHourlyDetails.image,
                 totalPrice: parseFloat(rawData.total_price || 0),
-                bookingDate: rawData.booking_date || travelHourlyDetails.bookingDate,
+                bookingDate: rawData.pickupdate || rawData.booking_date || travelHourlyDetails.pickupdate || travelHourlyDetails.bookingDate || travelHourlyDetails.booking_date || '',
                 entrytime: rawData.entry_time || travelHourlyDetails.entry_time,
                 selectedHours: rawData.selected_hours || travelHourlyDetails.selected_hours,
                 type: travelHourlyDetails.type || 'Standard',
@@ -12502,6 +12502,34 @@ function displayTravelHourlyErrorContent(modalId, message) {
 
 function generateIndividualTravelHourlyContent(travelHourlyData, modalId, tourId, travelHourlyOrderIndex, bookingIndex) {
     try {
+        const rawBookingDate =
+            travelHourlyData.bookingDate ||
+            travelHourlyData.pickupdate ||
+            travelHourlyData.booking_date ||
+            '';
+
+        let dateLabel = 'N/A';
+
+        if (rawBookingDate) {
+            const match = String(rawBookingDate).trim()
+                .match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+            if (match) {
+                const date = new Date(
+                    Number(match[1]),
+                    Number(match[2]) - 1,
+                    Number(match[3])
+                );
+
+                dateLabel = date.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: '2-digit',
+                    year: 'numeric'
+                });
+            } else {
+                dateLabel = String(rawBookingDate).trim();
+            }
+        }
 
         const content = `
             <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #667eea !important;">
@@ -12536,7 +12564,7 @@ function generateIndividualTravelHourlyContent(travelHourlyData, modalId, tourId
                                 <div class="row g-1">
                                     <div class="col-6">
                                         <small class="text-muted d-block" style="font-size: 0.65rem;">Date</small>
-                                        <div class="fw-medium" style="font-size: 0.75rem;">${travelHourlyData.bookingDate || 'N/A'}</div>
+                                        <div class="fw-medium" style="font-size: 0.75rem;">${dateLabel || 'N/A'}</div>
                                     </div>
                                     <div class="col-6">
                                         <small class="text-muted d-block" style="font-size: 0.65rem;">Time</small>
@@ -13720,7 +13748,7 @@ function loadIndividualTravelPointContent(modalId, tourId, travelPointOrderIndex
                 vehicles_name: rawData.vehicles_name || travelPointDetails.vehicles_name,
                 image: travelPointDetails.image,
                 totalPrice: parseFloat(rawData.total_price || 0),
-                bookingDate: rawData.booking_date || travelPointDetails.bookingDate,
+                bookingDate: rawData.pickupdate || rawData.booking_date || travelPointDetails.pickupdate || travelPointDetails.bookingDate || travelPointDetails.booking_date || '',
                 entrytime: rawData.entry_time || travelPointDetails.entry_time,
                 pickup_location: rawData.pickup_location || travelPointDetails.pickup_location,
                 drop_location: rawData.drop_location || travelPointDetails.drop_location,
@@ -13782,252 +13810,252 @@ function displayTravelPointErrorContent(modalId, message) {
     `;
 }
 
-function generateIndividualTravelPointContent(travelPointData, modalId, tourId, travelPointOrderIndex, bookingIndex) {
-    try {
-        const content = `
-            <div class="card mb-3 shadow-sm border-0" style="border-radius: 10px; overflow: hidden; border-left: 4px solid #667eea !important;">
-                <!-- Compact Card Header -->
-                <div class="card-header border-0 py-2 px-3" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);">
-                    <div class="row align-items-center g-2">
-                        <div class="col-md-8">
-                            <h6 class="mb-0 fw-bold text-white">
-                                <i class="ri-route-line me-1"></i>${travelPointData.vehicles_name || 'Point to Point Transfer'}
-                            </h6>
-                            <small class="text-white opacity-90">Point to Point ${parseInt(travelPointOrderIndex) + 1} • ${travelPointData.type || 'Standard'} Service</small>
-                        </div>
-                        <div class="col-md-4 text-end">
-                            <span class="badge bg-white text-success px-3 py-2" style="font-size: 0.95rem;">
-                                SGD ${(travelPointData.totalPrice || 0).toFixed(2)}
-                            </span>
-                        </div>
-                    </div>
-                </div>
+// function generateIndividualTravelPointContent(travelPointData, modalId, tourId, travelPointOrderIndex, bookingIndex) {
+//     try {
+//         const content = `
+//             <div class="card mb-3 shadow-sm border-0" style="border-radius: 10px; overflow: hidden; border-left: 4px solid #667eea !important;">
+//                 <!-- Compact Card Header -->
+//                 <div class="card-header border-0 py-2 px-3" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);">
+//                     <div class="row align-items-center g-2">
+//                         <div class="col-md-8">
+//                             <h6 class="mb-0 fw-bold text-white">
+//                                 <i class="ri-route-line me-1"></i>${travelPointData.vehicles_name || 'Point to Point Transfer'}
+//                             </h6>
+//                             <small class="text-white opacity-90">Point to Point ${parseInt(travelPointOrderIndex) + 1} • ${travelPointData.type || 'Standard'} Service</small>
+//                         </div>
+//                         <div class="col-md-4 text-end">
+//                             <span class="badge bg-white text-success px-3 py-2" style="font-size: 0.95rem;">
+//                                 SGD ${(travelPointData.totalPrice || 0).toFixed(2)}
+//                             </span>
+//                         </div>
+//                     </div>
+//                 </div>
                 
-                <div class="card-body p-3" style="background-color: #ffffff;">
-                    <!-- Service Schedule & Group Information -->
-                    <div class="row mb-3 g-3">
-                        <div class="col-md-6">
-                            <div class="bg-light rounded p-2 h-100">
-                                <div class="d-flex align-items-center mb-2">
-                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
-                                        <i class="ri-calendar-line text-white" style="font-size: 0.9rem;"></i>
-                                    </div>
-                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Service Schedule</h6>
-                                </div>
-                                <div class="row g-2">
-                                    <div class="col-6">
-                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Booking Date</small>
-                                        <div class="fw-medium" style="font-size: 0.85rem;">${travelPointData.bookingDate || 'N/A'}</div>
-                                    </div>
-                                    <div class="col-6">
-                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Time</small>
-                                        <div class="fw-medium" style="font-size: 0.85rem;">${travelPointData.entrytime || 'N/A'}</div>
-                                    </div>
-                                    <div class="col-6">
-                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Service Type</small>
-                                        <div><span class="badge bg-warning px-2 py-1" style="font-size: 0.7rem;">${travelPointData.type || 'Standard'}</span></div>
-                                    </div>
-                                    <div class="col-6">
-                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Transfer Type</small>
-                                        <div><span class="badge bg-info px-2 py-1" style="font-size: 0.7rem;">Point to Point</span></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="bg-light rounded p-2 h-100">
-                                <div class="d-flex align-items-center mb-2">
-                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
-                                        <i class="ri-group-line text-white" style="font-size: 0.9rem;"></i>
-                                    </div>
-                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Group Information</h6>
-                                </div>
-                                <div class="row g-1 mb-1">
-                                    <div class="col-6 text-center">
-                                        <div class="bg-white rounded p-1 border" style="border-color: #667eea !important;">
-                                            <div class="fw-bold text-success" style="font-size: 1rem;">${travelPointData.adults || 0}</div>
-                                            <small class="text-muted" style="font-size: 0.6rem;">Adults</small>
-                                        </div>
-                                    </div>
-                                    <div class="col-6 text-center">
-                                        <div class="bg-white rounded p-1 border" style="border-color: #667eea !important;">
-                                            <div class="fw-bold text-warning" style="font-size: 1rem;">${travelPointData.children || 0}</div>
-                                            <small class="text-muted" style="font-size: 0.6rem;">Children</small>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="text-center">
-                                    <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 0.8rem; padding: 2px 6px;">
-                                        Total: ${(parseInt(travelPointData.adults || 0) + parseInt(travelPointData.children || 0))} Guests
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+//                 <div class="card-body p-3" style="background-color: #ffffff;">
+//                     <!-- Service Schedule & Group Information -->
+//                     <div class="row mb-3 g-3">
+//                         <div class="col-md-6">
+//                             <div class="bg-light rounded p-2 h-100">
+//                                 <div class="d-flex align-items-center mb-2">
+//                                     <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+//                                         <i class="ri-calendar-line text-white" style="font-size: 0.9rem;"></i>
+//                                     </div>
+//                                     <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Service Schedule</h6>
+//                                 </div>
+//                                 <div class="row g-2">
+//                                     <div class="col-6">
+//                                         <small class="text-muted d-block" style="font-size: 0.7rem;">Booking Date</small>
+//                                         <div class="fw-medium" style="font-size: 0.85rem;">${travelPointData.bookingDate || 'N/A'}</div>
+//                                     </div>
+//                                     <div class="col-6">
+//                                         <small class="text-muted d-block" style="font-size: 0.7rem;">Time</small>
+//                                         <div class="fw-medium" style="font-size: 0.85rem;">${travelPointData.entrytime || 'N/A'}</div>
+//                                     </div>
+//                                     <div class="col-6">
+//                                         <small class="text-muted d-block" style="font-size: 0.7rem;">Service Type</small>
+//                                         <div><span class="badge bg-warning px-2 py-1" style="font-size: 0.7rem;">${travelPointData.type || 'Standard'}</span></div>
+//                                     </div>
+//                                     <div class="col-6">
+//                                         <small class="text-muted d-block" style="font-size: 0.7rem;">Transfer Type</small>
+//                                         <div><span class="badge bg-info px-2 py-1" style="font-size: 0.7rem;">Point to Point</span></div>
+//                                     </div>
+//                                 </div>
+//                             </div>
+//                         </div>
+//                         <div class="col-md-6">
+//                             <div class="bg-light rounded p-2 h-100">
+//                                 <div class="d-flex align-items-center mb-2">
+//                                     <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+//                                         <i class="ri-group-line text-white" style="font-size: 0.9rem;"></i>
+//                                     </div>
+//                                     <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Group Information</h6>
+//                                 </div>
+//                                 <div class="row g-1 mb-1">
+//                                     <div class="col-6 text-center">
+//                                         <div class="bg-white rounded p-1 border" style="border-color: #667eea !important;">
+//                                             <div class="fw-bold text-success" style="font-size: 1rem;">${travelPointData.adults || 0}</div>
+//                                             <small class="text-muted" style="font-size: 0.6rem;">Adults</small>
+//                                         </div>
+//                                     </div>
+//                                     <div class="col-6 text-center">
+//                                         <div class="bg-white rounded p-1 border" style="border-color: #667eea !important;">
+//                                             <div class="fw-bold text-warning" style="font-size: 1rem;">${travelPointData.children || 0}</div>
+//                                             <small class="text-muted" style="font-size: 0.6rem;">Children</small>
+//                                         </div>
+//                                     </div>
+//                                 </div>
+//                                 <div class="text-center">
+//                                     <span class="badge" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-size: 0.8rem; padding: 2px 6px;">
+//                                         Total: ${(parseInt(travelPointData.adults || 0) + parseInt(travelPointData.children || 0))} Guests
+//                                     </span>
+//                                 </div>
+//                             </div>
+//                         </div>
+//                     </div>
 
-                    <!-- Route Information -->
-                    <div class="bg-light rounded p-2 mb-3">
-                        <div class="d-flex align-items-center mb-2">
-                            <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
-                                <i class="ri-route-line text-white" style="font-size: 0.9rem;"></i>
-                            </div>
-                            <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Route Information</h6>
-                        </div>
-                        <div class="row g-2 mb-2">
-                            <div class="col-md-6">
-                                <div class="bg-white rounded p-2">
-                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Pickup Point</small>
-                                    <div class="fw-medium d-flex align-items-center" style="font-size: 0.85rem;">
-                                        <i class="ri-map-pin-line text-success me-1"></i>
-                                        <span class="text-truncate">${travelPointData.entrypickup || travelPointData.pickupPoint || 'N/A'}</span>
-                                    </div>
-                                    <small class="text-success" style="font-size: 0.65rem;">Origin</small>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="bg-white rounded p-2">
-                                    <small class="text-muted d-block" style="font-size: 0.7rem;">Dropoff Point</small>
-                                    <div class="fw-medium d-flex align-items-center" style="font-size: 0.85rem;">
-                                        <i class="ri-map-pin-2-line text-danger me-1"></i>
-                                        <span class="text-truncate">${travelPointData.entrydropoff || travelPointData.dropoffPoint || 'N/A'}</span>
-                                    </div>
-                                    <small class="text-danger" style="font-size: 0.65rem;">Destination</small>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- Compact Route Direction Visual -->
-                        <div class="d-flex align-items-center justify-content-center p-2 bg-white rounded">
-                            <span class="badge bg-success me-2" style="font-size: 0.7rem;">${travelPointData.entrypickup || travelPointData.pickupPoint || 'Pickup'}</span>
-                            <i class="ri-arrow-right-line text-primary mx-1" style="font-size: 1rem;"></i>
-                            <span class="badge bg-danger" style="font-size: 0.7rem;">${travelPointData.entrydropoff || travelPointData.dropoffPoint || 'Dropoff'}</span>
-                        </div>
-                    </div>
+//                     <!-- Route Information -->
+//                     <div class="bg-light rounded p-2 mb-3">
+//                         <div class="d-flex align-items-center mb-2">
+//                             <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+//                                 <i class="ri-route-line text-white" style="font-size: 0.9rem;"></i>
+//                             </div>
+//                             <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Route Information</h6>
+//                         </div>
+//                         <div class="row g-2 mb-2">
+//                             <div class="col-md-6">
+//                                 <div class="bg-white rounded p-2">
+//                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Pickup Point</small>
+//                                     <div class="fw-medium d-flex align-items-center" style="font-size: 0.85rem;">
+//                                         <i class="ri-map-pin-line text-success me-1"></i>
+//                                         <span class="text-truncate">${travelPointData.entrypickup || travelPointData.pickupPoint || 'N/A'}</span>
+//                                     </div>
+//                                     <small class="text-success" style="font-size: 0.65rem;">Origin</small>
+//                                 </div>
+//                             </div>
+//                             <div class="col-md-6">
+//                                 <div class="bg-white rounded p-2">
+//                                     <small class="text-muted d-block" style="font-size: 0.7rem;">Dropoff Point</small>
+//                                     <div class="fw-medium d-flex align-items-center" style="font-size: 0.85rem;">
+//                                         <i class="ri-map-pin-2-line text-danger me-1"></i>
+//                                         <span class="text-truncate">${travelPointData.entrydropoff || travelPointData.dropoffPoint || 'N/A'}</span>
+//                                     </div>
+//                                     <small class="text-danger" style="font-size: 0.65rem;">Destination</small>
+//                                 </div>
+//                             </div>
+//                         </div>
+//                         <!-- Compact Route Direction Visual -->
+//                         <div class="d-flex align-items-center justify-content-center p-2 bg-white rounded">
+//                             <span class="badge bg-success me-2" style="font-size: 0.7rem;">${travelPointData.entrypickup || travelPointData.pickupPoint || 'Pickup'}</span>
+//                             <i class="ri-arrow-right-line text-primary mx-1" style="font-size: 1rem;"></i>
+//                             <span class="badge bg-danger" style="font-size: 0.7rem;">${travelPointData.entrydropoff || travelPointData.dropoffPoint || 'Dropoff'}</span>
+//                         </div>
+//                     </div>
 
-                    <!-- Vehicle & Location Information -->
-                    <div class="row mb-3 g-3">
-                        <div class="col-md-6">
-                            <div class="bg-light rounded p-2 h-100" style="overflow: hidden;">
-                                <div class="d-flex align-items-center mb-2">
-                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                                        <i class="ri-car-line text-white" style="font-size: 0.9rem;"></i>
-                                    </div>
-                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Vehicle Details</h6>
-                                </div>
-                                <div class="row g-2 mb-3">
-                                    <div class="col-6">
-                                        <small class="text-muted d-block mb-1" style="font-size: 0.7rem;">Vehicle Name</small>
-                                        <div class="fw-medium text-truncate" style="font-size: 0.85rem;" title="${travelPointData.vehicles_name || 'N/A'}">${travelPointData.vehicles_name || 'N/A'}</div>
-                                    </div>
-                                    <div class="col-6">
-                                        <small class="text-muted d-block mb-1" style="font-size: 0.7rem;">Service Type</small>
-                                        <div class="fw-medium" style="font-size: 0.85rem;">${travelPointData.type || 'N/A'}</div>
-                                    </div>
-                                </div>
-                                <!-- Compact Vehicle Image Display -->
-                                <div class="d-flex justify-content-center align-items-center mt-3 mb-2" style="min-height: 110px; width: 100%; overflow: hidden; position: relative;">
-                                    ${travelPointData.image && travelPointData.image.trim() !== '' ? `
-                                        <div class="position-relative" style="width: 100px; height: 100px; flex-shrink: 0; overflow: hidden;">
-                                            <img src="${travelPointData.image}" 
-                                                 alt="Vehicle Image" 
-                                                 class="rounded-circle shadow-sm" 
-                                                 style="width: 100px; height: 100px; object-fit: cover; object-position: center; border: 3px solid #667eea; cursor: pointer; display: block; margin: 0; padding: 0; background: #f8f9fa;"
-                                                 onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm\\' style=\\'width: 100px; height: 100px; border: 3px solid #e9ecef;\\'><i class=\\'ri-car-line text-muted\\' style=\\'font-size: 2.5rem;\\'></i></div>';"
-                                                 onclick="openVehicleImageModal('${travelPointData.image}', '${travelPointData.vehicles_name || 'Vehicle'}')">
-                                            <div class="position-absolute" style="top: -5px; right: -5px; z-index: 10;">
-                                                <span class="badge bg-dark bg-opacity-90 text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 24px; height: 24px; font-size: 0.7rem; padding: 0; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"
-                                                      onclick="event.stopPropagation(); openVehicleImageModal('${travelPointData.image}', '${travelPointData.vehicles_name || 'Vehicle'}')">
-                                                    <i class="ri-zoom-in-line"></i>
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ` : `
-                                        <div class="rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm" style="width: 100px; height: 100px; border: 3px solid #e9ecef; flex-shrink: 0;">
-                                            <i class="ri-car-line text-muted" style="font-size: 2.5rem;"></i>
-                                        </div>
-                                    `}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="bg-light rounded p-2 h-100">
-                                <div class="d-flex align-items-center mb-2">
-                                    <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
-                                        <i class="ri-map-pin-line text-white" style="font-size: 0.9rem;"></i>
-                                    </div>
-                                    <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Location Information</h6>
-                                </div>
-                                <div class="row g-2 mb-2">
-                                    <div class="col-6">
-                                        <small class="text-muted d-block" style="font-size: 0.7rem;">City</small>
-                                        <div class="fw-medium" style="font-size: 0.85rem;">${travelPointData.city || 'N/A'}</div>
-                                    </div>
-                                    <div class="col-6">
-                                        <small class="text-muted d-block" style="font-size: 0.7rem;">Country</small>
-                                        <div class="fw-medium" style="font-size: 0.85rem;">${travelPointData.country || 'N/A'}</div>
-                                    </div>
-                                </div>
-                                <!-- Compact Pricing Details -->
-                                <div class="bg-white rounded p-2 mt-2">
-                                    <small class="text-muted d-block mb-1" style="font-size: 0.7rem;">Total Price</small>
-                                    <div class="fw-bold text-success" style="font-size: 1rem;">SGD ${(travelPointData.totalPrice || 0).toFixed(2)}</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+//                     <!-- Vehicle & Location Information -->
+//                     <div class="row mb-3 g-3">
+//                         <div class="col-md-6">
+//                             <div class="bg-light rounded p-2 h-100" style="overflow: hidden;">
+//                                 <div class="d-flex align-items-center mb-2">
+//                                     <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+//                                         <i class="ri-car-line text-white" style="font-size: 0.9rem;"></i>
+//                                     </div>
+//                                     <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Vehicle Details</h6>
+//                                 </div>
+//                                 <div class="row g-2 mb-3">
+//                                     <div class="col-6">
+//                                         <small class="text-muted d-block mb-1" style="font-size: 0.7rem;">Vehicle Name</small>
+//                                         <div class="fw-medium text-truncate" style="font-size: 0.85rem;" title="${travelPointData.vehicles_name || 'N/A'}">${travelPointData.vehicles_name || 'N/A'}</div>
+//                                     </div>
+//                                     <div class="col-6">
+//                                         <small class="text-muted d-block mb-1" style="font-size: 0.7rem;">Service Type</small>
+//                                         <div class="fw-medium" style="font-size: 0.85rem;">${travelPointData.type || 'N/A'}</div>
+//                                     </div>
+//                                 </div>
+//                                 <!-- Compact Vehicle Image Display -->
+//                                 <div class="d-flex justify-content-center align-items-center mt-3 mb-2" style="min-height: 110px; width: 100%; overflow: hidden; position: relative;">
+//                                     ${travelPointData.image && travelPointData.image.trim() !== '' ? `
+//                                         <div class="position-relative" style="width: 100px; height: 100px; flex-shrink: 0; overflow: hidden;">
+//                                             <img src="${travelPointData.image}" 
+//                                                  alt="Vehicle Image" 
+//                                                  class="rounded-circle shadow-sm" 
+//                                                  style="width: 100px; height: 100px; object-fit: cover; object-position: center; border: 3px solid #667eea; cursor: pointer; display: block; margin: 0; padding: 0; background: #f8f9fa;"
+//                                                  onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm\\' style=\\'width: 100px; height: 100px; border: 3px solid #e9ecef;\\'><i class=\\'ri-car-line text-muted\\' style=\\'font-size: 2.5rem;\\'></i></div>';"
+//                                                  onclick="openVehicleImageModal('${travelPointData.image}', '${travelPointData.vehicles_name || 'Vehicle'}')">
+//                                             <div class="position-absolute" style="top: -5px; right: -5px; z-index: 10;">
+//                                                 <span class="badge bg-dark bg-opacity-90 text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 24px; height: 24px; font-size: 0.7rem; padding: 0; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);"
+//                                                       onclick="event.stopPropagation(); openVehicleImageModal('${travelPointData.image}', '${travelPointData.vehicles_name || 'Vehicle'}')">
+//                                                     <i class="ri-zoom-in-line"></i>
+//                                                 </span>
+//                                             </div>
+//                                         </div>
+//                                     ` : `
+//                                         <div class="rounded-circle bg-light d-flex align-items-center justify-content-center shadow-sm" style="width: 100px; height: 100px; border: 3px solid #e9ecef; flex-shrink: 0;">
+//                                             <i class="ri-car-line text-muted" style="font-size: 2.5rem;"></i>
+//                                         </div>
+//                                     `}
+//                                 </div>
+//                             </div>
+//                         </div>
+//                         <div class="col-md-6">
+//                             <div class="bg-light rounded p-2 h-100">
+//                                 <div class="d-flex align-items-center mb-2">
+//                                     <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+//                                         <i class="ri-map-pin-line text-white" style="font-size: 0.9rem;"></i>
+//                                     </div>
+//                                     <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Location Information</h6>
+//                                 </div>
+//                                 <div class="row g-2 mb-2">
+//                                     <div class="col-6">
+//                                         <small class="text-muted d-block" style="font-size: 0.7rem;">City</small>
+//                                         <div class="fw-medium" style="font-size: 0.85rem;">${travelPointData.city || 'N/A'}</div>
+//                                     </div>
+//                                     <div class="col-6">
+//                                         <small class="text-muted d-block" style="font-size: 0.7rem;">Country</small>
+//                                         <div class="fw-medium" style="font-size: 0.85rem;">${travelPointData.country || 'N/A'}</div>
+//                                     </div>
+//                                 </div>
+//                                 <!-- Compact Pricing Details -->
+//                                 <div class="bg-white rounded p-2 mt-2">
+//                                     <small class="text-muted d-block mb-1" style="font-size: 0.7rem;">Total Price</small>
+//                                     <div class="fw-bold text-success" style="font-size: 1rem;">SGD ${(travelPointData.totalPrice || 0).toFixed(2)}</div>
+//                                 </div>
+//                             </div>
+//                         </div>
+//                     </div>
 
                 
 
 
-                    <!-- Booking Status -->
-                    <div class="bg-light rounded p-2">
-                        <div class="d-flex align-items-center mb-2">
-                            <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
-                                <i class="ri-settings-line text-white" style="font-size: 0.9rem;"></i>
-                            </div>
-                            <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Booking Status</h6>
-                        </div>
-                        ${(travelPointData.is_approve == 1 || travelPointData.is_approve === '1' || travelPointData.is_approve === true) ? `
-                            <div class="alert alert-success mb-0 py-2 px-3" style="border-radius: 8px; font-size: 0.85rem;">
-                                <i class="ri-check-circle-fill me-1"></i>
-                                <strong>Approved Booking</strong>
-                                ${travelPointData.reference_id ? `<br><small class="text-muted">Ref: ${travelPointData.reference_id}</small>` : ''}
-                                ${travelPointData.display_due_date ? `<br><small class="text-muted">Due: ${travelPointData.display_due_date}</small>` : ''}
-                            </div>
-                        ` : `
-                            <div class="d-flex gap-2 flex-wrap" id="travelPoint_buttons_${tourId}_${travelPointOrderIndex}_${bookingIndex}">
-                                <!-- Buttons will be dynamically added based on user role -->
-                            </div>
-                        `}
-                    </div>
-                </div>
-            </div>
-        `;
+//                     <!-- Booking Status -->
+//                     <div class="bg-light rounded p-2">
+//                         <div class="d-flex align-items-center mb-2">
+//                             <div class="rounded-circle p-1 me-2" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;">
+//                                 <i class="ri-settings-line text-white" style="font-size: 0.9rem;"></i>
+//                             </div>
+//                             <h6 class="fw-bold mb-0 text-dark" style="font-size: 0.95rem;">Booking Status</h6>
+//                         </div>
+//                         ${(travelPointData.is_approve == 1 || travelPointData.is_approve === '1' || travelPointData.is_approve === true) ? `
+//                             <div class="alert alert-success mb-0 py-2 px-3" style="border-radius: 8px; font-size: 0.85rem;">
+//                                 <i class="ri-check-circle-fill me-1"></i>
+//                                 <strong>Approved Booking</strong>
+//                                 ${travelPointData.reference_id ? `<br><small class="text-muted">Ref: ${travelPointData.reference_id}</small>` : ''}
+//                                 ${travelPointData.display_due_date ? `<br><small class="text-muted">Due: ${travelPointData.display_due_date}</small>` : ''}
+//                             </div>
+//                         ` : `
+//                             <div class="d-flex gap-2 flex-wrap" id="travelPoint_buttons_${tourId}_${travelPointOrderIndex}_${bookingIndex}">
+//                                 <!-- Buttons will be dynamically added based on user role -->
+//                             </div>
+//                         `}
+//                     </div>
+//                 </div>
+//             </div>
+//         `;
         
-        document.getElementById(`${modalId}_content`).innerHTML = content;
+//         document.getElementById(`${modalId}_content`).innerHTML = content;
         
-        // Show only approval status (no action buttons in actual bookings)
-        {
-            const isApprovedTP = travelPointData.is_approve == 1 || travelPointData.is_approve === '1' || travelPointData.is_approve === true;
-            const buttonsContainer = document.getElementById(`travelPoint_buttons_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
-            if (buttonsContainer) {
-                if (isApprovedTP) {
-                    buttonsContainer.innerHTML = `
-                        <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
-                            <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
-                            <strong>Approved</strong>
-                        </div>
-                    `;
-                } else {
-                    buttonsContainer.innerHTML = '<div class="text-muted small" style="font-size: 0.85rem;"><i class="ri-time-line me-1"></i>Pending approval</div>';
-                }
-            }
-        }
+//         // Show only approval status (no action buttons in actual bookings)
+//         {
+//             const isApprovedTP = travelPointData.is_approve == 1 || travelPointData.is_approve === '1' || travelPointData.is_approve === true;
+//             const buttonsContainer = document.getElementById(`travelPoint_buttons_${tourId}_${travelPointOrderIndex}_${bookingIndex}`);
+//             if (buttonsContainer) {
+//                 if (isApprovedTP) {
+//                     buttonsContainer.innerHTML = `
+//                         <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
+//                             <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
+//                             <strong>Approved</strong>
+//                         </div>
+//                     `;
+//                 } else {
+//                     buttonsContainer.innerHTML = '<div class="text-muted small" style="font-size: 0.85rem;"><i class="ri-time-line me-1"></i>Pending approval</div>';
+//                 }
+//             }
+//         }
         
-    } catch (error) {
-        console.error('Error generating individual travel point content:', error);
-        displayTravelPointErrorContent(modalId, 'Error generating content');
-    }
-}
+//     } catch (error) {
+//         console.error('Error generating individual travel point content:', error);
+//         displayTravelPointErrorContent(modalId, 'Error generating content');
+//     }
+// }
 
 // Travel Point Approve and Reject Functions (following Travel Hourly pattern)
 window.approveTravelPointBooking = function(tourId, travelPointOrderIndex, bookingIndex) {
@@ -15249,6 +15277,35 @@ function displayTravelPointErrorContent(modalId, message) {
 
 function generateIndividualTravelPointContent(travelPointData, modalId, tourId, travelPointOrderIndex, bookingIndex) {
     try {
+        const rawBookingDate =
+            travelPointData.bookingDate ||
+            travelPointData.pickupdate ||
+            travelPointData.booking_date ||
+            '';
+
+        let dateLabel = 'N/A';
+
+        if (rawBookingDate) {
+            const match = String(rawBookingDate).trim()
+                .match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+            if (match) {
+                const date = new Date(
+                    Number(match[1]),
+                    Number(match[2]) - 1,
+                    Number(match[3])
+                );
+
+                dateLabel = date.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: '2-digit',
+                    year: 'numeric'
+                });
+            } else {
+                dateLabel = String(rawBookingDate).trim();
+            }
+        }
+        
         const content = `
             <div class="card mb-3 shadow-sm border-0" style="border-radius: 10px; overflow: hidden; border-left: 4px solid #667eea !important;">
                 <!-- Compact Card Header -->
@@ -15282,7 +15339,7 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                 <div class="row g-2">
                                     <div class="col-6">
                                         <small class="text-muted d-block" style="font-size: 0.7rem;">Booking Date</small>
-                                        <div class="fw-medium" style="font-size: 0.85rem;">${travelPointData.bookingDate || 'N/A'}</div>
+                                        <div class="fw-medium" style="font-size: 0.85rem;">${dateLabel || 'N/A'}</div>
                                     </div>
                                     <div class="col-6">
                                         <small class="text-muted d-block" style="font-size: 0.7rem;">Time</small>
@@ -16344,7 +16401,14 @@ function loadIndividualLocalTransportContent(modalId, tourId, localTransportOrde
                 vehicles_name: rawData.vehicles_name || localTransportDetails.vehicles_name,
                 image: localTransportDetails.image,
                 totalPrice: parseFloat(rawData.total_price || 0),
-                bookingDate: rawData.booking_date || localTransportDetails.bookingDate,
+
+                pickupdate: rawData.pickupdate
+                    || rawData.booking_date
+                    || rawData.bookingDate
+                    || localTransportDetails.pickupdate
+                    || localTransportDetails.bookingDate
+                    || null,
+
                 entrytime: rawData.entry_time || localTransportDetails.entry_time,
                 type: localTransportDetails.type || 'Standard',
                 adults: rawData.adults || '0',
@@ -26522,8 +26586,12 @@ document.addEventListener('change', function(e) {
                     document.getElementById(`arrival_booking_date_${editModalId}`).value = bookingDate;
                 }
                 
-                if (arrivalDetails.pickup_date) {
-                    let pickupDate = arrivalDetails.pickup_date;
+                const arrivalPickupRaw = arrivalDetails.pickup_date
+                    || arrivalDetails.pickupdate
+                    || (arrivalDetails.arrival_details && (arrivalDetails.arrival_details.pickupdate || arrivalDetails.arrival_details.pickup_date))
+                    || '';
+                if (arrivalPickupRaw) {
+                    let pickupDate = arrivalPickupRaw;
                     if (pickupDate.includes(' ')) {
                         pickupDate = pickupDate.split(' ')[0];
                     } else if (pickupDate.includes('T')) {
@@ -26531,10 +26599,14 @@ document.addEventListener('change', function(e) {
                     }
                     document.getElementById(`arrival_pickup_date_${editModalId}`).value = pickupDate;
                 }
-                
-                if (arrivalDetails.entry_time) {
+
+                const arrivalTimeRaw = arrivalDetails.entry_time
+                    || arrivalDetails.entrytime
+                    || (arrivalDetails.arrival_details && (arrivalDetails.arrival_details.entrytime || arrivalDetails.arrival_details.entry_time))
+                    || '';
+                if (arrivalTimeRaw) {
                     // Convert time to 24-hour format for input
-                    let timeValue = arrivalDetails.entry_time;
+                    let timeValue = arrivalTimeRaw;
                     if (timeValue.includes('AM') || timeValue.includes('PM')) {
                         timeValue = convertTo24HourFormat(timeValue);
                     }
@@ -26936,8 +27008,18 @@ document.addEventListener('change', function(e) {
                     document.getElementById(`departure_booking_date_${editModalId}`).value = bookingDate;
                 }
                 
-                if (departureDetails.exit_pickup_date) {
-                    let pickupDate = departureDetails.exit_pickup_date;
+                const departurePickupRaw = departureDetails.pickup_date
+                    || departureDetails.pickupdate
+                    || departureDetails.exit_pickup_date
+                    || departureDetails.exitpickupdate
+                    || (departureDetails.departure_details && (
+                        departureDetails.departure_details.pickupdate
+                        || departureDetails.departure_details.exitpickupdate
+                        || departureDetails.departure_details.exit_pickup_date
+                    ))
+                    || '';
+                if (departurePickupRaw) {
+                    let pickupDate = departurePickupRaw;
                     if (pickupDate.includes(' ')) {
                         pickupDate = pickupDate.split(' ')[0];
                     } else if (pickupDate.includes('T')) {
@@ -26945,10 +27027,20 @@ document.addEventListener('change', function(e) {
                     }
                     document.getElementById(`departure_pickup_date_${editModalId}`).value = pickupDate;
                 }
-                
-                if (departureDetails.entry_time) {
+
+                const departureTimeRaw = departureDetails.exit_time
+                    || departureDetails.exittime
+                    || departureDetails.entry_time
+                    || departureDetails.entrytime
+                    || (departureDetails.departure_details && (
+                        departureDetails.departure_details.exittime
+                        || departureDetails.departure_details.entrytime
+                        || departureDetails.departure_details.entry_time
+                    ))
+                    || '';
+                if (departureTimeRaw) {
                     // Convert time to 24-hour format for input
-                    let timeValue = departureDetails.entry_time;
+                    let timeValue = departureTimeRaw;
                     if (timeValue.includes('AM') || timeValue.includes('PM')) {
                         timeValue = convertTo24HourFormat(timeValue);
                     }

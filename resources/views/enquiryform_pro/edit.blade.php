@@ -1912,7 +1912,7 @@ window.enquiryProCancelOrderUrl = @json(url('/api/orders/__ID__/cancel'));
             <div class="section-header">
                 <span>Attractions</span>
                 <div class="d-flex align-items-center flex-wrap justify-content-end">
-                    @if(\App\Helpers\CommonHelper::masterDmcOnlineApiEnabled(auth()->user()))
+                    {{-- @if(\App\Helpers\CommonHelper::masterDmcOnlineApiEnabled(auth()->user()))
                     <div class="ep-online-source-toggle" title="Offline = catalog attractions · Online = live SG Attractions (Lite flow, no transfer)">
                         <div class="form-check form-check-inline">
                             <input class="form-check-input ep-attraction-source-type" type="radio" name="epAttractionSourceType" id="epAttractionSourceOffline" value="offline" checked>
@@ -1923,7 +1923,7 @@ window.enquiryProCancelOrderUrl = @json(url('/api/orders/__ID__/cancel'));
                             <label class="form-check-label" for="epAttractionSourceOnline">Online</label>
                         </div>
                     </div>
-                    @endif
+                    @endif --}}
                     <button class="btn btn-sm btn-light btn-xs" onclick="openTourModal()">+ Add</button>
                     <button class="btn btn-sm btn-light btn-xs ms-1" onclick="removeSelectedTours()">- Remove</button>
                 </div>
@@ -35993,7 +35993,7 @@ entryPortData.push({
             } else if (item.type === 'Departure') {
                 // Extract date and time
                 let bookingDate = normalizeDateToYYYYMMDD(item.dateTime);
-                let entrytime = "11:00 AM";
+                let exittime = "11:00 AM";
                 
                 if (item.dateTime && item.dateTime.includes('T')) {
                     const parts = item.dateTime.split('T');
@@ -36004,7 +36004,7 @@ entryPortData.push({
                         const minutes = timeParts[1] || '00';
                         const ampm = hours >= 12 ? 'PM' : 'AM';
                         hours = hours % 12 || 12;
-                        entrytime = `${String(hours).padStart(2, '0')}:${minutes} ${ampm}`;
+                        exittime = `${String(hours).padStart(2, '0')}:${minutes} ${ampm}`;
                     }
                 }
                 
@@ -36070,7 +36070,7 @@ exitPortData.push({
                     bookingDate: bookingDate,
                     date: bookingDate,
                     dateTime: item.dateTime || "",
-                    exitpickupdate: bookingDate,
+                    pickupdate: bookingDate,
                     vehicle_id: slice.vehicleId || item.vehicleId || '',
                     vehicleId: slice.vehicleId || item.vehicleId || '',
                     vehicles: [slice],
@@ -36100,8 +36100,8 @@ exitPortData.push({
                     portId: item.portId || "",
                     flightNumber: item.flightNo || item.flightNumber || "",
                     flight_number: item.flightNo || item.flightNumber || "",
-                    entrytime: entrytime,
-                    time: entrytime,
+                    exittime: exittime,
+                    time: exittime,
                     PickupPlaceid: null,
                     DropoffPlaceid: null,
                     adultCost: parseFloat(slice.adultCost) || 0,
@@ -38154,7 +38154,7 @@ exitPortData.push({
         for (const item of departures) {
             // Extract date and time from dateTime
             let bookingDate = item.dateTime;
-            let entrytime = "11:00 AM";
+            let exittime = "11:00 AM";
             
             if (bookingDate && bookingDate.includes('T')) {
                 const parts = bookingDate.split('T');
@@ -38166,7 +38166,7 @@ exitPortData.push({
                     const minutes = timeParts[1] || '00';
                     const ampm = hours >= 12 ? 'PM' : 'AM';
                     hours = hours % 12 || 12;
-                    entrytime = `${hours}:${minutes} ${ampm}`;
+                    exittime = `${hours}:${minutes} ${ampm}`;
                 }
             }
             
@@ -38197,8 +38197,8 @@ exitPortData.push({
                     lat: "",
                     lng: ""
                 },
-                exitpickupdate: bookingDate,
-                entrytime: entrytime,
+                pickupdate: bookingDate,
+                exittime: exittime,
                 adults: item.adultsQty || 0,
                 children: item.childQty || 0,
                 totalPrice: item.amount || 0,

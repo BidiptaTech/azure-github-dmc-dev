@@ -1787,7 +1787,7 @@
                                                         <div class="row g-1">
                                                             <div class="col-6">
                                                                 <small class="text-muted d-block" style="font-size: 0.65rem;">Date</small>
-                                                                <div class="fw-medium" style="font-size: 0.75rem;">{{ isset($booking['bookingDate']) ? \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') : 'N/A' }}</div>
+                                                                <div class="fw-medium" style="font-size: 0.75rem;">{{ isset($booking['pickupdate']) ? \Carbon\Carbon::parse($booking['pickupdate'])->format('M d, Y') : 'N/A' }}</div>
                                                             </div>
                                                             <div class="col-6">
                                                                 <small class="text-muted d-block" style="font-size: 0.65rem;">Time</small>
@@ -2033,16 +2033,16 @@
                                                         <div class="row g-1">
                                                             <div class="col-6">
                                                                 <small class="text-muted d-block" style="font-size: 0.65rem;">Date</small>
-                                                                <div class="fw-medium" style="font-size: 0.75rem;">{{ isset($booking['bookingDate']) ? \Carbon\Carbon::parse($booking['bookingDate'])->format('M d, Y') : 'N/A' }}</div>
+                                                                <div class="fw-medium" style="font-size: 0.75rem;">{{ isset($booking['pickupdate']) ? \Carbon\Carbon::parse($booking['pickupdate'])->format('M d, Y') : 'N/A' }}</div>
                                                             </div>
                                                             <div class="col-6">
                                                                 <small class="text-muted d-block" style="font-size: 0.65rem;">Time</small>
                                                                 <div class="fw-medium" style="font-size: 0.75rem;">{{ $booking['entrytime'] ?? 'N/A' }}</div>
                                                             </div>
-                                                            <div class="col-6">
+                                                            <!-- <div class="col-6">
                                                                 <small class="text-muted d-block" style="font-size: 0.65rem;">Distance</small>
                                                                 <span class="badge bg-info px-1 py-0" style="font-size: 0.65rem;">{{ $booking['distance'] ?? 'N/A' }} km</span>
-                                                            </div>
+                                                            </div> -->
                                                             <div class="col-6">
                                                                 <small class="text-muted d-block" style="font-size: 0.65rem;">Service Type</small>
                                                                 <span class="badge bg-warning px-1 py-0" style="font-size: 0.65rem;">{{ $booking['type'] ?? 'Standard' }}</span>
@@ -2071,10 +2071,10 @@
                                                                 <small class="text-muted d-block" style="font-size: 0.65rem;">Total Guests</small>
                                                                 <span class="badge bg-primary px-1 py-0" style="font-size: 0.65rem;">{{ ($booking['adults'] ?? 0) + ($booking['children'] ?? 0) }}</span>
                                                             </div>
-                                                            <div class="col-6">
+                                                            <!-- <div class="col-6">
                                                                 <small class="text-muted d-block" style="font-size: 0.65rem;">Night Service Timing</small>
                                                                 <div class="fw-medium text-muted" style="font-size: 0.7rem;">{{ $booking['Night_Start_Time'] ?? 'N/A' }} - {{ $booking['Night_End_Time'] ?? 'N/A' }}</div>
-                                                            </div>
+                                                            </div> -->
                                                         </div>
                                                     </div>
                                                 </div>
@@ -2169,14 +2169,14 @@
                                                         <small class="text-muted d-block" style="font-size: 0.65rem;">Total Price</small>
                                                         <div class="fw-bold text-success" style="font-size: 0.9rem;">{{ $currency }} {{ number_format((float)($booking['totalPrice'] ?? 0), 2) }}</div>
                                                     </div>
-                                                    <div class="col-md-4">
+                                                    <!-- <div class="col-md-4">
                                                         <small class="text-muted d-block" style="font-size: 0.65rem;">From Zone</small>
                                                         <div class="fw-medium" style="font-size: 0.75rem;">{{ $fromZoneName }}</div>
                                                     </div>
                                                     <div class="col-md-4">
                                                         <small class="text-muted d-block" style="font-size: 0.65rem;">To Zone</small>
                                                         <div class="fw-medium" style="font-size: 0.75rem;">{{ $toZoneName }}</div>
-                                                    </div>
+                                                    </div> -->
                                                 </div>
                                             </div>
                                         </div>
