@@ -5983,6 +5983,47 @@ class SingleTourPackageController extends Controller
     }
 
     /**
+     * Point-to-point (and other transport) rows must keep pickup time and vehicle image.
+     * The lite form sends entrytime; booking screens also read entry_time.
+     *
+     * @param  array<string, mixed>  $transport
+     * @return array<string, mixed>
+     */
+    private function ensureTransportEntryTimeAndImage(array $transport): array
+    {
+        $entryTime = trim((string) (
+            $transport['entrytime']
+            ?? $transport['entry_time']
+            ?? $transport['pickup_time']
+            ?? ''
+        ));
+        if ($entryTime !== '') {
+            $transport['entrytime'] = $entryTime;
+            $transport['entry_time'] = $entryTime;
+        }
+
+        if (empty($transport['bookingDate']) && !empty($transport['pickupdate'])) {
+            $transport['bookingDate'] = $transport['pickupdate'];
+        }
+
+        $image = trim((string) ($transport['image'] ?? ''));
+        if ($image === '') {
+            $vehicleId = $transport['vehicles_id'] ?? $transport['vehicle_id'] ?? null;
+            if ($vehicleId !== null && $vehicleId !== '') {
+                $vehicleImage = Vehicle::where('vehicle_id', $vehicleId)->value('image');
+                if (is_string($vehicleImage) && trim($vehicleImage) !== '') {
+                    $image = trim($vehicleImage);
+                }
+            }
+        }
+        if ($image !== '') {
+            $transport['image'] = $image;
+        }
+
+        return $transport;
+    }
+
+    /**
      * Ensure service JSON carries country/city/currency and return order-level geo columns.
      *
      * @param  array<string, mixed>  $serviceRow
@@ -6733,6 +6774,7 @@ class SingleTourPackageController extends Controller
                             }
                             
                             foreach ($decodedData as $transport) {
+                                $transport = $this->ensureTransportEntryTimeAndImage($transport);
                                 // Determine the correct type based on travel_type
                                 $orderType = $transport['travel_type'] ?? 'travel_point'; // Default to travel_point if not specified
                                 
@@ -7528,6 +7570,7 @@ class SingleTourPackageController extends Controller
         $firstTransport = (is_array($transportData) && isset($transportData[0]) && is_array($transportData[0]))
             ? $transportData[0]
             : (is_array($transportData) ? $transportData : []);
+        $firstTransport = $this->ensureTransportEntryTimeAndImage($firstTransport);
         [$firstTransport, $orderGeo] = $this->applyOrderGeoToServiceRow($firstTransport, $request, $tourId);
         if (empty($orderGeo['city'])) {
             $fallbackCity = trim((string) ($firstTransport['city'] ?? $request->input('city', '')));
@@ -7630,6 +7673,7 @@ class SingleTourPackageController extends Controller
         $firstTransfer = (is_array($transportData) && isset($transportData[0]) && is_array($transportData[0]))
             ? $transportData[0]
             : (is_array($transportData) ? $transportData : []);
+        $firstTransfer = $this->ensureTransportEntryTimeAndImage($firstTransfer);
         [$firstTransfer, $orderGeo] = $this->applyOrderGeoToServiceRow($firstTransfer, $request, $tourId);
         if (empty($orderGeo['city'])) {
             // Prefer payload/request city; fall back to active tour city string (first place name).

@@ -22,10 +22,30 @@
         return !!(T.zoneOn && T.zoneOn());
     }
 
+    function isEditForm() {
+        return !!(window.STP_LITE_CONFIG && window.STP_LITE_CONFIG.mode === 'edit');
+    }
+
+    /** Edit form: date stays visible but cannot be changed (picker included). */
+    function lockDateField(input) {
+        if (!input || !isEditForm()) return;
+        input.readOnly = true;
+        input.setAttribute('readonly', 'readonly');
+        input.setAttribute('tabindex', '-1');
+        input.style.pointerEvents = 'none';
+        input.style.backgroundColor = '#e9ecef';
+        input.style.cursor = 'not-allowed';
+        input.addEventListener('keydown', function (e) { e.preventDefault(); });
+        input.addEventListener('beforeinput', function (e) { e.preventDefault(); });
+    }
+
     function shellHtml(stay) {
         var T = S();
         var cur = stay.currency || 'SGD';
         var zone = stayZoneOn(T, stay);
+        var dateLock = isEditForm()
+            ? ' readonly tabindex="-1" style="pointer-events:none;background-color:#e9ecef;cursor:not-allowed;"'
+            : '';
         return (
             '<div class="stp-lite-svc stp-lite-arrival" data-currency="' + T.esc(cur) + '">' +
             '  <div class="row g-2 mb-2">' +
@@ -37,7 +57,7 @@
             T.ampmTimeHtml('arrival', '') +
             '</div>' +
             '    <div class="col-md-3"><label class="stp-lite-label">Date</label>' +
-            '      <input type="date" class="form-control form-control-sm arrival-date" value="' + T.esc(stay.start || '') + '"></div>' +
+            '      <input type="date" class="form-control form-control-sm arrival-date" value="' + T.esc(stay.start || '') + '"' + dateLock + '></div>' +
             '  </div>' +
             '  <div class="row g-2 mb-2">' +
             (zone
@@ -712,6 +732,7 @@
 
         T.bindAmPm(root);
         T.bindStayDate(root.querySelector('.arrival-date'), stay, function () { invalidate(root); });
+        lockDateField(root.querySelector('.arrival-date'));
         T.bindGuestCaps(root);
         loadPickupDropoff(root, stay);
         if (!stayZoneOn(T, stay) && window.StpLiteMaps) {

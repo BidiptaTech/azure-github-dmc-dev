@@ -734,18 +734,23 @@
             ? T.packageHourlySellPrice(opt, hours)
             : 0;
         var vehicleCount = readVehicleCount(root);
+        var entrytime = T.readAmPmValue(root, 'transport');
+        var pickupDate = (root.querySelector('.transport-date') || {}).value || stay.start || '';
 
         return {
             travel_type: travelType,
             vehicles_id: opt ? opt.value : '',
             vehicles_name: opt ? (opt.dataset.vehicleName || opt.textContent) : '',
+            image: opt ? (opt.dataset.image || '') : '',
             type: serviceType,
             entrypickup: pickupText,
             entrydropoff: dropoffText,
             from_zone_id: fOpt ? (fOpt.dataset.zoneId || from.value) : '',
             to_zone_id: tOpt ? (tOpt.dataset.zoneId || to.value) : '',
-            pickupdate: (root.querySelector('.transport-date') || {}).value || stay.start || '',
-            entrytime: T.readAmPmValue(root, 'transport'),
+            pickupdate: pickupDate,
+            bookingDate: pickupDate,
+            entrytime: entrytime,
+            entry_time: entrytime,
             selectedHours: mode === 'hourly' ? hours : '',
             adults: adults,
             children: children,
