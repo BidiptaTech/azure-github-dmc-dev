@@ -13271,7 +13271,7 @@ function loadIndividualTravelHourlyContent(modalId, tourId, travelHourlyOrderInd
                 vehicles_name: rawData.vehicles_name || travelHourlyDetails.vehicles_name,
                 image: travelHourlyDetails.image,
                 totalPrice: parseFloat(rawData.total_price || 0),
-                bookingDate: rawData.booking_date || travelHourlyDetails.bookingDate,
+                bookingDate: rawData.pickupdate || rawData.booking_date || travelHourlyDetails.pickupdate || travelHourlyDetails.bookingDate || travelHourlyDetails.booking_date || '',
                 entrytime: rawData.entry_time || travelHourlyDetails.entry_time,
                 selectedHours: rawData.selected_hours || travelHourlyDetails.selected_hours,
                 type: travelHourlyDetails.type || 'Standard',
@@ -13320,6 +13320,34 @@ function displayTravelHourlyErrorContent(modalId, message) {
 
 function generateIndividualTravelHourlyContent(travelHourlyData, modalId, tourId, travelHourlyOrderIndex, bookingIndex) {
     try {
+                const rawBookingDate =
+            travelHourlyData.bookingDate ||
+            travelHourlyData.pickupdate ||
+            travelHourlyData.booking_date ||
+            '';
+
+        let dateLabel = 'N/A';
+
+        if (rawBookingDate) {
+            const match = String(rawBookingDate).trim()
+                .match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+            if (match) {
+                const date = new Date(
+                    Number(match[1]),
+                    Number(match[2]) - 1,
+                    Number(match[3])
+                );
+
+                dateLabel = date.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: '2-digit',
+                    year: 'numeric'
+                });
+            } else {
+                dateLabel = String(rawBookingDate).trim();
+            }
+        }
 
         const content = `
             <div class="card mb-2 shadow-sm border-0" style="border-radius: 8px; overflow: hidden; border-left: 4px solid #667eea !important;">
@@ -13354,7 +13382,7 @@ function generateIndividualTravelHourlyContent(travelHourlyData, modalId, tourId
                                 <div class="row g-1">
                                     <div class="col-6">
                                         <small class="text-muted d-block" style="font-size: 0.65rem;">Date</small>
-                                        <div class="fw-medium" style="font-size: 0.75rem;">${travelHourlyData.bookingDate || 'N/A'}</div>
+                                        <div class="fw-medium" style="font-size: 0.75rem;">${dateLabel}</div>
                                     </div>
                                     <div class="col-6">
                                         <small class="text-muted d-block" style="font-size: 0.65rem;">Time</small>
@@ -14561,7 +14589,7 @@ function loadIndividualTravelPointContent(modalId, tourId, travelPointOrderIndex
                 vehicles_name: rawData.vehicles_name || travelPointDetails.vehicles_name,
                 image: travelPointDetails.image,
                 totalPrice: parseFloat(rawData.total_price || 0),
-                bookingDate: rawData.booking_date || travelPointDetails.bookingDate,
+                bookingDate: rawData.pickupdate || rawData.booking_date || travelPointDetails.pickupdate || travelPointDetails.bookingDate || travelPointDetails.booking_date || '',
                 entrytime: rawData.entry_time || travelPointDetails.entry_time,
                 pickup_location: rawData.pickup_location || travelPointDetails.pickup_location,
                 drop_location: rawData.drop_location || travelPointDetails.drop_location,
@@ -14623,213 +14651,213 @@ function displayTravelPointErrorContent(modalId, message) {
     `;
 }
 
-function generateIndividualTravelPointContent(travelPointData, modalId, tourId, travelPointOrderIndex, bookingIndex) {
-    try {
-        const content = `
-            <div class="card border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
-                <div class="card-header border-0" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); padding: 20px;">
-                    <div class="row align-items-center">
-                        <div class="col-md-8">
-                            <h5 class="mb-1 fw-bold text-white">
-                                <i class="ri-route-line me-2"></i>${travelPointData.vehicles_name || 'Point to Point Service'}
-                            </h5>
-                            <p class="mb-0 text-white opacity-75">Local-Tour Point to Point ${parseInt(travelPointOrderIndex) + 1} • ${travelPointData.type || 'Standard'} Service</p>
-                        </div>
-                        <div class="col-md-4 text-end">
-                            <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
-                                <span class="text-success fw-bold fs-5">${window.bookingCurrency} ${(travelPointData.totalPrice || 0).toFixed(2)}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+// function generateIndividualTravelPointContent(travelPointData, modalId, tourId, travelPointOrderIndex, bookingIndex) {
+//     try {
+//         const content = `
+//             <div class="card border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
+//                 <div class="card-header border-0" style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); padding: 20px;">
+//                     <div class="row align-items-center">
+//                         <div class="col-md-8">
+//                             <h5 class="mb-1 fw-bold text-white">
+//                                 <i class="ri-route-line me-2"></i>${travelPointData.vehicles_name || 'Point to Point Service'}
+//                             </h5>
+//                             <p class="mb-0 text-white opacity-75">Local-Tour Point to Point ${parseInt(travelPointOrderIndex) + 1} • ${travelPointData.type || 'Standard'} Service</p>
+//                         </div>
+//                         <div class="col-md-4 text-end">
+//                             <div class="bg-white rounded-pill px-3 py-2 d-inline-block">
+//                                 <span class="text-success fw-bold fs-5">${window.bookingCurrency} ${(travelPointData.totalPrice || 0).toFixed(2)}</span>
+//                             </div>
+//                         </div>
+//                     </div>
+//                 </div>
                 
-                <div class="card-body p-4" style="background-color: #f8f9fa;">
-                    <!-- Service Schedule & Location Information -->
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <div class="bg-white rounded p-3 shadow-sm h-100">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-primary rounded-circle p-2 me-3">
-                                        <i class="ri-calendar-line text-white"></i>
-                                    </div>
-                                    <h6 class="fw-bold mb-0 text-dark">Service Schedule</h6>
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Booking Date</small>
-                                        <div class="fw-medium">${travelPointData.bookingDate || 'N/A'}</div>
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Time</small>
-                                        <div class="fw-medium">${travelPointData.entrytime || 'N/A'}</div>
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Adults</small>
-                                        <span class="badge bg-info">${travelPointData.adults || '0'}</span>
-                                    </div>
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Children</small>
-                                        <span class="badge bg-warning">${travelPointData.children || '0'}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="bg-white rounded p-3 shadow-sm h-100">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-success rounded-circle p-2 me-3">
-                                        <i class="ri-map-pin-line text-white"></i>
-                                    </div>
-                                    <h6 class="fw-bold mb-0 text-dark">Location Details</h6>
-                                </div>
-                                <div class="row">
-                                    <div class="col-12 mb-2">
-                                        <small class="text-muted">Pickup Location</small>
-                                        <div class="fw-medium">${travelPointData.entrypickup || travelPointData.pickup_location || 'N/A'}</div>
-                                    </div>
-                                    <div class="col-12 mb-2">
-                                        <small class="text-muted">Drop Location</small>
-                                        <div class="fw-medium">${travelPointData.entrydropoff || travelPointData.drop_location || 'N/A'}</div>
-                                    </div>
-                                    <div class="col-md-6 mb-2">
-                                        <small class="text-muted">City</small>
-                                        <div class="fw-medium">${travelPointData.city || 'N/A'}</div>
-                                    </div>
-                                    <div class="col-md-6 mb-2">
-                                        <small class="text-muted">Country</small>
-                                        <div class="fw-medium">${travelPointData.country || 'N/A'}</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+//                 <div class="card-body p-4" style="background-color: #f8f9fa;">
+//                     <!-- Service Schedule & Location Information -->
+//                     <div class="row mb-4">
+//                         <div class="col-md-6">
+//                             <div class="bg-white rounded p-3 shadow-sm h-100">
+//                                 <div class="d-flex align-items-center mb-3">
+//                                     <div class="bg-primary rounded-circle p-2 me-3">
+//                                         <i class="ri-calendar-line text-white"></i>
+//                                     </div>
+//                                     <h6 class="fw-bold mb-0 text-dark">Service Schedule</h6>
+//                                 </div>
+//                                 <div class="row">
+//                                     <div class="col-md-6 mb-3">
+//                                         <small class="text-muted">Booking Date</small>
+//                                         <div class="fw-medium">${travelPointData.pickupdate || travelPointData.bookingDate || 'N/A'}</div>
+//                                     </div>
+//                                     <div class="col-md-6 mb-3">
+//                                         <small class="text-muted">Time</small>
+//                                         <div class="fw-medium">${travelPointData.entrytime || 'N/A'}</div>
+//                                     </div>
+//                                     <div class="col-md-6 mb-3">
+//                                         <small class="text-muted">Adults</small>
+//                                         <span class="badge bg-info">${travelPointData.adults || '0'}</span>
+//                                     </div>
+//                                     <div class="col-md-6 mb-3">
+//                                         <small class="text-muted">Children</small>
+//                                         <span class="badge bg-warning">${travelPointData.children || '0'}</span>
+//                                     </div>
+//                                 </div>
+//                             </div>
+//                         </div>
+//                         <div class="col-md-6">
+//                             <div class="bg-white rounded p-3 shadow-sm h-100">
+//                                 <div class="d-flex align-items-center mb-3">
+//                                     <div class="bg-success rounded-circle p-2 me-3">
+//                                         <i class="ri-map-pin-line text-white"></i>
+//                                     </div>
+//                                     <h6 class="fw-bold mb-0 text-dark">Location Details</h6>
+//                                 </div>
+//                                 <div class="row">
+//                                     <div class="col-12 mb-2">
+//                                         <small class="text-muted">Pickup Location</small>
+//                                         <div class="fw-medium">${travelPointData.entrypickup || travelPointData.pickup_location || 'N/A'}</div>
+//                                     </div>
+//                                     <div class="col-12 mb-2">
+//                                         <small class="text-muted">Drop Location</small>
+//                                         <div class="fw-medium">${travelPointData.entrydropoff || travelPointData.drop_location || 'N/A'}</div>
+//                                     </div>
+//                                     <div class="col-md-6 mb-2">
+//                                         <small class="text-muted">City</small>
+//                                         <div class="fw-medium">${travelPointData.city || 'N/A'}</div>
+//                                     </div>
+//                                     <div class="col-md-6 mb-2">
+//                                         <small class="text-muted">Country</small>
+//                                         <div class="fw-medium">${travelPointData.country || 'N/A'}</div>
+//                                     </div>
+//                                 </div>
+//                             </div>
+//                         </div>
+//                     </div>
 
-                    <!-- Vehicle Image & Information -->
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <div class="bg-white rounded p-3 shadow-sm h-100">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-info rounded-circle p-2 me-3">
-                                        <i class="ri-car-line text-white"></i>
-                                    </div>
-                                    <h6 class="fw-bold mb-0 text-dark">Vehicle Information</h6>
-                                </div>
-                                <div class="text-center">
-                                    ${travelPointData.image ? `
-                                        <div class="position-relative d-inline-block">
-                                            <img src="${travelPointData.image}" alt="Vehicle" class="img-fluid rounded shadow-sm" style="max-height: 180px; width: 100%; object-fit: cover; border-radius: 12px;">
-                                            <div class="position-absolute top-0 end-0 m-2">
-                                                <span class="badge bg-dark bg-opacity-75 text-white">
-                                                    <i class="ri-zoom-in-line me-1"></i>View
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ` : `
-                                        <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 180px; border-radius: 12px;">
-                                            <div class="text-center">
-                                                <i class="ri-car-line ri-48px text-muted mb-2"></i>
-                                                <div class="text-muted">No Vehicle Image</div>
-                                            </div>
-                                        </div>
-                                    `}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="bg-white rounded p-3 shadow-sm h-100">
-                                <div class="d-flex align-items-center mb-3">
-                                    <div class="bg-warning rounded-circle p-2 me-3">
-                                        <i class="ri-money-dollar-circle-line text-white"></i>
-                                    </div>
-                                    <h6 class="fw-bold mb-0 text-dark">Pricing & Customer</h6>
-                                </div>
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <small class="text-muted">Total Price</small>
-                                        <div class="fw-bold text-success">${window.bookingCurrency} ${travelPointData.totalPrice || '0'}</div>
-                                    </div>
-                                    <div class="col-12 mb-2">
-                                        <small class="text-muted">Customer Name</small>
-                                        <div class="fw-medium">${travelPointData.fullName || 'N/A'}</div>
-                                    </div>
-                                    <div class="col-md-6 mb-2">
-                                        <small class="text-muted">Email</small>
-                                        <div class="fw-medium">${travelPointData.email || 'N/A'}</div>
-                                    </div>
-                                    <div class="col-md-6 mb-2">
-                                        <small class="text-muted">Phone</small>
-                                        <div class="fw-medium">${travelPointData.phone || 'N/A'}</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+//                     <!-- Vehicle Image & Information -->
+//                     <div class="row mb-4">
+//                         <div class="col-md-6">
+//                             <div class="bg-white rounded p-3 shadow-sm h-100">
+//                                 <div class="d-flex align-items-center mb-3">
+//                                     <div class="bg-info rounded-circle p-2 me-3">
+//                                         <i class="ri-car-line text-white"></i>
+//                                     </div>
+//                                     <h6 class="fw-bold mb-0 text-dark">Vehicle Information</h6>
+//                                 </div>
+//                                 <div class="text-center">
+//                                     ${travelPointData.image ? `
+//                                         <div class="position-relative d-inline-block">
+//                                             <img src="${travelPointData.image}" alt="Vehicle" class="img-fluid rounded shadow-sm" style="max-height: 180px; width: 100%; object-fit: cover; border-radius: 12px;">
+//                                             <div class="position-absolute top-0 end-0 m-2">
+//                                                 <span class="badge bg-dark bg-opacity-75 text-white">
+//                                                     <i class="ri-zoom-in-line me-1"></i>View
+//                                                 </span>
+//                                             </div>
+//                                         </div>
+//                                     ` : `
+//                                         <div class="bg-light rounded d-flex align-items-center justify-content-center" style="height: 180px; border-radius: 12px;">
+//                                             <div class="text-center">
+//                                                 <i class="ri-car-line ri-48px text-muted mb-2"></i>
+//                                                 <div class="text-muted">No Vehicle Image</div>
+//                                             </div>
+//                                         </div>
+//                                     `}
+//                                 </div>
+//                             </div>
+//                         </div>
+//                         <div class="col-md-6">
+//                             <div class="bg-white rounded p-3 shadow-sm h-100">
+//                                 <div class="d-flex align-items-center mb-3">
+//                                     <div class="bg-warning rounded-circle p-2 me-3">
+//                                         <i class="ri-money-dollar-circle-line text-white"></i>
+//                                     </div>
+//                                     <h6 class="fw-bold mb-0 text-dark">Pricing & Customer</h6>
+//                                 </div>
+//                                 <div class="row">
+//                                     <div class="col-md-6 mb-3">
+//                                         <small class="text-muted">Total Price</small>
+//                                         <div class="fw-bold text-success">${window.bookingCurrency} ${travelPointData.totalPrice || '0'}</div>
+//                                     </div>
+//                                     <div class="col-12 mb-2">
+//                                         <small class="text-muted">Customer Name</small>
+//                                         <div class="fw-medium">${travelPointData.fullName || 'N/A'}</div>
+//                                     </div>
+//                                     <div class="col-md-6 mb-2">
+//                                         <small class="text-muted">Email</small>
+//                                         <div class="fw-medium">${travelPointData.email || 'N/A'}</div>
+//                                     </div>
+//                                     <div class="col-md-6 mb-2">
+//                                         <small class="text-muted">Phone</small>
+//                                         <div class="fw-medium">${travelPointData.phone || 'N/A'}</div>
+//                                     </div>
+//                                 </div>
+//                             </div>
+//                         </div>
+//                     </div>
 
-                    ${travelPointData.specialRequests ? `
-                        <!-- Special Requests -->
-                        <div class="bg-white rounded p-3 shadow-sm mb-4">
-                            <div class="d-flex align-items-center mb-3">
-                                <div class="bg-secondary rounded-circle p-2 me-3">
-                                    <i class="ri-message-2-line text-white"></i>
-                                </div>
-                                <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
-                            </div>
-                            <p class="text-muted mb-0">${travelPointData.specialRequests}</p>
-                        </div>
-                    ` : ''}
+//                     ${travelPointData.specialRequests ? `
+//                         <!-- Special Requests -->
+//                         <div class="bg-white rounded p-3 shadow-sm mb-4">
+//                             <div class="d-flex align-items-center mb-3">
+//                                 <div class="bg-secondary rounded-circle p-2 me-3">
+//                                     <i class="ri-message-2-line text-white"></i>
+//                                 </div>
+//                                 <h6 class="fw-bold mb-0 text-dark">Special Requests</h6>
+//                             </div>
+//                             <p class="text-muted mb-0">${travelPointData.specialRequests}</p>
+//                         </div>
+//                     ` : ''}
 
-                    <!-- Individual Action Buttons -->
-                    <div class="bg-white rounded p-3 shadow-sm border-top">
-                        <div class="d-flex align-items-center justify-content-between">
-                            <div class="d-flex align-items-center">
-                                <div class="bg-secondary rounded-circle p-2 me-3">
-                                    <i class="ri-settings-line text-white"></i>
-                                </div>
-                                <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
-                            </div>
-                            ${(travelPointData.is_approve == 1 || travelPointData.is_approve === '1' || travelPointData.is_approve === true) ? `
-                                <div class="alert alert-success mb-0 py-1 px-3" style="border-radius: 25px;">
-                                    <i class="ri-check-circle-fill me-1"></i>
-                                    <small><strong>Approved Booking</strong></small>
-                                    ${travelPointData.reference_id ? `<br><small class="text-muted">Ref: ${travelPointData.reference_id}</small>` : ''}
-                                    ${travelPointData.display_due_date ? `<br><small class="text-muted">Due: ${travelPointData.display_due_date}</small>` : ''}
-                                </div>
-                            ` : `
-                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                <div class="d-flex gap-2">
-                                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                    <button type="button" 
-                                            class="btn btn-outline-primary btn-sm px-3 py-2" 
-                                            onclick="editIndividualTravelPoint(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
-                                            style="border-radius: 25px;">
-                                        <i class="ri-edit-line me-1"></i>Edit
-                                    </button>
+//                     <!-- Individual Action Buttons -->
+//                     <div class="bg-white rounded p-3 shadow-sm border-top">
+//                         <div class="d-flex align-items-center justify-content-between">
+//                             <div class="d-flex align-items-center">
+//                                 <div class="bg-secondary rounded-circle p-2 me-3">
+//                                     <i class="ri-settings-line text-white"></i>
+//                                 </div>
+//                                 <h6 class="fw-bold mb-0 text-dark">Booking Actions</h6>
+//                             </div>
+//                             ${(travelPointData.is_approve == 1 || travelPointData.is_approve === '1' || travelPointData.is_approve === true) ? `
+//                                 <div class="alert alert-success mb-0 py-1 px-3" style="border-radius: 25px;">
+//                                     <i class="ri-check-circle-fill me-1"></i>
+//                                     <small><strong>Approved Booking</strong></small>
+//                                     ${travelPointData.reference_id ? `<br><small class="text-muted">Ref: ${travelPointData.reference_id}</small>` : ''}
+//                                     ${travelPointData.display_due_date ? `<br><small class="text-muted">Due: ${travelPointData.display_due_date}</small>` : ''}
+//                                 </div>
+//                             ` : `
+//                                 @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+//                                 <div class="d-flex gap-2">
+//                                                  @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+//                                     <button type="button" 
+//                                             class="btn btn-outline-primary btn-sm px-3 py-2" 
+//                                             onclick="editIndividualTravelPoint(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
+//                                             style="border-radius: 25px;">
+//                                         <i class="ri-edit-line me-1"></i>Edit
+//                                     </button>
                                     
-                                    @endif
-                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
-                                    <button type="button" 
-                                            class="btn btn-outline-danger btn-sm px-3 py-2" 
-                                            onclick="rejectTravelPointBooking(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
-                                            style="border-radius: 25px;">
-                                        <i class="ri-close-line me-1"></i>Reject
-                                    </button>
-                                    @endif
-                                </div>
-                                @endif
-                            `}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
+//                                     @endif
+//                                     @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+//                                     <button type="button" 
+//                                             class="btn btn-outline-danger btn-sm px-3 py-2" 
+//                                             onclick="rejectTravelPointBooking(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
+//                                             style="border-radius: 25px;">
+//                                         <i class="ri-close-line me-1"></i>Reject
+//                                     </button>
+//                                     @endif
+//                                 </div>
+//                                 @endif
+//                             `}
+//                         </div>
+//                     </div>
+//                 </div>
+//             </div>
+//         `;
         
-        document.getElementById(`${modalId}_content`).innerHTML = content;
+//         document.getElementById(`${modalId}_content`).innerHTML = content;
         
-    } catch (error) {
-        console.error('Error generating individual travel point content:', error);
-        displayTravelPointErrorContent(modalId, 'Error generating content');
-    }
-}
+//     } catch (error) {
+//         console.error('Error generating individual travel point content:', error);
+//         displayTravelPointErrorContent(modalId, 'Error generating content');
+//     }
+// }
 
 // Travel Point Approve and Reject Functions (following Travel Hourly pattern)
 window.approveTravelPointBooking = function(tourId, travelPointOrderIndex, bookingIndex) {
@@ -16051,6 +16079,35 @@ function displayTravelPointErrorContent(modalId, message) {
 
 function generateIndividualTravelPointContent(travelPointData, modalId, tourId, travelPointOrderIndex, bookingIndex) {
     try {
+        const rawBookingDate =
+            travelPointData.bookingDate ||
+            travelPointData.pickupdate ||
+            travelPointData.booking_date ||
+            '';
+
+        let dateLabel = 'N/A';
+
+        if (rawBookingDate) {
+            const match = String(rawBookingDate).trim()
+                .match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+            if (match) {
+                const date = new Date(
+                    Number(match[1]),
+                    Number(match[2]) - 1,
+                    Number(match[3])
+                );
+
+                dateLabel = date.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: '2-digit',
+                    year: 'numeric'
+                });
+            } else {
+                dateLabel = String(rawBookingDate).trim();
+            }
+        }
+
         const content = `
             <div class="card mb-3 shadow-sm border-0" style="border-radius: 10px; overflow: hidden; border-left: 4px solid #667eea !important;">
                 <!-- Compact Card Header -->
@@ -16084,7 +16141,7 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                 <div class="row g-2">
                                     <div class="col-6">
                                         <small class="text-muted d-block" style="font-size: 0.7rem;">Booking Date</small>
-                                        <div class="fw-medium" style="font-size: 0.85rem;">${travelPointData.bookingDate || 'N/A'}</div>
+                                        <div class="fw-medium" style="font-size: 0.85rem;">${dateLabel || 'N/A'}</div>
                                     </div>
                                     <div class="col-6">
                                         <small class="text-muted d-block" style="font-size: 0.7rem;">Time</small>
@@ -17179,7 +17236,14 @@ function loadIndividualLocalTransportContent(modalId, tourId, localTransportOrde
                 vehicles_name: rawData.vehicles_name || localTransportDetails.vehicles_name,
                 image: localTransportDetails.image,
                 totalPrice: parseFloat(rawData.total_price || 0),
-                bookingDate: rawData.booking_date || localTransportDetails.bookingDate,
+
+                pickupdate: rawData.pickupdate
+                    || rawData.booking_date
+                    || rawData.bookingDate
+                    || localTransportDetails.pickupdate
+                    || localTransportDetails.bookingDate
+                    || null,
+
                 entrytime: rawData.entry_time || localTransportDetails.entry_time,
                 type: localTransportDetails.type || 'Standard',
                 adults: rawData.adults || '0',
@@ -27232,8 +27296,12 @@ window.showNotification = function(message, type = 'info') {
                     document.getElementById(`arrival_booking_date_${editModalId}`).value = bookingDate;
                 }
                 
-                if (arrivalDetails.pickup_date) {
-                    let pickupDate = arrivalDetails.pickup_date;
+                const arrivalPickupRaw = arrivalDetails.pickup_date
+                    || arrivalDetails.pickupdate
+                    || (arrivalDetails.arrival_details && (arrivalDetails.arrival_details.pickupdate || arrivalDetails.arrival_details.pickup_date))
+                    || '';
+                if (arrivalPickupRaw) {
+                    let pickupDate = arrivalPickupRaw;
                     if (pickupDate.includes(' ')) {
                         pickupDate = pickupDate.split(' ')[0];
                     } else if (pickupDate.includes('T')) {
@@ -27241,10 +27309,14 @@ window.showNotification = function(message, type = 'info') {
                     }
                     document.getElementById(`arrival_pickup_date_${editModalId}`).value = pickupDate;
                 }
-                
-                if (arrivalDetails.entry_time) {
+
+                const arrivalTimeRaw = arrivalDetails.entry_time
+                    || arrivalDetails.entrytime
+                    || (arrivalDetails.arrival_details && (arrivalDetails.arrival_details.entrytime || arrivalDetails.arrival_details.entry_time))
+                    || '';
+                if (arrivalTimeRaw) {
                     // Convert time to 24-hour format for input
-                    let timeValue = arrivalDetails.entry_time;
+                    let timeValue = arrivalTimeRaw;
                     if (timeValue.includes('AM') || timeValue.includes('PM')) {
                         timeValue = convertTo24HourFormat(timeValue);
                     }
@@ -27646,8 +27718,18 @@ window.showNotification = function(message, type = 'info') {
                     document.getElementById(`departure_booking_date_${editModalId}`).value = bookingDate;
                 }
                 
-                if (departureDetails.exit_pickup_date) {
-                    let pickupDate = departureDetails.exit_pickup_date;
+                const departurePickupRaw = departureDetails.pickup_date
+                    || departureDetails.pickupdate
+                    || departureDetails.exit_pickup_date
+                    || departureDetails.exitpickupdate
+                    || (departureDetails.departure_details && (
+                        departureDetails.departure_details.pickupdate
+                        || departureDetails.departure_details.exitpickupdate
+                        || departureDetails.departure_details.exit_pickup_date
+                    ))
+                    || '';
+                if (departurePickupRaw) {
+                    let pickupDate = departurePickupRaw;
                     if (pickupDate.includes(' ')) {
                         pickupDate = pickupDate.split(' ')[0];
                     } else if (pickupDate.includes('T')) {
@@ -27655,10 +27737,20 @@ window.showNotification = function(message, type = 'info') {
                     }
                     document.getElementById(`departure_pickup_date_${editModalId}`).value = pickupDate;
                 }
-                
-                if (departureDetails.entry_time) {
+
+                const departureTimeRaw = departureDetails.exit_time
+                    || departureDetails.exittime
+                    || departureDetails.entry_time
+                    || departureDetails.entrytime
+                    || (departureDetails.departure_details && (
+                        departureDetails.departure_details.exittime
+                        || departureDetails.departure_details.entrytime
+                        || departureDetails.departure_details.entry_time
+                    ))
+                    || '';
+                if (departureTimeRaw) {
                     // Convert time to 24-hour format for input
-                    let timeValue = departureDetails.entry_time;
+                    let timeValue = departureTimeRaw;
                     if (timeValue.includes('AM') || timeValue.includes('PM')) {
                         timeValue = convertTo24HourFormat(timeValue);
                     }
