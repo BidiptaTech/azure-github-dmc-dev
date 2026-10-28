@@ -129,13 +129,29 @@
                                     $cardTotal = $cardSellTotal > 0 ? $cardSellTotal : $cardCostTotal;
                                     $transferPrice = $vehicleSell;
 
-                                    $bookingDateRaw = $booking['bookingDate'] ?? null;
+                                    // Arrival: pickupdate + entrytime; Departure: pickupdate + exittime
+                                    // (keep legacy fallbacks for older orders)
+                                    if ($serviceKey === 'exit_port') {
+                                        $bookingDateRaw = $booking['pickupdate']
+                                            ?? ($booking['exitpickupdate'] ?? ($booking['bookingDate'] ?? null));
+                                        $timeLabel = $booking['exittime']
+                                            ?? ($booking['entrytime'] ?? ($booking['time'] ?? 'TBC'));
+                                    } elseif ($serviceKey === 'entry_port') {
+                                        $bookingDateRaw = $booking['pickupdate']
+                                            ?? ($booking['bookingDate'] ?? null);
+                                        $timeLabel = $booking['entrytime']
+                                            ?? ($booking['time'] ?? 'TBC');
+                                    } else {
+                                        $bookingDateRaw = $booking['pickupdate']
+                                            ?? ($booking['bookingDate'] ?? ($booking['exitpickupdate'] ?? null));
+                                        $timeLabel = $booking['entrytime']
+                                            ?? ($booking['exittime'] ?? ($booking['time'] ?? 'TBC'));
+                                    }
                                     try {
                                         $bookingDateLabel = $bookingDateRaw ? \Carbon\Carbon::parse($bookingDateRaw)->format('M d, Y') : 'N/A';
                                     } catch (\Throwable $e) {
                                         $bookingDateLabel = (string) ($bookingDateRaw ?: 'N/A');
                                     }
-                                    $timeLabel = $booking['entrytime'] ?? ($booking['time'] ?? 'TBC');
                                     $typeLabel = ucfirst((string) ($booking['type'] ?? 'Standard'));
                                     $vehicleName = $booking['vehicles_name'] ?? ($booking['vehicle_name'] ?? 'Vehicle Transfer');
 
@@ -286,7 +302,7 @@
                                                 <span class="svc-dl-label">Dropoff</span>
                                                 <span class="svc-dl-value"><i class="ri-map-pin-2-line me-1" style="color:var(--svc-danger);"></i>{{ $dropoff }}</span>
                                             </div>
-                                            @if($serviceKey === 'local_transport')
+                                            <!-- @if($serviceKey === 'local_transport')
                                             <div class="svc-dl-row">
                                                 <span class="svc-dl-label">From Zone</span>
                                                 <span class="svc-dl-value">{{ $fromZoneName ?? 'N/A' }}</span>
@@ -295,7 +311,7 @@
                                                 <span class="svc-dl-label">To Zone</span>
                                                 <span class="svc-dl-value">{{ $toZoneName ?? 'N/A' }}</span>
                                             </div>
-                                            @endif
+                                            @endif -->
                                         </div>
                                     </div>
 
