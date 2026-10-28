@@ -866,6 +866,7 @@
         var dataset = {
             vehicleName: v.vehicle_name || v.name || '',
             vehicleType: v.vehicle_type || '',
+            image: v.image || '',
             seating: v.seating_capacity || '',
             privatePrice: privatePrice,
             sharedPrice: sharedPrice,
