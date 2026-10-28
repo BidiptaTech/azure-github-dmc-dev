@@ -547,9 +547,10 @@
             var editing = root.__editingIdx === idx;
             html += '<tr class="' + (editing ? 'is-editing' : '') + '" data-idx="' + idx + '">' +
                 '<td><div class="fw-semibold">' + T.esc(row.vehicles_name || 'Vehicle') + '</div>' +
-                '<small class="text-muted">' + T.esc(row.type || '') +
+                '<small class="text-muted">' + T.esc(row.exittime || '—') + ' · ' + T.esc(row.pickupdate || row.exitpickupdate || '') + '</small>' +
+                '<div><small class="text-muted">' + T.esc(row.type || '') +
                 ((row.vehicle_count || row.booked_vehicles) ? ' · ' + T.esc(row.vehicle_count || row.booked_vehicles) + ' veh' : '') +
-                '</small>' +
+                '</small></div>' +
                 T.editingMarkHtml(editing) + '</td>' +
                 '<td><small>' + T.esc(row.exitpickup || '—') + ' → ' + T.esc(row.exitdropoff || '—') + '</small></td>' +
                 '<td><small>' + T.esc(row.adults || 0) + 'A / ' + T.esc(row.children || 0) + 'C</small></td>' +

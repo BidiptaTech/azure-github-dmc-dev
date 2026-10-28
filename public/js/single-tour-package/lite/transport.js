@@ -803,8 +803,9 @@
             var editing = root.__editingIdx === idx;
             html += '<tr class="' + (editing ? 'is-editing' : '') + '" data-idx="' + idx + '">' +
                 '<td><div class="fw-semibold">' + T.esc(row.vehicles_name || 'Vehicle') + '</div>' +
+                '<small class="text-muted">' + T.esc(row.entrytime || '—') + ' · ' + T.esc(row.pickupdate || '') + '</small>' +
                 ((row.vehicle_count || row.booked_vehicles)
-                    ? '<small class="text-muted">' + T.esc(row.vehicle_count || row.booked_vehicles) + ' veh</small>'
+                    ? '<div><small class="text-muted">' + T.esc(row.vehicle_count || row.booked_vehicles) + ' veh</small></div>'
                     : '') +
                 T.editingMarkHtml(editing) + '</td>' +
                 '<td><small>' + T.esc(row.travel_type || '') + (row.selectedHours ? ' · ' + row.selectedHours + 'h' : '') +
