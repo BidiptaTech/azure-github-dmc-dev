@@ -497,6 +497,7 @@
             if (row.adultCount == null && row.adults != null) row.adultCount = row.adults;
             if (row.childCount == null && row.children != null) row.childCount = row.children;
             if (Array.isArray(row.bookingDate)) row.bookingDate = row.bookingDate[0] || '';
+            if (!row.visitTime) row.visitTime = row.visit_time || row.entrytime || row.time || '';
             if (row.transfer_options) row.transfer_options = normalizeTransferOptions(row.transfer_options);
             // Keep totalPrice as ticket-only; UI composes via serviceRowDisplayTotal
         }
@@ -504,6 +505,7 @@
             if (!row.restaurantName) row.restaurantName = row.restaurant_name || row.name || 'Restaurant';
             if (!row.mealTypeLabel && row.mealType) row.mealTypeLabel = row.mealType;
             if (Array.isArray(row.bookingDate)) row.bookingDate = row.bookingDate[0] || '';
+            if (!row.visitTime) row.visitTime = row.visit_time || row.entrytime || row.time || '';
             if (row.transfer_options) row.transfer_options = normalizeTransferOptions(row.transfer_options);
             // Keep totalPrice as meal-only; UI composes via serviceRowDisplayTotal
         }
