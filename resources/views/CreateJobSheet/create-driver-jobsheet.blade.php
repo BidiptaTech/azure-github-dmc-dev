@@ -458,7 +458,7 @@ $(document).ready(function() {
                 tableHTML += `
                     <tr>
                         <td>${item.display_id || item.tour_id || 'N/A'}</td>
-                        <td>${dataItem.transfer_options?dataItem.transfer_options.pickup_time : dataItem.entrytime || 'N/A'}</td>
+                        <td>${dataItem.transfer_options?dataItem.transfer_options.pickup_time : dataItem.entrytime || dataItem.exittime || 'N/A'}</td>
                         <td>${dataItem.fullName || dataItem.name || 'N/A'}</td>
                         <td>${dataItem.countryCode && dataItem.phone ? dataItem.countryCode + ' ' + dataItem.phone : (dataItem.phone || 'N/A')}</td>
                         <td>${dataItem.adultCount || dataItem.adults || '0'}</td>
