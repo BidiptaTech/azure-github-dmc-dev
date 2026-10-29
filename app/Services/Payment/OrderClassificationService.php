@@ -118,10 +118,20 @@ class OrderClassificationService
     }
 
     /**
-     * Tours store currency on payment_received_currency / user_currency (no `currency` column).
+     * The tour is priced in its orders' currency. tours.payment_received_currency defaults to
+     * 'USD' in the database, so it is only a fallback (using it first converted SGD tours as USD).
      */
     public function resolveTourCurrency(Tour $tour): string
     {
+        $tourId = (int) ($tour->tour_id ?? 0);
+        if ($tourId > 0) {
+            $orderCurrencies = Order::query()->where('tour_id', $tourId)->pluck('currency')
+                ->map(fn ($c) => strtoupper(trim((string) $c)))->filter()->unique();
+            if ($orderCurrencies->count() === 1 && preg_match('/^[A-Z]{3}$/', (string) $orderCurrencies->first())) {
+                return (string) $orderCurrencies->first();
+            }
+        }
+
         foreach ([
             $tour->payment_received_currency ?? null,
             $tour->user_currency ?? null,

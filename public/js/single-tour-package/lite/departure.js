@@ -23,10 +23,30 @@
         return !!(T.zoneOn && T.zoneOn());
     }
 
+    function isEditForm() {
+        return !!(window.STP_LITE_CONFIG && window.STP_LITE_CONFIG.mode === 'edit');
+    }
+
+    /** Edit form: date stays visible but cannot be changed (picker included). */
+    function lockDateField(input) {
+        if (!input || !isEditForm()) return;
+        input.readOnly = true;
+        input.setAttribute('readonly', 'readonly');
+        input.setAttribute('tabindex', '-1');
+        input.style.pointerEvents = 'none';
+        input.style.backgroundColor = '#e9ecef';
+        input.style.cursor = 'not-allowed';
+        input.addEventListener('keydown', function (e) { e.preventDefault(); });
+        input.addEventListener('beforeinput', function (e) { e.preventDefault(); });
+    }
+
     function shellHtml(stay) {
         var T = S();
         var cur = stay.currency || 'SGD';
         var zone = stayZoneOn(T, stay);
+        var dateLock = isEditForm()
+            ? ' readonly tabindex="-1" style="pointer-events:none;background-color:#e9ecef;cursor:not-allowed;"'
+            : '';
         return (
             '<div class="stp-lite-svc stp-lite-departure" data-currency="' + T.esc(cur) + '">' +
             '  <div class="row g-2 mb-2">' +
@@ -38,7 +58,7 @@
             T.ampmTimeHtml('departure', '') +
             '</div>' +
             '    <div class="col-md-3"><label class="stp-lite-label">Date</label>' +
-            '      <input type="date" class="form-control form-control-sm departure-date" value="' + T.esc(stay.end || stay.start || '') + '"></div>' +
+            '      <input type="date" class="form-control form-control-sm departure-date" value="' + T.esc(stay.end || stay.start || '') + '"' + dateLock + '></div>' +
             '  </div>' +
             '  <div class="row g-2 mb-2">' +
             (zone
@@ -66,8 +86,8 @@
             '      <input type="number" min="1" class="form-control form-control-sm stp-lite-int departure-adults" data-guest-cap="adults" value="1"></div>' +
             '    <div class="col-md-2" data-guest-child-ui><label class="stp-lite-label">Children</label>' +
             '      <input type="number" min="0" class="form-control form-control-sm stp-lite-int departure-children" data-guest-cap="children" value="0"></div>' +
-            '    <div class="col-md-3 departure-custom-price-wrap"><label class="stp-lite-label departure-custom-price-label">' + (zone ? 'Cost' : 'Car cost') + '</label>' +
-            '      <input type="number" min="0" step="0.01" class="form-control form-control-sm departure-custom-price" placeholder="' + (zone ? 'Zone / car cost' : 'Enter car price') + '" value=""></div>' +
+            '    <div class="col-md-3 departure-custom-price-wrap"><label class="stp-lite-label departure-custom-price-label">' + (zone ? 'Price' : 'Car price') + '</label>' +
+            '      <input type="number" min="0" step="0.01" class="form-control form-control-sm departure-custom-price" placeholder="' + (zone ? 'Zone / car price' : 'Enter car price') + '" value=""></div>' +
             '    <div class="col-md-3 d-flex align-items-end gap-2 flex-wrap">' +
             '      <button type="button" class="btn btn-sm stp-lite-get-price-btn departure-get-price-btn" disabled>' +
             '        <i class="ri-price-tag-3-line me-1"></i>Get Price</button>' +
@@ -128,6 +148,12 @@
         }
         var getBtn = root.querySelector('.departure-get-price-btn');
         if (getBtn) getBtn.disabled = true;
+        var T = S();
+        var costEl = root.querySelector('.departure-custom-price');
+        if (costEl) {
+            if (T.clearStandaloneCarCostSeed) T.clearStandaloneCarCostSeed(costEl);
+            costEl.value = '';
+        }
         invalidate(root);
         syncDepartureManualPrice(root);
     }
@@ -141,8 +167,8 @@
         wrap.classList.remove('d-none');
         var T = S();
         var zone = stay ? stayZoneOn(T, stay) : !!root.querySelector('select.departure-dropoff');
-        if (label) label.textContent = zone ? 'Cost' : 'Car cost';
-        costEl.placeholder = zone ? 'Zone / car cost' : 'Enter car price';
+        if (label) label.textContent = zone ? 'Price' : 'Car price';
+        costEl.placeholder = zone ? 'Zone / car price' : 'Enter car price';
         if (!zone) return;
         var vehicle = root.querySelector('.departure-vehicle');
         var opt = vehicle && vehicle.selectedIndex >= 0 ? vehicle.options[vehicle.selectedIndex] : null;
@@ -375,15 +401,15 @@
                 priced.source = 'manual';
             }
             if (!(priced && priced.total > 0)) {
-                alert('No zone price for this vehicle. Enter a car cost.');
+                alert('No zone price for this vehicle. Enter a car price.');
                 syncDepartureManualPrice(root, stay);
                 return;
             }
         } else {
             if (car <= 0) {
                 alert(stayZoneOn(T, stay)
-                    ? 'This vehicle has no zone price for this route. Enter a car cost. Shared = cost × pax, Private = cost.'
-                    : 'Enter car cost (zone is off). Shared = cost × pax, Private = cost.');
+                    ? 'This vehicle has no zone price for this route. Enter a car price. Shared = price × pax, Private = price.'
+                    : 'Enter car price (zone is off). Shared = price × pax, Private = price.');
                 syncDepartureManualPrice(root, stay);
                 return;
             }
@@ -541,9 +567,10 @@
             var editing = root.__editingIdx === idx;
             html += '<tr class="' + (editing ? 'is-editing' : '') + '" data-idx="' + idx + '">' +
                 '<td><div class="fw-semibold">' + T.esc(row.vehicles_name || 'Vehicle') + '</div>' +
-                '<small class="text-muted">' + T.esc(row.type || '') +
+                '<small class="text-muted">' + T.esc(row.exittime || '—') + ' · ' + T.esc(row.pickupdate || row.exitpickupdate || '') + '</small>' +
+                '<div><small class="text-muted">' + T.esc(row.type || '') +
                 ((row.vehicle_count || row.booked_vehicles) ? ' · ' + T.esc(row.vehicle_count || row.booked_vehicles) + ' veh' : '') +
-                '</small>' +
+                '</small></div>' +
                 T.editingMarkHtml(editing) + '</td>' +
                 '<td><small>' + T.esc(row.exitpickup || '—') + ' → ' + T.esc(row.exitdropoff || '—') + '</small></td>' +
                 '<td><small>' + T.esc(row.adults || 0) + 'A / ' + T.esc(row.children || 0) + 'C</small></td>' +
@@ -684,6 +711,7 @@
 
         T.bindAmPm(root);
         T.bindStayDate(root.querySelector('.departure-date'), stay, function () { invalidate(root); });
+        lockDateField(root.querySelector('.departure-date'));
         T.bindGuestCaps(root);
         loadPickupDropoff(root, stay);
         if (!stayZoneOn(T, stay) && window.StpLiteMaps) {
@@ -706,7 +734,10 @@
                 if (root.__hydrating) return;
                 if (el.classList.contains('departure-vehicle') || el.classList.contains('departure-service-type')) {
                     var costEl = root.querySelector('.departure-custom-price');
-                    if (costEl && T.clearStandaloneCarCostSeed) T.clearStandaloneCarCostSeed(costEl);
+                    if (costEl) {
+                        if (T.clearStandaloneCarCostSeed) T.clearStandaloneCarCostSeed(costEl);
+                        costEl.value = '';
+                    }
                     syncDepartureManualPrice(root, stay);
                 }
                 invalidate(root);

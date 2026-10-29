@@ -71,6 +71,8 @@ class PaymentOrchestrator
         }
 
         $currency = (string) $eligibility['currency'];
+        $orderAmount = $amount;
+        $orderCurrency = $currency;
         $fxMeta = is_array($eligibility['fx'] ?? null) ? $eligibility['fx'] : [];
         $destinationCurrency = $currency;
         $exchangeRate = null;
@@ -117,7 +119,13 @@ class PaymentOrchestrator
             'status' => 'pending',
             'fx_snapshot_id' => $fx['id'] ?? null,
             'eligibility_snapshot' => $eligibility,
-            'metadata' => $input['metadata'] ?? [],
+            'metadata' => array_merge($input['metadata'] ?? [], [
+                // Original quote in the order currency; the wallet debit is `requested_amount` in `currency_code`.
+                'order_amount' => $orderAmount,
+                'order_currency' => $orderCurrency,
+                'exchange_rate' => $exchangeRate,
+                'conversion_charge' => $destinationCurrency !== $orderCurrency ? (float) ($fxMeta['conversion_charge'] ?? 0) : 0.0,
+            ]),
         ]);
 
         $tour->forceFill([
@@ -267,6 +275,8 @@ class PaymentOrchestrator
             (string) ($attempt['currency_code'] ?? 'SGD'),
             $commit['data']['finance_reference'] ?? $commit['finance_reference'] ?? null,
             (string) ($attempt['attempt_uuid'] ?? $attemptUuid),
+            (array) ($attempt['metadata'] ?? []),
+            (float) ($attempt['requested_amount'] ?? 0),
         );
 
         return [
@@ -370,26 +380,16 @@ class PaymentOrchestrator
         string $currency,
         ?string $financeReference,
         string $attemptUuid,
+        array $attemptMeta = [],
+        float $requestedAmount = 0.0,
     ): int {
         $tour->refresh();
         $prevStatus = (string) ($tour->tour_status ?? '');
         $currency = strtoupper(trim($currency)) ?: 'SGD';
         $paymentDate = now()->toDateString();
 
-        $paymentData = [
-            'amount' => round($amount, 4),
-            'original_amount' => round($amount, 4),
-            'currency' => $currency,
-            'exchange_rate' => 1,
-            'transaction_id' => $financeReference ?: $attemptUuid,
-            'remarks' => 'Wallet payment — auto verified',
-            'date' => now()->format('Y-m-d H:i:s'),
-            'payment_date' => $paymentDate,
-            'payment_type' => 'wallet',
-            'status' => 1, // verified — no manual approve needed
-            'auto_verified' => true,
-            'payment_attempt_uuid' => $attemptUuid,
-        ];
+        $paymentData = $this->walletPaymentRow($amount, $currency, $financeReference, $attemptUuid, $attemptMeta, $requestedAmount)
+            + ['date' => now()->format('Y-m-d H:i:s'), 'payment_date' => $paymentDate];
 
         $paymentDetails = json_decode((string) ($tour->payment_details ?? '[]'), true) ?: [];
         if (! is_array($paymentDetails)) {
@@ -447,27 +447,64 @@ class PaymentOrchestrator
     }
 
     /**
+     * One payment_details row from the attempt that was debited. `amount` stays in the order
+     * currency (what outstanding balance is measured in); the wallet debit is kept alongside it.
+     *
+     * @param  array<string, mixed>  $attemptMeta
+     * @return array<string, mixed>
+     */
+    protected function walletPaymentRow(
+        float $walletAmount,
+        string $walletCurrency,
+        ?string $financeReference,
+        string $attemptUuid,
+        array $attemptMeta = [],
+        float $requestedAmount = 0.0,
+    ): array {
+        $orderCurrency = strtoupper((string) ($attemptMeta['order_currency'] ?? $walletCurrency));
+        $converted = $orderCurrency !== $walletCurrency && isset($attemptMeta['order_amount']);
+        // A supplier outcome can commit less than requested: scale the order-currency quote the same way.
+        $ratio = $requestedAmount > 0 ? $walletAmount / $requestedAmount : 1.0;
+        $orderAmount = $converted ? (float) $attemptMeta['order_amount'] * $ratio : $walletAmount;
+
+        $row = [
+            'amount' => round($orderAmount, 4),
+            'original_amount' => round($orderAmount, 4),
+            'currency' => $converted ? $orderCurrency : $walletCurrency,
+            'exchange_rate' => $converted ? (float) ($attemptMeta['exchange_rate'] ?? 1) : 1,
+            'transaction_id' => $financeReference ?: $attemptUuid,
+            'remarks' => 'Wallet payment — auto verified',
+            'payment_type' => 'wallet',
+            'status' => 1, // verified — no manual approve needed
+            'auto_verified' => true,
+            'payment_attempt_uuid' => $attemptUuid,
+        ];
+        if ($converted) {
+            $row += [
+                'wallet_amount' => round($walletAmount, 4),
+                'wallet_currency' => $walletCurrency,
+                'conversion_charge' => round((float) ($attemptMeta['conversion_charge'] ?? 0) * $ratio, 4),
+            ];
+        }
+
+        return $row;
+    }
+
+    /**
      * @param  array<string, mixed>  $attempt
      * @param  array<string, mixed>  $eligibility
      * @return array<string, mixed>
      */
     protected function initiateWallet(Tour $tour, array $attempt, array $eligibility, float $amount): array
     {
-        $walletOwnerId = $this->eligibilityService->resolveAgencyWalletOwnerId(
-            (int) $tour->agent_id,
-            (int) $tour->dmc_id,
-            (string) $attempt['currency_code'],
-        );
-
+        // Wallet payments are debited from the DMC wallet, not the agent wallet.
         $reserve = $this->walletService->reserve([
             'idempotency_key' => $attempt['idempotency_key'].':reserve',
-            'wallet_owner_type' => 'agent',
-            'wallet_owner_id' => $walletOwnerId,
-            'source_dmc_id' => (int) $tour->dmc_id,
+            'wallet_owner_type' => 'dmc',
+            'wallet_owner_id' => (int) $tour->dmc_id,
             'wallet_currency_code' => $attempt['currency_code'],
             'amount' => $amount,
             'tour_id' => $attempt['tour_id'],
-            'allow_legacy_unscoped' => (bool) config('payment.wallet_legacy_unscoped_agent', true),
         ]);
 
         $reservationRef = $reserve['data']['reservation_reference']
@@ -482,7 +519,29 @@ class PaymentOrchestrator
 
         // Quoted amount is committed now. An explicit supplier-result payload can
         // still reduce or release funds via completeWalletAfterSupplier.
-        return $this->completeWalletAfterSupplier($tour, (string) $attempt['attempt_uuid'], []);
+        try {
+            return $this->completeWalletAfterSupplier($tour, (string) $attempt['attempt_uuid'], []);
+        } catch (\Throwable $e) {
+            // Commit never happened: give the reserved amount back so the DMC wallet is not left locked.
+            $current = $this->findAttemptByUuid((string) $attempt['attempt_uuid']);
+            if (($current['status'] ?? '') !== 'completed') {
+                try {
+                    $this->walletService->releaseReservation([
+                        'idempotency_key' => $attempt['idempotency_key'].':rollback',
+                        'reservation_reference' => $reservationRef,
+                        'release_amount' => $amount,
+                    ]);
+                } catch (\Throwable $releaseError) {
+                    \Illuminate\Support\Facades\Log::error('wallet_rollback_failed', [
+                        'attempt' => $attempt['attempt_uuid'],
+                        'error' => $releaseError->getMessage(),
+                    ]);
+                }
+                $this->updateAttempt((int) $attempt['id'], ['status' => 'failed', 'last_error' => $e->getMessage()]);
+            }
+
+            throw $e;
+        }
     }
 
     /**

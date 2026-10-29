@@ -105,4 +105,73 @@ class PaymentOrchestratorTest extends TestCase
             'idempotency_key' => 'test-idempotency-key-002',
         ]);
     }
+
+    protected function walletOrchestrator(WalletService $wallet, array $currentAttempt)
+    {
+        $orchestrator = Mockery::mock(PaymentOrchestrator::class, [
+            Mockery::mock(OrderClassificationService::class),
+            Mockery::mock(PaymentEligibilityService::class),
+            Mockery::mock(PaymentSettingsService::class),
+            Mockery::mock(CurrencySnapshotService::class),
+            Mockery::mock(StripeConnectService::class),
+            Mockery::mock(PaymentGatewayService::class),
+            $wallet,
+        ])->makePartial()->shouldAllowMockingProtectedMethods();
+        $orchestrator->shouldReceive('updateAttempt')->andReturnNull();
+        $orchestrator->shouldReceive('findAttemptByUuid')->andReturn($currentAttempt);
+
+        return $orchestrator;
+    }
+
+    protected function callInitiateWallet(PaymentOrchestrator $orchestrator): array
+    {
+        $attempt = ['id' => 1, 'attempt_uuid' => 'u-1', 'idempotency_key' => 'k1', 'currency_code' => 'SGD', 'tour_id' => 5];
+        $method = new \ReflectionMethod($orchestrator, 'initiateWallet');
+        $method->setAccessible(true);
+
+        return $method->invoke($orchestrator, new Tour(['tour_id' => 5, 'dmc_id' => 2, 'agent_id' => 3]), $attempt, [], 100.0);
+    }
+
+    public function test_wallet_payment_reserves_from_the_dmc_wallet_not_the_agent(): void
+    {
+        $wallet = Mockery::mock(WalletService::class);
+        $wallet->shouldReceive('reserve')->once()->withArgs(function (array $d) {
+            return $d['wallet_owner_type'] === 'dmc' && $d['wallet_owner_id'] === 2
+                && $d['amount'] === 100.0 && ! isset($d['source_dmc_id']);
+        })->andReturn(['data' => ['reservation_reference' => 'RSV1']]);
+        $wallet->shouldNotReceive('releaseReservation');
+
+        $orchestrator = $this->walletOrchestrator($wallet, ['status' => 'authorized']);
+        $orchestrator->shouldReceive('completeWalletAfterSupplier')->once()->andReturn(['confirmed' => true]);
+
+        $this->assertTrue($this->callInitiateWallet($orchestrator)['confirmed']);
+    }
+
+    public function test_failed_wallet_commit_releases_the_reservation_and_rethrows(): void
+    {
+        $wallet = Mockery::mock(WalletService::class);
+        $wallet->shouldReceive('reserve')->once()->andReturn(['data' => ['reservation_reference' => 'RSV1']]);
+        $wallet->shouldReceive('releaseReservation')->once()->withArgs(
+            fn (array $d) => $d['reservation_reference'] === 'RSV1' && $d['release_amount'] === 100.0
+        );
+
+        $orchestrator = $this->walletOrchestrator($wallet, ['status' => 'authorized']);
+        $orchestrator->shouldReceive('completeWalletAfterSupplier')->andThrow(new RuntimeException('commit failed'));
+
+        $this->expectExceptionMessage('commit failed');
+        $this->callInitiateWallet($orchestrator);
+    }
+
+    public function test_completed_attempt_is_not_released_on_late_failure(): void
+    {
+        $wallet = Mockery::mock(WalletService::class);
+        $wallet->shouldReceive('reserve')->once()->andReturn(['data' => ['reservation_reference' => 'RSV1']]);
+        $wallet->shouldNotReceive('releaseReservation'); // funds were already committed
+
+        $orchestrator = $this->walletOrchestrator($wallet, ['status' => 'completed']);
+        $orchestrator->shouldReceive('completeWalletAfterSupplier')->andThrow(new RuntimeException('late failure'));
+
+        $this->expectExceptionMessage('late failure');
+        $this->callInitiateWallet($orchestrator);
+    }
 }

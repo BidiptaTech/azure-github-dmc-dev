@@ -1,7 +1,9 @@
 {{--
   Extends existing Add Payment modals with server-driven Wallet / Stripe options.
   Laravel-only payment service (no Python / no Razorpay).
+  Use url() so APP_URL subpath (e.g. /backadm-dmc) is included — root /payment-service returns HTML.
 --}}
+@php $paymentServiceBase = rtrim(url('/payment-service'), '/'); @endphp
 <script src="https://js.stripe.com/v3/"></script>
 <script>
 (function () {
@@ -9,8 +11,22 @@
         return;
     }
 
+    const PAYMENT_SERVICE_BASE = @json($paymentServiceBase);
     const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
         || document.querySelector('input[name="_token"]')?.value;
+
+    async function parseJsonResponse(res) {
+        const text = await res.text();
+        try {
+            return text ? JSON.parse(text) : {};
+        } catch (e) {
+            throw new Error(
+                res.ok
+                    ? 'Payment service returned HTML instead of JSON. Check APP_URL / base path.'
+                    : `Payment service error (${res.status}).`
+            );
+        }
+    }
 
     async function fetchEligibility(tourId, amount) {
         const params = new URLSearchParams();
@@ -18,13 +34,14 @@
             params.set('amount', String(amount));
         }
         const qs = params.toString();
-        const res = await fetch(`/payment-service/tours/${tourId}/eligibility${qs ? `?${qs}` : ''}`, {
+        const res = await fetch(`${PAYMENT_SERVICE_BASE}/tours/${tourId}/eligibility${qs ? `?${qs}` : ''}`, {
             headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
         });
-        if (!res.ok) {
-            throw new Error('Unable to load payment options');
+        const json = await parseJsonResponse(res);
+        if (!res.ok || json.success === false) {
+            throw new Error(json.message || 'Unable to load payment options');
         }
-        return res.json();
+        return json;
     }
 
     function applyWalletAvailabilityFromAmount(tourId) {
@@ -51,8 +68,8 @@
             : (checkAmount <= 0
                 ? 'No payable amount on this booking.'
                 : (balance <= 0
-                    ? `No ${currency} wallet balance for this agency under the tour DMC.`
-                    : `Insufficient wallet balance (${currency} ${balance} available, ${checkAmount} required).`));
+                    ? `No ${currency} balance in the DMC wallet.`
+                    : `Insufficient DMC wallet balance (${currency} ${balance} available, ${checkAmount} required).`));
         if (wallet.wallet) {
             wallet.wallet.required_amount = checkAmount;
         }
@@ -174,7 +191,7 @@
             idempotency_key: extra.idempotency_key || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
             ...extra,
         };
-        const res = await fetch(`/payment-service/tours/${tourId}/pay`, {
+        const res = await fetch(`${PAYMENT_SERVICE_BASE}/tours/${tourId}/pay`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -184,7 +201,7 @@
             },
             body: JSON.stringify(body),
         });
-        const json = await res.json();
+        const json = await parseJsonResponse(res);
         if (!res.ok || !json.success) {
             throw new Error(json.message || 'Payment initiation failed');
         }
@@ -259,7 +276,7 @@
     };
 
     async function postComplete(tourId, path, attemptUuid) {
-        const res = await fetch(`/payment-service/tours/${tourId}/${path}`, {
+        const res = await fetch(`${PAYMENT_SERVICE_BASE}/tours/${tourId}/${path}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -269,7 +286,7 @@
             },
             body: JSON.stringify({ attempt_uuid: attemptUuid, supplier_results: [] }),
         });
-        const json = await res.json();
+        const json = await parseJsonResponse(res);
         if (!res.ok || !json.success) {
             throw new Error(json.message || 'Could not finalize payment');
         }
@@ -318,82 +335,86 @@
     }
 
     async function openAcceptancePay(tourId) {
-        const payload = await fetchEligibility(tourId);
-        const eligibility = payload.data || {};
-        const modalEl = ensureAcceptanceModal();
-        document.getElementById('acceptancePayTitle').textContent = eligibility.acceptance?.button_label || 'Payment';
-        document.getElementById('acceptancePayHint').textContent = eligibility.acceptance?.hint || '';
-        const amountEl = document.getElementById('acceptancePayAmount');
-        const fx = eligibility.fx || {};
-        const payable = Number(eligibility.payable_amount || 0);
-        const showWalletAmount = fx.wallet_currency && fx.wallet_currency !== eligibility.currency
-            && Number(fx.wallet_payable_amount) > 0;
-        amountEl.readOnly = true;
-        amountEl.value = payable <= 0
-            ? `0.00 ${eligibility.currency || ''}`.trim()
-            : (showWalletAmount
-                ? `${Number(fx.wallet_payable_amount).toFixed(2)} ${fx.wallet_currency}`
-                : `${payable.toFixed(2)} ${eligibility.currency || ''}`.trim());
-        const select = document.getElementById('acceptancePayMethod');
-        select.innerHTML = '';
-        const walletMethod = (eligibility.methods || []).find((method) => method.code === 'wallet');
-        const walletBalance = Number(walletMethod?.wallet?.available_balance ?? 0);
-        const walletCurrency = walletMethod?.wallet?.currency || eligibility.currency || '';
-        (eligibility.methods || []).forEach((method) => {
-            if (!['wallet', 'stripe'].includes(method.code)) {
-                return;
-            }
-            const opt = document.createElement('option');
-            opt.value = method.code;
-            if (method.code === 'wallet') {
-                opt.textContent = `Wallet (${walletCurrency} ${walletBalance.toFixed(2)})`;
-            } else {
-                opt.textContent = method.available ? method.label : `${method.label} (unavailable)`;
-            }
-            opt.disabled = !method.available;
-            opt.dataset.reason = method.reason || '';
-            select.appendChild(opt);
-        });
-        const help = document.getElementById('acceptancePayHelp');
-        const walletLine = `Wallet from this DMC: ${walletCurrency} ${walletBalance.toFixed(2)}.`;
-        help.textContent = Number(fx.conversion_charge) > 0
-            ? `${walletLine} Conversion charge ${fx.charge_percent}% is included when the wallet currency differs from ${eligibility.currency}.`
-            : walletLine;
-        const submit = document.getElementById('acceptancePaySubmit');
-        submit.disabled = payable <= 0;
-        submit.onclick = async () => {
-            if (payable <= 0) {
-                alert('This booking has no payable amount yet.');
-                return;
-            }
-            const method = select.value;
-            if (!method || select.selectedOptions[0]?.disabled) {
-                alert(select.selectedOptions[0]?.dataset.reason || 'Select an available payment method.');
-                return;
-            }
-            submit.disabled = true;
-            try {
-                const result = await initiatePayment(tourId, method, eligibility.payable_amount);
-                if (method === 'stripe' && result.stripe?.client_secret) {
-                    await confirmStripeCard(result.stripe);
-                    if (result.attempt?.attempt_uuid && result.requires_supplier_booking) {
-                        await finalizeStripe(tourId, result.attempt.attempt_uuid);
-                    }
-                } else if (result.requires_supplier_booking && result.attempt?.attempt_uuid) {
-                    await finalizeWallet(tourId, result.attempt.attempt_uuid);
+        try {
+            const payload = await fetchEligibility(tourId);
+            const eligibility = payload.data || {};
+            const modalEl = ensureAcceptanceModal();
+            document.getElementById('acceptancePayTitle').textContent = eligibility.acceptance?.button_label || 'Payment';
+            document.getElementById('acceptancePayHint').textContent = eligibility.acceptance?.hint || '';
+            const amountEl = document.getElementById('acceptancePayAmount');
+            const fx = eligibility.fx || {};
+            const payable = Number(eligibility.payable_amount || 0);
+            const showWalletAmount = fx.wallet_currency && fx.wallet_currency !== eligibility.currency
+                && Number(fx.wallet_payable_amount) > 0;
+            amountEl.readOnly = true;
+            amountEl.value = payable <= 0
+                ? `0.00 ${eligibility.currency || ''}`.trim()
+                : (showWalletAmount
+                    ? `${Number(fx.wallet_payable_amount).toFixed(2)} ${fx.wallet_currency}`
+                    : `${payable.toFixed(2)} ${eligibility.currency || ''}`.trim());
+            const select = document.getElementById('acceptancePayMethod');
+            select.innerHTML = '';
+            const walletMethod = (eligibility.methods || []).find((method) => method.code === 'wallet');
+            const walletBalance = Number(walletMethod?.wallet?.available_balance ?? 0);
+            const walletCurrency = walletMethod?.wallet?.currency || eligibility.currency || '';
+            (eligibility.methods || []).forEach((method) => {
+                if (!['wallet', 'stripe'].includes(method.code)) {
+                    return;
                 }
-                window.location.reload();
-            } catch (e) {
-                alert(e.message || 'Payment failed');
-            } finally {
-                submit.disabled = false;
+                const opt = document.createElement('option');
+                opt.value = method.code;
+                if (method.code === 'wallet') {
+                    opt.textContent = `Wallet (${walletCurrency} ${walletBalance.toFixed(2)})`;
+                } else {
+                    opt.textContent = method.available ? method.label : `${method.label} (unavailable)`;
+                }
+                opt.disabled = !method.available;
+                opt.dataset.reason = method.reason || '';
+                select.appendChild(opt);
+            });
+            const help = document.getElementById('acceptancePayHelp');
+            const walletLine = `Wallet from this DMC: ${walletCurrency} ${walletBalance.toFixed(2)}.`;
+            help.textContent = Number(fx.conversion_charge) > 0
+                ? `${walletLine} Conversion charge ${fx.charge_percent}% is included when the wallet currency differs from ${eligibility.currency}.`
+                : walletLine;
+            const submit = document.getElementById('acceptancePaySubmit');
+            submit.disabled = payable <= 0;
+            submit.onclick = async () => {
+                if (payable <= 0) {
+                    alert('This booking has no payable amount yet.');
+                    return;
+                }
+                const method = select.value;
+                if (!method || select.selectedOptions[0]?.disabled) {
+                    alert(select.selectedOptions[0]?.dataset.reason || 'Select an available payment method.');
+                    return;
+                }
+                submit.disabled = true;
+                try {
+                    const result = await initiatePayment(tourId, method, eligibility.payable_amount);
+                    if (method === 'stripe' && result.stripe?.client_secret) {
+                        await confirmStripeCard(result.stripe);
+                        if (result.attempt?.attempt_uuid && result.requires_supplier_booking) {
+                            await finalizeStripe(tourId, result.attempt.attempt_uuid);
+                        }
+                    } else if (result.requires_supplier_booking && result.attempt?.attempt_uuid) {
+                        await finalizeWallet(tourId, result.attempt.attempt_uuid);
+                    }
+                    window.location.reload();
+                } catch (e) {
+                    alert(e.message || 'Payment failed');
+                } finally {
+                    submit.disabled = false;
+                }
+            };
+            if (window.bootstrap?.Modal) {
+                window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+            } else {
+                modalEl.classList.add('show');
+                modalEl.style.display = 'block';
             }
-        };
-        if (window.bootstrap?.Modal) {
-            window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
-        } else {
-            modalEl.classList.add('show');
-            modalEl.style.display = 'block';
+        } catch (e) {
+            alert(e.message || 'Unable to open payment options');
         }
     }
 

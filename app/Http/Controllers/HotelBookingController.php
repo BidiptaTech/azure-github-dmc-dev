@@ -1717,10 +1717,11 @@ class HotelBookingController extends Controller
                 ], 400);
             }
 
-            // Update the specific booking data
+            // Update the specific booking data (pickupdate + exittime for exit_port)
             $data[$actualKey]['bookingDate'] = $bookingDate;
-            $data[$actualKey]['exitpickupdate'] = $exitPickupDate;
-            $data[$actualKey]['entrytime'] = $entryTime;
+            $data[$actualKey]['pickupdate'] = $exitPickupDate;
+            $data[$actualKey]['exittime'] = $entryTime;
+            $data[$actualKey]['time'] = $entryTime;
 
             // Update the database
             $updated = DB::table('orders')
@@ -1735,8 +1736,8 @@ class HotelBookingController extends Controller
                     'order_id' => $departureOrder->id,
                     'tour_id' => $tourId,
                     'booking_date' => $bookingDate,
-                    'exit_pickup_date' => $exitPickupDate,
-                    'entry_time' => $entryTime
+                    'pickupdate' => $exitPickupDate,
+                    'exittime' => $entryTime
                 ]);
 
                 return response()->json([
@@ -1831,12 +1832,20 @@ class HotelBookingController extends Controller
 
             $specificBooking = $data[$keys[$bookingIndex]];
 
+            // Prefer pickupdate + exittime (new pro form); fall back to legacy exitpickupdate/entrytime.
+            $pickupDate = $specificBooking['pickupdate']
+                ?? ($specificBooking['exitpickupdate'] ?? null);
+            $exitTime = $specificBooking['exittime']
+                ?? ($specificBooking['entrytime'] ?? null);
+
             // Extract relevant data
             $departureData = [
                 'vehicles_name' => $specificBooking['vehicles_name'] ?? 'N/A',
                 'booking_date' => $specificBooking['bookingDate'] ?? null,
-                'exit_pickup_date' => $specificBooking['exitpickupdate'] ?? null,
-                'entry_time' => $specificBooking['entrytime'] ?? null,
+                'exit_pickup_date' => $pickupDate,
+                'pickup_date' => $pickupDate,
+                'entry_time' => $exitTime,
+                'exit_time' => $exitTime,
                 'total_price' => $specificBooking['totalPrice'] ?? 0,
                 'adults' => $specificBooking['adults'] ?? 0,
                 'children' => $specificBooking['children'] ?? 0,
@@ -1853,7 +1862,9 @@ class HotelBookingController extends Controller
                     'vehicles_name' => $departureData['vehicles_name'],
                     'booking_date' => $departureData['booking_date'],
                     'exit_pickup_date' => $departureData['exit_pickup_date'],
+                    'pickup_date' => $departureData['pickup_date'],
                     'entry_time' => $departureData['entry_time'],
+                    'exit_time' => $departureData['exit_time'],
                     'total_price' => $departureData['total_price'],
                     'adults' => $departureData['adults'],
                     'children' => $departureData['children'],
