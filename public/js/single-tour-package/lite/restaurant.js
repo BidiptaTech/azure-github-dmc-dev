@@ -688,6 +688,7 @@
             payload.bookingType = T.resolveRowBookingType
                 ? T.resolveRowBookingType(rows[root.__editingIdx])
                 : (rows[root.__editingIdx].bookingType || payload.bookingType);
+            if (T.keepRowBookingId) T.keepRowBookingId(payload, rows[root.__editingIdx]);
             rows[root.__editingIdx] = payload;
             root.__editingIdx = null;
             setAddMode(root, false);
