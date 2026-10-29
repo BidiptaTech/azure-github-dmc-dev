@@ -414,7 +414,7 @@
             ? window.StpLiteTransportShared.resolveRowBookingType(existingRow || null)
             : 'enquiry';
 
-        return {
+        var payload = {
             id: existingId || uid(),
             itemId: itemId,
             itemName: itemName,
@@ -441,6 +441,10 @@
             dmc_id: stay.dmcId || cfg().dmcId || '',
             bookingType: bookingType
         };
+        if (window.StpLiteTransportShared && window.StpLiteTransportShared.keepRowBookingId) {
+            window.StpLiteTransportShared.keepRowBookingId(payload, existingRow);
+        }
+        return payload;
     }
 
     function addOrUpdateCard(root, stay, card) {

@@ -5279,7 +5279,20 @@ class EnquiryFormPro extends Controller
         }
 
         if ($type !== 'attraction') {
-            return (int) $q->delete();
+            if (! $this->orderTypeMayOwnJobsheet($type)) {
+                return (int) $q->delete();
+            }
+
+            $orphans = $q->get();
+            $deleted = 0;
+            $jobsheets = app(\App\Services\JobsheetRemovalService::class);
+            foreach ($orphans as $orphan) {
+                $jobsheets->deleteForOrder($orphan);
+                $orphan->delete();
+                $deleted++;
+            }
+
+            return $deleted;
         }
 
         $orphans = $q->get();
@@ -5315,11 +5328,28 @@ class EnquiryFormPro extends Controller
                 $orphan->save();
             }
 
+            app(\App\Services\JobsheetRemovalService::class)->deleteForOrder($orphan);
             $orphan->delete();
             $deleted++;
         }
 
         return $deleted;
+    }
+
+    private function orderTypeMayOwnJobsheet(string $type): bool
+    {
+        return in_array($type, [
+            'guide',
+            'dayguide',
+            'halfguide',
+            'travel_point',
+            'travel_hourly',
+            'local_transport',
+            'local_transfer',
+            'entry_port',
+            'exit_port',
+            'restaurant',
+        ], true);
     }
 
     /**
