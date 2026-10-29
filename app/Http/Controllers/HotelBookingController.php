@@ -4124,6 +4124,8 @@ class HotelBookingController extends Controller
                 ], 500);
             }
 
+            app(\App\Services\JobsheetRemovalService::class)->deleteForOrder($restaurantOrder);
+
             // Log successful rejection
             Log::info('Restaurant booking rejected successfully', [
                 'tour_id' => $tourId,
@@ -4310,6 +4312,8 @@ class HotelBookingController extends Controller
                     'message' => 'Failed to reject attraction booking'
                 ], 500);
             }
+
+            app(\App\Services\JobsheetRemovalService::class)->deleteForOrder($attractionOrder);
 
             // Log successful rejection
             Log::info('Attraction booking rejected successfully', [
@@ -4582,6 +4586,8 @@ class HotelBookingController extends Controller
                 ], 500);
             }
 
+            app(\App\Services\JobsheetRemovalService::class)->deleteForOrder($guideOrder);
+
             // Log successful rejection
             Log::info('Guide booking rejected successfully', [
                 'tour_id' => $tourId,
@@ -4847,6 +4853,8 @@ class HotelBookingController extends Controller
                 ], 500);
             }
 
+            app(\App\Services\JobsheetRemovalService::class)->deleteForOrder($arrivalOrder);
+
             Log::info('✅ ARRIVAL REJECT: Arrival booking rejected successfully', [
                 'order_id' => $arrivalOrder->id,
                 'cancel_reason' => $request->cancel_reason
@@ -5106,6 +5114,8 @@ class HotelBookingController extends Controller
                 ], 500);
             }
 
+            app(\App\Services\JobsheetRemovalService::class)->deleteForOrder($departureOrder);
+
             Log::info('✅ DEPARTURE REJECT: Departure booking rejected successfully', [
                 'order_id' => $departureOrder->id,
                 'cancel_reason' => $request->cancel_reason
@@ -5363,6 +5373,8 @@ class HotelBookingController extends Controller
                     'message' => 'Failed to reject hourly booking'
                 ], 500);
             }
+
+            app(\App\Services\JobsheetRemovalService::class)->deleteForOrder($hourlyOrder);
 
             Log::info('✅ HOURLY REJECT: Hourly booking rejected successfully', [
                 'order_id' => $hourlyOrder->id,
@@ -5622,6 +5634,8 @@ class HotelBookingController extends Controller
                 ], 500);
             }
 
+            app(\App\Services\JobsheetRemovalService::class)->deleteForOrder($pointToPointOrder);
+
             Log::info('✅ POINT TO POINT REJECT: Point to point booking rejected successfully', [
                 'order_id' => $pointToPointOrder->id,
                 'cancel_reason' => $request->cancel_reason
@@ -5871,6 +5885,8 @@ class HotelBookingController extends Controller
                     'message' => 'Failed to reject local transport booking'
                 ], 500);
             }
+
+            app(\App\Services\JobsheetRemovalService::class)->deleteForOrder($localTransportOrder);
 
             Log::info('✅ LOCAL TRANSPORT REJECT: Local transport booking rejected successfully', [
                 'order_id' => $localTransportOrder->id,

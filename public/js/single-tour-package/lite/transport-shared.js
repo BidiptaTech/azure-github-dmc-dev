@@ -2910,6 +2910,14 @@
         return fromTour;
     }
 
+    function keepRowBookingId(payload, previous) {
+        if (!payload || !previous) return payload;
+        if (previous._booking_id != null && previous._booking_id !== '') {
+            payload._booking_id = previous._booking_id;
+        }
+        return payload;
+    }
+
     window.StpLiteTransportShared = {
         cfg: cfg,
         esc: esc,
@@ -2960,6 +2968,7 @@
         confirmRemoveService: confirmRemoveService,
         defaultBookingType: defaultBookingType,
         resolveRowBookingType: resolveRowBookingType,
+        keepRowBookingId: keepRowBookingId,
         isNightTime: isNightTime,
         calcInlineGuidePrice: calcInlineGuidePrice,
         collectGuideOptions: collectGuideOptions,
