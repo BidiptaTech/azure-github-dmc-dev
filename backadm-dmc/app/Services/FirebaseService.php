@@ -193,25 +193,30 @@ class FirebaseService
         return 'Failed to send notification to any device.';
     }
 
-    public function createChatRoom($tourId, $dmcId, array $tourDetails = [])
+    public function createChatRoom($tourId, $dmcId, array $tourDetails = [], array $jobsheetPayload = [])
     {
-        $reference = $this->getChatReference($tourId);
+        $idMap = isset($jobsheetPayload['ID']) && is_array($jobsheetPayload['ID'])
+            ? $jobsheetPayload['ID']
+            : [];
+        $emails = $this->filterValidEmails($jobsheetPayload['emails'] ?? []);
+        $resolvedDmcId = (int) ($jobsheetPayload['dmc_id'] ?? $dmcId);
 
-        // Check if already exists
+        $reference = $this->getChatReference($tourId);
         $snapshot = $reference->getSnapshot();
+        $sanitizedDetails = $this->sanitizeForRealtimeDatabase($tourDetails);
+        $sanitizedIdMap = $this->sanitizeForRealtimeDatabase($idMap);
+        $sanitizedEmails = $this->sanitizeForRealtimeDatabase($emails);
 
         if (!$snapshot->exists()) {
-            $sanitizedDetails = $this->sanitizeForRealtimeDatabase($tourDetails);
-
             $reference->set([
                 'tour_id' => $tourId,
-                'dmc_id' => (int) $dmcId,
+                'dmc_id' => $resolvedDmcId,
                 'created_at' => now()->toDateTimeString(),
                 'Messages' => [],
                 'messages' => [],
-                'ID' => [],
+                'ID' => $sanitizedIdMap,
                 'guestId' => null,
-                'emails' => [],
+                'emails' => $sanitizedEmails,
                 'Tour_Details' => $sanitizedDetails,
             ]);
 
@@ -220,15 +225,66 @@ class FirebaseService
                 'message' => 'Chat room created',
                 'data' => [
                     'tour_id' => (int) $tourId,
+                    'dmc_id' => $resolvedDmcId,
+                    'ID' => $idMap,
+                    'emails' => $emails,
                     'Tour_Details' => $sanitizedDetails,
                 ],
             ];
         }
 
+        $this->syncJobsheetChatData($tourId, $resolvedDmcId, $idMap, $emails);
+
         return [
             'success' => false,
             'message' => 'Chat room already exists',
+            'data' => [
+                'tour_id' => (int) $tourId,
+                'dmc_id' => $resolvedDmcId,
+                'ID' => $idMap,
+                'emails' => $emails,
+            ],
         ];
+    }
+
+    /**
+     * Merge jobsheet order assignments and staff emails into an existing chat room.
+     */
+    public function syncJobsheetChatData($tourId, $dmcId, array $idMap, array $emails): void
+    {
+        $this->ensureChatRoomExists($tourId, $dmcId);
+
+        $this->getChatReference($tourId)
+            ->getChild('dmc_id')
+            ->set((int) $dmcId);
+
+        if (!empty($idMap)) {
+            $idRef = $this->getChatReference($tourId)->getChild('ID');
+            $existing = $idRef->getValue();
+            $existing = is_object($existing)
+                ? (array) $existing
+                : (is_array($existing) ? $existing : []);
+
+            foreach ($idMap as $orderId => $assignment) {
+                if (!is_array($assignment) || empty($assignment)) {
+                    continue;
+                }
+
+                $key = (string) $orderId;
+                $current = $existing[$key] ?? $existing[$orderId] ?? [];
+                $current = is_object($current)
+                    ? (array) $current
+                    : (is_array($current) ? $current : []);
+
+                $existing[$key] = array_merge($current, $assignment);
+            }
+
+            $idRef->set($this->sanitizeForRealtimeDatabase($existing));
+        }
+
+        if (!empty($emails)) {
+            $this->mergeChatEmails($tourId, $dmcId, $emails);
+        }
     }
 
     /**
