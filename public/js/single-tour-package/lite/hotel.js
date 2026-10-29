@@ -2443,6 +2443,9 @@
             payload.bookingType = (window.StpLiteTransportShared && window.StpLiteTransportShared.resolveRowBookingType)
                 ? window.StpLiteTransportShared.resolveRowBookingType(prevHotel)
                 : (prevHotel.bookingType || payload.bookingType);
+            if (window.StpLiteTransportShared && window.StpLiteTransportShared.keepRowBookingId) {
+                window.StpLiteTransportShared.keepRowBookingId(payload, prevHotel);
+            }
             rows[root.__editingIdx] = payload;
             root.__editingIdx = null;
         } else {

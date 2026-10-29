@@ -22,13 +22,9 @@
         return !!(T.zoneOn && T.zoneOn());
     }
 
-    function isEditForm() {
-        return !!(window.STP_LITE_CONFIG && window.STP_LITE_CONFIG.mode === 'edit');
-    }
-
-    /** Edit form: date stays visible but cannot be changed (picker included). */
+    /** Date follows the tour stay and cannot be typed or picked. */
     function lockDateField(input) {
-        if (!input || !isEditForm()) return;
+        if (!input) return;
         input.readOnly = true;
         input.setAttribute('readonly', 'readonly');
         input.setAttribute('tabindex', '-1');
@@ -43,9 +39,7 @@
         var T = S();
         var cur = stay.currency || 'SGD';
         var zone = stayZoneOn(T, stay);
-        var dateLock = isEditForm()
-            ? ' readonly tabindex="-1" style="pointer-events:none;background-color:#e9ecef;cursor:not-allowed;"'
-            : '';
+        var dateLock = ' readonly tabindex="-1" style="pointer-events:none;background-color:#e9ecef;cursor:not-allowed;"';
         return (
             '<div class="stp-lite-svc stp-lite-arrival" data-currency="' + T.esc(cur) + '">' +
             '  <div class="row g-2 mb-2">' +
@@ -683,6 +677,7 @@
             payload.bookingType = T.resolveRowBookingType
                 ? T.resolveRowBookingType(rows[root.__editingIdx])
                 : (rows[root.__editingIdx].bookingType || payload.bookingType);
+            if (T.keepRowBookingId) T.keepRowBookingId(payload, rows[root.__editingIdx]);
             rows[root.__editingIdx] = payload;
             root.__editingIdx = null;
             setAddMode(root, false);
