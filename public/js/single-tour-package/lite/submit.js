@@ -630,6 +630,29 @@
         return ids;
     }
 
+    function collectKeptServiceBookingIds() {
+        var ids = [];
+        var seen = {};
+        function pushId(raw) {
+            var id = parseInt(raw, 10);
+            if (!id || seen[id]) return;
+            seen[id] = true;
+            ids.push(id);
+        }
+        function scan(raw) {
+            parseChunkJson(raw).forEach(function (row) {
+                if (row && row._booking_id != null) pushId(row._booking_id);
+            });
+        }
+        SERVICE_CHUNK_FIELDS.forEach(function (item) {
+            scan(readHiddenJson(item.field));
+            document.querySelectorAll(item.selector).forEach(function (el) {
+                scan(el.value || '[]');
+            });
+        });
+        return ids;
+    }
+
     async function clearAllServices(tourId) {
         var url = routeWithTourId((cfg().routes && cfg().routes.clearServices) || '', tourId);
         if (!url) throw new Error('clear-services route missing');
@@ -639,6 +662,12 @@
         // Removed hotels are cancelled with the supplier then soft-deleted.
         collectPreserveHotelBookingIds().forEach(function (id) {
             fd.append('preserve_booking_ids[]', String(id));
+        });
+        // Services still on the form keep the same order row (same booking id) and are updated.
+        // Services missing from this list are removed with their jobsheets.
+        fd.append('kept_service_booking_ids_sent', '1');
+        collectKeptServiceBookingIds().forEach(function (id) {
+            fd.append('kept_service_booking_ids[]', String(id));
         });
         return postJsonForm(url, fd);
     }

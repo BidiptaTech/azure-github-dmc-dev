@@ -187,17 +187,30 @@ class EditTourController extends Controller
     }
 
     /**
-     * Clear (soft delete) ALL services (orders) for a tour.
-     * Used when the tour date range is edited to avoid inconsistent bookings.
+     * Soft-delete services removed from a tour.
+     * Orders still on the lite edit form (hotels and other services) stay so their booking id does not change.
      */
     public function clearTourServices(Request $request, $tour)
     {
         $tour = Tour::where('tour_id', $tour)->firstOrFail();
 
         try {
-            // Lite edit save: clear then re-store. Preserve hotel orders still present in the
-            // form (`preserve_booking_ids`) so confirmed online bookings are not cancelled/recreated.
+            // Lite edit save: drop services the form no longer has, then update the ones it still has.
+            // Hotels use `preserve_booking_ids`. Every other service uses `kept_service_booking_ids`.
+            // Both lists mean "update this order in place" so booking_id does not change.
             $preserveBookingIds = collect($request->input('preserve_booking_ids', []))
+                ->map(fn ($id) => (int) $id)
+                ->filter(fn ($id) => $id > 0)
+                ->unique()
+                ->values()
+                ->all();
+
+            // Booking ids still on the form are kept (same order row). Only drop jobsheets for
+            // booking ids the form no longer has. Missing this flag means an older client:
+            // leave jobsheets alone so a full re-save does not wipe assignments.
+            $trackKeptServices = $request->boolean('kept_service_booking_ids_sent')
+                || $request->exists('kept_service_booking_ids');
+            $keptServiceBookingIds = collect($request->input('kept_service_booking_ids', []))
                 ->map(fn ($id) => (int) $id)
                 ->filter(fn ($id) => $id > 0)
                 ->unique()
@@ -232,7 +245,13 @@ class EditTourController extends Controller
                 }
 
                 $bookingId = (int) ($order->booking_id ?? 0);
-                if (($order->type ?? '') === 'hotel' && $bookingId > 0 && in_array($bookingId, $preserveBookingIds, true)) {
+                $keepHotel = ($order->type ?? '') === 'hotel'
+                    && $bookingId > 0
+                    && in_array($bookingId, $preserveBookingIds, true);
+                $keepService = $trackKeptServices
+                    && $bookingId > 0
+                    && in_array($bookingId, $keptServiceBookingIds, true);
+                if ($keepHotel || $keepService) {
                     $preservedCount++;
                     continue;
                 }
@@ -268,7 +287,14 @@ class EditTourController extends Controller
             DB::beginTransaction();
 
             $deletedCount = 0;
+            $jobsheets = app(\App\Services\JobsheetRemovalService::class);
             foreach ($toDelete as $order) {
+                if ($trackKeptServices) {
+                    $bookingId = (int) ($order->booking_id ?? 0);
+                    if ($bookingId <= 0 || ! in_array($bookingId, $keptServiceBookingIds, true)) {
+                        $jobsheets->deleteForOrder($order);
+                    }
+                }
                 $order->delete();
                 $deletedCount++;
             }
@@ -870,6 +896,7 @@ class EditTourController extends Controller
                     }
                     $serviceData = array_values($serviceData);
                     if (empty($serviceData)) {
+                        app(\App\Services\JobsheetRemovalService::class)->deleteForOrder($order);
                         $order->delete();
                         $tourIdsWithSoftDeletes[] = (int) $order->tour_id;
                     } else {
@@ -877,6 +904,7 @@ class EditTourController extends Controller
                         $order->save();
                     }
                 } else {
+                    app(\App\Services\JobsheetRemovalService::class)->deleteForOrder($order);
                     $order->delete();
                     $tourIdsWithSoftDeletes[] = (int) $order->tour_id;
                 }
@@ -3823,6 +3851,7 @@ class EditTourController extends Controller
                     
                     // If no services left, soft delete the order (sets deleted_at timestamp), otherwise update it
                     if (empty($serviceData)) {
+                        app(\App\Services\JobsheetRemovalService::class)->deleteForOrder($order);
                         $order->delete(); // Soft delete - sets deleted_at timestamp automatically via SoftDeletes trait
                         $tourIdsWithSoftDeletes[] = (int) $order->tour_id;
                         Log::info('Soft deleted entire order - all services outside date range', [
@@ -3840,6 +3869,7 @@ class EditTourController extends Controller
                     }
                 } else {
                     // Single service, soft delete the entire order (sets deleted_at timestamp)
+                    app(\App\Services\JobsheetRemovalService::class)->deleteForOrder($order);
                     $order->delete(); // Soft delete - sets deleted_at timestamp automatically via SoftDeletes trait
                     $tourIdsWithSoftDeletes[] = (int) $order->tour_id;
                     Log::info('Soft deleted order - single service outside date range', [

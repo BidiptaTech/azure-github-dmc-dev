@@ -573,7 +573,7 @@
                 : (row.totalPrice || 0);
             html += '<tr class="' + (editing ? 'is-editing' : '') + '" data-idx="' + idx + '">' +
                 '<td><div class="fw-semibold">' + T.esc(row.restaurantName || 'Restaurant') + '</div>' +
-                '<small class="text-muted">' + T.esc(row.bookingDate || '') + T.esc(xferNote) + '</small>' +
+                '<small class="text-muted">' + T.esc(row.visitTime || row.visit_time || row.entrytime || '—') + ' · ' + T.esc(row.bookingDate || '') + T.esc(xferNote) + '</small>' +
                 T.editingMarkHtml(editing) + '</td>' +
                 '<td><small>' + T.esc(mealLabel) + ' · ' + T.esc(dishName) + '</small></td>' +
                 '<td><small>' + T.esc(row.adults || 0) + 'A / ' + T.esc(row.children || 0) + 'C</small></td>' +
@@ -599,7 +599,7 @@
         if (dateEl) dateEl.value = row.bookingDate || stay.start || '';
         if (adultsEl) adultsEl.value = String(row.adults || 0);
         if (childrenEl) childrenEl.value = String(row.children || 0);
-        T.setAmPmValue(root, 'restaurant', row.visitTime || '');
+        T.setAmPmValue(root, 'restaurant', row.visitTime || row.visit_time || row.entrytime || '');
 
         function finish() {
             var dish = root.querySelector('.restaurant-dish');
@@ -688,6 +688,7 @@
             payload.bookingType = T.resolveRowBookingType
                 ? T.resolveRowBookingType(rows[root.__editingIdx])
                 : (rows[root.__editingIdx].bookingType || payload.bookingType);
+            if (T.keepRowBookingId) T.keepRowBookingId(payload, rows[root.__editingIdx]);
             rows[root.__editingIdx] = payload;
             root.__editingIdx = null;
             setAddMode(root, false);

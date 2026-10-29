@@ -725,7 +725,9 @@
 
     /**
      * Prefill standalone Cost/Car cost input from zone unit (Arrival / Departure / Local).
-     * Keeps user edits; reseeds when empty or still on the previous seed.
+     * Seeds the one-way unit; caller should syncCostDisplayForTripWay for Both way.
+     * Keeps user edits; reseeds when empty, still on the previous seed, or seed was cleared
+     * (location / vehicle change clears data-seeded-unit but may leave the old value).
      */
     function seedStandaloneCarCost(costEl, unit) {
         if (!costEl) return;
@@ -733,20 +735,63 @@
         if (!(unit > 0)) return;
         costEl.setAttribute('data-ajax-base-price', String(unit));
         var current = parseFloat(String(costEl.value || '').replace(/[^\d.]/g, '')) || 0;
+        var hasSeed = costEl.hasAttribute('data-seeded-unit');
         var seeded = parseFloat(costEl.getAttribute('data-seeded-unit') || '') || 0;
         var userEdited = costEl.getAttribute('data-user-edited') === '1';
         // Hydrate / user override: never clobber a locked positive cost
         if (userEdited && current > 0) return;
-        if (!(current > 0) || Math.abs(current - seeded) < 0.009) {
+        if (!(current > 0) || !hasSeed || Math.abs(current - seeded) < 0.009) {
+            costEl.setAttribute('data-one-way-unit', String(unit));
+            costEl.setAttribute('data-way-applied', 'single');
             costEl.value = String(unit);
             costEl.setAttribute('data-seeded-unit', String(unit));
             costEl.removeAttribute('data-user-edited');
         }
     }
 
+    /** Canonical one-way unit from Price field (display may already be Both-way ×2). */
+    function readOneWayCarCost(costEl) {
+        if (!costEl) return 0;
+        var stored = parseFloat(costEl.getAttribute('data-one-way-unit') || '') || 0;
+        if (stored > 0) return stored;
+        var current = parseFloat(String(costEl.value || '').replace(/[^\d.]/g, '')) || 0;
+        if (!(current > 0)) return 0;
+        if ((costEl.getAttribute('data-way-applied') || 'single') === 'both') {
+            return current / 2;
+        }
+        return current;
+    }
+
+    /**
+     * Price input shows one-way or Both-way (×2). Keeps data-one-way-unit as the base.
+     */
+    function syncCostDisplayForTripWay(costEl, way) {
+        if (!costEl) return;
+        way = normalizeTripWay(way) === 'both' ? 'both' : 'single';
+        var oneWay = readOneWayCarCost(costEl);
+        if (!(oneWay > 0)) {
+            costEl.setAttribute('data-way-applied', way);
+            return;
+        }
+        costEl.setAttribute('data-one-way-unit', String(oneWay));
+        var display = way === 'both' ? oneWay * 2 : oneWay;
+        costEl.value = String(display);
+        costEl.setAttribute('data-way-applied', way);
+        if (costEl.hasAttribute('data-seeded-unit') && costEl.getAttribute('data-user-edited') !== '1') {
+            costEl.setAttribute('data-seeded-unit', String(display));
+        }
+    }
+
     function markStandaloneCarCostEdited(costEl) {
         if (!costEl) return;
         costEl.setAttribute('data-user-edited', '1');
+        var current = parseFloat(String(costEl.value || '').replace(/[^\d.]/g, '')) || 0;
+        if (!(current > 0)) {
+            costEl.removeAttribute('data-one-way-unit');
+            return;
+        }
+        var applied = costEl.getAttribute('data-way-applied') || 'single';
+        costEl.setAttribute('data-one-way-unit', String(applied === 'both' ? current / 2 : current));
     }
 
     function clearStandaloneCarCostSeed(costEl) {
@@ -754,6 +799,8 @@
         costEl.removeAttribute('data-user-edited');
         costEl.removeAttribute('data-seeded-unit');
         costEl.removeAttribute('data-ajax-base-price');
+        costEl.removeAttribute('data-one-way-unit');
+        costEl.removeAttribute('data-way-applied');
     }
 
     function fetchVehiclesByZones(payload) {
@@ -819,6 +866,7 @@
         var dataset = {
             vehicleName: v.vehicle_name || v.name || '',
             vehicleType: v.vehicle_type || '',
+            image: v.image || '',
             seating: v.seating_capacity || '',
             privatePrice: privatePrice,
             sharedPrice: sharedPrice,
@@ -1137,9 +1185,9 @@
                '<option value="">Select pickup</option></select>');
         var costHtml = maps
             ? ('<input type="number" min="0" step="0.01" class="form-control form-control-sm ' + prefix + '-transfer-cost" ' +
-               'placeholder="Car cost" data-zone-off-cost="1">')
+               'placeholder="Car price" data-zone-off-cost="1">')
             : ('<input type="number" min="0" step="0.01" class="form-control form-control-sm ' + prefix + '-transfer-cost" ' +
-               'placeholder="Zone / car cost" data-zone-off-cost="1">');
+               'placeholder="Zone / car price" data-zone-off-cost="1">');
         var vehiclePlaceholder = maps ? 'Select type' : 'Select pickup first';
         return (
             '<div class="stp-lite-extras-block">' +
@@ -1160,7 +1208,7 @@
             '      <div class="col-auto stp-lite-xfer-time"><label class="stp-lite-label">Pickup time</label>' +
             ampmTimeHtml(prefix + '-xfer', '') +
             '      </div>' +
-            '      <div class="col-auto stp-lite-xfer-cost"><label class="stp-lite-label ' + prefix + '-transfer-cost-label">' + (maps ? 'Car cost' : 'Cost') + '</label>' +
+            '      <div class="col-auto stp-lite-xfer-cost"><label class="stp-lite-label ' + prefix + '-transfer-cost-label">' + (maps ? 'Car price' : 'Price') + '</label>' +
             costHtml +
             '</div>' +
             '      <div class="col-auto stp-lite-xfer-veh-count" data-' + prefix + '-vehicle-counts>' +
@@ -1171,7 +1219,7 @@
             '    <div class="text-muted mt-1 ' + prefix + '-transfer-cost-hint" style="font-size:0.7rem;">' +
             (maps
                 ? 'Private = car × vehicles · Shared = car × pax · Both way doubles'
-                : 'Zone price fills Cost · edit if needed · Both way doubles') +
+                : 'Zone price fills Price · edit if needed · Both way doubles') +
             '</div>' +
             '  </div>' +
             '</div>'
@@ -1210,8 +1258,8 @@
         costEl.setAttribute('data-zone-off-cost', '1');
         costEl.removeAttribute('data-zone-cost');
         costEl.type = 'number';
-        costEl.placeholder = useZone ? 'Zone / car cost' : 'Car cost';
-        if (label) label.textContent = useZone ? 'Cost' : 'Car cost';
+        costEl.placeholder = useZone ? 'Zone / car price' : 'Car price';
+        if (label) label.textContent = useZone ? 'Price' : 'Car price';
         // Drop currency-formatted leftovers so the field stays a plain number
         if (/[^\d.]/.test(String(costEl.value || ''))) {
             var ajax = parseFloat(costEl.getAttribute('data-ajax-base-price') || '') || 0;
@@ -1220,26 +1268,42 @@
         return true;
     }
 
-    /** Prefill editable cost from zone unit when the field is empty or still on the previous seed. */
-    function seedInlineTransferCostFromZone(root, prefix, unit) {
+    /**
+     * Prefill editable cost from zone unit (one-way). Both-way display is applied after.
+     * @param {boolean} [force] — vehicle/type change: always replace prior zone seed
+     */
+    function seedInlineTransferCostFromZone(root, prefix, unit, force) {
         var costEl = root.querySelector('.' + prefix + '-transfer-cost');
         if (!costEl) return;
         unit = Math.max(0, Number(unit) || 0);
         if (!(unit > 0)) return;
         costEl.setAttribute('data-ajax-base-price', String(unit));
         costEl.removeAttribute('data-pricing-fetch-failed');
-        var current = parseManualCarCost(costEl);
-        var seeded = parseFloat(costEl.getAttribute('data-seeded-unit') || '') || 0;
+        var oneWayCurrent = readOneWayCarCost(costEl);
+        var hasSeed = costEl.hasAttribute('data-seeded-unit') || costEl.hasAttribute('data-one-way-unit');
+        var seededOneWay = parseFloat(costEl.getAttribute('data-one-way-unit') || '') || 0;
+        if (!(seededOneWay > 0) && hasSeed) {
+            var seededDisplay = parseFloat(costEl.getAttribute('data-seeded-unit') || '') || 0;
+            seededOneWay = (costEl.getAttribute('data-way-applied') || 'single') === 'both'
+                ? seededDisplay / 2
+                : seededDisplay;
+        }
         var userEdited = costEl.getAttribute('data-user-edited') === '1';
         // Hydrate / user override: keep locked positive cost (edit form + AdHoc override)
-        if (!(userEdited && current > 0)) {
-            if (!(current > 0) || Math.abs(current - seeded) < 0.009) {
-                costEl.value = String(unit);
-                costEl.setAttribute('data-seeded-unit', String(unit));
-                costEl.removeAttribute('data-user-edited');
-            }
+        if (!force && userEdited && oneWayCurrent > 0) {
+            syncInlineTransferManualCost(root, prefix);
+            syncCostDisplayForTripWay(costEl, transferWayOf(root, prefix));
+            return;
+        }
+        if (force || !(oneWayCurrent > 0) || !hasSeed || Math.abs(oneWayCurrent - seededOneWay) < 0.009) {
+            costEl.setAttribute('data-one-way-unit', String(unit));
+            costEl.setAttribute('data-way-applied', 'single');
+            costEl.value = String(unit);
+            costEl.setAttribute('data-seeded-unit', String(unit));
+            costEl.removeAttribute('data-user-edited');
         }
         syncInlineTransferManualCost(root, prefix);
+        syncCostDisplayForTripWay(costEl, transferWayOf(root, prefix));
     }
 
     function transferRequiredSelectHtml(prefix) {
@@ -1469,7 +1533,7 @@
         var total = 0;
         if (!type) return 0;
 
-        var car = parseManualCarCost(costEl);
+        var car = readOneWayCarCost(costEl);
         var ajaxBase = costEl ? parseFloat(costEl.getAttribute('data-ajax-base-price') || '') : NaN;
         var unit = car > 0 ? car : ((!isNaN(ajaxBase) && ajaxBase > 0) ? ajaxBase : 0);
         if (!(unit > 0) && useZone && opt && opt.value && vehicleHasZonePrice(opt, type === 'shared' ? 'shared' : 'private')) {
@@ -1501,9 +1565,9 @@
         if (costEl.getAttribute('data-pricing-loading') === '1') {
             return total;
         }
-        // Cost input stays a plain unit number (zone seed or user edit). Total goes in the hint.
+        // Price input shows one-way or Both-way (×2). Formula uses one-way unit. Total goes in the hint.
         if (hint) {
-            var car = parseManualCarCost(costEl);
+            var car = readOneWayCarCost(costEl);
             var vc = readTransferVehicleCount(root, prefix);
             var typeEl = root.querySelector('.' + prefix + '-transfer-type');
             var type = typeEl ? String(typeEl.value).toLowerCase() : '';
@@ -1514,7 +1578,7 @@
                 if (way === 'both') formula += ' × 2 (both way)';
                 hint.textContent = formula + ' = ' + cur + ' ' + total.toFixed(2);
             } else if (useZone) {
-                hint.textContent = 'Zone price fills Cost · edit if needed · Both way doubles';
+                hint.textContent = 'Zone price fills Price · edit if needed · Both way doubles';
             } else {
                 hint.textContent = 'Private = car × vehicles · Shared = car × pax · Both way doubles';
             }
@@ -1530,6 +1594,8 @@
         costEl.removeAttribute('data-pricing-fetch-failed');
         costEl.removeAttribute('data-seeded-unit');
         costEl.removeAttribute('data-user-edited');
+        costEl.removeAttribute('data-one-way-unit');
+        costEl.removeAttribute('data-way-applied');
     }
 
     /** Clear transfer cost display + ajax base (pickup / vehicle refresh). */
@@ -1540,7 +1606,7 @@
     }
 
     /** Zone ON only: fetch restaurant/attraction zone transfer price into cost field. */
-    function fetchInlineTransferZonePrice(root, stay, prefix, guestCountsFn, onDone) {
+    function fetchInlineTransferZonePrice(root, stay, prefix, guestCountsFn, onDone, forceSeed) {
         var useZone = zoneOnForStay(stay && stay.cityName, stay && stay.country, stay && stay.dmcId);
         if (!useZone) return Promise.resolve(0);
         var costEl = root.querySelector('.' + prefix + '-transfer-cost');
@@ -1580,6 +1646,10 @@
         if (prefix === 'restaurant') body.restaurant_id = entityId;
         else body.attraction_id = entityId;
 
+        root.__transferPriceSeq = (root.__transferPriceSeq || 0) + 1;
+        var seq = root.__transferPriceSeq;
+        var force = !!forceSeed;
+
         if (costEl) {
             costEl.setAttribute('data-pricing-loading', '1');
         }
@@ -1589,10 +1659,11 @@
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
             body: JSON.stringify(body)
         }).then(function (data) {
+            if (seq !== root.__transferPriceSeq) return 0;
             if (costEl) costEl.removeAttribute('data-pricing-loading');
             if (data && data.success && data.price != null) {
                 var base = parseFloat(data.price) || 0;
-                seedInlineTransferCostFromZone(root, prefix, base);
+                seedInlineTransferCostFromZone(root, prefix, base, force);
             } else {
                 if (costEl) costEl.setAttribute('data-pricing-fetch-failed', '1');
                 // Fall back to vehicle zone unit when AJAX has no price
@@ -1602,7 +1673,7 @@
                     var fallback = svc === 'shared'
                         ? (parseFloat(vOpt.dataset.sharedPrice) || parseFloat(vOpt.dataset.privatePrice) || 0)
                         : (parseFloat(vOpt.dataset.privatePrice) || parseFloat(vOpt.dataset.sharedPrice) || 0);
-                    seedInlineTransferCostFromZone(root, prefix, fallback);
+                    seedInlineTransferCostFromZone(root, prefix, fallback, force);
                 } else {
                     syncInlineTransferManualCost(root, prefix, stay);
                 }
@@ -1612,11 +1683,21 @@
             if (typeof onDone === 'function') onDone(total);
             return total;
         }).catch(function () {
+            if (seq !== root.__transferPriceSeq) return 0;
             if (costEl) {
                 costEl.removeAttribute('data-pricing-loading');
                 costEl.setAttribute('data-pricing-fetch-failed', '1');
             }
-            syncInlineTransferManualCost(root, prefix, stay);
+            var vOpt2 = veh && veh.options[veh.selectedIndex];
+            var svc2 = String((typeEl && typeEl.value) || '').toLowerCase() === 'shared' ? 'shared' : 'private';
+            if (vOpt2 && vehicleHasZonePrice(vOpt2, svc2)) {
+                var fb = svc2 === 'shared'
+                    ? (parseFloat(vOpt2.dataset.sharedPrice) || parseFloat(vOpt2.dataset.privatePrice) || 0)
+                    : (parseFloat(vOpt2.dataset.privatePrice) || parseFloat(vOpt2.dataset.sharedPrice) || 0);
+                seedInlineTransferCostFromZone(root, prefix, fb, force);
+            } else {
+                syncInlineTransferManualCost(root, prefix, stay);
+            }
             var g2 = typeof guestCountsFn === 'function' ? guestCountsFn() : { adults: 1, children: 0, infants: 0 };
             var total2 = refreshTransferCostDisplay(root, prefix, g2.adults, g2.children, g2.infants);
             if (typeof onDone === 'function') onDone(total2);
@@ -1639,7 +1720,7 @@
         var tripWay = transferWayOf(root, prefix);
         var costEl = root.querySelector('.' + prefix + '-transfer-cost');
         var cost = calcInlineTransferPrice(root, prefix, adults, children, infants);
-        var carCost = parseManualCarCost(costEl);
+        var carCost = readOneWayCarCost(costEl);
         var ajaxSeed = costEl ? (parseFloat(costEl.getAttribute('data-ajax-base-price') || '') || 0) : 0;
         var userEdited = !!(costEl && costEl.getAttribute('data-user-edited') === '1');
         var fromZone = !!(useZone && ajaxSeed > 0 && !userEdited);
@@ -2034,7 +2115,7 @@
             refreshTransferCostDisplay(root, prefix, g.adults, g.children, g.infants);
             if (typeof onChange === 'function') onChange();
         }
-        function refreshZonePrice() {
+        function refreshZonePrice(forceSeed) {
             if (mapsMode) {
                 refresh();
                 return;
@@ -2042,24 +2123,23 @@
             syncInlineTransferManualCost(root, prefix, stay);
             var vOpt = veh && veh.selectedIndex >= 0 ? veh.options[veh.selectedIndex] : null;
             var svc = typeEl && String(typeEl.value).toLowerCase() === 'shared' ? 'shared' : 'private';
-            // Unmapped vehicle: skip zone AJAX and use car cost
-            if (vOpt && vOpt.value && !vehicleHasZonePrice(vOpt, svc)) {
-                if (costEl) costEl.setAttribute('data-pricing-fetch-failed', '1');
-                syncInlineTransferManualCost(root, prefix, stay);
-                refresh();
-                return;
-            }
-            // Prefill from vehicle zone unit while AJAX runs
-            if (vOpt && vehicleHasZonePrice(vOpt, svc)) {
+            var force = forceSeed !== false;
+            // Prefill from vehicle zone unit while AJAX runs (always refetch for this vehicle/route)
+            if (vOpt && vOpt.value && vehicleHasZonePrice(vOpt, svc)) {
                 var quick = svc === 'shared'
                     ? (parseFloat(vOpt.dataset.sharedPrice) || parseFloat(vOpt.dataset.privatePrice) || 0)
                     : (parseFloat(vOpt.dataset.privatePrice) || parseFloat(vOpt.dataset.sharedPrice) || 0);
-                if (quick > 0) seedInlineTransferCostFromZone(root, prefix, quick);
+                if (quick > 0) seedInlineTransferCostFromZone(root, prefix, quick, force);
+            } else if (vOpt && vOpt.value && costEl && force) {
+                // No dataset zone unit — clear stale price until AJAX returns
+                clearAjaxTransferPrice(costEl);
+                costEl.value = '';
+                syncInlineTransferManualCost(root, prefix, stay);
             }
-            // Zone ON: load zone mapping price when type+vehicle+pickup+service ready
+            // Zone ON: always quote attraction/restaurant zone price for selected vehicle
             fetchInlineTransferZonePrice(root, stay, prefix, guests, function () {
                 if (typeof onChange === 'function') onChange();
-            });
+            }, force);
         }
         function initMaps() {
             if (!mapsMode || !window.StpLiteMaps) return;
@@ -2104,31 +2184,32 @@
         if (typeEl) {
             typeEl.addEventListener('change', function () {
                 filterTransferVehiclesByType(veh, typeEl.value);
-                clearAjaxTransferPrice(costEl);
+                clearTransferCostDisplay(root, prefix);
                 syncInlineTransferManualCost(root, prefix, stay);
-                refreshZonePrice();
+                refreshZonePrice(true);
             });
         }
         if (veh) {
             veh.addEventListener('change', function () {
-                clearAjaxTransferPrice(costEl);
+                clearTransferCostDisplay(root, prefix);
                 syncInlineTransferManualCost(root, prefix, stay);
-                refreshZonePrice();
+                refreshZonePrice(true);
             });
         }
         var wayEl = root.querySelector('.' + prefix + '-transfer-way');
         if (wayEl) {
             wayEl.addEventListener('change', function () {
+                syncCostDisplayForTripWay(costEl, transferWayOf(root, prefix));
                 refresh();
             });
         }
         if (costEl) {
             costEl.addEventListener('input', function () {
-                costEl.setAttribute('data-user-edited', '1');
+                markStandaloneCarCostEdited(costEl);
                 refresh();
             });
             costEl.addEventListener('change', function () {
-                costEl.setAttribute('data-user-edited', '1');
+                markStandaloneCarCostEdited(costEl);
                 refresh();
             });
         }
@@ -2311,10 +2392,13 @@
                 if (hadSavedCarCost || Number(transferOptions.zone_pricing || 0) !== 1) {
                     costEl.setAttribute('data-user-edited', '1');
                 }
+                costEl.setAttribute('data-one-way-unit', String(unitSeed));
+                costEl.setAttribute('data-way-applied', 'single');
                 costEl.value = String(unitSeed);
                 costEl.setAttribute('data-seeded-unit', String(unitSeed));
                 costEl.setAttribute('data-ajax-base-price', String(unitSeed));
                 syncInlineTransferManualCost(root, prefix, stayObj);
+                syncCostDisplayForTripWay(costEl, savedTripWay);
             } else {
                 syncInlineTransferManualCost(root, prefix, stayObj);
             }
@@ -2826,6 +2910,14 @@
         return fromTour;
     }
 
+    function keepRowBookingId(payload, previous) {
+        if (!payload || !previous) return payload;
+        if (previous._booking_id != null && previous._booking_id !== '') {
+            payload._booking_id = previous._booking_id;
+        }
+        return payload;
+    }
+
     window.StpLiteTransportShared = {
         cfg: cfg,
         esc: esc,
@@ -2876,6 +2968,7 @@
         confirmRemoveService: confirmRemoveService,
         defaultBookingType: defaultBookingType,
         resolveRowBookingType: resolveRowBookingType,
+        keepRowBookingId: keepRowBookingId,
         isNightTime: isNightTime,
         calcInlineGuidePrice: calcInlineGuidePrice,
         collectGuideOptions: collectGuideOptions,
@@ -2922,7 +3015,9 @@
         zoneUnitFromVehicleOpt: zoneUnitFromVehicleOpt,
         seedStandaloneCarCost: seedStandaloneCarCost,
         markStandaloneCarCostEdited: markStandaloneCarCostEdited,
-        clearStandaloneCarCostSeed: clearStandaloneCarCostSeed
+        clearStandaloneCarCostSeed: clearStandaloneCarCostSeed,
+        readOneWayCarCost: readOneWayCarCost,
+        syncCostDisplayForTripWay: syncCostDisplayForTripWay
     };
 })(window);
 /* === END transport-shared.js === */

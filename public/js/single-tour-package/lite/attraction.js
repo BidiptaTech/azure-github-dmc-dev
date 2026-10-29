@@ -838,7 +838,7 @@
                 '<td><div class="fw-semibold">' + T.esc(row.AttractionName || 'Attraction') +
                 (isOnline ? ' <span class="badge bg-info text-dark" style="font-size:0.65rem;">Online</span>' : '') +
                 '</div>' +
-                '<small class="text-muted">' + T.esc(row.bookingDate || '') +
+                '<small class="text-muted">' + T.esc(row.visitTime || row.visit_time || row.entrytime || '—') + ' · ' + T.esc(row.bookingDate || '') +
                 (extras.length ? ' · ' + extras.join(' + ') : '') + '</small>' +
                 T.editingMarkHtml(editing) + '</td>' +
                 '<td><small>' + T.esc(row.ticketName || '—') + '</small></td>' +
@@ -885,7 +885,7 @@
         if (adultsEl) adultsEl.value = String(row.adultCount != null ? row.adultCount : (row.adults || 0));
         if (childrenEl) childrenEl.value = String(row.childCount != null ? row.childCount : (row.children || 0));
         if (seniorsEl) seniorsEl.value = String(row.seniorCount || 0);
-        T.setAmPmValue(root, 'attraction', row.visitTime || '');
+        T.setAmPmValue(root, 'attraction', row.visitTime || row.visit_time || row.entrytime || '');
 
         function afterTickets() {
             var ticket = root.querySelector('.attraction-ticket');
@@ -966,6 +966,7 @@
             payload.bookingType = T.resolveRowBookingType
                 ? T.resolveRowBookingType(rows[root.__editingIdx])
                 : (rows[root.__editingIdx].bookingType || payload.bookingType);
+            if (T.keepRowBookingId) T.keepRowBookingId(payload, rows[root.__editingIdx]);
             rows[root.__editingIdx] = payload;
             root.__editingIdx = null;
             setAddMode(root, false);

@@ -806,6 +806,8 @@ class SingleTourPackageController extends Controller
                     $order->save();
                 }
 
+                app(\App\Services\JobsheetRemovalService::class)->deleteForOrder($order);
+
                 $order->delete();
 
                 CommonHelper::maybeRevertTourStatusToNewEnquiry($tourId);
@@ -5983,6 +5985,47 @@ class SingleTourPackageController extends Controller
     }
 
     /**
+     * Point-to-point (and other transport) rows must keep pickup time and vehicle image.
+     * The lite form sends entrytime; booking screens also read entry_time.
+     *
+     * @param  array<string, mixed>  $transport
+     * @return array<string, mixed>
+     */
+    private function ensureTransportEntryTimeAndImage(array $transport): array
+    {
+        $entryTime = trim((string) (
+            $transport['entrytime']
+            ?? $transport['entry_time']
+            ?? $transport['pickup_time']
+            ?? ''
+        ));
+        if ($entryTime !== '') {
+            $transport['entrytime'] = $entryTime;
+            $transport['entry_time'] = $entryTime;
+        }
+
+        if (empty($transport['bookingDate']) && !empty($transport['pickupdate'])) {
+            $transport['bookingDate'] = $transport['pickupdate'];
+        }
+
+        $image = trim((string) ($transport['image'] ?? ''));
+        if ($image === '') {
+            $vehicleId = $transport['vehicles_id'] ?? $transport['vehicle_id'] ?? null;
+            if ($vehicleId !== null && $vehicleId !== '') {
+                $vehicleImage = Vehicle::where('vehicle_id', $vehicleId)->value('image');
+                if (is_string($vehicleImage) && trim($vehicleImage) !== '') {
+                    $image = trim($vehicleImage);
+                }
+            }
+        }
+        if ($image !== '') {
+            $transport['image'] = $image;
+        }
+
+        return $transport;
+    }
+
+    /**
      * Ensure service JSON carries country/city/currency and return order-level geo columns.
      *
      * @param  array<string, mixed>  $serviceRow
@@ -6533,7 +6576,7 @@ class SingleTourPackageController extends Controller
                                 );
                                 $attraction['bookingType'] = $attractionBookingType;
                                 
-                                $order = Order::create([
+                                $order = $this->upsertKeptServiceOrder((int) $tourId, $attraction, ['attraction'], [
                                     // 'booking_id' => $newAttractionBookingId,
                                     'agent_id' => $agentId,
                                     'tour_id' => $tourId,
@@ -6548,7 +6591,6 @@ class SingleTourPackageController extends Controller
                                     'order_type' => $this->resolveServiceOrderType($attraction, 'attraction'),
                                     'order_ref_no' => $externalRef,
                                 ]);
-                                $order->refresh();
                                 if ($externalRef && (string) $order->order_ref_no !== (string) $externalRef) {
                                     DB::table('orders')->where('id', $order->id)->update([
                                         'order_ref_no' => $externalRef,
@@ -6632,7 +6674,7 @@ class SingleTourPackageController extends Controller
                                 );
                                 $restaurant['bookingType'] = $restaurantBookingType;
                                 
-                                $order = Order::create([
+                                $order = $this->upsertKeptServiceOrder((int) $tourId, $restaurant, ['restaurant'], [
                                     // 'booking_id' => $newRestaurantBookingId,
                                     'agent_id' => $agentId,
                                     'tour_id' => $tourId,
@@ -6645,7 +6687,6 @@ class SingleTourPackageController extends Controller
                                     'bookingType' => $restaurantBookingType,
                                     'remarks' => $restaurant['remarks'] ?? null,
                                 ]);
-                                $order->refresh();
                                 \Log::info("Restaurant order created successfully", [
                                     'order_id' => $order->booking_id,
                                     'restaurant_name' => $restaurant['restaurant_name'] ?? 'Unknown Restaurant',
@@ -6685,7 +6726,7 @@ class SingleTourPackageController extends Controller
                                 );
                                 $guide['bookingType'] = $guideBookingType;
                                 
-                                $order = Order::create([
+                                $order = $this->upsertKeptServiceOrder((int) $tourId, $guide, ['guide'], [
                                     // 'booking_id' => $newGuideBookingId,
                                     'agent_id' => $agentId,
                                     'tour_id' => $tourId,
@@ -6698,7 +6739,6 @@ class SingleTourPackageController extends Controller
                                     'bookingType' => $guideBookingType,
                                     'remarks' => $guide['remarks'] ?? null,
                                 ]);
-                                $order->refresh();
                                 \Log::info("Guide order created successfully", [
                                     'order_id' => $order->booking_id,
                                     'guide_name' => $guide['guide_name'] ?? 'Unknown Guide',
@@ -6733,6 +6773,7 @@ class SingleTourPackageController extends Controller
                             }
                             
                             foreach ($decodedData as $transport) {
+                                $transport = $this->ensureTransportEntryTimeAndImage($transport);
                                 // Determine the correct type based on travel_type
                                 $orderType = $transport['travel_type'] ?? 'travel_point'; // Default to travel_point if not specified
                                 
@@ -6767,7 +6808,11 @@ class SingleTourPackageController extends Controller
                                 );
                                 $transport['bookingType'] = $transportBookingType;
                                 
-                                $order = Order::create([
+                                $order = $this->upsertKeptServiceOrder(
+                                    (int) $tourId,
+                                    $transport,
+                                    ['travel_point', 'travel_hourly', 'local_transport', 'local_transfer', 'transport'],
+                                    [
                                     // 'booking_id' => $newTransportBookingId,
                                     'agent_id' => $agentId,
                                     'tour_id' => $tourId,
@@ -6780,7 +6825,6 @@ class SingleTourPackageController extends Controller
                                     'bookingType' => $transportBookingType,
                                     'remarks' => $transport['remarks'] ?? null,
                                 ]);
-                                $order->refresh();
                                 \Log::info("Transport order created successfully", [
                                     'order_id' => $order->booking_id,
                                     'transport_name' => $transport['vehicles_name'] ?? 'Unknown Transport',
@@ -6848,7 +6892,7 @@ class SingleTourPackageController extends Controller
                                 );
                                 $transport['bookingType'] = $portBookingType;
                                 
-                                $order = Order::create([
+                                $order = $this->upsertKeptServiceOrder((int) $tourId, $transport, [$orderType], [
                                     // 'booking_id' => $newPortBookingId,
                                     'agent_id' => $agentId,
                                     'tour_id' => $tourId,
@@ -6861,7 +6905,6 @@ class SingleTourPackageController extends Controller
                                     'bookingType' => $portBookingType,
                                     'remarks' => $transport['remarks'] ?? null,
                                 ]);
-                                $order->refresh();
                                 \Log::info("{$type} transport order created successfully", [
                                     'order_id' => $order->booking_id,
                                     'transport_name' => $transport['vehicles_name'] ?? 'Unknown Transport',
@@ -6897,7 +6940,7 @@ class SingleTourPackageController extends Controller
                                 );
                                 $miscItem['bookingType'] = $miscBookingType;
 
-                                $order = Order::create([
+                                $order = $this->upsertKeptServiceOrder((int) $tourId, $miscItem, ['miscellaneous'], [
                                     'agent_id' => $agentId,
                                     'tour_id' => $tourId,
                                     'data' => [$miscItem],
@@ -6909,7 +6952,6 @@ class SingleTourPackageController extends Controller
                                     'bookingType' => $miscBookingType,
                                     'remarks' => $miscItem['remarks'] ?? null,
                                 ]);
-                                $order->refresh();
                                 \Log::info('Miscellaneous order created successfully', [
                                     'order_id' => $order->booking_id,
                                     'item_name' => $miscItem['itemName'] ?? 'Unknown Item',
@@ -6939,7 +6981,11 @@ class SingleTourPackageController extends Controller
                                     $service['bookingType'] = $serviceBookingType;
                                 }
                                 
-                                $order = Order::create([
+                                $order = $this->upsertKeptServiceOrder(
+                                    (int) $tourId,
+                                    is_array($service) ? $service : [],
+                                    [$type],
+                                    [
                                     // 'booking_id' => $newServiceBookingId,
                                     'agent_id' => $agentId,
                                     'tour_id' => $tourId,
@@ -6951,7 +6997,6 @@ class SingleTourPackageController extends Controller
                                     'status' => 1,
                                     'bookingType' => $serviceBookingType,
                                 ]);
-                                $order->refresh();
                                 \Log::info("{$type} order created successfully", [
                                     'order_id' => $order->booking_id,
                                     'service_name' => $service['port_name'] ?? 'Unknown Service',
@@ -7528,6 +7573,7 @@ class SingleTourPackageController extends Controller
         $firstTransport = (is_array($transportData) && isset($transportData[0]) && is_array($transportData[0]))
             ? $transportData[0]
             : (is_array($transportData) ? $transportData : []);
+        $firstTransport = $this->ensureTransportEntryTimeAndImage($firstTransport);
         [$firstTransport, $orderGeo] = $this->applyOrderGeoToServiceRow($firstTransport, $request, $tourId);
         if (empty($orderGeo['city'])) {
             $fallbackCity = trim((string) ($firstTransport['city'] ?? $request->input('city', '')));
@@ -7630,6 +7676,7 @@ class SingleTourPackageController extends Controller
         $firstTransfer = (is_array($transportData) && isset($transportData[0]) && is_array($transportData[0]))
             ? $transportData[0]
             : (is_array($transportData) ? $transportData : []);
+        $firstTransfer = $this->ensureTransportEntryTimeAndImage($firstTransfer);
         [$firstTransfer, $orderGeo] = $this->applyOrderGeoToServiceRow($firstTransfer, $request, $tourId);
         if (empty($orderGeo['city'])) {
             // Prefer payload/request city; fall back to active tour city string (first place name).
@@ -8305,6 +8352,44 @@ class SingleTourPackageController extends Controller
                 'message' => 'An error occurred while fetching pricing: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Lite edit save keeps the existing orders row when the form still has its booking id.
+     * A new service (no id, or the previous row was removed) is inserted and gets the next id.
+     *
+     * @param  array<string, mixed>  $row
+     * @param  list<string>  $types
+     * @param  array<string, mixed>  $attributes
+     */
+    private function upsertKeptServiceOrder(int $tourId, array $row, array $types, array $attributes): Order
+    {
+        $existingBookingId = (int) ($row['_booking_id'] ?? 0);
+        $existing = null;
+        if ($existingBookingId > 0 && $types !== []) {
+            $existing = Order::where('tour_id', $tourId)
+                ->where('booking_id', $existingBookingId)
+                ->whereIn('type', $types)
+                ->first();
+        }
+
+        if ($existing) {
+            unset($attributes['status'], $attributes['booking_id'], $attributes['tour_id']);
+            if (array_key_exists('order_ref_no', $attributes) && ($attributes['order_ref_no'] === null || $attributes['order_ref_no'] === '')) {
+                unset($attributes['order_ref_no']);
+            }
+            foreach ($attributes as $key => $value) {
+                $existing->{$key} = $value;
+            }
+            $existing->save();
+
+            return $existing;
+        }
+
+        $order = Order::create($attributes);
+        $order->refresh();
+
+        return $order;
     }
 
     /**
