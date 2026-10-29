@@ -356,6 +356,35 @@ $(document).ready(function() {
         return Number.isFinite(n) ? n : 0;
     }
 
+    function formatOrderType(orderType) {
+        const orderTypeMap = {
+            'guide': 'Guide',
+            'dayguide': 'Day Guide',
+            'halfguide': 'Half Day Guide',
+            'attraction': 'Attraction Guide',
+            'restaurant': 'Restaurant Guide'
+        };
+        return orderTypeMap[orderType] || orderType || 'N/A';
+    }
+
+    function getGuidePickupTime(dataItem) {
+        if (!dataItem || typeof dataItem !== 'object') return 'N/A';
+        return dataItem.entrytime
+            || (dataItem.guide_options && dataItem.guide_options.pickup_time)
+            || dataItem.visitTime
+            || 'N/A';
+    }
+
+    function getGuidePickupLocation(dataItem) {
+        if (!dataItem || typeof dataItem !== 'object') return '';
+        return dataItem.entrypickup
+            || (dataItem.guide_options && dataItem.guide_options.pickup_location_name)
+            || (dataItem.transfer_options && dataItem.transfer_options.pickup_location_name)
+            || dataItem.AttractionName
+            || dataItem.restaurantName
+            || '';
+    }
+
     // Initialize table with orders data from controller
     function initializeTable() {
         // Check if we have initial data from controller
@@ -383,15 +412,15 @@ $(document).ready(function() {
                 
                 tableHTML += `
                     <tr>
-                        <td>${item.tour_id || 'N/A'}</td>
-                        <td>${item.type || 'N/A'}</td>
-                        <td>${dataItem.entrytime || 'N/A'}</td>
+                        <td>${item.display_id || item.tour_id || 'N/A'}</td>
+                        <td>${formatOrderType(item.type)}</td>
+                        <td>${getGuidePickupTime(dataItem)}</td>
                         <td>${getGuestNameFromMainguest(item.tour?.mainguest ?? item.mainguest) || 'N/A'}</td>
                         <td>${normalizeCount(item.tour?.adult)}</td>
                         <td>${normalizeCount(item.tour?.child)}</td>
                         <td>${normalizeCount(item.tour?.infant)}</td>
                         <td>${dataItem.type || 'N/A'}</td>
-                        <td>${item.remarks || 'N/A'}</td>
+                        <td>${item.remarks || dataItem.remarks || 'N/A'}</td>
                         <td>${(function() {
                             if (item.OrderGuide) {
                                 const guide = item.OrderGuide;
@@ -400,7 +429,9 @@ $(document).ready(function() {
                                     : '';
                                 return guide.name + ' - ' + (guide.government_license_no || 'N/A') + languages;
                             }
-                            return 'N/A';
+                            return dataItem.guide_name
+                                || (dataItem.guide_options && dataItem.guide_options.guide_name)
+                                || 'N/A';
                         })()}</td>
                         <td class="assign-guide-cell">
                             <div class="assign-guide-view">
@@ -421,8 +452,8 @@ $(document).ready(function() {
                                     data-order-id="${item.booking_id || item.id || ''}" 
                                     data-tour-id="${item.tour_id_numeric || ''}"
                                     data-order-type="${item.type || ''}"
-                                    data-entry-time="${dataItem.entrytime || ''}"
-                                    data-entrypickup="${dataItem.entrypickup || ''}"
+                                    data-entry-time="${getGuidePickupTime(dataItem) === 'N/A' ? '' : getGuidePickupTime(dataItem)}"
+                                    data-entrypickup="${getGuidePickupLocation(dataItem)}"
                                     data-type="${item.type || ''}">
                                     <option value="">Not Assigned</option>
                                     ${(function() {
@@ -509,15 +540,15 @@ $(document).ready(function() {
                             
                             tableHTML += `
                                 <tr>
-                                    <td>${item.tour_id || 'N/A'}</td>
-                                    <td>${item.type || 'N/A'}</td>
-                                    <td>${dataItem.entrytime || 'N/A'}</td>
+                                    <td>${item.display_id || item.tour_id || 'N/A'}</td>
+                                    <td>${formatOrderType(item.type)}</td>
+                                    <td>${getGuidePickupTime(dataItem)}</td>
                                     <td>${getGuestNameFromMainguest(item.tour?.mainguest) || 'N/A'}</td>
                                     <td>${normalizeCount(item.tour?.adult)}</td>
                                     <td>${normalizeCount(item.tour?.child)}</td>
                                     <td>${normalizeCount(item.tour?.infant)}</td>
                                     <td>${dataItem.type || 'N/A'}</td>
-                                    <td>${item.remarks || 'N/A'}</td>
+                                    <td>${item.remarks || dataItem.remarks || 'N/A'}</td>
                                     <td>${(function() {
                                         if (item.OrderGuide) {
                                             const guide = item.OrderGuide;
@@ -526,7 +557,9 @@ $(document).ready(function() {
                                                 : '';
                                             return guide.name + ' - ' + (guide.government_license_no || 'N/A') + languages;
                                         }
-                                        return 'N/A';
+                                        return dataItem.guide_name
+                                            || (dataItem.guide_options && dataItem.guide_options.guide_name)
+                                            || 'N/A';
                                     })()}</td>
                                     <td class="assign-guide-cell">
                                         <div class="assign-guide-view">
@@ -547,8 +580,8 @@ $(document).ready(function() {
                                                 data-order-id="${item.booking_id || item.id || ''}" 
                                                 data-tour-id="${item.tour_id_numeric || ''}"
                                                 data-order-type="${item.type || ''}"
-                                                data-entry-time="${dataItem.entrytime || ''}"
-                                                data-entrypickup="${dataItem.entrypickup || ''}"
+                                                data-entry-time="${getGuidePickupTime(dataItem) === 'N/A' ? '' : getGuidePickupTime(dataItem)}"
+                                                data-entrypickup="${getGuidePickupLocation(dataItem)}"
                                                 data-type="${item.type || ''}">
                                                 <option value="">Not Assigned</option>
                                                 ${(function() {
