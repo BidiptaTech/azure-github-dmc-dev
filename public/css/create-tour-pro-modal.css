@@ -19,6 +19,8 @@
 #createTourProModal .modal-dialog {
     max-width: 1120px;
     width: calc(100% - 24px);
+    /* ~75% of viewport so footer stays on-screen at 100% browser zoom */
+    max-height: 75vh;
     margin: 1.25rem auto;
 }
 
@@ -26,15 +28,28 @@
     border: none;
     border-radius: 18px;
     overflow: hidden;
-    max-height: 92vh;
+    max-height: 75vh;
+    height: 75vh;
+    display: flex;
+    flex-direction: column;
     box-shadow: 0 24px 64px rgba(30, 41, 59, 0.18);
     background: #fff;
 }
 
+#createTourProModal #createTourProForm {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+}
+
 #createTourProModal .ctp-shell {
     display: flex;
-    min-height: 640px;
-    max-height: 92vh;
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    max-height: 100%;
     background: #fff;
 }
 
@@ -413,9 +428,11 @@
 #createTourProModal .ctp-main {
     flex: 1;
     min-width: 0;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     background: #fff;
+    overflow: hidden;
 }
 
 #createTourProModal .ctp-main-head {
@@ -425,6 +442,7 @@
     gap: 12px;
     padding: 18px 22px 12px;
     border-bottom: 1px solid #f1f5f9;
+    flex-shrink: 0;
 }
 
 #createTourProModal .ctp-main-head-left {
@@ -791,7 +809,7 @@
     display: block;
 }
 
-/* Footer */
+/* Footer — always visible; body scrolls above it */
 #createTourProModal .modal-footer,
 #createTourProModal .ctp-main-foot {
     border-top: 1px solid #f1f5f9;
@@ -800,6 +818,7 @@
     display: flex;
     justify-content: flex-end;
     gap: 8px;
+    flex-shrink: 0;
 }
 
 #createTourProModal .ctp-btn-cancel {
@@ -826,6 +845,11 @@
     border-radius: 10px;
     padding: 8px 18px;
     box-shadow: 0 6px 14px rgba(91, 77, 255, 0.22);
+    min-width: 128px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
 }
 
 #createTourProModal #submitTourProBtn:hover:not(:disabled) {
@@ -837,6 +861,19 @@
     opacity: 0.45;
     cursor: not-allowed;
     box-shadow: none;
+}
+
+#createTourProModal #submitTourProBtn.is-loading {
+    opacity: 1;
+    cursor: wait;
+    pointer-events: none;
+    box-shadow: 0 6px 14px rgba(91, 77, 255, 0.22);
+}
+
+#createTourProModal #submitTourProBtn .ctp-btn-spinner {
+    width: 0.9rem;
+    height: 0.9rem;
+    border-width: 0.15em;
 }
 
 /* Select2 inside this modal */
@@ -893,10 +930,16 @@
 }
 
 @media (max-width: 991.98px) {
+    #createTourProModal .modal-dialog,
+    #createTourProModal .modal-content {
+        max-height: 85vh;
+        height: 85vh;
+    }
+
     #createTourProModal .ctp-shell {
         flex-direction: column;
         min-height: 0;
-        max-height: 92vh;
+        max-height: 100%;
     }
 
     #createTourProModal .ctp-sidenav {
