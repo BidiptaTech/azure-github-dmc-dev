@@ -549,7 +549,8 @@
                 merged = merged.concat(parseChunkJson(el.value));
             });
             var hidden = document.getElementById(spec.field);
-            if (hidden && merged.length) hidden.value = JSON.stringify(merged);
+            // Always write (including []) so cleared services do not resurrect from edit seed
+            if (hidden) hidden.value = JSON.stringify(merged);
         });
     }
 
@@ -609,11 +610,36 @@
         return postJsonForm(url, fd);
     }
 
+    function collectPreserveHotelBookingIds() {
+        var ids = [];
+        var seen = {};
+        function pushId(raw) {
+            var id = parseInt(raw, 10);
+            if (!id || seen[id]) return;
+            seen[id] = true;
+            ids.push(id);
+        }
+        parseChunkJson(readHiddenJson('hotel_data')).forEach(function (row) {
+            if (row && row._booking_id != null) pushId(row._booking_id);
+        });
+        document.querySelectorAll('.hotel_data_chunk').forEach(function (el) {
+            parseChunkJson(el.value || '[]').forEach(function (row) {
+                if (row && row._booking_id != null) pushId(row._booking_id);
+            });
+        });
+        return ids;
+    }
+
     async function clearAllServices(tourId) {
         var url = routeWithTourId((cfg().routes && cfg().routes.clearServices) || '', tourId);
         if (!url) throw new Error('clear-services route missing');
         var fd = new FormData();
         fd.append('_token', cfg().csrfToken || '');
+        // Hotels still in the form keep their order (and online booking_details).
+        // Removed hotels are cancelled with the supplier then soft-deleted.
+        collectPreserveHotelBookingIds().forEach(function (id) {
+            fd.append('preserve_booking_ids[]', String(id));
+        });
         return postJsonForm(url, fd);
     }
 

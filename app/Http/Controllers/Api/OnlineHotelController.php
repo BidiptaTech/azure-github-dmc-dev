@@ -676,14 +676,21 @@ class OnlineHotelController extends Controller
             ? $bookingRow['onlineHotelBooking']
             : [];
 
-        $code = strtolower(trim((string) (
-            $bookingRow['onlineHotelSource']
-            ?? $online['supplier_code']
-            ?? $fallback
-            ?? ''
-        )));
+        foreach ([
+            $bookingRow['onlineHotelSource'] ?? null,
+            $online['supplier_code'] ?? null,
+            $fallback,
+        ] as $candidate) {
+            $code = strtolower(trim((string) $candidate));
 
-        return $code !== '' ? $code : 'mg_bedbank';
+            if ($code !== '') {
+                return $code;
+            }
+        }
+
+        throw new RuntimeException(
+            'supplier_code is required. Pass it on the booking or as supplier_code.'
+        );
     }
 
     /**

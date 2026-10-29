@@ -15,13 +15,12 @@ use RuntimeException;
  *
  *   1. GetDestinations  → country/city codes, synced ahead of time onto our `cities`
  *                         table by `mg-bedbank:sync-destinations`.
- *   2. GetHotelList     → the hotel codes (and static content) for that city.
- *   3. SearchHotel      → live availability for those codes.
+ *   2. GetHotelList     → hotel codes (and static content) for that city — cached.
+ *   3. SearchHotel      → live availability for those codes + Rooms/pax/dates.
  *
- * Step 2 is cached because the catalogue is static relative to rates.
- *
- * The UI drives this two-step: `listHotels()` fills the hotel dropdown from the
- * catalogue, then `fetchHotelRooms()` prices only the hotel the user picked.
+ * Fetch Hotels (UI) uses steps 2+3: catalogue IDs feed SearchHotel; the modal shows
+ * only available hotels with rates. `fetchHotelRooms()` still prices one code for
+ * refresh / recheck.
  */
 class MgBedbankHotelAdapter implements TwoStepHotelSupplierAdapter
 {
@@ -31,6 +30,15 @@ class MgBedbankHotelAdapter implements TwoStepHotelSupplierAdapter
     public function code(): string
     {
         return 'mg_bedbank';
+    }
+
+    /**
+     * SearchHotel already returns live rooms/rates — the modal should not wait for a
+     * second rooms hop after Fetch Hotels.
+     */
+    public function pricesOnSearch(): bool
+    {
+        return true;
     }
 
     /**
@@ -50,19 +58,71 @@ class MgBedbankHotelAdapter implements TwoStepHotelSupplierAdapter
         }
 
         $codes = $this->selectHotelCodes($client, array_keys($catalogue), $destination);
-        $body = $this->searchAvailability($client, $request, $destination, $codes);
+        $chunkSize = max(1, (int) $client->credential('search_hotel_chunk_size', '100'));
+        $chunks = array_chunk(array_values($codes), $chunkSize);
 
-        if ($body === null) {
-            return ['hotels' => [], 'provider' => ['status' => true, 'hotels' => ['hotel' => []]]];
+        $mergedHotels = [];
+        $provider = [
+            'status' => true,
+            'hotels' => ['hotel' => []],
+            'chunks' => count($chunks),
+            'codes_searched' => count($codes),
+        ];
+        $currency = 'SGD';
+        $sessionId = null;
+
+        Log::info('MG Bedbank SearchHotel (city)', [
+            'destination' => $destination,
+            'catalogue' => count($catalogue),
+            'codes' => count($codes),
+            'chunks' => count($chunks),
+            'chunk_size' => $chunkSize,
+            'rooms' => $request->roomCount(),
+            'pax_info' => $request->paxInfo,
+        ]);
+
+        foreach ($chunks as $chunkIndex => $chunk) {
+            $body = $this->searchAvailability($client, $request, $destination, $chunk);
+
+            if ($body === null) {
+                continue;
+            }
+
+            if ($sessionId === null && filled($body['sessionID'] ?? null)) {
+                $sessionId = (string) $body['sessionID'];
+            }
+
+            $currency = (string) ($body['currency'] ?? $currency);
+            $rawHotels = $body['hotels']['hotel'] ?? [];
+
+            if (! is_array($rawHotels)) {
+                $rawHotels = [];
+            }
+
+            foreach ($rawHotels as $hotel) {
+                if (! is_array($hotel)) {
+                    continue;
+                }
+                $mergedHotels[] = $hotel;
+            }
+
+            $provider = $body + [
+                'chunks' => count($chunks),
+                'chunk_index' => $chunkIndex,
+                'codes_searched' => count($codes),
+            ];
         }
 
-        $rawHotels = $body['hotels']['hotel'] ?? [];
-
-        if (! is_array($rawHotels)) {
-            $rawHotels = [];
+        if ($mergedHotels === []) {
+            return [
+                'hotels' => [],
+                'provider' => $provider + ['sessionID' => $sessionId],
+            ];
         }
 
-        $currency = (string) ($body['currency'] ?? 'SGD');
+        if ($sessionId !== null) {
+            $provider['sessionID'] = $sessionId;
+        }
 
         return [
             'hotels' => array_values(array_map(
@@ -70,18 +130,20 @@ class MgBedbankHotelAdapter implements TwoStepHotelSupplierAdapter
                     $hotel,
                     $currency,
                     $catalogue[(string) ($hotel['code'] ?? '')] ?? [],
-                    $body,
+                    $provider,
                     $destination,
                     $request,
                 ),
-                array_filter($rawHotels, 'is_array'),
+                $mergedHotels,
             )),
-            'provider' => $body,
+            'provider' => $provider,
         ];
     }
 
     /**
-     * Step 1 of the UI flow: every hotel MG knows about in this city, without rates.
+     * Full cached catalogue without rates (IDs + static content). Not used for the
+     * primary Fetch Hotels path when pricesOnSearch() is true — kept for tooling
+     * and TwoStepHotelSupplierAdapter compliance.
      *
      * @param  array<string, string|null>  $credentials
      * @return array{hotels: array<int, array<string, mixed>>, provider: mixed}
@@ -92,8 +154,7 @@ class MgBedbankHotelAdapter implements TwoStepHotelSupplierAdapter
         $destination = $this->resolveDestination($request, $client);
         $catalogue = $this->hotelCatalogue($client, $destination);
 
-        // Deliberately ignores the `hotel_codes` allow-list and the per-search cap: the
-        // dropdown shows the whole catalogue, and availability is checked per hotel later.
+        // Deliberately ignores the `hotel_codes` allow-list and the per-search cap.
         $hotels = [];
 
         foreach ($catalogue as $code => $content) {
@@ -512,7 +573,8 @@ class MgBedbankHotelAdapter implements TwoStepHotelSupplierAdapter
             ]);
         }
 
-        $max = (int) $client->credential('max_hotel_codes', '200');
+        // 0 (default) = search the full GetHotelList catalogue; chunked by search_hotel_chunk_size.
+        $max = (int) $client->credential('max_hotel_codes', '0');
 
         if ($max > 0 && count($available) > $max) {
             Log::info('MG Bedbank hotel list truncated for search', [

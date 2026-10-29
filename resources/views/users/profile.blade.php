@@ -10,6 +10,12 @@
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         @endif
+        @if(session('error'))
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                {{ session('error') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        @endif
         @if($errors->any())
             <div class="alert alert-danger alert-dismissible fade show" role="alert">
                 <ul class="mb-0">
@@ -172,6 +178,21 @@
                     {{-- ACCOUNT DETAILS (read-only with edit icon for consistency) --}}
                     
                 </form>
+
+                @if(in_array((int) $user->role_id, [1, 2, 3, 4], true))
+                <form action="{{ route('user.profile.sync-currency-rates') }}" method="POST" class="mt-4">
+                    @csrf
+                    <div class="card">
+                        <div class="card-header d-flex align-items-center justify-content-between">
+                            <h5 class="mb-0">Currency Rates</h5>
+                            <button type="submit" class="btn btn-primary btn-sm"><i class="ri-refresh-line me-1"></i> Sync Currency Rates</button>
+                        </div>
+                        <div class="card-body small text-muted">
+                            Last synced: {{ ($lastRateSync = \App\Models\Country::max('rate_updated_at')) ? \Carbon\Carbon::parse($lastRateSync)->format('d M Y H:i') : 'never' }}
+                        </div>
+                    </div>
+                </form>
+                @endif
 
                 @if($isDmcProfile)
                 <form action="{{ route('user.profile.markup.update') }}" method="POST" class="mt-4" id="dmc-markup-form">

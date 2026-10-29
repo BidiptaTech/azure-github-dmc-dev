@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Helpers\CurrencyHelper;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -18,7 +19,53 @@ class Country extends Model
     protected $casts = [
         'remitance_charge' => 'array',
         'exchange_rate' => 'array',
+        'rate_updated_at' => 'datetime',
     ];
+
+    /**
+     * Stored SGD → $currency rate (1 SGD = X $currency), or null when missing/invalid.
+     */
+    public static function sgdRateFor(string $currency): ?float
+    {
+        $currency = strtoupper(trim($currency));
+        if ($currency === 'SGD') {
+            return 1.0;
+        }
+
+        $rate = (float) static::whereRaw('UPPER(currency) = ?', [$currency])
+            ->where('current_rate', '>', 0)
+            ->orderByDesc('rate_updated_at')
+            ->value('current_rate');
+
+        return $rate > 0 ? $rate : null;
+    }
+
+    /**
+     * Refresh current_rate for every country from the live rate (same CurrencyHelper stack
+     * as Wallet Management). One lookup per distinct currency; failures keep the old rate.
+     *
+     * @return array{updated: int, failed: array<int, string>}
+     */
+    public static function syncCurrentRates(): array
+    {
+        $updated = 0;
+        $failed = [];
+
+        $currencies = static::whereNotNull('currency')->where('currency', '!=', '')
+            ->pluck('currency')->map(fn ($c) => strtoupper(trim($c)))->unique();
+
+        foreach ($currencies as $currency) {
+            $rate = CurrencyHelper::getExchangeRate('SGD', $currency);
+            if ($rate === null || $rate <= 0) {
+                $failed[] = $currency;
+                continue;
+            }
+            $updated += static::whereRaw('UPPER(TRIM(currency)) = ?', [$currency])
+                ->update(['current_rate' => $rate, 'rate_updated_at' => now()]);
+        }
+
+        return ['updated' => $updated, 'failed' => $failed];
+    }
 
     protected $fillable = [
         'name',
@@ -33,6 +80,8 @@ class Country extends Model
         'commission_percentage',
         'remitance_charge',
         'exchange_rate',
+        'current_rate',
+        'rate_updated_at',
         'card_type',
         'card_length',
         'min_length',

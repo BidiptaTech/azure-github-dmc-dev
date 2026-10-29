@@ -18,6 +18,12 @@ return [
 
     'default_payment_mode_on_confirm' => env('FINANCE_DEFAULT_PAYMENT_MODE_ON_CONFIRM', 'wallet'),
 
+    'wallet' => [
+        // Funding flow is Travclicks → DMC only. DMC → Agency allocation is hidden
+        // and blocked until this flag is turned back on.
+        'dmc_agency_allocation_enabled' => (bool) env('FINANCE_DMC_AGENCY_ALLOCATION_ENABLED', false),
+    ],
+
     'retry' => [
         'max_attempts' => (int) env('FINANCE_RETRY_MAX_ATTEMPTS', 3),
         'backoff_seconds' => [10, 60, 300],

@@ -43,7 +43,12 @@ interface OnlineHotelBookingService
     public function cacheRecheckResult(int $orderId, int $bookingIndex, array $recheckResult): string;
 
     /**
+     * Read a cached recheck without deleting it (so retries can reuse the token).
+     *
      * @return array<string, mixed>|null
      */
     public function pullCachedRecheckResult(int $orderId, int $bookingIndex, string $token): ?array;
+
+    /** Drop the cached recheck after a successful supplier book. */
+    public function forgetCachedRecheckResult(int $orderId, int $bookingIndex, string $token): void;
 }

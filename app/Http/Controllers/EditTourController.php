@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Mail;
 use App\Helpers\CommonHelper;
 use App\Mail\TravclicksMail;
 use App\Services\FirebaseService;
+use App\Services\HotelSuppliers\OnlineHotelCancellationService;
 use App\Models\Attraction;
 
 class EditTourController extends Controller
@@ -194,11 +195,21 @@ class EditTourController extends Controller
         $tour = Tour::where('tour_id', $tour)->firstOrFail();
 
         try {
-            DB::beginTransaction();
+            // Lite edit save: clear then re-store. Preserve hotel orders still present in the
+            // form (`preserve_booking_ids`) so confirmed online bookings are not cancelled/recreated.
+            $preserveBookingIds = collect($request->input('preserve_booking_ids', []))
+                ->map(fn ($id) => (int) $id)
+                ->filter(fn ($id) => $id > 0)
+                ->unique()
+                ->values()
+                ->all();
 
             $orders = Order::where('tour_id', $tour->tour_id)->get();
-            $deletedCount = 0;
             $tpScope = $this->resolveRestrictedThirdPartyScope();
+            $cancellation = app(OnlineHotelCancellationService::class);
+            $toDelete = [];
+            $preservedCount = 0;
+
             foreach ($orders as $order) {
                 if (!empty($tpScope['is_restricted'])) {
                     $orderCountry = trim((string) ($order->country ?? ''));
@@ -219,7 +230,45 @@ class EditTourController extends Controller
                         continue;
                     }
                 }
-                // Soft delete whole order (services are stored in order->data)
+
+                $bookingId = (int) ($order->booking_id ?? 0);
+                if (($order->type ?? '') === 'hotel' && $bookingId > 0 && in_array($bookingId, $preserveBookingIds, true)) {
+                    $preservedCount++;
+                    continue;
+                }
+
+                $toDelete[] = $order;
+            }
+
+            // Supplier cancel cannot roll back — run before local soft-deletes.
+            foreach ($toDelete as $order) {
+                if (($order->type ?? '') !== 'hotel') {
+                    continue;
+                }
+
+                try {
+                    $cancellation->cancelIfApplicable($order);
+                } catch (\Throwable $cancelError) {
+                    Log::error('Online hotel supplier cancellation failed during clear services', [
+                        'tour_id' => $tour->tour_id,
+                        'order_id' => $order->id,
+                        'booking_id' => $order->booking_id,
+                        'error' => $cancelError->getMessage(),
+                    ]);
+
+                    return response()->json([
+                        'success' => false,
+                        'message' => $cancelError instanceof \RuntimeException
+                            ? $cancelError->getMessage()
+                            : 'Failed to cancel an online hotel reservation with the supplier. Services were not cleared.',
+                    ], 422);
+                }
+            }
+
+            DB::beginTransaction();
+
+            $deletedCount = 0;
+            foreach ($toDelete as $order) {
                 $order->delete();
                 $deletedCount++;
             }
@@ -236,6 +285,7 @@ class EditTourController extends Controller
                 'data' => [
                     'tour_id' => $tour->tour_id,
                     'deleted_orders_count' => $deletedCount,
+                    'preserved_orders_count' => $preservedCount,
                 ],
             ]);
         } catch (\Throwable $e) {

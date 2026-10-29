@@ -358,11 +358,15 @@ class MgBedbankBookingService implements OnlineHotelBookingService, OnlineHotelC
      */
     public function pullCachedRecheckResult(int $orderId, int $bookingIndex, string $token): ?array
     {
-        $key = $this->cacheKey($orderId, $bookingIndex, $token);
-
-        $value = Cache::pull($key);
+        // Use get (not pull) so a failed BookHotel / Swal retry can reuse the same token.
+        $value = Cache::get($this->cacheKey($orderId, $bookingIndex, $token));
 
         return is_array($value) ? $value : null;
+    }
+
+    public function forgetCachedRecheckResult(int $orderId, int $bookingIndex, string $token): void
+    {
+        Cache::forget($this->cacheKey($orderId, $bookingIndex, $token));
     }
 
     private function cacheKey(int $orderId, int $bookingIndex, string $token): string

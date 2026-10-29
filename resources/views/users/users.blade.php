@@ -1329,15 +1329,11 @@
 @endsection
 
 @section('scripts')
-<!-- In <head> -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css" />
-
-<!-- Before </body> -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
-
-<!-- DataTable JS -->
-<script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
+{{-- jQuery and DataTables are already loaded in layouts/footer. Do not load jQuery again:
+     a second copy replaces $ and DataTable() is no longer a function. env('APP_URL') is
+     null when config is cached, so that script URL 404s on the live server. --}}
 <!-- DataTables Initialization Script -->
 <script>
     $(document).ready(function() {

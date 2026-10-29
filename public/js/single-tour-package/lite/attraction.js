@@ -140,6 +140,9 @@
     }
 
     function attractionSourceToggleHtml(stay) {
+        // TEMP: hide Offline / Online Attraction Source toggle — always use Offline (DMC inventory).
+        return '';
+        /*
         if (!onlineApiEnabled()) return '';
         var T = S();
         var key = String(stay.planIndex || '0') + '_' +
@@ -171,6 +174,7 @@
             '    </div>' +
             '  </div>'
         );
+        */
     }
 
     function shellHtml(stay) {

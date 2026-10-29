@@ -495,9 +495,17 @@
                 i = Math.max(0, parseInt((tourGuests() || {}).infants, 10) || 0);
             } catch (eInf) { i = 0; }
         }
+        var wayRaw = String(xfer.way || xfer.trip_way || '').trim();
+        var bothWay = normalizeTripWay(wayRaw) === 'both';
+        var wayNote = '';
+        if (bothWay) wayNote = ' · Both way';
+        else if (wayRaw) wayNote = ' · Single way';
         var header = '<div class="small text-muted mb-1 mt-2"><strong>Transfer'
             + (typeRaw ? ' (' + esc(typeRaw) + ')' : '')
+            + wayNote
             + '</strong></div>';
+
+        var bothFactor = bothWay ? 2 : 1;
 
         if (type === 'shared') {
             var adultUnit = Number(xfer.adult_price != null && xfer.adult_price !== ''
@@ -508,31 +516,45 @@
                 : (vd.child_price != null && vd.child_price !== '' ? vd.child_price : 0)) || 0;
 
             var sharedUnit = Number(
-                (xfer.shared_price != null && xfer.shared_price !== '') ? xfer.shared_price
-                    : (vd.shared_price != null && vd.shared_price !== '') ? vd.shared_price
-                        : (xfer.zone_pricing ? 0 : xfer.base_cost)
+                (xfer.base_cost != null && xfer.base_cost !== '') ? xfer.base_cost
+                    : (xfer.shared_price != null && xfer.shared_price !== '') ? xfer.shared_price
+                        : (vd.shared_price != null && vd.shared_price !== '') ? vd.shared_price
+                            : (xfer.car_cost != null && xfer.car_cost !== '' ? xfer.car_cost : 0)
             ) || 0;
 
             if (adultUnit <= 0) adultUnit = sharedUnit;
             if (childUnit <= 0) childUnit = sharedUnit > 0 ? sharedUnit : adultUnit;
 
-            // Infants never priced — derive unit from adults + children only
+            // Infants never priced — derive one-way unit from adults + children only
             var pax = a + c;
             if (adultUnit <= 0 && pax > 0 && cost > 0) {
-                adultUnit = cost / pax;
+                adultUnit = cost / pax / bothFactor;
                 if (childUnit <= 0) childUnit = adultUnit;
             }
 
-            return paxPriceLinesHtml({
-                currency: cur,
-                metaHtml: header,
-                adults: a,
-                children: c,
-                infants: i,
-                adultPrice: adultUnit,
-                childPrice: childUnit,
-                infantPrice: 0
-            }) || (header + priceFormulaRowHtml('<strong>Shared</strong>', cur + ' ' + cost.toFixed(2)));
+            var sharedHtml = '';
+            if (a > 0) {
+                sharedHtml += priceFormulaRowHtml(
+                    '<strong>Adult</strong> ' + Number(adultUnit).toFixed(2) + ' × ' + a
+                        + (bothWay ? ' × 2 (both way)' : ''),
+                    cur + ' ' + (Number(adultUnit) * a * bothFactor).toFixed(2)
+                );
+            }
+            if (c > 0) {
+                sharedHtml += priceFormulaRowHtml(
+                    '<strong>Child</strong> ' + Number(childUnit).toFixed(2) + ' × ' + c
+                        + (bothWay ? ' × 2 (both way)' : ''),
+                    cur + ' ' + (Number(childUnit) * c * bothFactor).toFixed(2)
+                );
+            }
+            if (i > 0) {
+                sharedHtml += priceFormulaRowHtml(
+                    '<strong>Infant</strong> 0.00 × ' + i,
+                    cur + ' 0.00'
+                );
+            }
+            return (header + sharedHtml)
+                || (header + priceFormulaRowHtml('<strong>Shared</strong>', cur + ' ' + cost.toFixed(2)));
         }
 
         var vehCount = Math.max(
@@ -540,9 +562,23 @@
             parseInt(xfer.vehicle_count != null ? xfer.vehicle_count
                 : (xfer.arrival_vehicle_count || xfer.departure_vehicle_count || 1), 10) || 1
         );
-        var label = '<strong>Private</strong>';
-        if (vehCount > 1) label += ' × ' + vehCount + ' vehicles';
-        return header + priceFormulaRowHtml(label, cur + ' ' + cost.toFixed(2));
+        var privateUnit = Number(
+            (xfer.base_cost != null && xfer.base_cost !== '') ? xfer.base_cost
+                : (xfer.car_cost != null && xfer.car_cost !== '') ? xfer.car_cost
+                    : (xfer.private_price != null && xfer.private_price !== '') ? xfer.private_price
+                        : (vd.private_price != null ? vd.private_price : 0)
+        ) || 0;
+        if (!(privateUnit > 0) && cost > 0) {
+            privateUnit = cost / Math.max(1, vehCount) / bothFactor;
+        }
+        var privateLabel = '<strong>Private</strong> ' + Number(privateUnit).toFixed(2)
+            + ' × ' + vehCount
+            + (vehCount > 1 ? ' vehicles' : ' vehicle')
+            + (bothWay ? ' × 2 (both way)' : '');
+        return header + priceFormulaRowHtml(
+            privateLabel,
+            cur + ' ' + (Number(privateUnit) * vehCount * bothFactor).toFixed(2)
+        );
     }
 
     /**
@@ -604,25 +640,66 @@
             : '';
 
         if (type === 'shared') {
-            var sharedHtml = paxPriceLinesHtml({
-                currency: cur,
-                metaHtml: metaHtml,
-                adults: adults,
-                children: children,
-                infants: infants,
-                adultPrice: adultUnit,
-                childPrice: childUnit,
-                infantPrice: infantUnit
-            });
+            var bothShared = normalizeTripWay(row.trip_way || row.way) === 'both';
+            var sharedBoth = bothShared ? 2 : 1;
+            var sharedHtml = '';
+            if (bothShared) {
+                sharedHtml = metaHtml;
+                if (adults > 0) {
+                    sharedHtml += priceFormulaRowHtml(
+                        '<strong>Adult</strong> ' + Number(adultUnit).toFixed(2) + ' × ' + adults + ' × 2 (both way)',
+                        cur + ' ' + (Number(adultUnit) * adults * sharedBoth).toFixed(2)
+                    );
+                }
+                if (children > 0) {
+                    sharedHtml += priceFormulaRowHtml(
+                        '<strong>Child</strong> ' + Number(childUnit).toFixed(2) + ' × ' + children + ' × 2 (both way)',
+                        cur + ' ' + (Number(childUnit) * children * sharedBoth).toFixed(2)
+                    );
+                }
+                if (infants > 0) {
+                    sharedHtml += priceFormulaRowHtml(
+                        '<strong>Infant</strong> 0.00 × ' + infants,
+                        cur + ' 0.00'
+                    );
+                }
+            } else {
+                sharedHtml = paxPriceLinesHtml({
+                    currency: cur,
+                    metaHtml: metaHtml,
+                    adults: adults,
+                    children: children,
+                    infants: infants,
+                    adultPrice: adultUnit,
+                    childPrice: childUnit,
+                    infantPrice: infantUnit
+                });
+            }
             if (!sharedHtml || (adults <= 0 && children <= 0 && infants <= 0)) {
                 return metaHtml + priceFormulaRowHtml('<strong>Shared</strong>', cur + ' ' + total.toFixed(2));
             }
             return sharedHtml;
         }
 
-        var label = '<strong>Private</strong>';
-        if (vehCount > 1) label += ' × ' + vehCount + ' vehicles';
-        var html = metaHtml + priceFormulaRowHtml(label, cur + ' ' + total.toFixed(2));
+        var bothWay = normalizeTripWay(row.trip_way || row.way) === 'both';
+        var bothFactor = bothWay ? 2 : 1;
+        var privateUnit = Number(
+            row.unit != null && row.unit !== '' ? row.unit
+                : (row.base != null && row.base !== '' ? row.base
+                    : (row.car_cost != null && row.car_cost !== '' ? row.car_cost
+                        : (row.private_price != null && row.private_price !== '' ? row.private_price : 0)))
+        ) || 0;
+        if (!(privateUnit > 0) && total > 0) {
+            privateUnit = total / Math.max(1, vehCount) / bothFactor;
+        }
+        var privateLabel = '<strong>Private</strong> ' + Number(privateUnit).toFixed(2)
+            + ' × ' + vehCount
+            + (vehCount > 1 ? ' vehicles' : ' vehicle')
+            + (bothWay ? ' × 2 (both way)' : '');
+        var html = metaHtml + priceFormulaRowHtml(
+            privateLabel,
+            cur + ' ' + (Number(privateUnit) * vehCount * bothFactor).toFixed(2)
+        );
         if (adults || children || infants) {
             html += '<div class="small text-muted mt-1">' + adults + 'A / ' + children + 'C'
                 + (infants > 0 ? (' / ' + infants + 'I') : '') + '</div>';
@@ -634,6 +711,49 @@
             );
         }
         return html;
+    }
+
+    /** Zone sell unit from a vehicle <option> (private flat or shared adult/shared). */
+    function zoneUnitFromVehicleOpt(opt, serviceType) {
+        if (!opt) return 0;
+        var svc = String(serviceType || 'private').toLowerCase();
+        if (svc === 'shared') {
+            return parseFloat(opt.dataset.adultPrice) || parseFloat(opt.dataset.sharedPrice) || 0;
+        }
+        return parseFloat(opt.dataset.privatePrice) || 0;
+    }
+
+    /**
+     * Prefill standalone Cost/Car cost input from zone unit (Arrival / Departure / Local).
+     * Keeps user edits; reseeds when empty or still on the previous seed.
+     */
+    function seedStandaloneCarCost(costEl, unit) {
+        if (!costEl) return;
+        unit = Math.max(0, Number(unit) || 0);
+        if (!(unit > 0)) return;
+        costEl.setAttribute('data-ajax-base-price', String(unit));
+        var current = parseFloat(String(costEl.value || '').replace(/[^\d.]/g, '')) || 0;
+        var seeded = parseFloat(costEl.getAttribute('data-seeded-unit') || '') || 0;
+        var userEdited = costEl.getAttribute('data-user-edited') === '1';
+        // Hydrate / user override: never clobber a locked positive cost
+        if (userEdited && current > 0) return;
+        if (!(current > 0) || Math.abs(current - seeded) < 0.009) {
+            costEl.value = String(unit);
+            costEl.setAttribute('data-seeded-unit', String(unit));
+            costEl.removeAttribute('data-user-edited');
+        }
+    }
+
+    function markStandaloneCarCostEdited(costEl) {
+        if (!costEl) return;
+        costEl.setAttribute('data-user-edited', '1');
+    }
+
+    function clearStandaloneCarCostSeed(costEl) {
+        if (!costEl) return;
+        costEl.removeAttribute('data-user-edited');
+        costEl.removeAttribute('data-seeded-unit');
+        costEl.removeAttribute('data-ajax-base-price');
     }
 
     function fetchVehiclesByZones(payload) {
@@ -1000,8 +1120,9 @@
     }
 
     /** Compact Transfer Required + expandable fields (attraction / restaurant).
-     * Zone ON: Pickup first → zone-mapped vehicles → readonly zone cost.
+     * Zone ON: all city vehicles; zone price when mapped, else editable car cost.
      * Zone OFF: Google Maps pickup + editable car cost (Shared × pax, Private as-is).
+     * Way: Single way (default) or Both way (price × 2).
      */
     function transferExtrasHtml(prefix, stay) {
         var maps = !(zoneOnForStay(
@@ -1017,7 +1138,8 @@
         var costHtml = maps
             ? ('<input type="number" min="0" step="0.01" class="form-control form-control-sm ' + prefix + '-transfer-cost" ' +
                'placeholder="Car cost" data-zone-off-cost="1">')
-            : ('<input type="text" class="form-control form-control-sm ' + prefix + '-transfer-cost" readonly placeholder="—">');
+            : ('<input type="number" min="0" step="0.01" class="form-control form-control-sm ' + prefix + '-transfer-cost" ' +
+               'placeholder="Zone / car cost" data-zone-off-cost="1">');
         var vehiclePlaceholder = maps ? 'Select type' : 'Select pickup first';
         return (
             '<div class="stp-lite-extras-block">' +
@@ -1031,10 +1153,14 @@
             '</div>' +
             '      <div class="col stp-lite-xfer-vehicle"><label class="stp-lite-label">Vehicle</label>' +
             '        <select class="form-select form-select-sm ' + prefix + '-transfer-vehicle" disabled data-no-select2="true"><option value="">' + vehiclePlaceholder + '</option></select></div>' +
+            '      <div class="col-auto stp-lite-xfer-way"><label class="stp-lite-label">Way</label>' +
+            '        <select class="form-select form-select-sm ' + prefix + '-transfer-way" data-no-select2="true">' +
+            '          <option value="single" selected>Single way</option>' +
+            '          <option value="both">Both way</option></select></div>' +
             '      <div class="col-auto stp-lite-xfer-time"><label class="stp-lite-label">Pickup time</label>' +
             ampmTimeHtml(prefix + '-xfer', '') +
             '      </div>' +
-            '      <div class="col-auto stp-lite-xfer-cost"><label class="stp-lite-label">' + (maps ? 'Car cost' : 'Cost') + '</label>' +
+            '      <div class="col-auto stp-lite-xfer-cost"><label class="stp-lite-label ' + prefix + '-transfer-cost-label">' + (maps ? 'Car cost' : 'Cost') + '</label>' +
             costHtml +
             '</div>' +
             '      <div class="col-auto stp-lite-xfer-veh-count" data-' + prefix + '-vehicle-counts>' +
@@ -1042,14 +1168,78 @@
             '        <input type="number" min="1" step="1" class="form-control form-control-sm stp-lite-int ' + prefix + '-vehicle-count" value="1">' +
             '      </div>' +
             '    </div>' +
+            '    <div class="text-muted mt-1 ' + prefix + '-transfer-cost-hint" style="font-size:0.7rem;">' +
             (maps
-                ? ('    <div class="text-muted mt-1 ' + prefix + '-transfer-cost-hint" style="font-size:0.7rem;">' +
-                   'Private = car × vehicles · Shared = car × pax</div>')
-                : ('    <div class="text-muted mt-1 ' + prefix + '-transfer-cost-hint" style="font-size:0.7rem;">' +
-                   'Vehicles &amp; price from zone mapping · Private × vehicle count</div>')) +
+                ? 'Private = car × vehicles · Shared = car × pax · Both way doubles'
+                : 'Zone price fills Cost · edit if needed · Both way doubles') +
+            '</div>' +
             '  </div>' +
             '</div>'
         );
+    }
+
+    function normalizeTripWay(raw) {
+        var s = String(raw || '').trim().toLowerCase().replace(/[_-]+/g, ' ');
+        if (!s) return 'single';
+        if (/\bboth\b/.test(s) || /\btwo\b/.test(s) || s === '2' || /\b2\s*way\b/.test(s) || /\breturn\b/.test(s)) {
+            return 'both';
+        }
+        return 'single';
+    }
+
+    function transferWayOf(root, prefix) {
+        var el = root && root.querySelector('.' + prefix + '-transfer-way');
+        return normalizeTripWay(el ? el.value : 'single');
+    }
+
+    function transferWayLabel(way) {
+        return way === 'both' ? 'Both Way' : 'One Way';
+    }
+
+    /**
+     * Cost field is always editable. Zone price is prefilled as the unit amount;
+     * the user can change it (same idea as hotel AdHoc).
+     */
+    function syncInlineTransferManualCost(root, prefix, stay) {
+        var costEl = root.querySelector('.' + prefix + '-transfer-cost');
+        if (!costEl) return false;
+        var stayObj = stay || stayFromPanel(root, prefix) || {};
+        var useZone = zoneOnForStay(stayObj.cityName, stayObj.country, stayObj.dmcId);
+        var label = root.querySelector('.' + prefix + '-transfer-cost-label');
+        costEl.removeAttribute('readonly');
+        costEl.setAttribute('data-zone-off-cost', '1');
+        costEl.removeAttribute('data-zone-cost');
+        costEl.type = 'number';
+        costEl.placeholder = useZone ? 'Zone / car cost' : 'Car cost';
+        if (label) label.textContent = useZone ? 'Cost' : 'Car cost';
+        // Drop currency-formatted leftovers so the field stays a plain number
+        if (/[^\d.]/.test(String(costEl.value || ''))) {
+            var ajax = parseFloat(costEl.getAttribute('data-ajax-base-price') || '') || 0;
+            costEl.value = ajax > 0 ? String(ajax) : '';
+        }
+        return true;
+    }
+
+    /** Prefill editable cost from zone unit when the field is empty or still on the previous seed. */
+    function seedInlineTransferCostFromZone(root, prefix, unit) {
+        var costEl = root.querySelector('.' + prefix + '-transfer-cost');
+        if (!costEl) return;
+        unit = Math.max(0, Number(unit) || 0);
+        if (!(unit > 0)) return;
+        costEl.setAttribute('data-ajax-base-price', String(unit));
+        costEl.removeAttribute('data-pricing-fetch-failed');
+        var current = parseManualCarCost(costEl);
+        var seeded = parseFloat(costEl.getAttribute('data-seeded-unit') || '') || 0;
+        var userEdited = costEl.getAttribute('data-user-edited') === '1';
+        // Hydrate / user override: keep locked positive cost (edit form + AdHoc override)
+        if (!(userEdited && current > 0)) {
+            if (!(current > 0) || Math.abs(current - seeded) < 0.009) {
+                costEl.value = String(unit);
+                costEl.setAttribute('data-seeded-unit', String(unit));
+                costEl.removeAttribute('data-user-edited');
+            }
+        }
+        syncInlineTransferManualCost(root, prefix);
     }
 
     function transferRequiredSelectHtml(prefix) {
@@ -1259,8 +1449,8 @@
     }
 
     /**
-     * Zone OFF: user-entered car cost — Shared × (adults+children), Private as-is.
-     * Zone ON: AJAX zone base (data-ajax-base-price) or vehicle catalog prices.
+     * Editable cost field is the unit (zone seed or user override).
+     * Shared × (adults+children), Private × vehicles. Both way doubles.
      * Infants are never charged on transfer.
      */
     function calcInlineTransferPrice(root, prefix, adults, children, infants) {
@@ -1274,32 +1464,28 @@
         var costEl = root.querySelector('.' + prefix + '-transfer-cost');
         var stay = stayFromPanel(root, prefix) || {};
         var useZone = zoneOnForStay(stay.cityName, stay.country, stay.dmcId);
-
-        if (!useZone) {
-            var car = parseManualCarCost(costEl);
-            if (car <= 0 || !type) return 0;
-            return type === 'shared' ? (car * guests) : (car * vehCount);
-        }
-
-        if (!type) return 0;
-
-        // Prefer zone-mapping AJAX base when available
-        var ajaxBase = costEl ? parseFloat(costEl.getAttribute('data-ajax-base-price') || '') : NaN;
-        if (!isNaN(ajaxBase) && ajaxBase > 0) {
-            return type === 'shared' ? (ajaxBase * guests) : (ajaxBase * vehCount);
-        }
-
         var veh = root.querySelector('.' + prefix + '-transfer-vehicle');
         var opt = veh && veh.options[veh.selectedIndex];
-        if (!opt || !opt.value) return 0;
-        var privateP = parseFloat(opt.dataset.privatePrice) || 0;
-        var sharedP = parseFloat(opt.dataset.sharedPrice) || 0;
-        // Fallback: some vehicles only have one of the two prices set
-        if (type === 'shared') {
-            var unit = sharedP > 0 ? sharedP : privateP;
-            return unit * guests;
+        var total = 0;
+        if (!type) return 0;
+
+        var car = parseManualCarCost(costEl);
+        var ajaxBase = costEl ? parseFloat(costEl.getAttribute('data-ajax-base-price') || '') : NaN;
+        var unit = car > 0 ? car : ((!isNaN(ajaxBase) && ajaxBase > 0) ? ajaxBase : 0);
+        if (!(unit > 0) && useZone && opt && opt.value && vehicleHasZonePrice(opt, type === 'shared' ? 'shared' : 'private')) {
+            var privateP = parseFloat(opt.dataset.privatePrice) || 0;
+            var sharedP = parseFloat(opt.dataset.sharedPrice) || 0;
+            unit = type === 'shared'
+                ? (sharedP > 0 ? sharedP : privateP)
+                : (privateP > 0 ? privateP : sharedP);
         }
-        return (privateP > 0 ? privateP : sharedP) * vehCount;
+        if (!(unit > 0)) return 0;
+        total = type === 'shared' ? (unit * guests) : (unit * vehCount);
+
+        if (transferWayOf(root, prefix) === 'both' && total > 0) {
+            total = total * 2;
+        }
+        return total;
     }
 
     function refreshTransferCostDisplay(root, prefix, adults, children, infants) {
@@ -1311,31 +1497,27 @@
         var stay = stayFromPanel(root, prefix) || {};
         var useZone = zoneOnForStay(stay.cityName, stay.country, stay.dmcId);
 
-        if (!useZone || costEl.getAttribute('data-zone-off-cost') === '1') {
-            if (hint) {
-                var car = parseManualCarCost(costEl);
-                var vc = readTransferVehicleCount(root, prefix);
-                if (car > 0 && total > 0) {
-                    hint.textContent = 'Total transfer: ' + cur + ' ' + total.toFixed(2)
-                        + (vc > 1 ? ' · ' + vc + ' vehicles' : '')
-                        + ' (Private = car × vehicles · Shared = car × pax)';
-                } else {
-                    hint.textContent = 'Private = car × vehicles · Shared = car × pax';
-                }
-            }
-            return total;
-        }
-
-        // Zone ON readonly field: show computed total (or clear → placeholder "—")
+        var way = transferWayOf(root, prefix);
         if (costEl.getAttribute('data-pricing-loading') === '1') {
-            costEl.value = 'Loading…';
             return total;
         }
-        if (total > 0) {
-            costEl.value = cur + ' ' + total.toFixed(2);
-        } else {
-            // Keep empty so placeholder "—" shows only when no price yet
-            costEl.value = '';
+        // Cost input stays a plain unit number (zone seed or user edit). Total goes in the hint.
+        if (hint) {
+            var car = parseManualCarCost(costEl);
+            var vc = readTransferVehicleCount(root, prefix);
+            var typeEl = root.querySelector('.' + prefix + '-transfer-type');
+            var type = typeEl ? String(typeEl.value).toLowerCase() : '';
+            if (car > 0 && total > 0) {
+                var formula = type === 'shared'
+                    ? (car.toFixed(2) + ' × pax')
+                    : (car.toFixed(2) + (vc > 1 ? (' × ' + vc + ' vehicles') : ''));
+                if (way === 'both') formula += ' × 2 (both way)';
+                hint.textContent = formula + ' = ' + cur + ' ' + total.toFixed(2);
+            } else if (useZone) {
+                hint.textContent = 'Zone price fills Cost · edit if needed · Both way doubles';
+            } else {
+                hint.textContent = 'Private = car × vehicles · Shared = car × pax · Both way doubles';
+            }
         }
         return total;
     }
@@ -1346,19 +1528,15 @@
         costEl.removeAttribute('data-ajax-final-price');
         costEl.removeAttribute('data-pricing-loading');
         costEl.removeAttribute('data-pricing-fetch-failed');
-        // Zone readonly cost must blank when pickup/vehicle changes (stale IDR xxx)
-        if (costEl.getAttribute('data-zone-off-cost') !== '1') {
-            costEl.value = '';
-        }
+        costEl.removeAttribute('data-seeded-unit');
+        costEl.removeAttribute('data-user-edited');
     }
 
     /** Clear transfer cost display + ajax base (pickup / vehicle refresh). */
     function clearTransferCostDisplay(root, prefix) {
         var costEl = root.querySelector('.' + prefix + '-transfer-cost');
         clearAjaxTransferPrice(costEl);
-        if (costEl && costEl.getAttribute('data-zone-off-cost') !== '1') {
-            costEl.value = '';
-        }
+        if (costEl) costEl.value = '';
     }
 
     /** Zone ON only: fetch restaurant/attraction zone transfer price into cost field. */
@@ -1392,6 +1570,7 @@
             pickup_location_id: String(pickup.value),
             pickup_location_type: pickupType,
             transfer_type: typeEl.value,
+            // Always quote one-way; Both way is applied client-side as ×2.
             transfer_way: 'One Way',
             city: q.city || (stay && stay.cityName) || '',
             country: q.country || (stay && stay.country) || '',
@@ -1403,7 +1582,6 @@
 
         if (costEl) {
             costEl.setAttribute('data-pricing-loading', '1');
-            costEl.value = 'Loading…';
         }
 
         return fetchJson(url, {
@@ -1414,13 +1592,20 @@
             if (costEl) costEl.removeAttribute('data-pricing-loading');
             if (data && data.success && data.price != null) {
                 var base = parseFloat(data.price) || 0;
-                if (costEl) {
-                    costEl.setAttribute('data-ajax-base-price', String(base));
-                    costEl.removeAttribute('data-pricing-fetch-failed');
-                }
+                seedInlineTransferCostFromZone(root, prefix, base);
             } else {
-                clearAjaxTransferPrice(costEl);
                 if (costEl) costEl.setAttribute('data-pricing-fetch-failed', '1');
+                // Fall back to vehicle zone unit when AJAX has no price
+                var vOpt = veh && veh.options[veh.selectedIndex];
+                var svc = String(typeEl.value || '').toLowerCase() === 'shared' ? 'shared' : 'private';
+                if (vOpt && vehicleHasZonePrice(vOpt, svc)) {
+                    var fallback = svc === 'shared'
+                        ? (parseFloat(vOpt.dataset.sharedPrice) || parseFloat(vOpt.dataset.privatePrice) || 0)
+                        : (parseFloat(vOpt.dataset.privatePrice) || parseFloat(vOpt.dataset.sharedPrice) || 0);
+                    seedInlineTransferCostFromZone(root, prefix, fallback);
+                } else {
+                    syncInlineTransferManualCost(root, prefix, stay);
+                }
             }
             var g = typeof guestCountsFn === 'function' ? guestCountsFn() : { adults: 1, children: 0, infants: 0 };
             var total = refreshTransferCostDisplay(root, prefix, g.adults, g.children, g.infants);
@@ -1429,9 +1614,9 @@
         }).catch(function () {
             if (costEl) {
                 costEl.removeAttribute('data-pricing-loading');
-                clearAjaxTransferPrice(costEl);
                 costEl.setAttribute('data-pricing-fetch-failed', '1');
             }
+            syncInlineTransferManualCost(root, prefix, stay);
             var g2 = typeof guestCountsFn === 'function' ? guestCountsFn() : { adults: 1, children: 0, infants: 0 };
             var total2 = refreshTransferCostDisplay(root, prefix, g2.adults, g2.children, g2.infants);
             if (typeof onDone === 'function') onDone(total2);
@@ -1451,8 +1636,14 @@
         var type = typeEl ? typeEl.value : '';
         var stay = stayFromPanel(root, prefix) || {};
         var useZone = zoneOnForStay(stay.cityName, stay.country, stay.dmcId);
+        var tripWay = transferWayOf(root, prefix);
+        var costEl = root.querySelector('.' + prefix + '-transfer-cost');
         var cost = calcInlineTransferPrice(root, prefix, adults, children, infants);
-        var baseCost = !useZone ? parseManualCarCost(root.querySelector('.' + prefix + '-transfer-cost')) : cost;
+        var carCost = parseManualCarCost(costEl);
+        var ajaxSeed = costEl ? (parseFloat(costEl.getAttribute('data-ajax-base-price') || '') || 0) : 0;
+        var userEdited = !!(costEl && costEl.getAttribute('data-user-edited') === '1');
+        var fromZone = !!(useZone && ajaxSeed > 0 && !userEdited);
+        var baseCost = carCost > 0 ? carCost : (ajaxSeed > 0 ? ajaxSeed : cost);
         var vehicleDetails = null;
         var adultUnit = 0;
         var childUnit = 0;
@@ -1477,15 +1668,13 @@
                 infant_price: 0
             };
         }
-        if (!useZone) {
-            var carUnit = parseManualCarCost(root.querySelector('.' + prefix + '-transfer-cost'));
-            if (carUnit > 0) {
-                sharedUnit = carUnit;
-                privateUnit = carUnit;
-                adultUnit = carUnit;
-                childUnit = carUnit;
-                infantUnit = 0;
-            }
+        if (carCost > 0 || ajaxSeed > 0) {
+            var unitPrice = carCost > 0 ? carCost : ajaxSeed;
+            sharedUnit = unitPrice;
+            privateUnit = unitPrice;
+            adultUnit = unitPrice;
+            childUnit = unitPrice;
+            infantUnit = 0;
         } else if (String(type).toLowerCase() === 'shared' && sharedUnit <= 0) {
             var ajaxBase = parseFloat((root.querySelector('.' + prefix + '-transfer-cost') || {}).getAttribute('data-ajax-base-price') || '');
             if (!isNaN(ajaxBase) && ajaxBase > 0) {
@@ -1508,26 +1697,24 @@
             pickupType = pOpt ? (pOpt.dataset.type || '') : '';
         }
         var vehCount = readTransferVehicleCount(root, prefix);
-        // Prefer unit base for private (cost may already be × vehicle count)
+        // Prefer unit base for private (cost may already be × vehicle count / both-way)
         var unitBase = baseCost;
-        if (!useZone) {
-            unitBase = parseManualCarCost(root.querySelector('.' + prefix + '-transfer-cost'));
-        } else {
-            var ajaxUnit = parseFloat((root.querySelector('.' + prefix + '-transfer-cost') || {}).getAttribute('data-ajax-base-price') || '');
-            if (!isNaN(ajaxUnit) && ajaxUnit > 0) unitBase = ajaxUnit;
-            else if (String(type).toLowerCase() === 'private' && vehCount > 1 && cost > 0) {
-                unitBase = cost / vehCount;
-            }
+        if (!(unitBase > 0) && String(type).toLowerCase() === 'private' && vehCount > 1 && cost > 0) {
+            unitBase = cost / vehCount / (tripWay === 'both' ? 2 : 1);
+        } else if (!(unitBase > 0) && tripWay === 'both' && cost > 0) {
+            unitBase = cost / 2;
         }
         return {
             transfer_required: true,
             type: type,
-            way: 'One Way',
+            way: transferWayLabel(tripWay),
+            trip_way: tripWay,
             vehicle_id: opt ? opt.value : '',
             vehicle_details: vehicleDetails,
             cost: cost,
             base_cost: unitBase,
-            zone_pricing: useZone ? 1 : 0,
+            car_cost: carCost > 0 ? carCost : '',
+            zone_pricing: fromZone ? 1 : 0,
             shared_price: sharedUnit,
             private_price: privateUnit,
             adult_price: adultUnit,
@@ -1700,7 +1887,7 @@
 
     /**
      * Load transfer vehicles.
-     * Zone ON: only after pickup + attraction/restaurant selected → fetchVehiclesByZones.
+     * Zone ON: all city vehicles after pickup; overlay zone prices when attraction/restaurant is set.
      * Zone OFF: city vehicle catalog.
      */
     function loadTransferVehicles(root, stay, prefix) {
@@ -1721,6 +1908,7 @@
             });
             filterTransferVehiclesByType(select, typeEl ? typeEl.value : '');
             select.disabled = false;
+            syncInlineTransferManualCost(root, prefix, stay);
         }
 
         if (!useZone) {
@@ -1728,7 +1916,12 @@
             select.innerHTML = '<option value="">Loading vehicles…</option>';
             return fetchVehiclesByCity(stay.cityName, stay.country, true)
                 .then(function (res) {
+                    root.__transferVehiclesLoaded = true;
                     applyList((res && res.vehicles) || []);
+                    if (!((res && res.vehicles) || []).length) {
+                        select.innerHTML = '<option value="">No vehicles found</option>';
+                        select.disabled = false;
+                    }
                 })
                 .catch(function () {
                     select.innerHTML = '<option value="">Error loading</option>';
@@ -1737,9 +1930,7 @@
         }
 
         var pickup = root.querySelector('.' + prefix + '-transfer-pickup');
-        var serviceSel = root.querySelector('.' + prefix + '-select');
-        var fromId = serviceEntityIdForZone(prefix, serviceSel);
-        if (!pickup || !pickup.value || !fromId) {
+        if (!pickup || !pickup.value) {
             select.innerHTML = '<option value="">Select pickup first</option>';
             select.disabled = true;
             root.__transferVehicles = [];
@@ -1748,26 +1939,38 @@
             return Promise.resolve();
         }
 
+        var serviceSel = root.querySelector('.' + prefix + '-select');
+        var fromId = serviceEntityIdForZone(prefix, serviceSel);
         var pOpt = pickup.options[pickup.selectedIndex];
         var q = inv(stay.cityName, stay.country);
         select.disabled = true;
-        select.innerHTML = '<option value="">Loading zone vehicles…</option>';
+        select.innerHTML = '<option value="">Loading vehicles…</option>';
         clearTransferCostDisplay(root, prefix);
-        return fetchVehiclesByZones({
-            from_zone_id: fromId,
-            to_zone_id: pickup.value,
-            from_zone_type: prefix,
-            to_zone_type: (pOpt && pOpt.dataset.type) || 'Hotel',
-            city: q.city,
-            country: q.country,
-            dmc_id: q.dmc_id || stay.dmcId || '',
-            zone_status: 1
-        })
-            .then(function (res) {
-                var list = (res && res.vehicles) || [];
+
+        var cityPromise = fetchVehiclesByCity(stay.cityName, stay.country, true)
+            .catch(function () { return { vehicles: [] }; });
+        var zonePromise = fromId
+            ? fetchVehiclesByZones({
+                from_zone_id: fromId,
+                to_zone_id: pickup.value,
+                from_zone_type: prefix,
+                to_zone_type: (pOpt && pOpt.dataset.type) || 'Hotel',
+                city: q.city,
+                country: q.country,
+                dmc_id: q.dmc_id || stay.dmcId || '',
+                zone_status: 1
+            }).catch(function () { return { vehicles: [] }; })
+            : Promise.resolve({ vehicles: [] });
+
+        return Promise.all([zonePromise, cityPromise])
+            .then(function (pair) {
+                var zoned = (pair[0] && pair[0].vehicles) || [];
+                var all = (pair[1] && pair[1].vehicles) || [];
+                var list = mergeZoneRouteVehicles(zoned, all);
+                if (!list.length) list = all.length ? all : zoned;
                 root.__transferVehiclesLoaded = true;
                 if (!list.length) {
-                    select.innerHTML = '<option value="">No zone-mapped vehicles</option>';
+                    select.innerHTML = '<option value="">No vehicles found</option>';
                     select.disabled = false;
                     root.__transferVehicles = [];
                     clearTransferCostDisplay(root, prefix);
@@ -1836,6 +2039,23 @@
                 refresh();
                 return;
             }
+            syncInlineTransferManualCost(root, prefix, stay);
+            var vOpt = veh && veh.selectedIndex >= 0 ? veh.options[veh.selectedIndex] : null;
+            var svc = typeEl && String(typeEl.value).toLowerCase() === 'shared' ? 'shared' : 'private';
+            // Unmapped vehicle: skip zone AJAX and use car cost
+            if (vOpt && vOpt.value && !vehicleHasZonePrice(vOpt, svc)) {
+                if (costEl) costEl.setAttribute('data-pricing-fetch-failed', '1');
+                syncInlineTransferManualCost(root, prefix, stay);
+                refresh();
+                return;
+            }
+            // Prefill from vehicle zone unit while AJAX runs
+            if (vOpt && vehicleHasZonePrice(vOpt, svc)) {
+                var quick = svc === 'shared'
+                    ? (parseFloat(vOpt.dataset.sharedPrice) || parseFloat(vOpt.dataset.privatePrice) || 0)
+                    : (parseFloat(vOpt.dataset.privatePrice) || parseFloat(vOpt.dataset.sharedPrice) || 0);
+                if (quick > 0) seedInlineTransferCostFromZone(root, prefix, quick);
+            }
             // Zone ON: load zone mapping price when type+vehicle+pickup+service ready
             fetchInlineTransferZonePrice(root, stay, prefix, guests, function () {
                 if (typeof onChange === 'function') onChange();
@@ -1885,18 +2105,32 @@
             typeEl.addEventListener('change', function () {
                 filterTransferVehiclesByType(veh, typeEl.value);
                 clearAjaxTransferPrice(costEl);
+                syncInlineTransferManualCost(root, prefix, stay);
                 refreshZonePrice();
             });
         }
         if (veh) {
             veh.addEventListener('change', function () {
                 clearAjaxTransferPrice(costEl);
+                syncInlineTransferManualCost(root, prefix, stay);
                 refreshZonePrice();
             });
         }
-        if (mapsMode && costEl) {
-            costEl.addEventListener('input', refresh);
-            costEl.addEventListener('change', refresh);
+        var wayEl = root.querySelector('.' + prefix + '-transfer-way');
+        if (wayEl) {
+            wayEl.addEventListener('change', function () {
+                refresh();
+            });
+        }
+        if (costEl) {
+            costEl.addEventListener('input', function () {
+                costEl.setAttribute('data-user-edited', '1');
+                refresh();
+            });
+            costEl.addEventListener('change', function () {
+                costEl.setAttribute('data-user-edited', '1');
+                refresh();
+            });
         }
         var pickup = root.querySelector('.' + prefix + '-transfer-pickup');
         if (pickup) {
@@ -2034,6 +2268,10 @@
         setTransferVehicleCount(root, prefix, savedCount);
         var typeEl = root.querySelector('.' + prefix + '-transfer-type');
         if (typeEl) typeEl.value = transferOptions.type || '';
+        var wayEl = root.querySelector('.' + prefix + '-transfer-way');
+        if (wayEl) {
+            wayEl.value = normalizeTripWay(transferOptions.trip_way || transferOptions.way) === 'both' ? 'both' : 'single';
+        }
         setAmPmValue(root, prefix + '-xfer', transferOptions.pickup_time || '');
         var stayObj = stay || stayFromPanel(root, prefix) || {};
         var pickupId = transferOptions.pickup_location_id || '';
@@ -2049,45 +2287,40 @@
             var costEl = root.querySelector('.' + prefix + '-transfer-cost');
             var g = guestsFn();
             var vehCount = readTransferVehicleCount(root, prefix);
-            if (mapsMode && costEl) {
-                var base = transferOptions.base_cost != null
-                    ? Number(transferOptions.base_cost)
-                    : NaN;
-                // If only total cost was stored for Shared, derive per-pax car unit for the editable field
-                if (!(base > 0)) {
-                    var totalCost = Number(transferOptions.cost || 0);
-                    var pax = Math.max(1, (g.adults || 0) + (g.children || 0));
-                    if (String(transferOptions.type || '').toLowerCase() === 'shared' && totalCost > 0 && pax > 0) {
-                        base = totalCost / pax;
-                    } else if (String(transferOptions.type || '').toLowerCase() === 'private' && totalCost > 0 && vehCount > 0) {
-                        base = totalCost / vehCount;
-                    } else {
-                        base = totalCost;
-                    }
-                }
-                costEl.value = base > 0 ? String(base) : '';
-            }
-            // Zone ON: seed ajax base from stored unit so Cost shows total immediately
-            if (!mapsMode && costEl) {
-                var unitSeed = Number(
-                    transferOptions.base_cost != null ? transferOptions.base_cost
+            var savedTripWay = normalizeTripWay(transferOptions.trip_way || transferOptions.way);
+            var bothFactor = savedTripWay === 'both' ? 2 : 1;
+            var unitSeed = Number(
+                transferOptions.car_cost != null && String(transferOptions.car_cost) !== ''
+                    ? transferOptions.car_cost
+                    : (transferOptions.base_cost != null ? transferOptions.base_cost
                         : (transferOptions.shared_price != null ? transferOptions.shared_price
-                            : (transferOptions.adult_price != null ? transferOptions.adult_price : 0))
-                ) || 0;
-                if (!(unitSeed > 0) && Number(transferOptions.cost || 0) > 0) {
-                    var paxSeed = Math.max(1, (g.adults || 0) + (g.children || 0));
-                    if (String(transferOptions.type || '').toLowerCase() === 'shared') {
-                        unitSeed = Number(transferOptions.cost) / paxSeed;
-                    } else {
-                        unitSeed = Number(transferOptions.cost) / Math.max(1, vehCount);
-                    }
+                            : (transferOptions.adult_price != null ? transferOptions.adult_price : 0)))
+            ) || 0;
+            if (!(unitSeed > 0) && Number(transferOptions.cost || 0) > 0) {
+                var oneWayCost = Number(transferOptions.cost) / bothFactor;
+                var paxSeed = Math.max(1, (g.adults || 0) + (g.children || 0));
+                if (String(transferOptions.type || '').toLowerCase() === 'shared') {
+                    unitSeed = oneWayCost / paxSeed;
+                } else {
+                    unitSeed = oneWayCost / Math.max(1, vehCount);
                 }
-                if (unitSeed > 0) {
-                    costEl.setAttribute('data-ajax-base-price', String(unitSeed));
+            }
+            var hadSavedCarCost = transferOptions.car_cost != null && String(transferOptions.car_cost) !== '';
+            if (costEl && unitSeed > 0) {
+                // Lock first so zone AJAX cannot overwrite the edited/saved unit
+                if (hadSavedCarCost || Number(transferOptions.zone_pricing || 0) !== 1) {
+                    costEl.setAttribute('data-user-edited', '1');
                 }
+                costEl.value = String(unitSeed);
+                costEl.setAttribute('data-seeded-unit', String(unitSeed));
+                costEl.setAttribute('data-ajax-base-price', String(unitSeed));
+                syncInlineTransferManualCost(root, prefix, stayObj);
+            } else {
+                syncInlineTransferManualCost(root, prefix, stayObj);
             }
             refreshTransferCostDisplay(root, prefix, g.adults, g.children, g.infants);
-            if (!mapsMode) {
+            // Refresh live zone quote only when no explicit car_cost was saved on the row
+            if (!mapsMode && Number(transferOptions.zone_pricing || 0) === 1 && !hadSavedCarCost) {
                 fetchInlineTransferZonePrice(root, stayObj, prefix, guestsFn);
             }
         }
@@ -2490,6 +2723,44 @@
      * Zone-off car-cost pricing for arrival/departure/transport Get Price.
      * Shared = car × (adults+children); infants never charged. Private = car as-is.
      */
+    function vehicleHasZonePrice(opt, serviceType) {
+        if (!opt || !opt.value || String(opt.dataset.fromZone || '') !== '1') return false;
+        if (String(serviceType || 'private').toLowerCase() === 'shared') {
+            return (parseFloat(opt.dataset.sharedPrice) || 0) > 0
+                || (parseFloat(opt.dataset.adultPrice) || 0) > 0;
+        }
+        return (parseFloat(opt.dataset.privatePrice) || 0) > 0;
+    }
+
+    /**
+     * All city vehicles, with zone-route prices overlaid when that vehicle is mapped.
+     * Unmapped vehicles keep no sell price so the form can take a manual car cost.
+     */
+    function mergeZoneRouteVehicles(zoned, all) {
+        var byId = {};
+        (all || []).forEach(function (v) {
+            var id = String(v.vehicle_id || v.id || '');
+            if (!id) return;
+            var copy = Object.assign({}, v);
+            delete copy.mapping_id;
+            delete copy.private_price;
+            delete copy.shared_price;
+            delete copy.private_cost_price;
+            delete copy.shared_cost_price;
+            delete copy.adult_price;
+            delete copy.child_price;
+            copy.base_price = 0;
+            copy.sharable_base_price = 0;
+            byId[id] = copy;
+        });
+        (zoned || []).forEach(function (v) {
+            var id = String(v.vehicle_id || v.id || '');
+            if (!id) return;
+            byId[id] = v;
+        });
+        return Object.keys(byId).map(function (id) { return byId[id]; });
+    }
+
     function calcManualCarTotal(carCost, serviceType, adults, children, infants) {
         var car = parseFloat(carCost) || 0;
         if (car <= 0) return { total: 0, unit: 0, mode: String(serviceType || 'private').toLowerCase(), base: 0 };
@@ -2639,8 +2910,19 @@
         resetTransferGuideExtras: resetTransferGuideExtras,
         applyBookedHotelsToArrivalDeparture: applyBookedHotelsToArrivalDeparture,
         calcManualCarTotal: calcManualCarTotal,
+        vehicleHasZonePrice: vehicleHasZonePrice,
+        mergeZoneRouteVehicles: mergeZoneRouteVehicles,
+        transferWayOf: transferWayOf,
+        transferWayLabel: transferWayLabel,
+        normalizeTripWay: normalizeTripWay,
+        syncInlineTransferManualCost: syncInlineTransferManualCost,
+        seedInlineTransferCostFromZone: seedInlineTransferCostFromZone,
         parseManualCarCost: parseManualCarCost,
-        fetchInlineTransferZonePrice: fetchInlineTransferZonePrice
+        fetchInlineTransferZonePrice: fetchInlineTransferZonePrice,
+        zoneUnitFromVehicleOpt: zoneUnitFromVehicleOpt,
+        seedStandaloneCarCost: seedStandaloneCarCost,
+        markStandaloneCarCostEdited: markStandaloneCarCostEdited,
+        clearStandaloneCarCostSeed: clearStandaloneCarCostSeed
     };
 })(window);
 /* === END transport-shared.js === */
