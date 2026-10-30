@@ -2193,7 +2193,9 @@
                                 <i class="ri-close-line me-1"></i>Cancel
                             </button>
                             <button type="submit" class="btn" id="submitTourProBtn" disabled title="Fill all required fields (contact and email are optional).">
-                                Continue <i class="ri-arrow-right-line ms-1"></i>
+                                <span class="ctp-btn-spinner spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                <span class="ctp-btn-label">Continue</span>
+                                <i class="ri-arrow-right-line ms-1 ctp-btn-arrow"></i>
                             </button>
                         </div>
                     </div>
@@ -2799,6 +2801,8 @@
         function ctpUpdateSubmitButtonState() {
             const btn = document.getElementById('submitTourProBtn');
             if (!btn) return;
+            // Keep Continue locked while submitting (loader active)
+            if (btn.classList.contains('is-loading')) return;
             let ok = true;
 
             const start = (document.getElementById('tourStartDate')?.value || '').trim();
@@ -3982,6 +3986,20 @@
                 e.preventDefault();
                 alert('At least one adult is required.');
                 return false;
+            }
+
+            // Show loader on Continue while the form posts / navigates
+            const submitBtn = document.getElementById('submitTourProBtn');
+            if (submitBtn && !submitBtn.classList.contains('is-loading')) {
+                submitBtn.classList.add('is-loading');
+                submitBtn.disabled = true;
+                submitBtn.setAttribute('aria-busy', 'true');
+                const spinner = submitBtn.querySelector('.ctp-btn-spinner');
+                const label = submitBtn.querySelector('.ctp-btn-label');
+                const arrow = submitBtn.querySelector('.ctp-btn-arrow');
+                if (spinner) spinner.classList.remove('d-none');
+                if (label) label.textContent = 'Continuing...';
+                if (arrow) arrow.classList.add('d-none');
             }
         });
 
