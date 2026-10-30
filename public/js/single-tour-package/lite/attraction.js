@@ -1070,35 +1070,45 @@
                     && !!(row.isOnlineAttraction || row.attractionSourceType === 'online' || row.order_type === 'online')
                     && !!String(row.voucher_code || '').trim();
 
-                if (needsVoucherCancel) {
-                    cancelOnlineAttractionFromLiteEdit(row).then(function (ok) {
-                        if (!ok) return;
-                        var nextRows = readChunk(root);
-                        var stillIdx = nextRows.findIndex(function (r) {
-                            if (!r) return false;
-                            if (row._booking_id && r._booking_id && String(r._booking_id) === String(row._booking_id)) return true;
-                            if (row._order_id && r._order_id && String(r._order_id) === String(row._order_id)) return true;
-                            if (row.voucher_code && r.voucher_code && String(r.voucher_code) === String(row.voucher_code)) return true;
-                            return false;
-                        });
-                        if (stillIdx < 0) stillIdx = removeIdx;
-                        if (stillIdx >= 0 && stillIdx < nextRows.length) nextRows.splice(stillIdx, 1);
-                        writeChunk(root, nextRows);
-                        root.__editingIdx = null;
-                        setAddMode(root, false);
-                        renderAdded(root);
+                var dropAttractionRow = function () {
+                    var nextRows = readChunk(root);
+                    var stillIdx = nextRows.findIndex(function (r) {
+                        if (!r) return false;
+                        if (row._booking_id && r._booking_id && String(r._booking_id) === String(row._booking_id)) return true;
+                        if (row._order_id && r._order_id && String(r._order_id) === String(row._order_id)) return true;
+                        if (row.voucher_code && r.voucher_code && String(r.voucher_code) === String(row.voucher_code)) return true;
+                        return false;
                     });
+                    if (stillIdx < 0) stillIdx = removeIdx;
+                    if (stillIdx >= 0 && stillIdx < nextRows.length) nextRows.splice(stillIdx, 1);
+                    writeChunk(root, nextRows);
+                    root.__editingIdx = null;
+                    setAddMode(root, false);
+                    renderAdded(root);
+                };
+
+                if (needsVoucherCancel) {
+                    var cancelThenDrop = function () {
+                        cancelOnlineAttractionFromLiteEdit(row).then(function (ok) {
+                            if (!ok) return;
+                            dropAttractionRow();
+                        });
+                    };
+                    if (tourStatus === 'definite'
+                        && window.StpLiteTransportShared
+                        && window.StpLiteTransportShared.requestServiceRemoval) {
+                        window.StpLiteTransportShared.requestServiceRemoval(row, cancelThenDrop, 'Attraction');
+                    } else {
+                        cancelThenDrop();
+                    }
                     return;
                 }
 
-                if (!(window.StpLiteTransportShared && window.StpLiteTransportShared.confirmRemoveService
-                    ? window.StpLiteTransportShared.confirmRemoveService()
-                    : window.confirm('Are you sure you want to remove this service?'))) return;
-                rows.splice(removeIdx, 1);
-                writeChunk(root, rows);
-                root.__editingIdx = null;
-                setAddMode(root, false);
-                renderAdded(root);
+                if (window.StpLiteTransportShared && window.StpLiteTransportShared.requestServiceRemoval) {
+                    window.StpLiteTransportShared.requestServiceRemoval(row, dropAttractionRow, 'Attraction');
+                } else if (window.confirm('Are you sure you want to remove this service?')) {
+                    dropAttractionRow();
+                }
                 return;
             }
             var editBtn = e.target.closest('.attraction-edit-added');
