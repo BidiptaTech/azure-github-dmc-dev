@@ -844,6 +844,277 @@ class BookingsController extends Controller
     }
 
     /**
+     * Customer sell for one order, including markup already stored on the service.
+     * Markup is added only when the stored total is still the base price.
+     *
+     * @return array{amount: float, currency: string}
+     */
+    private function orderPriceWithMarkup(Order $order, int $isPro = 0): array
+    {
+        $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+        $items = [];
+        if (is_array($data)) {
+            $items = (isset($data[0]) && is_array($data[0])) ? $data : [$data];
+        }
+
+        $sell = 0.0;
+        $extraMarkup = 0.0;
+        $currency = trim((string) ($order->currency ?? ''));
+        $orderType = (string) ($order->type ?? '');
+
+        foreach ($items as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            if ($currency === '') {
+                $currency = trim((string) ($item['currency'] ?? ''));
+            }
+
+            $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? $item['grand_total'] ?? 0);
+            $transferPrice = 0.0;
+            if ($orderType !== 'hotel' && isset($item['transfer_options']) && is_array($item['transfer_options'])) {
+                $transfer = $item['transfer_options'];
+                if ($isPro === 1 && isset($transfer['totalPrice'])) {
+                    $transferPrice = (float) $transfer['totalPrice'];
+                } elseif (isset($transfer['cost']) && (float) $transfer['cost'] > 0) {
+                    $transferPrice = (float) $transfer['cost'];
+                }
+            }
+
+            $guidePrice = 0.0;
+            if (isset($item['guide_options']) && is_array($item['guide_options'])) {
+                $guidePrice = (float) (
+                    $item['guide_options']['sell']
+                    ?? $item['guide_options']['Sell']
+                    ?? $item['guide_options']['total_price']
+                    ?? 0
+                );
+            }
+
+            $sell += $itemPrice + $transferPrice + $guidePrice;
+
+            $payload = is_array($item['price_payload'] ?? null) ? $item['price_payload'] : [];
+            $markup = is_array($item['dmc_profile_markup'] ?? null)
+                ? $item['dmc_profile_markup']
+                : (is_array($payload['dmc_profile_markup'] ?? null) ? $payload['dmc_profile_markup'] : null);
+            if (! is_array($markup)) {
+                continue;
+            }
+
+            $markupAmount = (float) ($markup['markup_amount'] ?? 0);
+            $base = (float) (
+                $markup['base_price']
+                ?? $payload['base_grand_total']
+                ?? $item['base_grand_total']
+                ?? 0
+            );
+            if ($markupAmount > 0 && $base > 0 && abs($itemPrice - $base) < 0.02) {
+                $extraMarkup += $markupAmount;
+            }
+        }
+
+        return [
+            'amount' => round(max(0, $sell + $extraMarkup), 2),
+            'currency' => $currency,
+        ];
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection|array<int, mixed>  $tours
+     */
+    private function attachRefundPrices($tours): void
+    {
+        if ($tours === null) {
+            return;
+        }
+
+        foreach ($tours as $tour) {
+            $isPro = (int) ($tour->is_pro ?? 0);
+            $orders = $tour->relationLoaded('booking') ? $tour->booking : collect();
+            foreach ($orders as $order) {
+                $priced = $this->orderPriceWithMarkup($order, $isPro);
+                $order->setAttribute('refund_price_with_markup', $priced['amount']);
+                $order->setAttribute('refund_price_currency', $priced['currency']);
+            }
+        }
+    }
+
+    /**
+     * Full tour sell with markup: every booking order on the tour.
+     *
+     * @return array{amount: float, currency: string}
+     */
+    private function tourPriceWithMarkup(Tour $tour): array
+    {
+        $orders = Order::withTrashed()
+            ->where('tour_id', $tour->tour_id)
+            ->where('bookingType', 'booking')
+            ->get();
+
+        $sum = 0.0;
+        $currency = '';
+        $isPro = (int) ($tour->is_pro ?? 0);
+        foreach ($orders as $order) {
+            $priced = $this->orderPriceWithMarkup($order, $isPro);
+            $sum += $priced['amount'];
+            if ($currency === '' && $priced['currency'] !== '') {
+                $currency = $priced['currency'];
+            }
+        }
+
+        return [
+            'amount' => round(max(0, $sum), 2),
+            'currency' => $currency,
+        ];
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection|array<int, mixed>  $tours
+     */
+    private function attachTourRefundPrices($tours): void
+    {
+        if ($tours === null) {
+            return;
+        }
+
+        $tourIds = [];
+        foreach ($tours as $tour) {
+            if (! empty($tour->tour_id)) {
+                $tourIds[] = $tour->tour_id;
+            }
+        }
+        $savedAmounts = $tourIds === []
+            ? collect()
+            : Tour::whereIn('tour_id', $tourIds)->pluck('refund_amount', 'tour_id');
+
+        foreach ($tours as $tour) {
+            $saved = $savedAmounts[$tour->tour_id] ?? null;
+            $tour->setAttribute('saved_refund_amount', $saved !== null && $saved !== '' ? $saved : null);
+
+            if (($tour->tour_status ?? '') !== 'Refund - Pending') {
+                continue;
+            }
+            $priced = $this->tourPriceWithMarkup($tour);
+            $tour->setAttribute('tour_refund_max', $priced['amount']);
+            $tour->setAttribute('tour_refund_currency', $priced['currency']);
+        }
+    }
+
+    /**
+     * Tour total, paid, and due for the refunds list.
+     * A cancelled tour uses every booking, including removed services.
+     * A partial refund uses the services still on the tour.
+     *
+     * @param  \Illuminate\Support\Collection|array<int, mixed>  $tours
+     */
+    private function attachTourMoneySummary($tours): void
+    {
+        if ($tours === null) {
+            return;
+        }
+
+        $tourIds = [];
+        foreach ($tours as $tour) {
+            if (! empty($tour->tour_id)) {
+                $tourIds[] = (int) $tour->tour_id;
+            }
+        }
+        $tourIds = array_values(array_unique($tourIds));
+        if ($tourIds === []) {
+            return;
+        }
+
+        $ordersByTour = Order::withTrashed()
+            ->whereIn('tour_id', $tourIds)
+            ->where('bookingType', 'booking')
+            ->get()
+            ->groupBy('tour_id');
+
+        $enquiriesByTour = Enquiry::whereIn('tour_id', $tourIds)
+            ->orderByDesc('enquiry_id')
+            ->get(['enquiry_id', 'tour_id', 'status', 'amount'])
+            ->groupBy('tour_id');
+
+        foreach ($tours as $tour) {
+            $isTourCancel = in_array($tour->tour_status ?? '', ['Refund - Pending', 'Refunded'], true);
+            $tourOrders = $ordersByTour->get($tour->tour_id, collect());
+            if (! $isTourCancel) {
+                $tourOrders = $tourOrders->filter(function ($order) {
+                    return $order->deleted_at === null;
+                });
+            }
+
+            $sell = 0.0;
+            $orderCurrency = '';
+            $isPro = (int) ($tour->is_pro ?? 0);
+            foreach ($tourOrders as $order) {
+                $priced = $this->orderPriceWithMarkup($order, $isPro);
+                $sell += $priced['amount'];
+                if ($orderCurrency === '' && $priced['currency'] !== '') {
+                    $orderCurrency = $priced['currency'];
+                }
+            }
+
+            $gross = round($sell);
+            $markupType = $tour->markup_type ?? null;
+            $markupRaw = (float) ($tour->markup_amount ?? 0);
+            $markupOn = ((int) ($tour->markup ?? 0) === 1)
+                && $markupRaw > 0
+                && in_array($markupType, ['percentage', 'flat'], true);
+            $markupMoney = $markupOn
+                ? ($markupType === 'percentage' ? ($gross * $markupRaw / 100) : $markupRaw)
+                : 0.0;
+
+            $discountType = $tour->discount_type ?? null;
+            $discountRaw = (float) ($tour->discount_amount ?? 0);
+            $discountBase = $gross + max(0, $markupMoney);
+            $discountMoney = $discountType === 'percentage'
+                ? ($discountBase * $discountRaw / 100)
+                : $discountRaw;
+            $net = (int) ceil(max(0, $gross + max(0, $markupMoney) - max(0, $discountMoney)));
+
+            $enquiryRows = $enquiriesByTour->get($tour->tour_id, collect());
+            $confirmed = $enquiryRows->first(function ($enquiry) {
+                return (int) ($enquiry->status ?? 0) === 2 && (float) ($enquiry->amount ?? 0) > 0;
+            });
+            $latest = $enquiryRows->first(function ($enquiry) {
+                return (float) ($enquiry->amount ?? 0) > 0;
+            });
+            $negotiated = $confirmed
+                ? (float) $confirmed->amount
+                : ($latest ? (float) $latest->amount : 0.0);
+            $base = $negotiated > 0 ? $negotiated : $net;
+
+            $persons = (int) ($tour->adult ?? 0) + (int) ($tour->child ?? 0);
+            $days = \App\Helpers\TaxHelper::calculateDays($tour->check_in_time, $tour->check_out_time);
+            $tax = \App\Helpers\TaxHelper::calculateTourTaxes($base, $tour->taxes ?? null, $persons, $days);
+            $total = round($base + (float) ($tax['total_tax'] ?? 0), 2);
+
+            $payments = is_string($tour->payment_details)
+                ? json_decode($tour->payment_details, true)
+                : $tour->payment_details;
+            $paid = 0.0;
+            if (is_array($payments)) {
+                foreach ($payments as $payment) {
+                    if (is_array($payment) && (int) ($payment['status'] ?? 0) === 1) {
+                        $paid += (float) ($payment['amount'] ?? 0);
+                    }
+                }
+            }
+            $paid = round($paid, 2);
+
+            $userCurrency = trim((string) ($tour->user_currency ?? ''));
+            $moneyCurrency = $userCurrency !== '' ? $userCurrency : $orderCurrency;
+
+            $tour->setAttribute('money_total', $total);
+            $tour->setAttribute('money_paid', $paid);
+            $tour->setAttribute('money_due', round($total - $paid, 2));
+            $tour->setAttribute('money_currency', strtoupper($moneyCurrency));
+        }
+    }
+
+    /**
      * Build service-wise sell/cost rows for country negotiation profit visibility.
      *
      * @return array<int, array<string, mixed>>
@@ -2903,6 +3174,13 @@ class BookingsController extends Controller
                 'tours.check_out_time',
                 'tours.tour_status',
                 'tours.payment_details',
+                'tours.taxes',
+                'tours.user_currency',
+                'tours.markup',
+                'tours.markup_type',
+                'tours.markup_amount',
+                'tours.discount_type',
+                'tours.discount_amount',
                 'tours.created_at',
                 'tours.updated_at',
                 'tours.auto_cancel_date',
@@ -2983,6 +3261,13 @@ class BookingsController extends Controller
                 'tours.check_out_time',
                 'tours.tour_status',
                 'tours.payment_details',
+                'tours.taxes',
+                'tours.user_currency',
+                'tours.markup',
+                'tours.markup_type',
+                'tours.markup_amount',
+                'tours.discount_type',
+                'tours.discount_amount',
                 'tours.created_at',
                 'tours.updated_at',
                 'tours.auto_cancel_date',
@@ -3002,6 +3287,9 @@ class BookingsController extends Controller
         
         $currency = CommonHelper::getDmcCurrencyByCountry();
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
+        $this->attachRefundPrices($tours);
+        $this->attachTourRefundPrices($tours);
+        $this->attachTourMoneySummary($tours);
         $this->hydrateDestinationCreatedAt($tours);
         return view('bookings.refunds', compact('tours', 'country_tax', 'currency'));
     }
@@ -3013,13 +3301,14 @@ class BookingsController extends Controller
     {
         try {
             $validator = Validator::make($request->all(), [
-                'tour_id' => 'required|integer|exists:tours,tour_id'
+                'tour_id' => 'required|integer|exists:tours,tour_id',
+                'refund_amount' => 'required|numeric|min:0',
             ]);
 
             if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Invalid tour ID provided'
+                    'message' => $validator->errors()->first() ?: 'Invalid tour ID provided'
                 ], 422);
             }
 
@@ -3037,9 +3326,21 @@ class BookingsController extends Controller
                 ], 404);
             }
 
+            $price = $this->tourPriceWithMarkup($tour);
+            $maxAmount = (float) $price['amount'];
+            $refundAmount = round((float) $request->input('refund_amount'), 2);
+            if ($refundAmount - $maxAmount > 0.009) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Refund amount cannot be higher than the tour price with markup (' . number_format($maxAmount, 2, '.', '') . ').',
+                    'max_refund_amount' => $maxAmount,
+                ], 422);
+            }
+
             // Update tour status to Refunded and track transition
             $oldStatus = $tour->tour_status; // Should be 'Refund - Pending'
             $tour->tour_status = 'Refunded';
+            $tour->refund_amount = $refundAmount;
             $tour->updated_at = now();
 
             // Append to track_details history: Refund - Pending -> Refunded
@@ -3056,7 +3357,8 @@ class BookingsController extends Controller
                 'success' => true,
                 'message' => 'Refund processed successfully',
                 'tour_id' => $tourId,
-                'new_status' => 'Refunded'
+                'new_status' => 'Refunded',
+                'refund_amount' => $refundAmount,
             ]);
 
         } catch (\Exception $e) {
@@ -3163,20 +3465,23 @@ class BookingsController extends Controller
             $validator = Validator::make($request->all(), [
                 'tour_id' => 'required|integer|exists:tours,tour_id',
                 'order_id' => 'required|integer',
+                'action' => 'required|in:initiate,verify',
+                'refund_amount' => 'required_if:action,initiate|nullable|numeric|min:0',
             ]);
 
             if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Invalid input provided'
+                    'message' => $validator->errors()->first() ?: 'Invalid input provided'
                 ], 422);
             }
 
             $tourId = (int) $request->tour_id;
             $orderId = (int) $request->order_id;
+            $action = (string) $request->input('action');
             $roleId = (int) (Auth::user()->role_id ?? 0);
-            $holdRoles = [33, 12, 37, 38];
-            $financeRoles = [36, 126, 127];
+            // DMC (11), multi-role, and finance can initiate and later verify the same service.
+            $actorRoles = [11, 12, 33, 34, 36, 37, 38, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138];
 
             $order = Order::withTrashed()
                 ->where('tour_id', $tourId)
@@ -3195,39 +3500,80 @@ class BookingsController extends Controller
                 ], 404);
             }
 
-            if (in_array($roleId, $holdRoles, true)) {
-                $order->is_verify = 2; // hold
-                $order->updated_at = now();
-                $order->save();
-
+            if (! in_array($roleId, $actorRoles, true)) {
                 return response()->json([
-                    'success' => true,
-                    'message' => 'Selected service moved to hold for finance verification.',
-                    'tour_id' => $tourId,
-                    'order_id' => $orderId,
-                    'is_verify' => 2
-                ]);
+                    'success' => false,
+                    'message' => 'You are not authorized to perform this action.'
+                ], 403);
             }
 
-            if (in_array($roleId, $financeRoles, true)) {
-                $order->is_verify = 1; // accepted
+            if ((bool) ($order->refunded ?? false)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This service refund is already verified.'
+                ], 422);
+            }
+
+            $initiated = (int) ($order->is_verify ?? 0) === 2;
+
+            if ($action === 'verify') {
+                if (! $initiated) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Initiate the refund before verifying it.'
+                    ], 422);
+                }
+
+                $order->is_verify = 1;
                 $order->refunded = true;
                 $order->updated_at = now();
                 $order->save();
 
                 return response()->json([
                     'success' => true,
-                    'message' => 'Finance verification completed and selected service marked refunded.',
+                    'message' => 'Refund verified.',
                     'tour_id' => $tourId,
                     'order_id' => $orderId,
-                    'is_verify' => 1
+                    'is_verify' => 1,
+                    'refund_amount' => $order->refund_amount,
                 ]);
             }
 
+            if ($initiated) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This refund is already initiated. Verify it instead of entering the amount again.'
+                ], 422);
+            }
+
+            $tour = Tour::where('tour_id', $tourId)->first();
+            $price = $this->orderPriceWithMarkup($order, (int) ($tour->is_pro ?? 0));
+            $maxAmount = (float) $price['amount'];
+            $refundAmount = round((float) $request->input('refund_amount'), 2);
+
+            if ($refundAmount - $maxAmount > 0.009) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Refund amount cannot be higher than the order price with markup (' . number_format($maxAmount, 2, '.', '') . ').',
+                    'max_refund_amount' => $maxAmount,
+                ], 422);
+            }
+
+            $order->refund_amount = $refundAmount;
+            $order->is_verify = 2;
+            $order->refunded = false;
+            $order->updated_at = now();
+            $order->save();
+
             return response()->json([
-                'success' => false,
-                'message' => 'You are not authorized to perform this action.'
-            ], 403);
+                'success' => true,
+                'message' => 'Refund initiated. It is waiting for verification.',
+                'tour_id' => $tourId,
+                'order_id' => $orderId,
+                'is_verify' => 2,
+                'refund_amount' => $refundAmount,
+                'max_refund_amount' => $maxAmount,
+            ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

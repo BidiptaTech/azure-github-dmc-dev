@@ -28924,6 +28924,91 @@ input[type="file"].form-control:hover {
 {{-- Re-include last so reject/voucher overrides win over earlier inline definitions --}}
 @include('bookings.partials.attraction-voucher-scripts')
 
+<script>
+(function () {
+    var refundReason = 'Rejected for refund processing';
+    var refundsUrl = @json(route('bookings.refunds'));
+
+    function hideOpenModals() {
+        document.querySelectorAll('.modal.show').forEach(function (el) {
+            if (window.bootstrap && bootstrap.Modal) {
+                var inst = bootstrap.Modal.getInstance(el);
+                if (inst) inst.hide();
+            }
+        });
+    }
+
+    function afterRefundReject(data) {
+        if (!data || data.success !== true) {
+            var message = (data && data.message) ? data.message : 'Could not reject this service.';
+            if (window.Swal) {
+                Swal.fire({ icon: 'error', title: 'Reject failed', text: message });
+            } else {
+                alert(message);
+            }
+            return;
+        }
+        if (!window.Swal) {
+            alert('Service sent to Refunds. Initiate the amount there, then verify the refund.');
+            window.location.href = refundsUrl;
+            return;
+        }
+        Swal.fire({
+            icon: 'success',
+            title: 'Sent to Refunds',
+            html: 'Initiate the refund amount on the Refunds page, then verify it.',
+            showCancelButton: true,
+            confirmButtonText: 'Open Refunds',
+            cancelButtonText: 'Stay here',
+            confirmButtonColor: '#4f46e5'
+        }).then(function (result) {
+            window.location.href = result.isConfirmed ? refundsUrl : window.location.href;
+        });
+    }
+
+    function postRefundReject(url, fields) {
+        hideOpenModals();
+        var token = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+        var payload = Object.assign({ cancel_reason: refundReason }, fields);
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': token
+            },
+            body: JSON.stringify(payload)
+        }).then(function (response) {
+            return response.json().catch(function () { return { success: false, message: 'Could not reject this service.' }; });
+        }).then(afterRefundReject).catch(function () {
+            afterRefundReject({ success: false, message: 'Could not reject this service.' });
+        });
+    }
+
+    function bindReject(name, serviceType, url, indexKey) {
+        window[name] = function (tourId, orderIndex, bookingIndex) {
+            showRejectServiceAlert(serviceType, function () {
+                var fields = { tour_id: tourId, booking_index: bookingIndex };
+                fields[indexKey] = orderIndex;
+                postRefundReject(url, fields);
+            }, tourId);
+        };
+    }
+
+    bindReject('rejectIndividualHotel', 'hotel', @json(url('/booking/reject-hotel-booking')), 'hotel_order_index');
+    bindReject('rejectIndividualRestaurant', 'restaurant', @json(url('/booking/reject-restaurant-booking')), 'restaurant_order_index');
+    bindReject('rejectIndividualAttraction', 'attraction', @json(url('/booking/reject-attraction-booking')), 'attraction_order_index');
+    bindReject('rejectIndividualGuide', 'guide', @json(url('/booking/reject-guide-booking')), 'guide_order_index');
+    bindReject('rejectTravelHourlyBooking', 'hourly', @json(url('/booking/reject-hourly-booking')), 'hourly_order_index');
+    bindReject('rejectIndividualTravelHourly', 'hourly', @json(url('/booking/reject-hourly-booking')), 'hourly_order_index');
+    bindReject('rejectArrivalBooking', 'arrival', @json(url('/booking/reject-arrival-booking')), 'arrival_order_index');
+    bindReject('rejectDepartureBooking', 'departure', @json(url('/booking/reject-departure-booking')), 'departure_order_index');
+    bindReject('rejectTravelPointBooking', 'point_to_point', @json(url('/booking/reject-point-to-point-booking')), 'hourly_order_index');
+    bindReject('rejectIndividualTravelPoint', 'point_to_point', @json(url('/booking/reject-point-to-point-booking')), 'hourly_order_index');
+    bindReject('rejectIndividualLocalTransport', 'local_transport', @json(url('/booking/reject-local-transport-booking')), 'hourly_order_index');
+})();
+</script>
+
 @endsection
 
 @extends('layouts.datatablejs')
