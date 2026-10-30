@@ -73,7 +73,7 @@ class OrderController extends Controller
             }
 
             // Create and save order
-            $order = new Order();
+            $order = new Order(); 
             $order->agent_id = $validated['agent_id'];
             $order->tour_id = $validated['tour_id'];
             $order->type = $validated['type'];

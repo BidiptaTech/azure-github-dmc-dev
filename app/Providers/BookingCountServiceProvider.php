@@ -6,7 +6,11 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Tour;
+use App\Models\Order;
 use App\Models\User;
+use App\Models\PackageBooking;
+use Illuminate\Support\Facades\Schema;
+use App\Helpers\CommonHelper;
 
 class BookingCountServiceProvider extends ServiceProvider
 {
@@ -33,46 +37,34 @@ class BookingCountServiceProvider extends ServiceProvider
             $dmc_id = null;
             
             if ($user) {
-                // Determine DMC ID based on user role
-                if ($user->role_id == 11) { // DMC
+                $dmc_id = CommonHelper::getDmcId($user) ?: $dmc_id;
+                if (!$dmc_id && (int) ($user->role_id ?? 0) === 11) {
                     $dmc_id = $user->userId;
-                } else if (in_array($user->role_id, [33, 34, 36, 128, 129, 130, 134, 135, 136, 138])) { // Sales Head, Sales Manager, Assistant Sales Manager
-                    $dmc_id = $user->created_by;
-                }
-                elseif($user->role_id == 37 || $user->role_id == 126 || $user->role_id == 124){
-                    $sales_manager_id = $user->userId;
-                    $sales_head_id = $user->created_by;
-                    $sales_head = User::where('userId', $sales_head_id)->first();
-                    $dmc_id = $sales_head->created_by;
-                }
-                elseif($user->role_id == 38 || $user->role_id == 127 || $user->role_id == 125){
-                    $assistant_sales_manager_id = $user->userId;
-                    $sales_manager_id = $user->created_by;
-                    $sales_manager = User::where('userId', $sales_manager_id)->first();
-                    $sales_head_id = $sales_manager->created_by;
-                    $sales_head = User::where('userId', $sales_head_id)->first();
-                    $dmc_id = $sales_head->created_by;
                 }
             }
             
             $bookingCounts = [
-                'new_enquiries' => $this->getTourCountWithDmcFilter('New Enquiry', $currentMonthStart, $currentMonthEnd, $dmc_id),
-                'follow_ups' => $this->getTourCountWithDmcFilter(['Prospect', 'Tentative'], $currentMonthStart, $currentMonthEnd, $dmc_id),
-                'confirmed' => $this->getTourCountWithDmcFilter('Confirmed', $currentMonthStart, $currentMonthEnd, $dmc_id),
-                'definite' => $this->getTourCountWithDmcFilter('Definite', $currentMonthStart, $currentMonthEnd, $dmc_id),
-                'actual' => $this->getTourCountWithDmcFilter('Actual', $currentMonthStart, $currentMonthEnd, $dmc_id),
-                'cancelled' => $this->getCancelledTourCount($currentMonthStart, $currentMonthEnd, $dmc_id),
-                'refunds' => $this->getTourCountWithDmcFilter(['Refund - Pending', 'Refunded'], $currentMonthStart, $currentMonthEnd, $dmc_id),
+                'new_enquiries' => $this->getTourCountWithDmcFilter('New Enquiry', $currentMonthStart, $currentMonthEnd, $dmc_id, $user),
+                'follow_ups' => $this->getTourCountWithDmcFilter(['Prospect', 'Tentative'], $currentMonthStart, $currentMonthEnd, $dmc_id, $user),
+                'confirmed' => $this->getTourCountWithDmcFilter('Confirmed', $currentMonthStart, $currentMonthEnd, $dmc_id, $user),
+                'definite' => $this->getTourCountWithDmcFilter('Definite', $currentMonthStart, $currentMonthEnd, $dmc_id, $user),
+                'actual' => $this->getTourCountWithDmcFilter('Actual', $currentMonthStart, $currentMonthEnd, $dmc_id, $user),
+                'cancelled' => $this->getCancelledTourCount($currentMonthStart, $currentMonthEnd, $dmc_id, $user),
+                // Refunds badge: distinct tours that have refund-marked removed services in current month.
+                'refunds' => $this->getRefundTourCount($currentMonthStart, $currentMonthEnd, $dmc_id, $user),
             ];
 
+            $packageBookingCounts = $this->getPackageBookingCounts($currentMonthStart, $currentMonthEnd, $dmc_id);
+
             $view->with('bookingCounts', $bookingCounts);
+            $view->with('packageBookingCounts', $packageBookingCounts);
         });
     }
 
     /**
-     * Get tour count with DMC filter
+     * Get tour count with DMC + multi-country destination access (same as booking lists).
      */
-    private function getTourCountWithDmcFilter($status, $startDate, $endDate, $dmc_id)
+    private function getTourCountWithDmcFilter($status, $startDate, $endDate, $dmc_id, $user = null)
     {
         $query = Tour::where('created_at', '>=', $startDate)
             ->where('created_at', '<=', $endDate);
@@ -84,31 +76,96 @@ class BookingCountServiceProvider extends ServiceProvider
             $query->where('tour_status', $status);
         }
 
-        // Apply DMC filter if DMC ID is available
-        if ($dmc_id) {
-            $query->where('dmc_id', $dmc_id);
-        }
+        $this->applySidebarDmcAccess($query, $dmc_id, $user, 'dmc_id', 'destination');
 
         return $query->count();
     }
 
     /**
-     * Get cancelled tour count with DMC filter
+     * Get cancelled tour count with DMC + multi-country access.
      */
-    private function getCancelledTourCount($startDate, $endDate, $dmc_id)
+    private function getCancelledTourCount($startDate, $endDate, $dmc_id, $user = null)
     {
-        $query = Tour::where(function($query) {
+        $query = Tour::where(function ($query) {
                 $query->where('tour_status', 'LIKE', 'Cancel%')
                       ->orWhere('tour_status', 'LIKE', '%Cancel%');
             })
             ->where('created_at', '>=', $startDate)
             ->where('created_at', '<=', $endDate);
 
-        // Apply DMC filter if DMC ID is available
-        if ($dmc_id) {
-            $query->where('dmc_id', $dmc_id);
-        }
+        $this->applySidebarDmcAccess($query, $dmc_id, $user, 'dmc_id', 'destination');
 
         return $query->count();
+    }
+
+    /**
+     * Refunds count for sidebar:
+     * distinct tour_id from orders where removed/refund service rows are marked is_refund = 1
+     * within current month (based on deleted_at, fallback updated_at), with multi-country DMC access.
+     */
+    private function getRefundTourCount($startDate, $endDate, $dmc_id, $user = null): int
+    {
+        $query = Order::withTrashed()
+            ->join('tours', 'orders.tour_id', '=', 'tours.tour_id')
+            ->where('orders.bookingType', 'booking')
+            ->where('orders.is_refund', 1)
+            ->where(function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('orders.deleted_at', [$startDate, $endDate])
+                  ->orWhere(function ($inner) use ($startDate, $endDate) {
+                      $inner->whereNull('orders.deleted_at')
+                            ->whereBetween('orders.updated_at', [$startDate, $endDate]);
+                  });
+            });
+
+        $this->applySidebarDmcAccess($query, $dmc_id, $user, 'tours.dmc_id', 'tours.destination');
+
+        return (int) $query->select('orders.tour_id')->distinct()->count('orders.tour_id');
+    }
+
+    /**
+     * Apply same multi-country sibling-DMC visibility used by booking lists.
+     */
+    private function applySidebarDmcAccess($query, $dmc_id, $user, string $dmcColumn, string $destinationColumn): void
+    {
+        if (!$dmc_id) {
+            return;
+        }
+
+        CommonHelper::applyTourDmcCountryAccess($query, $dmc_id, $user, $dmcColumn, $destinationColumn);
+    }
+
+    private function getPackageBookingCounts($startDate, $endDate, $dmc_id): array
+    {
+        $statusColumn = Schema::hasColumn('package_bookings', 'booking_status') ? 'booking_status' : 'status';
+
+        $base = PackageBooking::query()
+            ->whereBetween('created_at', [$startDate, $endDate]);
+
+        if ($dmc_id && Schema::hasColumn('package_bookings', 'dmc_id')) {
+            $base->where('dmc_id', $dmc_id);
+        }
+
+        $countFor = function ($statuses) use ($base, $statusColumn) {
+            $q = (clone $base);
+            if (is_array($statuses)) {
+                return $q->whereIn($statusColumn, $statuses)->count();
+            }
+            return $q->where($statusColumn, $statuses)->count();
+        };
+
+        $cancelled = (clone $base)->where(function ($q) use ($statusColumn) {
+            $q->where($statusColumn, 'Cancelled')
+              ->orWhere($statusColumn, 'like', 'Cancel%');
+        })->count();
+
+        return [
+            'new_enquiries' => $countFor('New Enquiry'),
+            'follow_ups' => $countFor(['Prospect', 'Tentative']),
+            'confirmed' => $countFor('Confirmed'),
+            'definite' => $countFor('Definite'),
+            'actual' => $countFor(['Actual', 'Complete']),
+            'cancelled' => $cancelled,
+            'refunds' => $countFor(['Refund - Pending', 'Refunded']),
+        ];
     }
 }

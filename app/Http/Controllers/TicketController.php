@@ -23,33 +23,31 @@ class TicketController extends Controller
         // }
 
         $auth_user = Auth::user();
-        $tickets = [];
+        $query = Ticket::with(['dmc:userId,name,company_name', 'createdByUser:userId,name']);
 
         if($auth_user->role_id == 1 || $auth_user->role_id == 20){
             // Admin and Virtual DMC can see all tickets
-            $tickets = Ticket::all();
         }else if($auth_user->role_id == 11){
             // Regular DMC sees only their tickets
-            $tickets = Ticket::where('dmc_id', $auth_user->userId)->get();
+            $query->where('dmc_id', $auth_user->userId);
         }else if($auth_user->role_id == 35 || in_array($auth_user->role_id, [130, 132, 133, 135, 136, 137, 138, 139, 140])){
             // Sub-users see tickets of their parent DMC
-            $dmc_id = $auth_user->created_by;
-            $tickets = Ticket::where('dmc_id', $dmc_id)->get();
+            $query->where('dmc_id', $auth_user->created_by);
         }else if($auth_user->role_id == 78){
             // Sales executive sees tickets of their DMC
             $sales_head = User::where('userId', $auth_user->created_by)->first();
-            $dmc_id = $sales_head->created_by;
-            $tickets = Ticket::where('dmc_id', $dmc_id)->get();
+            $query->where('dmc_id', $sales_head->created_by);
         }else if($auth_user->role_id == 120){
             // Sales manager sees tickets of their DMC
             $sales_manager = User::where('userId', $auth_user->created_by)->first();
             $sales_head = User::where('userId', $sales_manager->created_by)->first();
-            $dmc_id = $sales_head->created_by;
-            $tickets = Ticket::where('dmc_id', $dmc_id)->get();
+            $query->where('dmc_id', $sales_head->created_by);
         }else{
             // For other roles, show only their own tickets (fallback)
-            $tickets = Ticket::where('dmc_id', $auth_user->userId)->get();
+            $query->where('dmc_id', $auth_user->userId);
         }
+
+        $tickets = $query->get();
 
         return view('tickets.tickets', compact('tickets'));
     }
@@ -78,12 +76,29 @@ class TicketController extends Controller
         // Validate request data
         $request->validate([
             'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
+            'description' => ['required', 'string', function ($attribute, $value, $fail) {
+                if (trim(strip_tags($value ?? '')) === '') {
+                    $fail('Important Notes is required. Please fill in this field.');
+                }
+            }],
             'remarks' => 'nullable|string',
-            'terms_conditions' => 'nullable|string',
-            'child_price' => 'nullable|numeric|min:0',
-            'adult_price' => 'required|numeric|min:0',
-            'senior_adult_price' => 'nullable|numeric|min:0',
+            'terms_conditions' => ['required', 'string', function ($attribute, $value, $fail) {
+                if (trim(strip_tags($value ?? '')) === '') {
+                    $fail('Terms & Conditions is required. Please fill in this field.');
+                }
+            }],
+            'child_price' => 'nullable',
+            'adult_price' => 'required',
+            'senior_adult_price' => 'nullable',
+            'child_cost_price' => 'nullable',
+            'adult_cost_price' => 'nullable',
+            'senior_adult_cost_price' => 'nullable',
+            'child_price_nri' => 'nullable',
+            'adult_price_nri' => 'nullable',
+            'senior_adult_price_nri' => 'nullable',
+            'child_cost_price_nri' => 'nullable',
+            'adult_cost_price_nri' => 'nullable',
+            'senior_adult_cost_price_nri' => 'nullable',
             'status' => 'nullable|in:0,1',
         ]);
 
@@ -109,50 +124,58 @@ class TicketController extends Controller
         }
 
         // Generate a unique 8-digit ticket ID
-        $lastTicket = Ticket::withTrashed()->orderBy('ticket_id', 'desc')->first();
-        $ticketMaxId = $lastTicket ? $lastTicket->ticket_id : 10000000;
-        $ticketMaxId = max($ticketMaxId, 10000000) + 1;
+        // $lastTicket = Ticket::withTrashed()->orderBy('ticket_id', 'desc')->first();
+        // $ticketMaxId = $lastTicket ? $lastTicket->ticket_id : 10000000;
+        // $ticketMaxId = max($ticketMaxId, 10000000) + 1;
         
         // Ensure it's at least 8 digits
         DB::beginTransaction();
 
         try{
-            do {
-                // Lock the latest ticket row to avoid race condition
-                $lastTicket = Ticket::withTrashed()
-                    ->orderBy('ticket_id', 'desc')
-                    ->lockForUpdate()
-                    ->first();
+            // do {
+            //     // Lock the latest ticket row to avoid race condition
+            //     $lastTicket = Ticket::withTrashed()
+            //         ->orderBy('ticket_id', 'desc')
+            //         ->lockForUpdate()
+            //         ->first();
 
-                // Start from 10000000 if no ticket exists
-                $ticketMaxId = $lastTicket ? $lastTicket->ticket_id : 10000000;
-                $ticketMaxId = max($ticketMaxId, 10000000) + 1;
+            //     // Start from 10000000 if no ticket exists
+            //     // $ticketMaxId = $lastTicket ? $lastTicket->ticket_id : 10000000;
+            //     // $ticketMaxId = max($ticketMaxId, 10000000) + 1;
 
-            } while (Ticket::withTrashed()->where('ticket_id', $ticketMaxId)->exists());
+            // } while (Ticket::withTrashed()->where('ticket_id', $ticketMaxId)->exists());
             
             // Create a new ticket
             $ticket = new Ticket();
-            $ticket->ticket_id = $ticketMaxId;
+            // $ticket->ticket_id = $ticketMaxId;
             $ticket->name = $request->name;
             $ticket->description = $request->description;
             $ticket->remarks = $request->remarks;
             $ticket->terms_conditions = $request->terms_conditions;
             $ticket->child_price = $request->child_price;
+            $ticket->child_cost_price = $request->child_cost_price;
             $ticket->adult_price = $request->adult_price;
+            $ticket->adult_cost_price = $request->adult_cost_price;
             $ticket->senior_adult_price = $request->senior_adult_price;
+            $ticket->senior_adult_cost_price = $request->senior_adult_cost_price;
             $ticket->child_price_nri = $request->child_price_nri;
+            $ticket->child_cost_price_nri = $request->child_cost_price_nri;
             $ticket->adult_price_nri = $request->adult_price_nri;
+            $ticket->adult_cost_price_nri = $request->adult_cost_price_nri;
             $ticket->senior_adult_price_nri = $request->senior_adult_price_nri;
+            $ticket->senior_adult_cost_price_nri = $request->senior_adult_cost_price_nri;
             $ticket->status = $request->status ? 1 : 0;
             $ticket->created_by = Auth::user()->userId ?? null;
             $ticket->dmc_id = $dmc_id;
             $ticket->attraction_id = $attraction_id;
             $ticket->save();
+            $ticket->refresh();
 
             DB::commit();
             return redirect()->route('tickets.add_ticket', Crypt::encrypt($attraction_id))->with('success', 'Ticket created successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
+            dd($e);
             return redirect()->back()->with('error', 'Failed to create ticket.');
         }
     }
@@ -166,7 +189,9 @@ class TicketController extends Controller
         //     abort(403, 'You do not have permission to access this page.');
         // }
         $ticket_id = Crypt::decrypt($ticket_id);
-        $ticket = Ticket::where('ticket_id', $ticket_id)->first();
+        $ticket = Ticket::with(['dmc:userId,name,company_name', 'createdByUser:userId,name', 'updatedByUser:userId,name'])
+            ->where('ticket_id', $ticket_id)
+            ->first();
         if(!$ticket){
             return redirect()->back()->with('error', 'Ticket not found.');
         }
@@ -192,49 +217,38 @@ class TicketController extends Controller
                 $dmcUsers = User::where('role_id', 11)
                     ->where('user_type', 2)
                     ->whereIn('userId', $attractionDmcIds)
-                    ->select('userId', 'name', 'company_name')
+                    ->select('userId', 'name', 'company_name', 'currency')
                     ->orderBy('company_name', 'asc')
                     ->get();
             }
             // If attraction's dmc_id is null/empty, $dmcUsers remains empty collection
         }
         
+        $query = Ticket::with(['dmc:userId,name,company_name', 'createdByUser:userId,name'])
+            ->where('status', 1)
+            ->where('attraction_id', $attraction_id);
+
         if($auth_user->role_id == 1 || $auth_user->role_id == 20){
-        $tickets = Ticket::where('status', 1)
-            ->where('attraction_id', $attraction_id)
-            ->get();
+            // Admin and Virtual DMC can see all tickets for this attraction
         }else if($auth_user->role_id == 11){
-            $tickets = Ticket::where('status', 1)
-            ->where('attraction_id', $attraction_id)
-            ->where('dmc_id', $auth_user->userId)
-            ->get();
+            $query->where('dmc_id', $auth_user->userId);
         }else if($auth_user->role_id == 35 || in_array($auth_user->role_id, [130, 132, 133, 135, 136, 137, 138])){
             $userdmc = User::where('userId', $auth_user->created_by)->first();
-            $tickets = Ticket::where('status', 1)
-            ->where('attraction_id', $attraction_id)
-            ->where('dmc_id', $userdmc->userId)
-            ->get();
+            $query->where('dmc_id', $userdmc->userId);
         }else if($auth_user->role_id == 74 || $auth_user->role_id == 139){
             $user_product_head = User::where('userId', $auth_user->created_by)->first();
             $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
-            $tickets = Ticket::where('status', 1)
-            ->where('attraction_id', $attraction_id)
-            ->where('dmc_id', $user_product_head_dmc->userId)
-            ->get();
+            $query->where('dmc_id', $user_product_head_dmc->userId);
         }else if($auth_user->role_id == 93 || $auth_user->role_id == 140){
             $user_product_manager = User::where('userId', $auth_user->created_by)->first();
             $user_product_head = User::where('userId', $user_product_manager->created_by)->first();
             $user_product_head_dmc = User::where('userId', $user_product_head->created_by)->first();
-            $tickets = Ticket::where('status', 1)
-            ->where('attraction_id', $attraction_id)
-            ->where('dmc_id', $user_product_head_dmc->userId)
-            ->get();
+            $query->where('dmc_id', $user_product_head_dmc->userId);
         }else{
-            $tickets = Ticket::where('status', 1)
-            ->where('attraction_id', $attraction_id)
-            ->where('dmc_id', $auth_user->userId)
-            ->get();
+            $query->where('dmc_id', $auth_user->userId);
         }
+
+        $tickets = $query->get();
         return view('tickets.add-ticket', compact('attraction', 'tickets', 'auth_user', 'dmcUsers'));
     }
 
@@ -251,7 +265,11 @@ class TicketController extends Controller
         if(!$ticket){
             return redirect()->back()->with('error', 'Ticket not found.');
         }
-        return view('tickets.edit-ticket', compact('ticket'));
+
+        // Needed for currency-price-note on the edit ticket page
+        $auth_user = Auth::user();
+
+        return view('tickets.edit-ticket', compact('ticket', 'auth_user'));
     }
 
     /**
@@ -266,12 +284,29 @@ class TicketController extends Controller
         // Validate request data
         $request->validate([
             'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
+            'description' => ['required', 'string', function ($attribute, $value, $fail) {
+                if (trim(strip_tags($value ?? '')) === '') {
+                    $fail('Important Notes is required. Please fill in this field.');
+                }
+            }],
             'remarks' => 'nullable|string',
-            'terms_conditions' => 'nullable|string',
-            'child_price' => 'nullable|numeric|min:0',
-            'adult_price' => 'required|numeric|min:0',
-            'senior_adult_price' => 'nullable|numeric|min:0',
+            'terms_conditions' => ['required', 'string', function ($attribute, $value, $fail) {
+                if (trim(strip_tags($value ?? '')) === '') {
+                    $fail('Terms & Conditions is required. Please fill in this field.');
+                }
+            }],
+            'child_price' => 'nullable',
+            'adult_price' => 'required',
+            'senior_adult_price' => 'nullable',
+            'child_cost_price' => 'nullable',
+            'adult_cost_price' => 'nullable',
+            'senior_adult_cost_price' => 'nullable',
+            'child_price_nri' => 'nullable',
+            'adult_price_nri' => 'nullable',
+            'senior_adult_price_nri' => 'nullable',
+            'child_cost_price_nri' => 'nullable',
+            'adult_cost_price_nri' => 'nullable',
+            'senior_adult_cost_price_nri' => 'nullable',
             'status' => 'nullable|in:0,1',
         ]);
         $ticket_id = Crypt::decrypt($ticket_id);
@@ -286,11 +321,17 @@ class TicketController extends Controller
         $ticket->remarks = $request->remarks;
         $ticket->terms_conditions = $request->terms_conditions;
         $ticket->child_price = $request->child_price;
+        $ticket->child_cost_price = $request->child_cost_price;
         $ticket->adult_price = $request->adult_price;
+        $ticket->adult_cost_price = $request->adult_cost_price;
         $ticket->senior_adult_price = $request->senior_adult_price;
+        $ticket->senior_adult_cost_price = $request->senior_adult_cost_price;
         $ticket->child_price_nri = $request->child_price_nri;
+        $ticket->child_cost_price_nri = $request->child_cost_price_nri;
         $ticket->adult_price_nri = $request->adult_price_nri;
+        $ticket->adult_cost_price_nri = $request->adult_cost_price_nri;
         $ticket->senior_adult_price_nri = $request->senior_adult_price_nri;
+        $ticket->senior_adult_cost_price_nri = $request->senior_adult_cost_price_nri;
         $ticket->status = $request->has('status') ? 1 : 0;
         $ticket->updated_by = Auth::user()->userId ?? null;
         

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en" class="light-style layout-navbar-fixed layout-menu-fixed layout-compact " dir="ltr"
-  data-theme="theme-bordered" data-assets-path="{{ env('APP_URL') . '/assets/'}}"
+  data-theme="theme-bordered" data-assets-path="{{ rtrim(url('/'), '/') . '/assets/' }}"
   data-template="vertical-menu-template-bordered"
   data-style="light">
 <head>
@@ -11,12 +11,22 @@
 @include('layouts.header')  
 @yield('css')
 @stack('css')
+<link rel="stylesheet" href="{{ asset('css/style.css') }}">
 </head>
+<body>
 @include('layouts.sidebar')
 @include('layouts.topbar')
 
 @yield('content')  
 @include('layouts.footer') 
+<!-- Close layout-page + layout-container (opened in sidebar/topbar) -->
+</div>
+</div>
+<!-- Mobile sidebar backdrop (click to close) -->
+<div class="layout-overlay layout-menu-toggle"></div>
+<div class="drag-target"></div>
+<!-- Close layout-wrapper -->
+</div>
 @yield('scripts')
 @stack('scripts')
 

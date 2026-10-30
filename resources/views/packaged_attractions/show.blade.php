@@ -10,7 +10,7 @@
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb">
                         <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Dashboard</a></li>
-                        <li class="breadcrumb-item"><a href="{{ route('packaged-attractions.index') }}">Packaged Attractions</a></li>
+                        <li class="breadcrumb-item"><a href="{{ route('packaged-attractions.index') }}">Packaged Attract</a></li>
                         <li class="breadcrumb-item active">{{ $packagedAttraction->name }}</li>
                     </ol>
                 </nav>

@@ -3,12 +3,21 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\CommonHelper;
+use App\Models\Tour;
+use App\Models\Hotel;
+use App\Services\ApiEnvironmentResolver;
+use App\Services\HotelSuppliers\OnlineHotelBookingServiceFactory;
+use App\Services\OnlinePricing\OnlinePricingService;
+use App\Services\SupplierConfigResolver;
+use App\Services\AttractionSuppliers\OnlineAttractionOrderService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
+use App\Models\User;
+
 use Carbon\Carbon;
 
 class HotelBookingController extends Controller
@@ -339,7 +348,8 @@ class HotelBookingController extends Controller
             $validator = Validator::make($request->all(), [
                 'tour_id' => 'required|integer',
                 'attraction_order_index' => 'required|integer|min:0',
-                'booking_index' => 'required|integer|min:0'
+                'booking_index' => 'required|integer|min:0',
+                'attraction_order_id' => 'nullable|integer|min:1',
             ]);
 
             if ($validator->fails()) {
@@ -358,13 +368,11 @@ class HotelBookingController extends Controller
             $tour = DB::table('tours')->where('tour_id', $tourId)->first();
             
             // Find the attraction booking
-            $attractionOrder = DB::table('orders')
-                ->where('tour_id', $tourId)
-                ->where('type', 'attraction')
-                // ->orderBy('id')
-                ->whereNull('deleted_at')
-                ->skip($attractionOrderIndex)
-                ->first();
+            $attractionOrder = $this->findTourAttractionOrder(
+                (int) $tourId,
+                $attractionOrderIndex,
+                $request->attraction_order_id
+            );
 
             if (!$attractionOrder) {
                 return response()->json([
@@ -383,18 +391,56 @@ class HotelBookingController extends Controller
             }
 
             $booking = $attractionData[$bookingIndex];
-            
+            $orderCurrency = CommonHelper::resolveOrderDisplayCurrency($attractionOrder, null);
+            $isOnline = ((string) ($attractionOrder->order_type ?? '') === 'online')
+                || OnlineAttractionOrderService::isOnlineAttraction(is_array($booking) ? $booking : []);
+            $savedExternalRef = OnlineAttractionOrderService::extractSavedRef(
+                $attractionOrder,
+                is_array($booking) ? $booking : []
+            );
+
             Log::info('Attraction booking data found', [
                 'tour_id' => $tourId,
                 'attraction_order_index' => $attractionOrderIndex,
                 'booking_index' => $bookingIndex,
+                'local_order_id' => $attractionOrder->id,
                 'attraction_name' => $booking['AttractionName'] ?? 'Unknown',
                 'total_price' => $booking['totalPrice'] ?? 0,
                 'booking_date' => $booking['bookingDate'] ?? null,
                 'visit_time' => $booking['visitTime'] ?? null,
-                'full_booking_keys' => array_keys($booking),
-                'raw_booking_data' => $booking
+                'currency' => $orderCurrency,
+                'order_type' => $attractionOrder->order_type ?? null,
+                'is_online_attraction' => $isOnline,
+                'has_external_order_ref_id' => $savedExternalRef !== null,
+                'order_ref_id' => $savedExternalRef,
             ]);
+
+            $creditsBalance = null;
+            $creditsEnough = null;
+            $creditsMessage = null;
+            $requiredCreditsAmount = null;
+            $orderVouchers = [];
+            if ($isOnline) {
+                $orderService = app(OnlineAttractionOrderService::class);
+                $credits = $orderService->getCredits(is_array($booking) ? $booking : []);
+                $creditsBalance = $credits['credits_balance'] ?? null;
+                $creditsMessage = $credits['message'] ?? null;
+                $requiredCreditsAmount = $orderService->requiredPaymentAmount(is_array($booking) ? $booking : []);
+                if ($creditsBalance !== null) {
+                    $creditsEnough = ((float) $creditsBalance) >= $requiredCreditsAmount;
+                }
+                $orderVouchers = OnlineAttractionOrderService::extractStoredVouchers(is_array($booking) ? $booking : []);
+                if ((int) ($attractionOrder->is_approve ?? 0) === 1 || OnlineAttractionOrderService::isProviderPaymentComplete($attractionOrder, is_array($booking) ? $booking : [])) {
+                    $creditsEnough = true;
+                }
+            }
+
+            if ($isOnline && $savedExternalRef === null) {
+                Log::warning('Attraction approval lookup missing external order_ref_id', [
+                    'tour_id' => $tourId,
+                    'local_order_id' => $attractionOrder->id,
+                ]);
+            }
 
             return response()->json([
                 'success' => true,
@@ -415,6 +461,8 @@ class HotelBookingController extends Controller
                         'senior_count' => $booking['seniorCount'] ?? 0,
                         'booking_date' => $booking['bookingDate'] ?? null,
                         'visit_time' => $booking['visitTime'] ?? null,
+                        'country' => $attractionOrder->country ?? null,
+                        'currency' => $orderCurrency,
                         // Customer information
                         'full_name' => $booking['fullName'] ?? 'N/A',
                         'email' => $booking['email'] ?? 'N/A',
@@ -437,7 +485,25 @@ class HotelBookingController extends Controller
                         'reference_id' => $attractionOrder->reference_id ?? null,
                         'actual_due_date' => $attractionOrder->actual_due_date ?? null,
                         'display_due_date' => $attractionOrder->display_due_date ?? null,
-                        'approval_file' => $attractionOrder->approval_file ?? null
+                        'approval_file' => $attractionOrder->approval_file ?? null,
+                        'order_ref_no' => $savedExternalRef,
+                        'external_order_ref_id' => $savedExternalRef,
+                        'attraction_order_ref_id' => $savedExternalRef,
+                        'order_type' => $attractionOrder->order_type ?? null,
+                        'is_online_attraction' => $isOnline,
+                        'attractionSourceType' => $booking['attractionSourceType'] ?? ($isOnline ? 'online' : 'offline'),
+                        'credits_balance' => $creditsBalance,
+                        'credits_enough' => $creditsEnough,
+                        'credits_message' => $creditsMessage,
+                        'required_credits_amount' => $requiredCreditsAmount,
+                        'vouchers' => $orderVouchers,
+                        'voucher_code' => is_array($booking)
+                            ? OnlineAttractionOrderService::extractPrimaryVoucherCode($booking)
+                            : null,
+                        'voucher_download_link' => is_array($booking)
+                            ? ($booking['voucher_download_link'] ?? null)
+                            : null,
+                        'order_details' => is_array($booking) ? ($booking['order_details'] ?? null) : null,
                     ]
                 ]
             ]);
@@ -646,7 +712,8 @@ class HotelBookingController extends Controller
 
             // Get tour data
             $tour = DB::table('tours')->where('tour_id', $tourId)->first();
-            
+            $dmc_id = $tour->dmc_id;
+            $dmc = User::select('name', 'email', 'userId', 'company_name')->where('userId', $dmc_id)->first();
             // Find the restaurant booking
             $allRestaurantOrders = DB::table('orders')
                 ->where('tour_id', $tourId)
@@ -705,13 +772,15 @@ class HotelBookingController extends Controller
             }
 
             $booking = $restaurantData[$bookingIndex];
+            $orderCurrency = CommonHelper::resolveOrderDisplayCurrency($restaurantOrder, null);
             
             Log::info('✅ Found specific restaurant booking', [
                 'booking_index' => $bookingIndex,
                 'restaurant_name' => $booking['restaurantName'] ?? 'Unknown',
                 'booking_date' => $booking['bookingDate'] ?? 'Unknown',
                 'visit_time' => $booking['visitTime'] ?? 'Unknown',
-                'meal_type' => $booking['mealType'] ?? 'Unknown'
+                'meal_type' => $booking['mealType'] ?? 'Unknown',
+                'currency' => $orderCurrency,
             ]);
 
             return response()->json([
@@ -723,7 +792,7 @@ class HotelBookingController extends Controller
                         'check_out_time' => $tour->check_out_time ?? null
                     ],
                     'restaurant_booking' => [
-                        'booking_id' => $restaurantOrder->id,
+                        'booking_id' => $restaurantOrder->booking_id,
                         'restaurant_name' => $booking['restaurantName'] ?? 'Unknown Restaurant',
                         'meal_type' => $booking['mealType'] ?? 'N/A',
                         'meal_specific_type' => $booking['mealSpecificType'] ?? 'N/A',
@@ -732,13 +801,19 @@ class HotelBookingController extends Controller
                         'child_count' => $booking['childCount'] ?? 0,
                         'booking_date' => $booking['bookingDate'] ?? null,
                         'visit_time' => $booking['visitTime'] ?? null,
+                        'country' => $restaurantOrder->country ?? null,
+                        'currency' => $orderCurrency,
                         'is_approve' => $restaurantOrder->is_approve ?? false,
                         'reference_id' => $restaurantOrder->reference_id ?? null,
                         'display_due_date' => $restaurantOrder->display_due_date ?? null,
+                        'qr_code' => $restaurantOrder->qr_code ?? null,
                         'restaurant_details' => $booking, // This contains the full JSON data
                         // Transfer Options
-                        'transfer_options' => $booking['transfer_options'] ?? null
-                    ]
+                        'transfer_options' => $booking['transfer_options'] ?? null,
+                        // Guide Options (if any guide is attached to this restaurant booking)
+                        'guide_options' => $booking['guide_options'] ?? null,
+                    ],
+                    'dmc' => $dmc,
                 ]
             ]);
 
@@ -855,13 +930,15 @@ class HotelBookingController extends Controller
             }
 
             $booking = $guideData[$bookingIndex];
+            $orderCurrency = CommonHelper::resolveOrderDisplayCurrency($guideOrder, null);
             
             Log::info('✅ Found specific guide booking', [
                 'booking_index' => $bookingIndex,
                 'guide_name' => $booking['guide_name'] ?? 'Unknown',
                 'booking_date' => $booking['bookingDate'] ?? 'Unknown',
                 'pickup_time' => $booking['entrytime'] ?? 'Unknown',
-                'hours' => $booking['hours'] ?? 'Unknown'
+                'hours' => $booking['hours'] ?? 'Unknown',
+                'currency' => $orderCurrency,
             ]);
 
             $response = [
@@ -898,6 +975,8 @@ class HotelBookingController extends Controller
                     'booking_type' => $booking['bookingType'] ?? 'Standard',
                     'mode' => $booking['Mode'] ?? 'dmc',
                     'dmc_id' => $booking['dmc_id'] ?? $booking['dmc_Id'] ?? null,
+                    'country' => $guideOrder->country ?? null,
+                    'currency' => $orderCurrency,
                     // ✅ Approval status fields from orders table
                     'is_approve' => $guideOrder->is_approve ?? false,
                     'reference_id' => $guideOrder->reference_id ?? null,
@@ -1142,6 +1221,8 @@ class HotelBookingController extends Controller
             }
 
             $booking = $hotelData[$bookingIndex];
+            $orderCurrency = CommonHelper::resolveOrderDisplayCurrency($hotelOrder, null);
+            $mealPlanLabel = CommonHelper::resolveHotelMealPlanLabel($booking['rooms'] ?? []);
             
             Log::info('Hotel booking data found', [
                 'tour_id' => $tourId,
@@ -1150,8 +1231,16 @@ class HotelBookingController extends Controller
                 'hotel_name' => $booking['hotelDetails']['hotel_name'] ?? 'Unknown',
                 'total_price' => $booking['totalPrice'] ?? 0,
                 'booking_dates' => $booking['bookingDate'] ?? [],
+                'currency' => $orderCurrency,
+                'country' => $hotelOrder->country ?? null,
                 'full_booking_keys' => array_keys($booking)
             ]);
+
+            $bookingDetails = $this->decodeOrderBookingDetails($hotelOrder->booking_details ?? null);
+            $supplierBookingRef = $this->extractOnlineHotelSupplierBookingReference($bookingDetails);
+            $isOnlineHotel = ! empty($booking['isOnlineHotel'])
+                || ($booking['hotelSourceType'] ?? '') === 'online'
+                || ($hotelOrder->order_type ?? '') === 'online';
 
             return response()->json([
                 'success' => true,
@@ -1164,6 +1253,13 @@ class HotelBookingController extends Controller
                     ],
                     'hotel_booking' => [
                         'booking_id' => $hotelOrder->id,
+                        'booking_details' => $bookingDetails,
+                        'mg_booking_id' => $supplierBookingRef,
+                        'supplier_booking_reference' => $supplierBookingRef,
+                        // Online: supplier booking ref (MG mgBookingID / Hotelbeds reference); offline: orders.reference_id
+                        'display_reference_id' => $isOnlineHotel
+                            ? ($supplierBookingRef ?: ($hotelOrder->reference_id ?? null))
+                            : ($hotelOrder->reference_id ?? null),
                         'hotel_name' => $booking['hotelDetails']['hotel_name'] ?? 'Unknown Hotel',
                         'hotel_id' => $booking['hotelDetails']['hotel_id'] ?? null,
                         'location' => $booking['hotelDetails']['location'] ?? 'N/A',
@@ -1174,6 +1270,10 @@ class HotelBookingController extends Controller
                         'check_in_time' => $booking['hotelDetails']['checkInTime'] ?? '12:00 PM',
                         'check_out_time' => $booking['hotelDetails']['checkOutTime'] ?? '11:00 AM',
                         'cancellation_charge' => $booking['hotelDetails']['cancellation_charge'] ?? null,
+                        // Per-order country / currency (same helper as new-enquiries / follow-ups)
+                        'country' => $hotelOrder->country ?? null,
+                        'currency' => $orderCurrency,
+                        'meal_plan' => $mealPlanLabel,
                         // Customer information
                         'full_name' => $booking['fullName'] ?? 'N/A',
                         'email' => $booking['email'] ?? 'N/A',
@@ -1183,6 +1283,48 @@ class HotelBookingController extends Controller
                         // Room details
                         'rooms' => $booking['rooms'] ?? [],
                         'hotel_details' => $booking['hotelDetails'] ?? [],
+                        // Child accommodation
+                        'child_with_bed' => $booking['child_with_bed'] ?? null,
+                        'child_without_bed' => $booking['child_without_bed'] ?? null,
+                        // Baby cot / infant (Lite + Pro)
+                        'baby_cot' => (int) (
+                            $booking['baby_cot']
+                            ?? (is_array($booking['rooms'][0]['beds'][0] ?? null)
+                                ? ($booking['rooms'][0]['beds'][0]['baby_cot'] ?? 0)
+                                : 0)
+                        ),
+                        'baby_cot_price' => (float) (
+                            $booking['baby_cot_price']
+                            ?? (is_array($booking['rooms'][0]['beds'][0] ?? null)
+                                ? ($booking['rooms'][0]['beds'][0]['baby_cot_price'] ?? 0)
+                                : 0)
+                        ),
+                        'baby_cot_cost' => (float) (
+                            $booking['baby_cot_cost']
+                            ?? (is_array($booking['rooms'][0]['beds'][0] ?? null)
+                                ? ($booking['rooms'][0]['beds'][0]['baby_cot_cost'] ?? 0)
+                                : 0)
+                        ),
+                        'infants' => (int) (
+                            $booking['selected_infants']
+                            ?? $booking['infants']
+                            ?? $booking['infant']
+                            ?? $booking['infantQty']
+                            ?? 0
+                        ),
+                        'has_infant' => ! empty($booking['hasInfant'])
+                            || ! empty($booking['has_infant'])
+                            || (int) (
+                                $booking['baby_cot']
+                                ?? (is_array($booking['rooms'][0]['beds'][0] ?? null)
+                                    ? ($booking['rooms'][0]['beds'][0]['baby_cot'] ?? 0)
+                                    : 0)
+                            ) === 1,
+                        'number_of_rooms' => (int) (
+                            (is_array($booking['rooms'][0] ?? null) ? ($booking['rooms'][0]['number_of_rooms'] ?? null) : null)
+                            ?? $booking['number_of_rooms']
+                            ?? max(1, count($booking['rooms'] ?? []))
+                        ),
                         // Transfer Options
                         'transfer_options' => $booking['transfer_options'] ?? null,
                         // Approval status
@@ -1190,7 +1332,22 @@ class HotelBookingController extends Controller
                         'reference_id' => $hotelOrder->reference_id ?? null,
                         'actual_due_date' => $hotelOrder->actual_due_date ?? null,
                         'display_due_date' => $hotelOrder->display_due_date ?? null,
-                        'approval_file' => $hotelOrder->approval_file ?? null
+                        'approval_file' => $hotelOrder->approval_file ?? null,
+                        // online | offline | null → UI shows Online/Offline Order
+                        'order_type' => $hotelOrder->order_type ?? null,
+                        'online_hotel_source' => $booking['onlineHotelSource']
+                            ?? ($booking['onlineHotelBooking']['supplier_code'] ?? null),
+                        'is_online_hotel' => $isOnlineHotel,
+                        // MG cancellation rules stored at enquiry (for approve confirm modal)
+                        'cancellation_policy_type' => $booking['onlineHotelBooking']['room']['cancellation_policy_type']
+                            ?? ($booking['onlineHotelBooking']['raw_room']['cancellationPolicyType'] ?? null),
+                        'cancellation_policies' => $this->customerFacingCancellationPolicies(
+                            $booking,
+                            $this->normalizeOnlineHotelCancellationPolicies(
+                                $booking['onlineHotelBooking'] ?? null
+                            ),
+                            (int) ($request->tour_id ?? 0),
+                        ),
                     ]
                 ]
             ]);
@@ -1560,10 +1717,11 @@ class HotelBookingController extends Controller
                 ], 400);
             }
 
-            // Update the specific booking data
+            // Update the specific booking data (pickupdate + exittime for exit_port)
             $data[$actualKey]['bookingDate'] = $bookingDate;
-            $data[$actualKey]['exitpickupdate'] = $exitPickupDate;
-            $data[$actualKey]['entrytime'] = $entryTime;
+            $data[$actualKey]['pickupdate'] = $exitPickupDate;
+            $data[$actualKey]['exittime'] = $entryTime;
+            $data[$actualKey]['time'] = $entryTime;
 
             // Update the database
             $updated = DB::table('orders')
@@ -1578,8 +1736,8 @@ class HotelBookingController extends Controller
                     'order_id' => $departureOrder->id,
                     'tour_id' => $tourId,
                     'booking_date' => $bookingDate,
-                    'exit_pickup_date' => $exitPickupDate,
-                    'entry_time' => $entryTime
+                    'pickupdate' => $exitPickupDate,
+                    'exittime' => $entryTime
                 ]);
 
                 return response()->json([
@@ -1674,12 +1832,20 @@ class HotelBookingController extends Controller
 
             $specificBooking = $data[$keys[$bookingIndex]];
 
+            // Prefer pickupdate + exittime (new pro form); fall back to legacy exitpickupdate/entrytime.
+            $pickupDate = $specificBooking['pickupdate']
+                ?? ($specificBooking['exitpickupdate'] ?? null);
+            $exitTime = $specificBooking['exittime']
+                ?? ($specificBooking['entrytime'] ?? null);
+
             // Extract relevant data
             $departureData = [
                 'vehicles_name' => $specificBooking['vehicles_name'] ?? 'N/A',
                 'booking_date' => $specificBooking['bookingDate'] ?? null,
-                'exit_pickup_date' => $specificBooking['exitpickupdate'] ?? null,
-                'entry_time' => $specificBooking['entrytime'] ?? null,
+                'exit_pickup_date' => $pickupDate,
+                'pickup_date' => $pickupDate,
+                'entry_time' => $exitTime,
+                'exit_time' => $exitTime,
                 'total_price' => $specificBooking['totalPrice'] ?? 0,
                 'adults' => $specificBooking['adults'] ?? 0,
                 'children' => $specificBooking['children'] ?? 0,
@@ -1696,7 +1862,9 @@ class HotelBookingController extends Controller
                     'vehicles_name' => $departureData['vehicles_name'],
                     'booking_date' => $departureData['booking_date'],
                     'exit_pickup_date' => $departureData['exit_pickup_date'],
+                    'pickup_date' => $departureData['pickup_date'],
                     'entry_time' => $departureData['entry_time'],
+                    'exit_time' => $departureData['exit_time'],
                     'total_price' => $departureData['total_price'],
                     'adults' => $departureData['adults'],
                     'children' => $departureData['children'],
@@ -2455,6 +2623,7 @@ class HotelBookingController extends Controller
             }
 
             $specificBooking = $data[$keys[$bookingIndex]];
+            $orderCurrency = \App\Helpers\CommonHelper::resolveOrderDisplayCurrency($localTransportOrder, 'SGD');
 
             // Extract relevant data
             $localTransportData = [
@@ -2487,6 +2656,8 @@ class HotelBookingController extends Controller
                     'tour_start_date' => $localTransportData['tour_start_date'],
                     'tour_end_date' => $localTransportData['tour_end_date'],
                     'local_transport_details' => $specificBooking, // Include full booking data for detailed display
+                    'currency' => $orderCurrency,
+                    'country' => $localTransportOrder->country ?? ($specificBooking['country'] ?? null),
                     // Include approval-related fields from orders table
                     'is_approve' => $localTransportOrder->is_approve ?? 0,
                     'reference_id' => $localTransportOrder->reference_id ?? null,
@@ -2512,6 +2683,121 @@ class HotelBookingController extends Controller
     }
 
     /**
+     * Recheck an online hotel booking with the third-party supplier before approval.
+     */
+    public function recheckOnlineHotelBooking(Request $request): JsonResponse
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer',
+                'hotel_order_index' => 'required|integer|min:0',
+                'booking_index' => 'required|integer|min:0',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed: ' . $validator->errors()->first(),
+                    'errors' => $validator->errors(),
+                ], 422);
+            }
+
+            [$hotelOrder, $booking, $bookingIndex] = $this->resolveHotelOrderBooking(
+                (int) $request->tour_id,
+                (int) $request->hotel_order_index,
+                (int) $request->booking_index,
+            );
+
+            if (($hotelOrder->order_type ?? '') !== 'online') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This hotel order is not an online booking.',
+                ], 422);
+            }
+
+            $supplierCode = $this->resolveOnlineHotelSupplierCode($booking);
+            $factory = app(OnlineHotelBookingServiceFactory::class);
+            $bookingService = $factory->make($supplierCode);
+
+            $credentials = $this->onlineHotelCredentials($supplierCode, $booking);
+
+            $recheckResult = $bookingService->recheckFromOrderBooking($booking, $credentials, [
+                'tour_id' => (int) $hotelOrder->tour_id,
+            ]);
+            $token = $bookingService->cacheRecheckResult(
+                (int) $hotelOrder->id,
+                $bookingIndex,
+                $recheckResult,
+            );
+
+            Log::info('Online hotel recheck priced', [
+                'order_id' => $hotelOrder->id,
+                'booking_index' => $bookingIndex,
+                'supplier_code' => $recheckResult['supplier_code'],
+                'supplier_price' => $recheckResult['supplier_gross_price'] ?: $recheckResult['supplier_net_price'],
+                'customer_price' => $recheckResult['customer_price'],
+                'stored_price' => $recheckResult['stored_price'],
+                'markup_rules' => $recheckResult['markup_rules'],
+                'comparison_basis' => $recheckResult['comparison_basis'],
+                'price_changed' => $recheckResult['price_changed'],
+                'api_environment' => $recheckResult['api_environment'] ?? null,
+            ]);
+
+            $storedPolicies = $this->normalizeOnlineHotelCancellationPolicies(
+                $booking['onlineHotelBooking'] ?? null
+            );
+            $livePolicies = $this->extractLiveCancellationPolicies($recheckResult);
+            $cancellationPolicies = $this->customerFacingCancellationPolicies(
+                $booking,
+                $livePolicies !== [] ? $livePolicies : $storedPolicies,
+                (int) ($hotelOrder->tour_id ?? $request->tour_id ?? 0),
+            );
+            $cancellationPolicyType = (string) (
+                $recheckResult['cancellation_policy_type']
+                ?? ($booking['onlineHotelBooking']['room']['cancellation_policy_type'] ?? '')
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Hotel availability rechecked successfully.',
+                'recheck_token' => $token,
+                'data' => [
+                    'supplier_code' => $recheckResult['supplier_code'],
+                    'supplier_label' => $this->onlineHotelSupplierLabel($recheckResult['supplier_code']),
+                    'hotel_name' => $recheckResult['hotel_name'],
+                    'room_name' => $recheckResult['room_name'],
+                    'meal_plan_name' => $recheckResult['meal_plan_name'],
+                    'currency' => $recheckResult['currency'],
+                    'check_in' => $recheckResult['check_in'],
+                    'check_out' => $recheckResult['check_out'],
+                    'stored_price' => $recheckResult['stored_price'],
+                    'stored_supplier_price' => $recheckResult['stored_supplier_price'],
+                    'supplier_net_price' => $recheckResult['supplier_net_price'],
+                    'supplier_gross_price' => $recheckResult['supplier_gross_price'],
+                    'customer_price' => $recheckResult['customer_price'],
+                    'markup_applied' => $recheckResult['markup_applied'],
+                    'comparison_basis' => $recheckResult['comparison_basis'],
+                    'price_changed' => $recheckResult['price_changed'],
+                    'session_id' => $recheckResult['session_id'] ?? null,
+                    'api_environment' => $recheckResult['api_environment'] ?? null,
+                    'cancellation_policy_type' => $cancellationPolicyType !== '' ? $cancellationPolicyType : null,
+                    'cancellation_policies' => $cancellationPolicies,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Online hotel recheck failed', [
+                'error' => $e->getMessage(),
+                'request' => $request->all(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+    }
+
+    /**
      * Approve hotel booking and save approval data
      * 
      * This method saves the approval data to the orders table and sets is_approve = true
@@ -2522,22 +2808,23 @@ class HotelBookingController extends Controller
      */
     public function approveHotelBooking(Request $request): JsonResponse
     {
-        //dd($request->all());
         try {
             // Log incoming request for debugging
             Log::info('Hotel approval request received', [
                 'request_data' => $request->all()
             ]);
 
-            // Validate the incoming request
+            // Validate the incoming request (reference_id required only for offline)
             $validator = Validator::make($request->all(), [
                 'tour_id' => 'required|integer',
                 'hotel_order_index' => 'required|integer|min:0',
                 'booking_index' => 'required|integer|min:0',
-                'reference_id' => 'required|string|max:255',
+                'reference_id' => 'nullable|string|max:255',
                 'actual_due_date' => 'required|date',
                 'display_due_date_days' => 'required|integer|min:1',
                 'display_due_date' => 'required|string|max:255',
+                'confirm_online_booking' => 'nullable|boolean',
+                'recheck_token' => 'nullable|string|max:128',
                 //'reference_file' => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240' // 10MB max
             ]);
 
@@ -2549,36 +2836,122 @@ class HotelBookingController extends Controller
                 ], 422);
             }
 
-            $tourId = $request->tour_id;
-            $hotelOrderIndex = $request->hotel_order_index;
-            $bookingIndex = $request->booking_index;
-            $referenceId = $request->reference_id;
+            $tourId = (int) $request->tour_id;
+            $hotelOrderIndex = (int) $request->hotel_order_index;
+            $bookingIndex = (int) $request->booking_index;
+            $referenceId = trim((string) $request->input('reference_id', ''));
             $actualDueDate = $request->actual_due_date;
             $displayDueDateDays = $request->display_due_date_days;
             $displayDueDate = $request->display_due_date;
             $referenceFile = $request->file('reference_file');
 
-            // Find the hotel order in the orders table
-            $hotelOrder = DB::table('orders')
-                ->where('tour_id', $tourId)
-                ->where('type', 'hotel')
-                // ->orderBy('id')
-                ->skip($hotelOrderIndex)
-                ->first();
+            // Must match recheckOnlineHotelBooking (same id + deleted_at + orderBy) or the
+            // cached recheck token will never be found.
+            try {
+                [$hotelOrder, $bookingRow, $bookingIndex] = $this->resolveHotelOrderBooking(
+                    $tourId,
+                    $hotelOrderIndex,
+                    $bookingIndex,
+                );
+            } catch (\RuntimeException $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ], 404);
+            }
 
-            // Log the search criteria and result
             Log::info('Searching for hotel order', [
                 'tour_id' => $tourId,
                 'hotel_order_index' => $hotelOrderIndex,
-                'hotel_order_found' => !!$hotelOrder,
-                'hotel_order_id' => $hotelOrder ? $hotelOrder->id : null
+                'hotel_order_found' => true,
+                'hotel_order_id' => $hotelOrder->id,
             ]);
 
-            if (!$hotelOrder) {
+            $isOnlineOrder = ($hotelOrder->order_type ?? '') === 'online';
+
+            if (! $isOnlineOrder && $referenceId === '') {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Hotel order not found'
-                ], 404);
+                    'message' => 'Validation failed: The reference id field is required.',
+                    'errors' => ['reference_id' => ['The reference id field is required.']],
+                ], 422);
+            }
+
+            $bookingDetails = null;
+
+            // Online: agency booking id is still required by supplier — auto-generate when blank.
+            if ($isOnlineOrder && $referenceId === '') {
+                $referenceId = 'ONLINE-' . (int) $hotelOrder->tour_id . '-' . (int) $hotelOrder->id . '-' . (int) $bookingIndex;
+            }
+
+            if ($isOnlineOrder) {
+                if (! $request->boolean('confirm_online_booking')) {
+                    return response()->json([
+                        'success' => false,
+                        'requires_recheck' => true,
+                        'message' => 'Please recheck availability and confirm the updated supplier price before approving this online hotel booking.',
+                    ], 422);
+                }
+
+                $recheckToken = trim((string) $request->input('recheck_token', ''));
+
+                if ($recheckToken === '') {
+                    return response()->json([
+                        'success' => false,
+                        'requires_recheck' => true,
+                        'message' => 'Recheck token is missing. Please recheck availability again.',
+                    ], 422);
+                }
+
+                $supplierCode = $this->resolveOnlineHotelSupplierCode($bookingRow);
+                $factory = app(OnlineHotelBookingServiceFactory::class);
+
+                try {
+                    $bookingService = $factory->make($supplierCode);
+                } catch (\RuntimeException $e) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => $e->getMessage(),
+                    ], 422);
+                }
+
+                $recheckResult = $bookingService->pullCachedRecheckResult(
+                    (int) $hotelOrder->id,
+                    $bookingIndex,
+                    $recheckToken,
+                );
+
+                if ($recheckResult === null) {
+                    Log::warning('Online hotel recheck token miss on approve', [
+                        'order_id' => $hotelOrder->id,
+                        'booking_index' => $bookingIndex,
+                        'token_prefix' => substr($recheckToken, 0, 12),
+                        'token_length' => strlen($recheckToken),
+                        'cache_driver' => config('cache.default'),
+                    ]);
+
+                    return response()->json([
+                        'success' => false,
+                        'requires_recheck' => true,
+                        'message' => 'The availability check has expired. Please recheck availability and try again.',
+                    ], 422);
+                }
+
+                $credentials = $this->onlineHotelCredentials($supplierCode, $bookingRow);
+
+                $bookingDetails = $bookingService->bookFromRecheckResult(
+                    $recheckResult,
+                    $bookingRow,
+                    $referenceId,
+                    $credentials,
+                );
+
+                // Only drop the cache after a successful supplier book.
+                $bookingService->forgetCachedRecheckResult(
+                    (int) $hotelOrder->id,
+                    $bookingIndex,
+                    $recheckToken,
+                );
             }
 
             // Handle file upload if provided
@@ -2608,6 +2981,10 @@ class HotelBookingController extends Controller
                 'updated_at' => now()
             ];
 
+            if ($bookingDetails !== null) {
+                $updateData['booking_details'] = json_encode($bookingDetails);
+            }
+
             // Add file path if file was uploaded
             // if ($approvalFilePath) {
             //     $updateData['approval_file'] = $approvalFilePath;
@@ -2631,19 +3008,35 @@ class HotelBookingController extends Controller
                 'hotel_order_id' => $hotelOrder->id,
                 'reference_id' => $referenceId,
                 'actual_due_date' => $actualDueDate,
-                'display_due_date' => $displayDueDate
+                'display_due_date' => $displayDueDate,
+                'online_booking' => $bookingDetails !== null,
             ]);
+
+            // Send confirmation email to hotel (hotels.email) using mail-preview style subject/body
+            $emailResult = $this->sendHotelApprovalConfirmationEmail(
+                $tourId,
+                $hotelOrder,
+                $bookingIndex,
+                $referenceId
+            );
 
             return response()->json([
                 'success' => true,
-                'message' => 'Hotel booking approved successfully',
+                'message' => ($hotelOrder->order_type ?? '') === 'online'
+                    ? 'Online hotel booked with supplier and approved successfully'
+                    : 'Hotel booking approved successfully',
+                'email_sent' => $emailResult['sent'] ?? false,
+                'email_message' => $emailResult['message'] ?? null,
+                'hotel_email' => $emailResult['hotel_email'] ?? null,
+                'online_booking' => $bookingDetails !== null,
                 'data' => [
                     'tour_id' => $tourId,
                     'hotel_order_id' => $hotelOrder->id,
                     'reference_id' => $referenceId,
                     'actual_due_date' => $actualDueDate,
                     'display_due_date' => $displayDueDate,
-                    'approval_file' => $approval_file
+                    'approval_file' => $approval_file,
+                    'booking_details' => $bookingDetails,
                 ]
             ]);
 
@@ -2660,6 +3053,251 @@ class HotelBookingController extends Controller
                 'message' => 'An error occurred while approving hotel booking: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Build hotel mail subject/body (same content style as openHotelMailPreview)
+     * and send to hotels.email via CommonHelper::sendHotelApprovalEmail.
+     */
+    private function sendHotelApprovalConfirmationEmail($tourId, $hotelOrder, $bookingIndex, $referenceId): array
+    {
+        try {
+            $hotelData = json_decode($hotelOrder->data, true);
+            if (!is_array($hotelData) || !isset($hotelData[$bookingIndex])) {
+                return [
+                    'sent' => false,
+                    'message' => 'Hotel booking data not found for email',
+                    'hotel_email' => null,
+                ];
+            }
+
+            $booking = $hotelData[$bookingIndex];
+            $hotelDetails = $booking['hotelDetails'] ?? [];
+            $hotelUniqueId = $hotelDetails['hotel_id'] ?? null;
+
+            $hotel = $hotelUniqueId
+                ? Hotel::where('hotel_unique_id', $hotelUniqueId)->first()
+                : null;
+
+            $hotelEmail = $hotel->email ?? null;
+            if (empty($hotelEmail) || !filter_var($hotelEmail, FILTER_VALIDATE_EMAIL)) {
+                Log::warning('Hotel approval email skipped: hotel email missing/invalid', [
+                    'tour_id' => $tourId,
+                    'hotel_unique_id' => $hotelUniqueId,
+                    'hotel_email' => $hotelEmail,
+                ]);
+
+                return [
+                    'sent' => false,
+                    'message' => 'Hotel email is not set in hotels table',
+                    'hotel_email' => $hotelEmail,
+                ];
+            }
+
+            $tour = DB::table('tours')->where('tour_id', $tourId)->first();
+            $tourDisplayId = $tour->tour_display_id ?? $tour->display_id ?? ('Tour #' . $tourId);
+            $destination = $tour->destination ?? ($hotelDetails['location'] ?? 'N/A');
+            $agentName = 'N/A';
+
+            if (!empty($tour->agent_id)) {
+                $agent = User::where('userId', $tour->agent_id)->first();
+                if (!$agent) {
+                    $agent = DB::table('agents')->where('agent_id', $tour->agent_id)->first();
+                }
+                $agentName = $agent->name ?? ($agent->company_name ?? 'N/A');
+            }
+
+            $checkInDate = $booking['bookingDate'][0] ?? ($tour->check_in_time ?? 'N/A');
+            $checkOutDate = $booking['bookingDate'][1] ?? ($tour->check_out_time ?? 'N/A');
+            $hotelName = $hotelDetails['hotel_name']
+                ?? $hotelDetails['name']
+                ?? ($hotel->name ?? 'Hotel');
+
+            $subject = "Hotel Booking Confirmation - {$tourDisplayId} - {$destination}";
+            $body = $this->buildHotelApprovalEmailBody(
+                $tourId,
+                $tourDisplayId,
+                $destination,
+                $checkInDate,
+                $checkOutDate,
+                $agentName,
+                $hotelName,
+                $booking,
+                $referenceId
+            );
+
+            $sendResult = CommonHelper::sendHotelApprovalEmail($hotelEmail, $subject, $body);
+
+            if ($sendResult === true) {
+                return [
+                    'sent' => true,
+                    'message' => 'Confirmation email sent to hotel',
+                    'hotel_email' => $hotelEmail,
+                ];
+            }
+
+            return [
+                'sent' => false,
+                'message' => is_string($sendResult) ? $sendResult : 'Failed to send hotel email',
+                'hotel_email' => $hotelEmail,
+            ];
+        } catch (\Exception $e) {
+            Log::error('Error sending hotel approval confirmation email', [
+                'tour_id' => $tourId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'sent' => false,
+                'message' => 'Email error: ' . $e->getMessage(),
+                'hotel_email' => null,
+            ];
+        }
+    }
+
+    /**
+     * Plain-text body matching openHotelMailPreview / generateFormattedHotelEmail style.
+     */
+    private function buildHotelApprovalEmailBody(
+        $tourId,
+        $tourDisplayId,
+        $destination,
+        $checkInDate,
+        $checkOutDate,
+        $agentName,
+        $hotelName,
+        array $booking,
+        $referenceId
+    ): string {
+        $formatDate = function ($date) {
+            if (empty($date) || $date === 'N/A') {
+                return 'N/A';
+            }
+            try {
+                return Carbon::parse($date)->format('d M Y');
+            } catch (\Exception $e) {
+                return (string) $date;
+            }
+        };
+
+        $WIDTH = 66;
+        $border = '┌' . str_repeat('─', $WIDTH - 2) . '┐';
+        $sectionBorder = '├' . str_repeat('─', $WIDTH - 2) . '┤';
+        $endBorder = '└' . str_repeat('─', $WIDTH - 2) . '┘';
+        $header = '╔' . str_repeat('═', $WIDTH - 2) . '╗';
+        $headerEnd = '╚' . str_repeat('═', $WIDTH - 2) . '╝';
+
+        $centerText = function ($text, $width) {
+            $text = (string) $text;
+            $len = mb_strlen($text);
+            if ($len >= $width) {
+                return mb_substr($text, 0, $width);
+            }
+            $pad = $width - $len;
+            $left = intdiv($pad, 2);
+            $right = $pad - $left;
+            return str_repeat(' ', $left) . $text . str_repeat(' ', $right);
+        };
+
+        $padRight = function ($text, $width) {
+            $text = (string) $text;
+            $len = mb_strlen($text);
+            if ($len >= $width) {
+                return mb_substr($text, 0, $width);
+            }
+            return $text . str_repeat(' ', $width - $len);
+        };
+
+        $sectionHeader = function ($title) use ($WIDTH, $centerText) {
+            return '│' . $centerText($title, $WIDTH - 2) . '│';
+        };
+
+        $row = function ($label, $value) use ($padRight) {
+            return '│ ' . $padRight($label, 16) . ' │ ' . $padRight($value, 43) . '│';
+        };
+
+        $fullRow = function ($text) use ($WIDTH, $padRight) {
+            return '│ ' . $padRight($text, $WIDTH - 4) . ' │';
+        };
+
+        $content = "Dear Valued Partner,\n\nWe are pleased to confirm your hotel booking request. Please find the details below:\n\n";
+        $content .= $header . "\n║" . $centerText('=== HOTEL BOOKING CONFIRMATION ===', $WIDTH - 2) . "║\n" . $headerEnd . "\n";
+
+        $content .= $border . "\n" . $sectionHeader('BOOKING INFORMATION') . "\n" . $sectionBorder . "\n";
+        $content .= $row('Reference ID', $referenceId ?: $tourDisplayId) . "\n";
+        $content .= $row('Tour ID', (string) $tourId) . "\n";
+        $content .= $row('Agent', $agentName) . "\n";
+        $content .= $endBorder . "\n\n";
+
+        $content .= $border . "\n" . $sectionHeader('TOUR DETAILS') . "\n" . $sectionBorder . "\n";
+        $content .= $row('Hotel Name', $hotelName) . "\n";
+        $content .= $row('Destination', $destination) . "\n";
+        $content .= $row('Check-in Date', $formatDate($checkInDate)) . "\n";
+        $content .= $row('Check-out Date', $formatDate($checkOutDate)) . "\n";
+        $content .= $endBorder . "\n\n";
+
+        $content .= $border . "\n" . $sectionHeader('SERVICE DETAILS') . "\n" . $sectionBorder . "\n";
+        $content .= $row('Service Type', 'Hotel') . "\n";
+
+        $rooms = $booking['rooms'] ?? [];
+        if (!empty($rooms) && is_array($rooms)) {
+            $room = $rooms[0];
+            if (!empty($room['room_type'])) {
+                $content .= $row('Room Type', $room['room_type']) . "\n";
+            }
+            if (!empty($room['beds'][0]['bed_type'])) {
+                $content .= $row('Bed Type', $room['beds'][0]['bed_type']) . "\n";
+            }
+            if (!empty($room['beds'][0]['head_count'])) {
+                $content .= $row('Room Occupancy', $room['beds'][0]['head_count'] . ' person(s)') . "\n";
+            }
+            if (!empty($room['beds'][0]['selectedMeals']) && is_array($room['beds'][0]['selectedMeals'])) {
+                $mealValues = array_values($room['beds'][0]['selectedMeals']);
+                $mealType = $mealValues[0]['type'] ?? 'Room Only';
+                $content .= $row('Meal Plan', $mealType) . "\n";
+            }
+            $content .= $row('Number of Rooms', (string) count($rooms)) . "\n";
+        }
+
+        if (isset($booking['totalPrice'])) {
+            $content .= $row('Total Price', number_format((float) $booking['totalPrice'], 2)) . "\n";
+        }
+        $content .= $endBorder . "\n\n";
+
+        $content .= $border . "\n" . $sectionHeader('CUSTOMER DETAILS') . "\n" . $sectionBorder . "\n";
+        if (!empty($booking['fullName'])) {
+            $content .= $row('Customer Name', $booking['fullName']) . "\n";
+        }
+        if (!empty($booking['email'])) {
+            $content .= $row('Email Address', $booking['email']) . "\n";
+        }
+        if (!empty($booking['phone'])) {
+            $phone = !empty($booking['countryCode'])
+                ? '+' . $booking['countryCode'] . ' ' . $booking['phone']
+                : $booking['phone'];
+            $content .= $row('Phone Number', $phone) . "\n";
+        }
+        if (!empty($booking['address1'])) {
+            $content .= $row('Address', $booking['address1']) . "\n";
+        }
+        if (!empty($booking['state'])) {
+            $content .= $row('State/Province', $booking['state']) . "\n";
+        }
+        if (!empty($booking['specialRequests'])) {
+            $content .= $row('Special Requests', $booking['specialRequests']) . "\n";
+        }
+        $content .= $endBorder . "\n\n";
+
+        $content .= $border . "\n" . $sectionHeader('IMPORTANT NOTES') . "\n" . $sectionBorder . "\n";
+        $content .= $fullRow('• Please confirm this booking within 24 hours') . "\n";
+        $content .= $fullRow('• All timings are local time') . "\n";
+        $content .= $fullRow('• Prices are subject to availability and confirmation') . "\n";
+        $content .= $fullRow('• Terms and conditions apply') . "\n";
+        $content .= $fullRow('') . "\n";
+        $content .= $fullRow('For any queries or modifications, please contact us immediately.') . "\n";
+        $content .= $endBorder . "\n\n";
+
+        return $content;
     }
 
     /**
@@ -2733,11 +3371,11 @@ class HotelBookingController extends Controller
             }
 
             // Update the orders table with rejection data and soft delete
-            $updateData = [
+            $updateData = CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tourId, [
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now(), // Soft delete
-                'updated_at' => now()
-            ];
+                'updated_at' => now(),
+            ]);
 
             // Update the order
             $updated = DB::table('orders')
@@ -2758,6 +3396,8 @@ class HotelBookingController extends Controller
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now()
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,
@@ -2807,7 +3447,8 @@ class HotelBookingController extends Controller
                 'tour_id' => 'required|integer',
                 'attraction_order_index' => 'required|integer|min:0',
                 'booking_index' => 'required|integer|min:0',
-                'reference_id' => 'required|string|max:255',
+                'attraction_order_id' => 'nullable|integer|min:1',
+                'reference_id' => 'nullable|string|max:255',
                 'actual_due_date' => 'required|date',
                 'display_due_date_days' => 'required|integer|min:1',
                 'display_due_date' => 'required|string|max:255'
@@ -2830,13 +3471,11 @@ class HotelBookingController extends Controller
             $displayDueDate = $request->display_due_date;
 
             // Find the attraction order in the orders table
-            $attractionOrder = DB::table('orders')
-                ->where('tour_id', $tourId)
-                ->where('type', 'attraction')
-                // ->orderBy('id')
-                ->whereNull('deleted_at')
-                ->skip($attractionOrderIndex)
-                ->first();
+            $attractionOrder = $this->findTourAttractionOrder(
+                (int) $tourId,
+                $attractionOrderIndex,
+                $request->attraction_order_id
+            );
 
             // Log the search criteria and result
             Log::info('Searching for attraction order', [
@@ -2851,6 +3490,192 @@ class HotelBookingController extends Controller
                     'success' => false,
                     'message' => 'Attraction order not found'
                 ], 404);
+            }
+
+            $attractionData = json_decode($attractionOrder->data, true);
+            $booking = [];
+            if (is_array($attractionData) && isset($attractionData[$bookingIndex]) && is_array($attractionData[$bookingIndex])) {
+                $booking = $attractionData[$bookingIndex];
+            } elseif (is_array($attractionData) && isset($attractionData[0]) && is_array($attractionData[0])) {
+                $booking = $attractionData[0];
+            }
+
+            $isOnline = ((string) ($attractionOrder->order_type ?? '') === 'online')
+                || OnlineAttractionOrderService::isOnlineAttraction($booking);
+            $savedExternalRef = OnlineAttractionOrderService::extractSavedRef($attractionOrder, $booking);
+            $orderVouchers = OnlineAttractionOrderService::extractStoredVouchers($booking);
+
+            $writeBookingIntoData = function () use (&$attractionData, &$booking, $bookingIndex): void {
+                if (is_array($attractionData) && isset($attractionData[$bookingIndex]) && is_array($attractionData[$bookingIndex])) {
+                    $attractionData[$bookingIndex] = $booking;
+                } elseif (is_array($attractionData) && isset($attractionData[0]) && is_array($attractionData[0])) {
+                    $attractionData[0] = $booking;
+                }
+            };
+
+            if ($isOnline && (int) ($attractionOrder->is_approve ?? 0) === 1) {
+                Log::info('Attraction online approval skipped (already approved; credits not charged again)', [
+                    'tour_id' => $tourId,
+                    'local_order_id' => $attractionOrder->id,
+                    'order_ref_id' => $savedExternalRef,
+                ]);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Attraction booking is already approved.',
+                    'already_approved' => true,
+                    'data' => [
+                        'tour_id' => $tourId,
+                        'attraction_order_id' => $attractionOrder->id,
+                        'reference_id' => $attractionOrder->reference_id ?? $savedExternalRef,
+                        'order_ref_id' => $savedExternalRef,
+                        'vouchers' => $orderVouchers,
+                        'attraction_details' => $booking,
+                    ],
+                ]);
+            }
+
+            if ($isOnline) {
+                $orderService = app(OnlineAttractionOrderService::class);
+                $alreadyPaid = OnlineAttractionOrderService::isProviderPaymentComplete($attractionOrder, $booking);
+
+                if ($savedExternalRef === null) {
+                    Log::info('Attraction online approval: creating provider order (pay happens after credit check)', [
+                        'tour_id' => $tourId,
+                        'local_order_id' => $attractionOrder->id,
+                    ]);
+
+                    $createResult = $orderService->createOrder($booking, (int) $tourId, false);
+                    if (! empty($createResult['credits_insufficient'])) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => $createResult['message'] ?: 'Credits balance is not enough',
+                            'credits_insufficient' => true,
+                        ], 422);
+                    }
+                    if (empty($createResult['success']) || empty($createResult['order_ref_id'])) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => $createResult['message'] ?: 'Failed to create online attraction order.',
+                        ], 422);
+                    }
+
+                    $savedExternalRef = $createResult['order_ref_id'];
+                    $booking = $orderService->applyRefToAttraction($booking, $savedExternalRef, 'pending');
+                    $writeBookingIntoData();
+                    DB::table('orders')->where('id', $attractionOrder->id)->update([
+                        'order_ref_no' => $savedExternalRef,
+                        'data' => json_encode($attractionData),
+                        'updated_at' => now(),
+                    ]);
+                }
+
+                $referenceId = trim((string) $referenceId) !== '' ? trim((string) $referenceId) : $savedExternalRef;
+
+                if (! $alreadyPaid) {
+                    $credits = $orderService->getCredits($booking);
+                    $requiredAmount = $orderService->requiredPaymentAmount($booking);
+                    $creditsBalance = $credits['credits_balance'] ?? null;
+                    if ($creditsBalance === null) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => $credits['message'] ?: 'Unable to verify AttractionsSG credit balance. Booking was not approved.',
+                            'credits_insufficient' => false,
+                        ], 422);
+                    }
+                    if ((float) $creditsBalance < $requiredAmount) {
+                        Log::warning('Attraction online approval blocked: insufficient credits', [
+                            'tour_id' => $tourId,
+                            'local_order_id' => $attractionOrder->id,
+                            'order_ref_id' => $savedExternalRef,
+                            'credits_balance' => $creditsBalance,
+                            'required_amount' => $requiredAmount,
+                        ]);
+
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Credits balance is not enough',
+                            'credits_insufficient' => true,
+                            'credits_balance' => $creditsBalance,
+                            'required_amount' => $requiredAmount,
+                        ], 422);
+                    }
+
+                    Log::info('Attraction online approval: paying saved orders.order_ref_no', [
+                        'tour_id' => $tourId,
+                        'local_order_id' => $attractionOrder->id,
+                        'order_ref_id' => $savedExternalRef,
+                        'credits_balance' => $creditsBalance,
+                        'required_amount' => $requiredAmount,
+                    ]);
+
+                    $payResult = $orderService->payOrder($savedExternalRef, $booking);
+                    if (! empty($payResult['credits_insufficient'])) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => $payResult['message'] ?: 'Credits balance is not enough',
+                            'credits_insufficient' => true,
+                        ], 422);
+                    }
+                    if (empty($payResult['success'])) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => $payResult['message'] ?: 'External attraction payment failed. Booking was not approved.',
+                        ], 422);
+                    }
+
+                    $booking['external_payment_completed'] = true;
+                    $booking['external_order_status'] = 'paid';
+                    $writeBookingIntoData();
+                    DB::table('orders')->where('id', $attractionOrder->id)->update([
+                        'order_ref_no' => $savedExternalRef,
+                        'data' => json_encode($attractionData),
+                        'updated_at' => now(),
+                    ]);
+                } else {
+                    Log::info('Attraction online approval: skipping pay (already paid or vouchers present)', [
+                        'tour_id' => $tourId,
+                        'local_order_id' => $attractionOrder->id,
+                        'order_ref_id' => $savedExternalRef,
+                    ]);
+                }
+
+                $details = $orderService->fetchOrderDetails($savedExternalRef, $booking);
+                if (empty($details['success']) || empty($details['data'])) {
+                    $existingVouchers = OnlineAttractionOrderService::extractStoredVouchers($booking);
+                    if ($existingVouchers === []) {
+                        Log::warning('Attraction online approval: pay succeeded but order-details failed', [
+                            'tour_id' => $tourId,
+                            'local_order_id' => $attractionOrder->id,
+                            'order_ref_id' => $savedExternalRef,
+                            'message' => $details['message'] ?? null,
+                        ]);
+
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Payment was processed but voucher details could not be retrieved. Please click Approve again — credits will not be charged twice. '
+                                . ($details['message'] ?? ''),
+                            'payment_completed' => true,
+                            'order_ref_id' => $savedExternalRef,
+                        ], 422);
+                    }
+                    $orderVouchers = $existingVouchers;
+                } else {
+                    $booking = $orderService->applyOrderDetailsToAttraction(
+                        $booking,
+                        $details['data'],
+                        $details['vouchers'],
+                        (string) ($details['data']['status'] ?? 'Paid')
+                    );
+                    $writeBookingIntoData();
+                    $orderVouchers = $details['vouchers'];
+                }
+            } elseif (trim((string) $referenceId) === '') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed: The reference id field is required.',
+                    'errors' => ['reference_id' => ['The reference id field is required.']]
+                ], 422);
             }
 
             // Handle multiple file uploads if provided with optimized processing
@@ -2931,6 +3756,16 @@ class HotelBookingController extends Controller
                 'upload_files' => $upload_files,
                 'updated_at' => now()
             ];
+            if ($isOnline && $savedExternalRef) {
+                $updateData['order_ref_no'] = $savedExternalRef;
+                if (is_array($attractionData)) {
+                    $updateData['data'] = json_encode($attractionData);
+                }
+                $firstVoucherUrl = trim((string) (($orderVouchers[0]['voucher'] ?? '') ?: ($orderVouchers[0]['download_link'] ?? '')));
+                if ($firstVoucherUrl !== '') {
+                    $updateData['voucher_image'] = $firstVoucherUrl;
+                }
+            }
 
             // Update the order
             $updated = DB::table('orders')
@@ -2973,7 +3808,16 @@ class HotelBookingController extends Controller
                     'display_due_date' => $displayDueDate,
                     'upload_files' => $allFiles,
                     'uploaded_count' => count($uploadedFiles),
-                    'upload_errors' => $uploadErrors
+                    'upload_errors' => $uploadErrors,
+                    'order_ref_id' => $savedExternalRef ?? null,
+                    'vouchers' => $orderVouchers ?? [],
+                    'voucher_code' => is_array($booking ?? null)
+                        ? OnlineAttractionOrderService::extractPrimaryVoucherCode($booking)
+                        : null,
+                    'voucher_download_link' => is_array($booking ?? null)
+                        ? ($booking['voucher_download_link'] ?? null)
+                        : null,
+                    'attraction_details' => $booking ?? [],
                 ]
             ]);
 
@@ -3262,11 +4106,11 @@ class HotelBookingController extends Controller
             }
 
             // Update the orders table with rejection data and soft delete
-            $updateData = [
+            $updateData = CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tourId, [
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now(),
-                'updated_at' => now()
-            ];
+                'updated_at' => now(),
+            ]);
 
             // Update the order
             $updated = DB::table('orders')
@@ -3280,12 +4124,16 @@ class HotelBookingController extends Controller
                 ], 500);
             }
 
+            app(\App\Services\JobsheetRemovalService::class)->deleteForOrder($restaurantOrder);
+
             // Log successful rejection
             Log::info('Restaurant booking rejected successfully', [
                 'tour_id' => $tourId,
                 'restaurant_order_id' => $restaurantOrder->id,
                 'cancel_reason' => $cancelReason
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,
@@ -3334,7 +4182,9 @@ class HotelBookingController extends Controller
                 'tour_id' => 'required|integer',
                 'attraction_order_index' => 'required|integer|min:0',
                 'booking_index' => 'required|integer|min:0',
-                'cancel_reason' => 'required|string'
+                'cancel_reason' => 'required|string',
+                'voucher_code' => 'nullable|string|max:255',
+                'attraction_order_id' => 'nullable|integer|min:1',
             ]);
 
             if ($validator->fails()) {
@@ -3348,16 +4198,15 @@ class HotelBookingController extends Controller
             $tourId = $request->tour_id;
             $attractionOrderIndex = $request->attraction_order_index;
             $bookingIndex = $request->booking_index;
-            $cancelReason = $request->cancel_reason;
+            $cancelReason = trim((string) $request->cancel_reason);
+            $requestedVoucherCode = trim((string) ($request->voucher_code ?? ''));
 
             // Find the attraction order in the orders table
-            $attractionOrder = DB::table('orders')
-                ->where('tour_id', $tourId)
-                ->where('type', 'attraction')
-                ->whereNull('deleted_at') // Only get non-deleted orders
-                // ->orderBy('id')
-                ->skip($attractionOrderIndex)
-                ->first();
+            $attractionOrder = $this->findTourAttractionOrder(
+                (int) $tourId,
+                (int) $attractionOrderIndex,
+                $request->attraction_order_id
+            );
 
             // Log the search criteria and result
             Log::info('Searching for attraction order for rejection', [
@@ -3374,20 +4223,83 @@ class HotelBookingController extends Controller
                 ], 404);
             }
 
-            // Check if the booking is already approved
-            if ($attractionOrder->is_approve == 1) {
+            $attractionData = json_decode($attractionOrder->data, true);
+            if (! is_array($attractionData)) {
+                $attractionData = [];
+            }
+            $booking = is_array($attractionData[$bookingIndex] ?? null)
+                ? $attractionData[$bookingIndex]
+                : (is_array($attractionData[0] ?? null) ? $attractionData[0] : (is_array($attractionData) ? $attractionData : []));
+            if (! is_array($booking)) {
+                $booking = [];
+            }
+
+            $isOnline = ((string) ($attractionOrder->order_type ?? '') === 'online')
+                || OnlineAttractionOrderService::isOnlineAttraction($booking);
+            $storedVoucherCode = OnlineAttractionOrderService::extractPrimaryVoucherCode($booking);
+            $voucherCode = $requestedVoucherCode !== '' ? $requestedVoucherCode : (string) ($storedVoucherCode ?? '');
+            $hasVoucher = $voucherCode !== '';
+            $isApproved = (int) ($attractionOrder->is_approve ?? 0) === 1;
+
+            // Offline / unpaid: keep previous rule (cannot reject after approve).
+            // Online with voucher: allow cancel-after-approve via Attractions cancel-voucher API.
+            if ($isApproved && ! ($isOnline && $hasVoucher)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Cannot reject an already approved booking'
                 ], 400);
             }
 
+            if ($isOnline && $hasVoucher && $requestedVoucherCode === '') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Voucher code is required to cancel this online attraction booking.',
+                    'errors' => ['voucher_code' => ['Voucher code is required.']]
+                ], 422);
+            }
+
+            $voucherCancelResult = null;
+            if ($isOnline && $hasVoucher) {
+                $voucherCancelResult = app(OnlineAttractionOrderService::class)
+                    ->cancelVoucher($voucherCode, $cancelReason, $booking);
+
+                if (empty($voucherCancelResult['success'])) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => $voucherCancelResult['message']
+                            ?: 'Provider voucher cancellation failed. Booking was not rejected.',
+                        'data' => [
+                            'voucher_cancel' => $voucherCancelResult,
+                            'voucher_code' => $voucherCode,
+                        ],
+                    ], 422);
+                }
+
+                $booking['voucher_cancelled'] = true;
+                $booking['voucher_cancel_reason'] = $cancelReason;
+                $booking['voucher_cancelled_at'] = now()->toIso8601String();
+                $booking['voucher_cancel_response'] = [
+                    'message' => $voucherCancelResult['message'] ?? null,
+                    'provider_status' => $voucherCancelResult['provider_status'] ?? null,
+                ];
+                if (isset($attractionData[$bookingIndex]) && is_array($attractionData[$bookingIndex])) {
+                    $attractionData[$bookingIndex] = $booking;
+                } elseif (isset($attractionData[0]) && is_array($attractionData[0])) {
+                    $attractionData[0] = $booking;
+                } else {
+                    $attractionData = [$booking];
+                }
+            }
+
             // Update the orders table with rejection data and soft delete
-            $updateData = [
+            $updateData = CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tourId, [
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now(), // Soft delete
-                'updated_at' => now()
-            ];
+                'updated_at' => now(),
+            ]);
+            if ($isOnline && $hasVoucher) {
+                $updateData['data'] = json_encode($attractionData);
+            }
 
             // Update the order
             $updated = DB::table('orders')
@@ -3401,21 +4313,36 @@ class HotelBookingController extends Controller
                 ], 500);
             }
 
+            app(\App\Services\JobsheetRemovalService::class)->deleteForOrder($attractionOrder);
+
             // Log successful rejection
             Log::info('Attraction booking rejected successfully', [
                 'tour_id' => $tourId,
                 'attraction_order_id' => $attractionOrder->id,
                 'cancel_reason' => $cancelReason,
+                'is_online' => $isOnline,
+                'voucher_code' => $hasVoucher ? $voucherCode : null,
+                'voucher_cancel_message' => $voucherCancelResult['message'] ?? null,
                 'deleted_at' => now()
             ]);
 
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
+
+            $message = 'Attraction booking rejected successfully';
+            if ($isOnline && $hasVoucher) {
+                $message = 'Online attraction voucher cancelled and booking rejected successfully.';
+            }
+
             return response()->json([
                 'success' => true,
-                'message' => 'Attraction booking rejected successfully',
+                'message' => $message,
                 'data' => [
                     'tour_id' => $tourId,
                     'attraction_order_id' => $attractionOrder->id,
                     'cancel_reason' => $cancelReason,
+                    'voucher_code' => $hasVoucher ? $voucherCode : null,
+                    'voucher_cancel' => $voucherCancelResult,
+                    'is_online_attraction' => $isOnline,
                     'deleted_at' => now()->toISOString()
                 ]
             ]);
@@ -3641,11 +4568,11 @@ class HotelBookingController extends Controller
             }
 
             // Update the orders table with rejection data and soft delete
-            $updateData = [
+            $updateData = CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tourId, [
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now(), // Soft delete
-                'updated_at' => now()
-            ];
+                'updated_at' => now(),
+            ]);
 
             // Update the order
             $updated = DB::table('orders')
@@ -3659,6 +4586,8 @@ class HotelBookingController extends Controller
                 ], 500);
             }
 
+            app(\App\Services\JobsheetRemovalService::class)->deleteForOrder($guideOrder);
+
             // Log successful rejection
             Log::info('Guide booking rejected successfully', [
                 'tour_id' => $tourId,
@@ -3666,6 +4595,8 @@ class HotelBookingController extends Controller
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now()
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,
@@ -3906,11 +4837,11 @@ class HotelBookingController extends Controller
             // Soft delete the arrival booking
             $updated = DB::table('orders')
                 ->where('id', $arrivalOrder->id)
-                ->update([
+                ->update(CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tourId, [
                     'deleted_at' => now(),
                     'cancel_reason' => $request->cancel_reason,
-                    'updated_at' => now()
-                ]);
+                    'updated_at' => now(),
+                ]));
 
             if (!$updated) {
                 Log::error('🚗 ARRIVAL REJECT: Failed to reject arrival order', [
@@ -3922,10 +4853,14 @@ class HotelBookingController extends Controller
                 ], 500);
             }
 
+            app(\App\Services\JobsheetRemovalService::class)->deleteForOrder($arrivalOrder);
+
             Log::info('✅ ARRIVAL REJECT: Arrival booking rejected successfully', [
                 'order_id' => $arrivalOrder->id,
                 'cancel_reason' => $request->cancel_reason
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,
@@ -4163,11 +5098,11 @@ class HotelBookingController extends Controller
             // Soft delete the departure booking
             $updated = DB::table('orders')
                 ->where('id', $departureOrder->id)
-                ->update([
+                ->update(CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tourId, [
                     'deleted_at' => now(),
                     'cancel_reason' => $request->cancel_reason,
-                    'updated_at' => now()
-                ]);
+                    'updated_at' => now(),
+                ]));
 
             if (!$updated) {
                 Log::error('✈️ DEPARTURE REJECT: Failed to reject departure order', [
@@ -4179,10 +5114,14 @@ class HotelBookingController extends Controller
                 ], 500);
             }
 
+            app(\App\Services\JobsheetRemovalService::class)->deleteForOrder($departureOrder);
+
             Log::info('✅ DEPARTURE REJECT: Departure booking rejected successfully', [
                 'order_id' => $departureOrder->id,
                 'cancel_reason' => $request->cancel_reason
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,
@@ -4419,11 +5358,11 @@ class HotelBookingController extends Controller
             // Soft delete the hourly booking
             $updated = DB::table('orders')
                 ->where('id', $hourlyOrder->id)
-                ->update([
+                ->update(CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tourId, [
                     'deleted_at' => now(),
                     'cancel_reason' => $request->cancel_reason,
-                    'updated_at' => now()
-                ]);
+                    'updated_at' => now(),
+                ]));
 
             if (!$updated) {
                 Log::error('⏰ HOURLY REJECT: Failed to reject hourly order', [
@@ -4435,10 +5374,14 @@ class HotelBookingController extends Controller
                 ], 500);
             }
 
+            app(\App\Services\JobsheetRemovalService::class)->deleteForOrder($hourlyOrder);
+
             Log::info('✅ HOURLY REJECT: Hourly booking rejected successfully', [
                 'order_id' => $hourlyOrder->id,
                 'cancel_reason' => $request->cancel_reason
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,
@@ -4672,14 +5615,14 @@ class HotelBookingController extends Controller
                 ], 400);
             }
 
-            // Soft delete the hourly booking
+            // Soft delete the point-to-point booking
             $updated = DB::table('orders')
                 ->where('id', $pointToPointOrder->id)
-                ->update([
+                ->update(CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tourId, [
                     'deleted_at' => now(),
                     'cancel_reason' => $request->cancel_reason,
-                    'updated_at' => now()
-                ]);
+                    'updated_at' => now(),
+                ]));
 
             if (!$updated) {
                 Log::error('⏰ POINT TO POINT REJECT: Failed to reject point to point order', [
@@ -4691,10 +5634,14 @@ class HotelBookingController extends Controller
                 ], 500);
             }
 
+            app(\App\Services\JobsheetRemovalService::class)->deleteForOrder($pointToPointOrder);
+
             Log::info('✅ POINT TO POINT REJECT: Point to point booking rejected successfully', [
                 'order_id' => $pointToPointOrder->id,
                 'cancel_reason' => $request->cancel_reason
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,
@@ -4923,11 +5870,11 @@ class HotelBookingController extends Controller
             // Soft delete the local transport booking
             $updated = DB::table('orders')
                 ->where('id', $localTransportOrder->id)
-                ->update([
+                ->update(CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tourId, [
                     'deleted_at' => now(),
                     'cancel_reason' => $request->cancel_reason,
-                    'updated_at' => now()
-                ]);
+                    'updated_at' => now(),
+                ]));
 
             if (!$updated) {
                 Log::error('🚌 LOCAL TRANSPORT REJECT: Failed to reject local transport order', [
@@ -4939,10 +5886,14 @@ class HotelBookingController extends Controller
                 ], 500);
             }
 
+            app(\App\Services\JobsheetRemovalService::class)->deleteForOrder($localTransportOrder);
+
             Log::info('✅ LOCAL TRANSPORT REJECT: Local transport booking rejected successfully', [
                 'order_id' => $localTransportOrder->id,
                 'cancel_reason' => $request->cancel_reason
             ]);
+
+            CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
                 'success' => true,
@@ -5532,5 +6483,408 @@ class HotelBookingController extends Controller
                 'message' => 'An error occurred while uploading files: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * @return array{0: object, 1: array<string, mixed>, 2: int}
+     */
+    private function resolveHotelOrderBooking(int $tourId, int $hotelOrderIndex, int $bookingIndex): array
+    {
+        // Stable ordering is required: recheck caches by orders.id, approve must hit the same row.
+        $hotelOrder = DB::table('orders')
+            ->where('tour_id', $tourId)
+            ->where('type', 'hotel')
+            ->whereNull('deleted_at')
+            ->orderBy('id')
+            ->skip($hotelOrderIndex)
+            ->first();
+
+        if (! $hotelOrder) {
+            throw new \RuntimeException('Hotel order not found');
+        }
+
+        $hotelData = json_decode($hotelOrder->data, true);
+
+        if (! is_array($hotelData) || ! isset($hotelData[$bookingIndex])) {
+            throw new \RuntimeException('Hotel booking not found in order data');
+        }
+
+        return [$hotelOrder, $hotelData[$bookingIndex], $bookingIndex];
+    }
+
+    /**
+     * @param  array<string, mixed>  $booking
+     */
+    private function resolveOnlineHotelSupplierCode(array $booking): string
+    {
+        $code = strtolower(trim((string) (
+            $booking['onlineHotelSource']
+            ?? ($booking['onlineHotelBooking']['supplier_code'] ?? '')
+        )));
+
+        return $code !== '' ? $code : 'mg_bedbank';
+    }
+
+    /**
+     * @param  array<string, mixed>  $booking
+     * @return array<string, string|null>
+     */
+    private function onlineHotelCredentials(string $supplierCode, array $booking): array
+    {
+        $code = app(OnlineHotelBookingServiceFactory::class)->credentialCode($supplierCode);
+        $environment = app(ApiEnvironmentResolver::class)->resolveForRecord($booking);
+
+        $resolver = app(SupplierConfigResolver::class);
+
+        if (! $resolver->isConfigured($code, $environment)) {
+            throw new \RuntimeException($resolver->missingCredentialsMessage($code, $environment));
+        }
+
+        return $resolver->valuesFor($code, $environment);
+    }
+
+    private function onlineHotelSupplierLabel(string $supplierCode): string
+    {
+        $code = app(OnlineHotelBookingServiceFactory::class)->credentialCode($supplierCode);
+
+        return (string) config("suppliers.{$code}.label", $code);
+    }
+
+    /**
+     * Mark absolute cancel penalties with the same admin+DMC stack as the room rate.
+     *
+     * @param  array<string, mixed>  $booking
+     * @param  array<int, array<string, mixed>>  $policies
+     * @return array<int, array<string, mixed>>
+     */
+    private function customerFacingCancellationPolicies(array $booking, array $policies, int $tourId = 0): array
+    {
+        if ($policies === []) {
+            return [];
+        }
+
+        $online = is_array($booking['onlineHotelBooking'] ?? null)
+            ? $booking['onlineHotelBooking']
+            : [];
+
+        if (($online['supplier_code'] ?? '') === '' && filled($booking['onlineHotelSource'] ?? null)) {
+            $online['supplier_code'] = (string) $booking['onlineHotelSource'];
+        }
+
+        $tourDmcId = null;
+        if ($tourId > 0) {
+            $tour = Tour::query()
+                ->where(function ($query) use ($tourId) {
+                    $query->where('tour_id', $tourId)->orWhere('id', $tourId);
+                })
+                ->first(['dmc_id']);
+            $tourDmcId = $tour && (int) $tour->dmc_id > 0 ? (int) $tour->dmc_id : null;
+        }
+
+        $pricing = app(OnlinePricingService::class);
+        $context = $pricing->hotelMarkupContextForRecheck($online, Auth::user(), $tourDmcId);
+
+        if (! $context) {
+            return $policies;
+        }
+
+        /** @var array<int, array<string, mixed>> $marked */
+        $marked = $pricing->applyMarkupToCancellationPolicies($policies, $context);
+
+        return $marked;
+    }
+
+    /**
+     * Pull cancellation policy list from stored onlineHotelBooking (enquiry payload).
+     *
+     * @param  array<string, mixed>|null  $onlineBooking
+     * @return array<int, array<string, mixed>>
+     */
+    private function normalizeOnlineHotelCancellationPolicies(?array $onlineBooking): array
+    {
+        if (! is_array($onlineBooking)) {
+            return [];
+        }
+
+        $candidates = [
+            $onlineBooking['room']['cancellation_policies'] ?? null,
+            $onlineBooking['raw_room']['cancellationPolicies']['policy'] ?? null,
+            $onlineBooking['room']['cancellationPolicies']['policy'] ?? null,
+            // Hotelbeds enquiry stores policies on raw_room.rate (pre-normalised adapter).
+            $onlineBooking['raw_room']['rate']['cancellationPolicies'] ?? null,
+            $onlineBooking['raw_room']['room']['rates'][0]['cancellationPolicies'] ?? null,
+        ];
+
+        $checkIn = (string) ($onlineBooking['check_in'] ?? $onlineBooking['selection']['stay_check_in'] ?? '');
+        $checkOut = (string) ($onlineBooking['check_out'] ?? $onlineBooking['selection']['stay_check_out'] ?? '');
+        $netPrice = (float) ($onlineBooking['room']['net_price']
+            ?? $onlineBooking['raw_room']['rate']['net']
+            ?? 0);
+
+        foreach ($candidates as $candidate) {
+            $normalized = $this->coerceCancellationPolicyList($candidate, $checkIn, $checkOut, $netPrice);
+            if ($normalized !== []) {
+                return $normalized;
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * Prefer live RecheckHotel policies when the supplier returns them.
+     *
+     * @param  array<string, mixed>  $recheckResult
+     * @return array<int, array<string, mixed>>
+     */
+    private function extractLiveCancellationPolicies(array $recheckResult): array
+    {
+        // Prefer supplier-normalized list already attached by the booking service.
+        if (
+            is_array($recheckResult['cancellation_policies'] ?? null)
+            && $recheckResult['cancellation_policies'] !== []
+        ) {
+            return $this->coerceCancellationPolicyList($recheckResult['cancellation_policies']);
+        }
+
+        // MG Bedbank RecheckHotel shape
+        $roomDetails = $recheckResult['recheck_response']['hotels']['hotel']['roomDetails'] ?? null;
+
+        if (is_array($roomDetails) && isset($roomDetails[0]) && is_array($roomDetails[0])) {
+            $roomDetails = $roomDetails[0];
+        }
+
+        if (is_array($roomDetails)) {
+            $mg = $this->coerceCancellationPolicyList(
+                $roomDetails['cancellationPolicies']['policy'] ?? ($roomDetails['cancellation_policies'] ?? null)
+            );
+            if ($mg !== []) {
+                return $mg;
+            }
+        }
+
+        // Hotelbeds CheckRate: hotel.rooms[].rates[].cancellationPolicies [{amount, from}]
+        $hotel = $recheckResult['recheck_response']['hotel']
+            ?? ($recheckResult['recheck_response']['hotels']['hotel'] ?? null);
+
+        if (! is_array($hotel)) {
+            return [];
+        }
+
+        $checkIn = (string) ($recheckResult['check_in'] ?? $hotel['checkIn'] ?? '');
+        $checkOut = (string) ($recheckResult['check_out'] ?? $hotel['checkOut'] ?? '');
+        $netPrice = (float) ($recheckResult['supplier_net_price'] ?? 0);
+
+        foreach ($hotel['rooms'] ?? [] as $room) {
+            if (! is_array($room)) {
+                continue;
+            }
+            foreach ($room['rates'] ?? [] as $rate) {
+                if (! is_array($rate)) {
+                    continue;
+                }
+                $policies = $this->coerceCancellationPolicyList(
+                    $rate['cancellationPolicies'] ?? null,
+                    $checkIn,
+                    $checkOut,
+                    $netPrice > 0 ? $netPrice : (float) ($rate['net'] ?? 0),
+                );
+                if ($policies !== []) {
+                    return $policies;
+                }
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * Accept MG `{fromDate,toDate,...}` and Hotelbeds `{amount,from}` shapes.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function coerceCancellationPolicyList(
+        mixed $value,
+        string $checkIn = '',
+        string $checkOut = '',
+        float $netPrice = 0.0,
+    ): array {
+        if (is_array($value) && isset($value['fromDate'])) {
+            return [$value];
+        }
+
+        // Single Hotelbeds rule object.
+        if (is_array($value) && (isset($value['from']) || isset($value['amount'])) && ! array_is_list($value)) {
+            $value = [$value];
+        }
+
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $list = [];
+        $hotelbedsRows = [];
+
+        foreach ($value as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            if (isset($item['fromDate']) || isset($item['toDate'])) {
+                $list[] = $item;
+                continue;
+            }
+
+            // Hotelbeds availability: { amount, from: "2026-11-01T23:59:00+08:00" }
+            if (isset($item['from']) || (isset($item['amount']) && ! isset($item['fromDate']))) {
+                $fromRaw = trim((string) ($item['from'] ?? ''));
+                $fromDate = '';
+                if (preg_match('/^(\d{4}-\d{2}-\d{2})/', $fromRaw, $m)) {
+                    $fromDate = $m[1];
+                }
+                if ($fromDate === '') {
+                    continue;
+                }
+                $hotelbedsRows[] = [
+                    'fromDate' => $fromDate,
+                    'amount' => $item['amount'] ?? '',
+                ];
+            }
+        }
+
+        if ($list !== []) {
+            return $list;
+        }
+
+        if ($hotelbedsRows === []) {
+            return [];
+        }
+
+        usort(
+            $hotelbedsRows,
+            fn (array $a, array $b) => strcmp((string) $a['fromDate'], (string) $b['fromDate'])
+        );
+
+        $normalized = [];
+        foreach ($hotelbedsRows as $index => $row) {
+            $nextFrom = $hotelbedsRows[$index + 1]['fromDate'] ?? null;
+            $toDate = '';
+            if (is_string($nextFrom) && $nextFrom !== '') {
+                try {
+                    $toDate = \Carbon\Carbon::parse($nextFrom)->subDay()->toDateString();
+                } catch (\Throwable) {
+                    $toDate = '';
+                }
+            } elseif ($checkIn !== '') {
+                $toDate = substr($checkIn, 0, 10);
+            }
+
+            $amount = is_numeric($row['amount']) ? (string) $row['amount'] : trim((string) $row['amount']);
+            $amountFloat = is_numeric($amount) ? (float) $amount : null;
+            $noShow = false;
+            $percent = '';
+            if (
+                $amountFloat !== null
+                && $netPrice > 0
+                && $amountFloat >= ($netPrice * 0.99)
+                && $checkIn !== ''
+                && $row['fromDate'] >= substr($checkIn, 0, 10)
+            ) {
+                $noShow = true;
+                $percent = '100.00';
+            }
+
+            $normalized[] = [
+                'fromDate' => $row['fromDate'],
+                'toDate' => $toDate,
+                'amount' => $amount,
+                'b2BMarkup' => '',
+                'grossAmount' => $amount,
+                'nights' => '',
+                'percent' => $percent,
+                'noShow' => $noShow,
+            ];
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function decodeOrderBookingDetails(mixed $raw): ?array
+    {
+        if (is_array($raw)) {
+            return $raw;
+        }
+
+        if (! is_string($raw) || trim($raw) === '') {
+            return null;
+        }
+
+        $decoded = json_decode($raw, true);
+
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    /**
+     * Supplier confirmation id from orders.booking_details
+     * (MG mgBookingID, Hotelbeds booking.reference, Tinivia supplier_booking_reference).
+     *
+     * @param  array<string, mixed>|null  $bookingDetails
+     */
+    private function extractOnlineHotelSupplierBookingReference(?array $bookingDetails): ?string
+    {
+        if (! is_array($bookingDetails)) {
+            return null;
+        }
+
+        $candidates = [
+            $bookingDetails['book_response']['bookingDetails']['mgBookingID'] ?? null,
+            $bookingDetails['book_response']['bookingDetails']['mgBookingId'] ?? null,
+            $bookingDetails['book_response']['booking']['reference'] ?? null,
+            $bookingDetails['book_response']['booking']['hotel']['reference'] ?? null,
+            $bookingDetails['book_response']['reference'] ?? null,
+            $bookingDetails['supplier_booking_reference'] ?? null,
+            $bookingDetails['mg_booking_id'] ?? null,
+            $bookingDetails['mgBookingID'] ?? null,
+        ];
+
+        foreach ($candidates as $candidate) {
+            $value = trim((string) ($candidate ?? ''));
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
+        return null;
+    }
+
+    /** @deprecated Use extractOnlineHotelSupplierBookingReference() */
+    private function extractOnlineHotelMgBookingId(?array $bookingDetails): ?string
+    {
+        return $this->extractOnlineHotelSupplierBookingReference($bookingDetails);
+    }
+
+    /**
+     * Resolve the attraction order shown in Confirmed/Definite/Actual lists.
+     * Prefer orders.id from the modal; fall back to index with a stable order.
+     */
+    private function findTourAttractionOrder(int $tourId, $index, $orderId = null): ?object
+    {
+        $base = DB::table('orders')
+            ->where('tour_id', $tourId)
+            ->where('type', 'attraction')
+            ->whereNull('deleted_at');
+
+        $orderId = (int) $orderId;
+        if ($orderId > 0) {
+            $found = (clone $base)->where('id', $orderId)->first();
+            if ($found) {
+                return $found;
+            }
+        }
+
+        return $base->orderBy('id')->skip((int) $index)->first();
     }
 }

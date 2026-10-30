@@ -38,128 +38,275 @@
     .select2-container--default .select2-selection--single .select2-selection__clear:hover {
         color: #dc3545;
     }
+
+    /* Compact table styles (shared with new-enquiries / follow-ups) */
+    #toursTable {
+        font-size: 0.875rem;
+    }
+
+    #toursTable thead th {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    #toursTable tbody td {
+        padding: 0.5rem 0.75rem;
+        vertical-align: middle;
+    }
+
+    #toursTable tbody tr {
+        height: auto;
+        min-height: 50px;
+    }
+
+    /* Compact badges in table */
+    #toursTable .badge {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem;
+        margin: 0.1rem 0.15rem;
+        font-weight: 500;
+    }
+
+    /* Compact icons */
+    #toursTable i {
+        font-size: 1rem;
+    }
+
+    /* Compact text in cells */
+    #toursTable .fw-medium,
+    #toursTable .fw-bold {
+        font-size: 0.875rem;
+    }
+
+    #toursTable small {
+        font-size: 0.75rem;
+    }
+
+    /* Compact buttons in table */
+    #toursTable .btn-sm {
+        padding: 0.25rem 0.55rem;
+        font-size: 0.78rem;
+        height: auto;
+        white-space: nowrap;
+    }
+
+    /* Compact guests icons section */
+    #toursTable .d-flex.gap-3 {
+        gap: 0.75rem !important;
+    }
+
+    /* Compact services badges container */
+    #toursTable .d-flex.gap-2.flex-wrap {
+        gap: 0.35rem !important;
+    }
+
+    /* Reduce spacing in tour details */
+    #toursTable .d-flex.flex-column {
+        gap: 0.15rem;
+    }
+
+    /* Compact muted text */
+    #toursTable .text-muted {
+        font-size: 0.7rem;
+    }
+
+    /* Compact date / status text */
+    #toursTable .d-flex.flex-column small {
+        line-height: 1.3;
+    }
+
+    /* Page background - match cancelled */
+    .refunds-bookings-page { background-color: #f8f9fa !important; min-height: 100vh; padding-bottom: 2rem !important; }
+    .refunds-bookings-page .card { background-color: #fff; border-radius: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+
+    /* Compact table styles (aligned with cancelled) */
+    #toursTable {
+        font-size: 0.875rem;
+        table-layout: fixed;
+        width: 100% !important;
+        margin-bottom: 0;
+        background-color: #fff;
+    }
+    .dataTables_wrapper .dataTables_scroll .dataTables_scrollBody #toursTable,
+    .dataTables_wrapper #toursTable { width: 100% !important; table-layout: fixed; }
+    #toursTable thead th {
+        padding: 0.5rem 0.5rem;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        background-color: #f8f9fa;
+    }
+    #toursTable tbody td {
+        padding: 0.5rem 0.5rem;
+        vertical-align: top;
+        overflow: hidden;
+        background-color: #fff;
+    }
+    /* Tour Details, Agent, Actions, Created, Auto Cancel */
+    #toursTable td:nth-child(2) { min-height: 72px; vertical-align: top; }
+    #toursTable td.col-agent .agent-name-line { font-weight: 600; font-size: 0.875rem; color: #0d6efd; display: flex; align-items: center; gap: 0.35rem; }
+    #toursTable td.col-agent .agent-company-line { font-size: 0.75rem; color: #6c757d; display: flex; align-items: center; gap: 0.35rem; margin-top: 0.2rem; }
+    #toursTable td.col-agent .agent-empty { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; color: #6c757d; font-style: italic; }
+    #toursTable td.col-created { white-space: normal; word-wrap: break-word; overflow-wrap: break-word; }
+    #toursTable td.col-created .created-by-line, #toursTable td.col-created .created-at-line { display: flex; align-items: flex-start; gap: 0.35rem; line-height: 1.35; }
+    #toursTable td.col-actions { min-height: 72px; min-width: 160px; overflow: visible; }
+    #toursTable .actions-icons-wrap {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        row-gap: 0.5rem;
+        column-gap: 0.5rem;
+        align-items: center;
+        justify-items: center;
+    }
+    #toursTable .action-icon-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 32px;
+        min-width: 32px;
+        padding: 0.35rem;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+    }
+    #toursTable .action-icon-badge:hover { background: #f1f5f9; border-color: #cbd5e1; }
+    #toursTable tr.refund-row-warning > td { background-color: #fff7ed !important; }
+    #toursTable .action-icon-badge.is-refund-initiated,
+    #toursTable .action-icon-badge.is-refunded {
+        border: none !important;
+        --action-color: #fff;
+    }
+    #toursTable .action-icon-badge.is-refund-initiated {
+        background: #f59e0b !important;
+    }
+    #toursTable .action-icon-badge.is-refund-initiated:hover { background: #d97706 !important; }
+    #toursTable .action-icon-badge.is-refunded {
+        background: #22c55e !important;
+    }
+    #toursTable .action-icon-badge.is-refunded:hover { background: #16a34a !important; }
+    #toursTable .action-icon-badge i { font-size: 1rem; color: var(--action-color, #475569); }
+    #toursTable .action-icon-badge.is-refund-initiated i,
+    #toursTable .action-icon-badge.is-refunded i { color: #fff !important; }
+    #toursTable button.action-icon-badge { border: 1px solid #e2e8f0; background: #f8fafc; }
+    #toursTable td.col-auto-cancel { font-size: 0.7rem; }
+    #service-icon-global-tooltip {
+        position: fixed;
+        padding: 0.4rem 0.65rem;
+        background: #2d3748;
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 500;
+        white-space: nowrap;
+        border-radius: 0.375rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        z-index: 1100;
+        pointer-events: none;
+        display: none;
+        left: 0;
+        top: 0;
+        transform-origin: bottom center;
+    }
+
+    /* Compact header + stats + filter bar */
+    .new-enq-header-bar { background: linear-gradient(135deg, #f8f9fc 0%, #fff 100%); border-radius: 0.5rem; border: 1px solid rgba(105, 108, 255, 0.08); }
+    .new-enq-stat-item { transition: transform 0.15s ease, box-shadow 0.15s ease; min-height: 72px; padding: 0.65rem 0.75rem !important; }
+    .new-enq-stat-item:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+    .new-enq-stat-item .stat-value { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.02em; line-height: 1; display: block; min-height: 1.5rem; }
+    .new-enq-stat-item .stat-label { display: block; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.85; margin-top: 0.15rem; line-height: 1.3; }
+    .new-enq-stats-grid .col { display: flex; }
+    .new-enq-stats-grid .col > div { width: 100%; }
+    .new-enq-filter-bar { background: #fff; border-radius: 0.5rem; border: 1px solid #e7e9ed; }
+    .new-enq-filter-bar .form-control, .new-enq-filter-bar .form-control-sm,
+    .new-enq-filter-bar .form-select, .new-enq-filter-bar .form-select.form-select-sm { font-size: 0.8125rem; height: 38px; }
+    .new-enq-filter-bar .select2-container--default .select2-selection--single { height: 38px !important; min-height: 38px !important; border-radius: 0.375rem; }
+    .new-enq-filter-bar .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 36px !important; padding-left: 10px; padding-right: 32px; }
+    .new-enq-filter-bar .select2-container--default .select2-selection--single .select2-selection__arrow { height: 36px !important; right: 8px; }
+    .new-enq-filter-bar .select2-container--default .select2-selection--single .select2-selection__clear { right: 32px; }
 </style>
 
 @section('content')
-<div class="container-xxl flex-grow-1 container-p-y">
+<div class="container-xxl flex-grow-1 container-p-y refunds-bookings-page">
+    @include('bookings.partials.booking-type-tabs', [
+        'type' => 'tours',
+        'toursUrl' => route('bookings.refunds'),
+        'packagesUrl' => route('package-bookings.refunds'),
+    ])
     <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h4 class="fw-bold py-3 mb-2">
-                <i class="ri-money-dollar-circle-line me-2 text-success"></i>
-                <span class="text-muted fw-light">Bookings /</span> Refunds
-            </h4>
-            <p class="text-muted">Manage refunds for cancelled definite bookings</p>
-        </div>
-        <div class="d-flex gap-2">
-            <span class="badge bg-success fs-6">
-                <i class="ri-money-dollar-circle-line me-1"></i>
-                <span id="rangeCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->count() }}</span>
-                <span id="rangeLabel">{{ date('F') }}</span> Refunds
-            </span>
-        </div>
-    </div>
-
-    <!-- Stats Cards -->
-    <div class="row mb-4">
-        <div class="col-lg-3 col-md-6 col-sm-12 mb-3">
-            <div class="card h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="card-title mb-1" id="statRefundsCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->count() }}</h5>
-                            <p class="text-muted mb-0" id="statRefundsLabel">{{ date('F') }} Refunds</p>
-                        </div>
-                        <div class="avatar">
-                            <div class="avatar-initial bg-success rounded">
-                                <i class="ri-money-dollar-circle-line ri-24px"></i>
-                            </div>
-                        </div>
+    <!-- Compact Header + Stats Bar -->
+    <div class="new-enq-header-bar p-3 mb-3">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <h4 class="fw-bold mb-0" style="font-size: 1.25rem;">
+                    <i class="ri-money-dollar-circle-line me-2 text-success"></i>
+                    <span class="text-muted fw-light">Bookings /</span> Refunds
+                </h4>
+                <span class="text-muted d-none d-md-inline" style="font-size: 0.875rem;">Manage refunds for cancelled definite bookings</span>
+                <span class="badge bg-light text-success border border-success border-opacity-25 px-2 py-1" style="font-size: 0.75rem;">
+                    <i class="ri-money-dollar-circle-line me-1"></i><span id="rangeCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->count() }}</span> <span id="rangeLabel">{{ date('F') }}</span>
+                </span>
+            </div>
+            <div class="row g-2 new-enq-stats-grid flex-grow-1">
+                <div class="col-6 col-md-4 col-xl">
+                    <div class="new-enq-stat-item d-flex align-items-start gap-2 rounded bg-white border shadow-sm h-100">
+                        <div class="avatar-initial bg-success rounded flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"><i class="ri-money-dollar-circle-line text-white"></i></div>
+                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statRefundsCount">{{ $tours->where('updated_at', '>=', now()->startOfMonth())->where('updated_at', '<=', now()->endOfMonth())->count() }}</span><span class="stat-label text-muted" id="statRefundsLabel">{{ date('F') }} Refunds</span></div>
                     </div>
                 </div>
-            </div>
-        </div>
-        <div class="col-lg-3 col-md-6 col-sm-12 mb-3">
-            <div class="card h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="card-title mb-1" id="statTotalCount">{{ $tours->count() }}</h5>
-                            <p class="text-muted mb-0" id="statTotalLabel">Total Refunds</p>
-                        </div>
-                        <div class="avatar">
-                            <div class="avatar-initial bg-info rounded">
-                                <i class="ri-funds-line ri-24px"></i>
-                            </div>
-                        </div>
+                <div class="col-6 col-md-4 col-xl">
+                    <div class="new-enq-stat-item d-flex align-items-start gap-2 rounded bg-white border shadow-sm h-100">
+                        <div class="avatar-initial bg-info rounded flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"><i class="ri-funds-line text-white"></i></div>
+                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statTotalCount">{{ $tours->count() }}</span><span class="stat-label text-muted" id="statTotalLabel">Total Refunds</span></div>
                     </div>
                 </div>
-            </div>
-        </div>
-        <div class="col-lg-3 col-md-6 col-sm-12 mb-3">
-            <div class="card h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="card-title mb-1" id="statPendingCount">{{ $tours->where('tour_status', 'Refund - Pending')->count() }}</h5>
-                            <p class="text-muted mb-0" id="statPendingLabel">Pending Refunds</p>
-                        </div>
-                        <div class="avatar">
-                            <div class="avatar-initial bg-danger rounded">
-                                <i class="ri-time-line ri-24px"></i>
-                            </div>
-                        </div>
+                <div class="col-6 col-md-4 col-xl">
+                    <div class="new-enq-stat-item d-flex align-items-start gap-2 rounded bg-white border shadow-sm h-100">
+                        <div class="avatar-initial bg-danger rounded flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"><i class="ri-time-line text-white"></i></div>
+                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statPendingCount">{{ $tours->where('tour_status', 'Refund - Pending')->count() }}</span><span class="stat-label text-muted" id="statPendingLabel">Pending Refunds</span></div>
                     </div>
                 </div>
-            </div>
-        </div>
-        <div class="col-lg-3 col-md-6 col-sm-12 mb-3">
-            <div class="card h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h5 class="card-title mb-1" id="statCompletedCount">{{ $tours->where('tour_status', 'Refunded')->count() }}</h5>
-                            <p class="text-muted mb-0" id="statCompletedLabel">Completed Refunds</p>
-                        </div>
-                        <div class="avatar">
-                            <div class="avatar-initial bg-success rounded ri-arrow-go-back-line">
-                                <i class="ri-check-circle-line ri-24px"></i>
-                            </div>
-                        </div>
+                <div class="col-6 col-md-4 col-xl">
+                    <div class="new-enq-stat-item d-flex align-items-start gap-2 rounded bg-white border shadow-sm h-100">
+                        <div class="avatar-initial bg-success rounded flex-shrink-0" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;"><i class="ri-check-circle-line text-white"></i></div>
+                        <div class="min-w-0"><span class="stat-value d-block lh-1" id="statCompletedCount">{{ $tours->where('tour_status', 'Refunded')->count() }}</span><span class="stat-label text-muted" id="statCompletedLabel">Completed Refunds</span></div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Filters -->
-    <div class="card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Filters</h5>
-            <button class="btn btn-sm btn-outline-secondary" onclick="resetFilters()">
-                <i class="ri-refresh-line me-1"></i> Reset
-            </button>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-2">
-                    <label class="form-label">Search</label>
-                    <input type="text" class="form-control" id="searchInput" placeholder="Tour ID, Display ID...">
+    <!-- Compact Filters -->
+    <div class="new-enq-filter-bar card mb-3 border-0 shadow-sm">
+        <div class="card-body py-2 px-3">
+            <div class="row g-2 align-items-end">
+                <div class="col-12 d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">
+                    <span class="text-muted fw-medium d-flex align-items-center gap-1" style="font-size: 0.8rem;"><i class="ri-filter-3-line"></i> Filters</span>
+                    <button class="btn btn-sm btn-outline-secondary py-1 px-2" onclick="resetFilters()" title="Reset filters">
+                        <i class="ri-refresh-line me-1"></i> Reset
+                    </button>
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label">Destination</label>
-                    <select class="form-select" id="destinationFilter">
+                <div class="col-12 col-sm-6 col-md-4 col-lg">
+                    <label class="form-label mb-0 small text-muted">Search</label>
+                    <input type="text" class="form-control form-control-sm" id="searchInput" placeholder="Tour ID, Display ID...">
+                </div>
+                <div class="col-12 col-sm-6 col-md-4 col-lg">
+                    <label class="form-label mb-0 small text-muted">Destination</label>
+                    <select class="form-select form-select-sm" id="destinationFilter">
                         <option value="">All Destinations</option>
                         @php
                             $allDestinations = [];
                             foreach($tours as $tour) {
                                 if($tour->destination) {
-                                    // Split by comma to get individual destinations
                                     $destinations = array_map('trim', explode(',', $tour->destination));
                                     $allDestinations = array_merge($allDestinations, $destinations);
                                 }
                             }
-                            // Get unique destinations
                             $uniqueDestinations = array_unique(array_filter($allDestinations));
                             sort($uniqueDestinations);
                         @endphp
@@ -168,30 +315,30 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label">Agent</label>
-                    <select class="form-select" id="agentFilter">
+                <div class="col-12 col-sm-6 col-md-4 col-lg">
+                    <label class="form-label mb-0 small text-muted">Agent</label>
+                    <select class="form-select form-select-sm" id="agentFilter">
                         <option value="">All Agents</option>
                         @foreach($tours->where('agent_name', '!=', null)->pluck('agent_name', 'agent_id')->unique() as $agentId => $agentName)
                             <option value="{{ $agentName }}">{{ $agentName }}</option>
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label">Refund Status</label>
-                    <select class="form-select" id="statusFilter">
+                <div class="col-12 col-sm-6 col-md-4 col-lg">
+                    <label class="form-label mb-0 small text-muted">Refund Status</label>
+                    <select class="form-select form-select-sm" id="statusFilter">
                         <option value="">All Status</option>
-                        <option value="Refund - Pending">Pending</option>
-                        <option value="Refunded">Refunded</option>
+                        <option value="pending">Pending</option>
+                        <option value="refunded">Refunded</option>
                     </select>
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label">Start Date</label>
-                    <input type="date" class="form-control" id="startDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->startOfMonth()->toDateString() }}">
+                <div class="col-12 col-sm-6 col-md-4 col-lg">
+                    <label class="form-label mb-0 small text-muted">Start Date</label>
+                    <input type="date" class="form-control form-control-sm" id="startDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->startOfMonth()->toDateString() }}">
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label">End Date</label>
-                    <input type="date" class="form-control" id="endDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->toDateString() }}">
+                <div class="col-12 col-sm-6 col-md-4 col-lg">
+                    <label class="form-label mb-0 small text-muted">End Date</label>
+                    <input type="date" class="form-control form-control-sm" id="endDateFilter" max="{{ now()->toDateString() }}" value="{{ now()->toDateString() }}">
                 </div>
             </div>
         </div>
@@ -221,90 +368,148 @@
             @if($tours->count() > 0)
             <div class="table-responsive">
                 <table class="datatables-basic table table-bordered" id="toursTable">
+                    <colgroup>
+                        <col style="width: 2%">
+                        <col style="width: 16%">
+                        <col style="width: 10%">
+                        <col style="width: 12%">
+                        <col style="width: 12%">
+                        <col style="width: 10%">
+                        <col style="width: 14%">
+                        <col style="width: 8%">
+                    </colgroup>
                     <thead class="table-light">
                         <tr>
-                            <th>#</th>
-                            <th>Tour Details</th>
-                            <th>Destination</th>
-                            <th>Guests</th>
-                            <th>Agent</th>
-                            <th>Travel Dates</th>
-                            <th>Refund Status</th>
-                            <th>Cancelled Date</th>
-                            <th>Actions</th>
-                            <th>Created At</th>
-                            <th>Updated At</th>
-                            <th>Auto Cancel Date</th>
+                            <th class="th-tooltip" data-tooltip="#">#</th>
+                            <th class="th-tooltip" data-tooltip="Tour Details">Tour Details</th>
+                            <th class="th-tooltip" data-tooltip="Agent">Agent</th>
+                            <th class="th-tooltip" data-tooltip="Refund Status">Refund Status</th>
+                            <th class="th-tooltip" data-tooltip="Cancelled Date">Cancelled Date</th>
+                            <!-- <th class="th-tooltip" data-tooltip="Refund Services">Cancel Services</th> -->
+                            <th class="th-tooltip" data-tooltip="Actions">Actions</th>
+                            <th class="th-tooltip" data-tooltip="Created">Created</th>
+                            <th class="th-tooltip" data-tooltip="Auto Cancel">Auto Cancel</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($tours as $key => $tour)
+                        @php
+                            $rowRefundOrders = collect($tour->booking ?? [])->filter(function ($order) {
+                                return (int) ($order->is_refund ?? 0) === 1;
+                            });
+                            $rowHasInitiatedRefund = $rowRefundOrders->contains(function ($order) {
+                                return (int) ($order->is_verify ?? 0) === 2 && ! ((bool) ($order->refunded ?? false));
+                            });
+                            $isTourCancel = in_array($tour->tour_status, ['Refund - Pending', 'Refunded'], true);
+                            if ($isTourCancel) {
+                                $hasPendingRefund = $tour->tour_status === 'Refund - Pending';
+                                $hasRefunded = $tour->tour_status === 'Refunded';
+                            } else {
+                                $hasPendingRefund = $rowRefundOrders->contains(function ($order) {
+                                    return ! ((bool) ($order->refunded ?? false));
+                                });
+                                $hasRefunded = $rowRefundOrders->contains(function ($order) {
+                                    return (bool) ($order->refunded ?? false);
+                                });
+                            }
+                        @endphp
                         <tr 
-                            class="{{ $tour->tour_status === 'Refund - Pending' ? 'table-danger' : 'table-success' }}"
-                            data-created-at="{{ optional($tour->created_at)->toDateString() }}"
+                            class="{{ $rowHasInitiatedRefund ? 'refund-row-warning' : ($tour->tour_status === 'Refund - Pending' ? 'table-danger' : 'table-success') }}"
+                            data-created-at="{{ optional($tour->destination_created_at ?? $tour->created_at)->toDateString() }}"
                             data-updated-at="{{ optional($tour->updated_at)->toDateString() }}"
                             data-adult="{{ $tour->adult ?? 0 }}"
                             data-child="{{ $tour->child ?? 0 }}"
                             data-tour-status="{{ $tour->tour_status }}"
+                            data-has-pending="{{ $hasPendingRefund ? '1' : '0' }}"
+                            data-has-refunded="{{ $hasRefunded ? '1' : '0' }}"
                             data-agent="{{ $tour->agent_name }}"
                             data-destination="{{ $tour->destination }}"
                         >
                             <td>{{ $key + 1 }}</td>
-                            <td>
-                                <div class="d-flex flex-column">
+                            <td class="align-top">
+                                <div class="d-flex flex-column gap-1">
                                     <strong class="text-success">{{ $tour->display_id }}</strong>
+                                    @if($tour->reference_id)
+                                        <small class="text-dark">Ref: {{ $tour->reference_id }}</small>
+                                    @endif
                                     <small class="text-muted">Tour ID: #{{ $tour->tour_id }}</small>
+
+                                   
+
                                     @if($tour->multi_enq_id)
                                         <small class="text-info">Multi: {{ $tour->multi_enq_id }}</small>
                                     @endif
-                                </div>
-                            </td>
-                            <td>
-                                <div class="d-flex flex-column">
-                                    <span class="fw-medium">{{ $tour->destination ?? 'N/A' }}</span>
-                                </div>
-                            </td>
+                                    @include('bookings.partials.tour-detail-badges', ['tour' => $tour])
+                                    <span class="fw-medium mt-1"><i class="ri-map-pin-line me-1"></i>{{ $tour->destination ?? 'N/A' }}</span>
+                                    <div class="d-flex align-items-center gap-2 flex-nowrap">
+                                        <span title="Adults"><i class="ri-user-line text-success"></i> {{ $tour->adult ?? 0 }}</span>
+                                        <span title="Children"><i class="ri-user-smile-line text-warning"></i> {{ $tour->child ?? 0 }}</span>
+                                        <span title="Infants"><i class="ri-user-heart-line text-info"></i> {{ $tour->infant ?? 0 }}</span>
+                                    </div>
+                                    @if($tour->check_in_time || $tour->check_out_time)
+                                        <small>
+                                            @if($tour->check_in_time)<span><strong>In:</strong> {{ \Carbon\Carbon::parse($tour->check_in_time)->format('M d, Y') }}</span><br>
+                                            @endif
+                                            @if($tour->check_out_time)<span class=""><strong>Out:</strong> {{ \Carbon\Carbon::parse($tour->check_out_time)->format('M d, Y') }}</span>@endif
+                                        </small>
+                                    @endif
+                                    @php
+                                        $mainGuest = $tour->mainguest;
+                                        if (is_string($mainGuest)) {
+                                            $mainGuest = json_decode($mainGuest, true) ?: [];
+                                        }
 
-                            <td>
-                                <div class="d-flex gap-3 align-items-center">
-                                    <div class="d-flex align-items-center gap-1" title="Adults">
-                                        <i class="ri-user-line text-success" style="font-size: 1.2rem;"></i>
-                                        <span class="fw-medium">{{ $tour->adult ?? 0 }}</span>
-                                    </div>
-                                    <div class="d-flex align-items-center gap-1" title="Children">
-                                        <i class="ri-user-smile-line text-warning" style="font-size: 1.2rem;"></i>
-                                        <span class="fw-medium">{{ $tour->child ?? 0 }}</span>
-                                    </div>
-                                    <div class="d-flex align-items-center gap-1" title="Infants">
-                                        <i class="ri-user-heart-line text-info" style="font-size: 1.2rem;"></i>
-                                        <span class="fw-medium">{{ $tour->infant ?? 0 }}</span>
-                                    </div>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="d-flex flex-column">
-                                    <span class="fw-medium">{{ $tour->agent_name ?? 'N/A' }}</span>
-                                    <small class="text-muted">
-                                        <i class="fas fa-building me-1"></i>
-                                        {{ $tour->agent_company_name ?? 'N/A' }}
-                                    </small>
-                                </div>
-                            </td>
-                            <td>
-                                <div class="d-flex flex-column">
-                                    @if($tour->check_in_time && $tour->check_out_time)
-                                        <span class="fw-medium">{{ \Carbon\Carbon::parse($tour->check_in_time)->format('M d, Y') }}</span>
-                                        <small class="text-muted">to {{ \Carbon\Carbon::parse($tour->check_out_time)->format('M d, Y') }}</small>
-                                    @else
-                                        <span class="text-muted">N/A</span>
+                                        $leadGuestName = null;
+                                        if (is_array($mainGuest)) {
+                                            $salutation = trim($mainGuest['salutation'] ?? '');
+                                            $fullName   = trim($mainGuest['full_name'] ?? '');
+                                            $firstName  = trim($mainGuest['first_name'] ?? '');
+                                            $lastName   = trim($mainGuest['last_name'] ?? '');
+
+                                            if (!empty($fullName)) {
+                                                $leadGuestName = trim($salutation . ' ' . $fullName);
+                                            } else {
+                                                $leadGuestName = trim($salutation . ' ' . $firstName . ' ' . $lastName);
+                                            }
+                                        }
+
+                                        if (empty($leadGuestName) && !empty($tour->customer_name)) {
+                                            $leadGuestName = $tour->customer_name;
+                                        }
+                                    @endphp
+
+                                    @if(!empty($leadGuestName))
+                                        @php
+                                            $tourTypeLower = strtolower($tour->tour_type ?? '');
+                                            $bgColor = $tourTypeLower === 'group' ? '#7c3aed' : '#059669';
+                                            $textColor = '#ffffff';
+                                        @endphp
+                                        <small>
+                                            <i class="ri-user-line me-1"></i>
+                                            <span class="d-inline-block px-2 py-1 rounded" style="background: {{ $bgColor }}; color: {{ $textColor }}; font-weight: 600; font-size: 0.75rem; letter-spacing: 0.3px;">
+                                                {{ $leadGuestName }}
+                                            </span>
+                                        </small>
                                     @endif
                                 </div>
                             </td>
+                            <td class="col-agent">
+                                <div class="d-flex flex-column">
+                                    @if($tour->agent_name)
+                                        <span class="agent-name-line"><i class="ri-user-line"></i><span>{{ $tour->agent_name }}</span></span>
+                                        <span class="agent-company-line"><i class="ri-building-line"></i><span>{{ $tour->agent_company_name ?? 'N/A' }}</span></span>
+                                    @else
+                                        <span class="agent-empty"><i class="ri-user-unfollow-line"></i><span>No agent assigned</span></span>
+                                    @endif
+                                </div>
+                            </td>
+                            @if($tour->tour_status === 'Refund - Pending' || $tour->tour_status === 'Refunded')
                             <td>
                                 @if($tour->tour_status === 'Refund - Pending')
-                                    <span class="badge bg-danger">
+                                    <span class="badge bg-danger text-start">
                                         <i class="ri-time-line me-1"></i>
-                                        Pending
+                                        <span class="d-block">Cancel Tour</span>
+                                        <span class="d-block">Refund Pending</span>
                                     </span>
                                 @else
                                     <span class="badge bg-success">
@@ -312,47 +517,141 @@
                                         Refunded
                                     </span>
                                 @endif
+                                @include('bookings.partials.refund-money-summary', ['tour' => $tour, 'currency' => $currency ?? ''])
                             </td>
+                            @else
+                            <td class="align-top">
+                                @php
+                                    $refundServiceIcons = [
+                                        'hotel' => ['icon' => 'ri-hotel-bed-line', 'label' => 'Hotel'],
+                                        'attraction' => ['icon' => 'ri-camera-line', 'label' => 'Attraction'],
+                                        'restaurant' => ['icon' => 'ri-restaurant-2-line', 'label' => 'Restaurant'],
+                                        'guide' => ['icon' => 'ri-user-voice-line', 'label' => 'Guide'],
+                                        'entry_port' => ['icon' => 'ri-flight-land-line', 'label' => 'Arrival Transfer'],
+                                        'exit_port' => ['icon' => 'ri-flight-takeoff-line', 'label' => 'Departure Transfer'],
+                                        'travel_hourly' => ['icon' => 'ri-time-line', 'label' => 'Hourly Transfer'],
+                                        'travel_point' => ['icon' => 'ri-route-line', 'label' => 'Point To Point'],
+                                        'local_transport' => ['icon' => 'ri-car-line', 'label' => 'Local Transport'],
+                                        'miscellaneous' => ['icon' => 'ri-list-check-2', 'label' => 'Miscellaneous'],
+                                    ];
+                                    $refundOrders = collect($tour->booking ?? [])
+                                        ->filter(function ($order) {
+                                            return (int)($order->is_refund ?? 0) === 1;
+                                        })
+                                        ->values();
+
+                                    $hasPendingOrderRefund = $refundOrders->contains(function ($order) {
+                                        return !((bool)($order->refunded ?? false));
+                                    });
+                                @endphp
+                                <div class="d-flex flex-wrap gap-2">
+                                    <!-- @if($hasPendingOrderRefund)
+                                        <button type="button"
+                                                class="action-icon-badge"
+                                                style="--action-color: #16a34a;"
+                                                data-tooltip="Mark Service Refunded"
+                                                data-tour-id="{{ $tour->tour_id }}"
+                                                onclick="processOrderRefund({{ $tour->tour_id }}, event)">
+                                            <i class="ri-refund-2-line"></i>
+                                        </button>
+                                    @endif -->
+                                    @forelse($refundOrders as $refundOrder)
+                                        @php
+                                            $refundType = $refundOrder->type ?? null;
+                                            $serviceMeta = $refundServiceIcons[$refundType] ?? ['icon' => 'ri-service-line', 'label' => ucfirst(str_replace('_', ' ', (string)$refundType))];
+                                            $isRefundCompleteForOrder = (bool)($refundOrder->refunded ?? false);
+                                            $isRefundInitiated = (int)($refundOrder->is_verify ?? 0) === 2 && ! $isRefundCompleteForOrder;
+                                            // Always use primary key for action endpoints to avoid
+                                            // mismatching records that share booking_id.
+                                            $orderActionId = $refundOrder->id ?? null;
+                                            $orderIdentifier = $refundOrder->booking_id ?? $refundOrder->id ?? null;
+                                            $refundPriceMax = (float) ($refundOrder->refund_price_with_markup ?? 0);
+                                            $refundPriceCurrency = trim((string) ($refundOrder->refund_price_currency ?? ($currency ?? '')));
+                                            $savedRefundAmount = $refundOrder->refund_amount;
+                                            $serviceTooltip = $serviceMeta['label']
+                                                . ' ('
+                                                . ($isRefundCompleteForOrder ? 'Refunded' : ($isRefundInitiated ? 'Refund initiated — click to verify' : 'Initiate refund'))
+                                                . ')'
+                                                . ($orderIdentifier ? (' · Order: ' . $orderIdentifier) : '')
+                                                . ($savedRefundAmount !== null && $savedRefundAmount !== ''
+                                                    ? (' · Refund ' . $refundPriceCurrency . ' ' . number_format((float) $savedRefundAmount, 2))
+                                                    : '');
+                                        @endphp
+                                        <div class="d-flex flex-column align-items-center">
+                                        <button type="button"
+                                                class="action-icon-badge {{ $isRefundCompleteForOrder ? 'is-refunded' : ($isRefundInitiated ? 'is-refund-initiated' : '') }}"
+                                                style="--action-color: {{ ($isRefundCompleteForOrder || $isRefundInitiated) ? '#ffffff' : '#7c3aed' }};"
+                                                data-tooltip="{{ $serviceTooltip }}"
+                                                data-tour-id="{{ $tour->tour_id }}"
+                                                data-service-type="{{ $refundType }}"
+                                                data-order-id="{{ $orderActionId }}"
+                                                data-refund-initiated="{{ $isRefundInitiated ? '1' : '0' }}"
+                                                data-refund-max="{{ number_format($refundPriceMax, 2, '.', '') }}"
+                                                data-refund-currency="{{ $refundPriceCurrency }}"
+                                                data-refund-current="{{ ($savedRefundAmount !== null && $savedRefundAmount !== '') ? number_format((float) $savedRefundAmount, 2, '.', '') : '' }}"
+                                                @if($isRefundCompleteForOrder)
+                                                    disabled
+                                                    aria-disabled="true"
+                                                @else
+                                                    onclick="processSingleOrderRefund({{ $tour->tour_id }}, {{ (int)($orderActionId ?? 0) }}, event)"
+                                                @endif>
+                                            <i class="{{ $serviceMeta['icon'] }}"></i>
+                                        </button>
+                                        </div>
+                                    @empty
+                                        <span class="text-muted small">N/A</span>
+                                    @endforelse
+                                </div>
+                                @include('bookings.partials.refund-money-summary', ['tour' => $tour, 'currency' => $currency ?? ''])
+                            </td>
+                            @endif
                             <td>
                                 <div class="d-flex flex-column">
-                                    <span class="fw-medium">{{ optional($tour->updated_at)->format('M d, Y') }}</span>
-                                    <small class="text-muted">{{ optional($tour->updated_at)->format('h:i A') }}</small>
+                                    <small><strong>Cancelled:</strong> {{ \Carbon\Carbon::parse($tour->updated_at)->format('D, M d, Y') }}</small>
+                                    <small class="text-muted">{{ \Carbon\Carbon::parse($tour->updated_at)->format('h:i A') }}</small>
                                 </div>
                             </td>
-                            <td>
-                                <div class="d-flex gap-1">
-                                    <a href="{{ route('bookings.view-tour', ['tourId' => \Crypt::encrypt($tour->tour_id)]) }}" 
-                                       class="btn btn-sm btn-outline-primary" 
-                                       title="Audit Trail">
+                            
+                            <td class="align-top col-actions">
+                                <div class="actions-icons-wrap">
+                                    <a href="{{ route('bookings.view-tour', ['tourId' => \Crypt::encrypt($tour->tour_id)]) }}"
+                                       class="action-icon-badge" style="--action-color: #0369a1;" data-tooltip="Audit Trail">
                                         <i class="ri-eye-line"></i>
                                     </a>
                                     @if($tour->tour_status === 'Refund - Pending')
-                                        <button type="button" 
-                                                class="btn btn-sm btn-success" 
-                                                onclick="processRefund({{ $tour->tour_id }})"
-                                                title="Process Refund">
+                                        @php
+                                            $tourRefundMax = (float) ($tour->tour_refund_max ?? 0);
+                                            $tourRefundCurrency = trim((string) ($tour->tour_refund_currency ?? ($currency ?? '')));
+                                        @endphp
+                                        <button type="button"
+                                                class="action-icon-badge" style="--action-color: #047857;"
+                                                onclick="processRefund({{ $tour->tour_id }}, event)"
+                                                data-refund-max="{{ number_format($tourRefundMax, 2, '.', '') }}"
+                                                data-refund-currency="{{ $tourRefundCurrency }}"
+                                                data-tooltip="Process tour refund">
                                             <i class="ri-money-dollar-circle-line"></i>
                                         </button>
                                     @else
-                                        <span class="badge bg-success" title="Already Refunded">
-                                            ✓ Refunded
-                                        </span>
+                                        <!-- <span class="badge bg-success" title="Already Refunded">✓ Refunded</span> -->
                                     @endif
                                 </div>
                             </td>
-                            <td>
+                            <td class="col-created align-top">
                                 <div class="d-flex flex-column">
-                                    <span class="fw-medium">{{ optional($tour->created_at)->format('D, M d, Y') }}</span>
-                                    <small class="text-muted">{{ optional($tour->created_at)->format('h:i A') }}</small>
+                                    <span class="created-by-line fw-medium" title="Created by">
+                                        <i class="ri-user-line"></i>
+                                        <span>{{ $tour->created_by_name ?? 'N/A' }}</span>
+                                    </span>
+                                    <span class="created-at-line" title="Created at">
+                                        <i class="ri-calendar-line"></i>
+                                        @php
+                                            $createdAt = $tour->destination_created_at ?? $tour->created_at;
+                                        @endphp
+                                        <span>{{ $createdAt->format('D, M d, Y') }} · {{ $createdAt->format('h:i A') }}</span>
+                                    </span>
                                 </div>
                             </td>
-                            <td>
-                                <div class="d-flex flex-column">
-                                    <span class="fw-medium">{{ optional($tour->updated_at)->format('D, M d, Y') }}</span>
-                                    <small class="text-muted">{{ optional($tour->updated_at)->format('h:i A') }}</small>
-                                </div>
-                            </td>
-                            <td>
+                            <td class="col-auto-cancel">
                                 <div class="d-flex flex-column">
                                     @if($tour->auto_cancel_date)
                                         <span class="fw-semibold">
@@ -370,7 +669,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="9" class="text-center py-4">
+                            <td colspan="8" class="text-center py-4">
                                 <div class="d-flex flex-column align-items-center">
                                     <i class="ri-money-dollar-circle-line ri-48px text-muted mb-3"></i>
                                     <h6 class="text-muted">No refunds found</h6>
@@ -518,6 +817,8 @@
             const destination = row.getAttribute('data-destination') || '';
             const agent = row.getAttribute('data-agent') || '';
             const rowStatus = row.getAttribute('data-tour-status') || '';
+            const hasPending = row.getAttribute('data-has-pending') === '1';
+            const hasRefunded = row.getAttribute('data-has-refunded') === '1';
             const createdAt = row.getAttribute('data-created-at');
             const updatedAt = row.getAttribute('data-updated-at');
 
@@ -542,7 +843,10 @@
                 show = false;
             }
 
-            if (statusFilter && rowStatus !== statusFilter) {
+            if (statusFilter === 'pending' && !hasPending) {
+                show = false;
+            }
+            if (statusFilter === 'refunded' && !hasRefunded) {
                 show = false;
             }
 
@@ -578,10 +882,10 @@
 
             if (show) {
                 visibleCount++;
-                if (rowStatus === 'Refund - Pending') {
+                if (hasPending) {
                     pendingCount++;
                 }
-                if (rowStatus === 'Refunded') {
+                if (hasRefunded) {
                     refundedCount++;
                 }
             }
@@ -719,21 +1023,26 @@
             },
             lengthMenu: [10, 25, 50, 100],
             pageLength: 25,
-            columnDefs: [
-                {
-                    targets: [8], // Actions column
-                    orderable: false,
-                    searchable: false
-                },
-                {
-                    targets: [3], // Guests column
-                    orderable: false
-                },
-                {
-                    targets: [6], // Refund Status column
-                    orderable: false
-                }
-            ],
+            columnDefs: (function() {
+                const headerTexts = $('#toursTable thead th').map(function() {
+                    return $(this).text().trim();
+                }).get();
+                const colIndex = (name) => headerTexts.findIndex(t => t === name);
+                const actionsIdx = colIndex('Actions');
+                const statusIdx = colIndex('Refund Status');
+
+                return [
+                    {
+                        targets: [actionsIdx].filter(i => i >= 0),
+                        orderable: false,
+                        searchable: false
+                    },
+                    {
+                        targets: [statusIdx].filter(i => i >= 0),
+                        orderable: false
+                    }
+                ];
+            })(),
             initComplete: function() {
                 console.log('DataTable initialized successfully');
             }
@@ -780,27 +1089,54 @@
         });
     }
 
+    // Global tooltip for table headers and action icons
+    $(document).ready(function() {
+        var $globalTooltip = $('#service-icon-global-tooltip');
+        if (!$globalTooltip.length) {
+            $globalTooltip = $('<div id="service-icon-global-tooltip" aria-hidden="true"></div>').appendTo('body');
+        }
+        $(document).on('mouseenter', '#toursTable thead .th-tooltip', function() {
+            var txt = $(this).attr('data-tooltip') || $(this).attr('title') || $(this).text();
+            if (!txt) return;
+            var rect = this.getBoundingClientRect();
+            $globalTooltip.css({ display: 'block', left: (rect.left + rect.width / 2) + 'px', top: (rect.top - 6) + 'px', transform: 'translate(-50%, -100%)' }).text(txt);
+        });
+        $(document).on('mouseleave', '#toursTable thead .th-tooltip', function() { $globalTooltip.hide(); });
+        $(document).on('mouseenter', '#toursTable .action-icon-badge', function() {
+            var txt = $(this).attr('data-tooltip') || $(this).attr('title') || '';
+            if (!txt) return;
+            var rect = this.getBoundingClientRect();
+            $globalTooltip.css({ display: 'block', left: (rect.left + rect.width / 2) + 'px', top: (rect.top - 6) + 'px', transform: 'translate(-50%, -100%)' }).text(txt);
+        });
+        $(document).on('mouseleave', '#toursTable .action-icon-badge', function() { $globalTooltip.hide(); });
+    });
+
 // Process refund function
-function processRefund(tourId) {
-    // Create advanced confirmation modal
+function processRefund(tourId, event) {
+    const button = event?.target?.closest('button');
+    const maxAmount = parseFloat(button?.dataset.refundMax || '0');
+    const currency = button?.dataset.refundCurrency || '';
+    const tourMax = isFinite(maxAmount) ? maxAmount : 0;
+
     showConfirmationModal(
         'Process Refund Confirmation',
-        'Are you sure you want to process the refund for this tour?<br><small class="text-muted">This action cannot be undone.</small>',
+        'Are you sure you want to process the refund for this tour?',
         'warning',
-        function() {
-            // Show loading modal
+        function(refundAmount) {
             showLoadingModal('Processing Refund', 'Please wait while we process the refund...');
-            
-            const button = event.target.closest('button');
-            const originalContent = button.innerHTML;
-            button.innerHTML = '<i class="ri-loader-line spinner-border spinner-border-sm me-1"></i>';
-            button.disabled = true;
+
+            const originalContent = button ? button.innerHTML : '';
+            if (button) {
+                button.innerHTML = '<i class="ri-loader-line spinner-border spinner-border-sm me-1"></i>';
+                button.disabled = true;
+            }
 
             $.ajax({
                 url: '{{ route("bookings.process-refund") }}',
                 method: 'POST',
                 data: {
                     tour_id: tourId,
+                    refund_amount: refundAmount,
                     _token: $('meta[name="csrf-token"]').attr('content')
                 },
                 success: function(response) {
@@ -815,9 +1151,10 @@ function processRefund(tourId) {
                         );
                     } else {
                         showErrorModal('Error Processing Refund', response.message || 'An error occurred while processing the refund.');
-                        // Restore button state
-                        button.innerHTML = originalContent;
-                        button.disabled = false;
+                        if (button) {
+                            button.innerHTML = originalContent;
+                            button.disabled = false;
+                        }
                     }
                 },
                 error: function(xhr) {
@@ -827,17 +1164,210 @@ function processRefund(tourId) {
                         errorMessage = xhr.responseJSON.message;
                     }
                     showErrorModal('Error Processing Refund', errorMessage);
-                    // Restore button state
-                    button.innerHTML = originalContent;
-                    button.disabled = false;
+                    if (button) {
+                        button.innerHTML = originalContent;
+                        button.disabled = false;
+                    }
+                }
+            });
+        },
+        {
+            title: 'Process Refund Confirmation',
+            confirmLabel: 'Process Refund',
+            priceLabel: 'Tour price with markup',
+            helpText: 'You can refund this amount or less. It cannot be higher than the tour price with markup.',
+            note: 'This action will mark the tour as "Refunded" and cannot be undone.',
+            maxAmount: tourMax,
+            currency: currency,
+            amount: tourMax
+        }
+    );
+}
+
+// Mark refund-eligible services as refunded (orders.refunded = true)
+function processOrderRefund(tourId, event) {
+    showConfirmationModal(
+        'Mark Service Refunded',
+        'Mark all refund services for this tour as refunded?<br><small class="text-muted">This updates orders with is_refund = 1.</small>',
+        'warning',
+        function() {
+            showLoadingModal('Updating Service Refund', 'Please wait while we update the refunded status...');
+
+            const button = event?.target?.closest('button');
+            const originalContent = button ? button.innerHTML : '';
+            if (button) {
+                button.innerHTML = '<i class="ri-loader-line spinner-border spinner-border-sm me-1"></i>';
+                button.disabled = true;
+            }
+
+            $.ajax({
+                url: '{{ route("bookings.process-order-refund") }}',
+                method: 'POST',
+                data: {
+                    tour_id: tourId,
+                    _token: $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(response) {
+                    hideModal();
+                    if (response.success) {
+                        showSuccessModal(
+                            'Service Refund Updated',
+                            response.message || 'Refunded status updated successfully.',
+                            function() {
+                                location.reload();
+                            }
+                        );
+                    } else {
+                        showErrorModal('Error Updating Service Refund', response.message || 'Unable to update refunded status.');
+                        if (button) {
+                            button.innerHTML = originalContent;
+                            button.disabled = false;
+                        }
+                    }
+                },
+                error: function(xhr) {
+                    hideModal();
+                    let errorMessage = 'Error updating service refund. Please try again.';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
+                    }
+                    showErrorModal('Error Updating Service Refund', errorMessage);
+                    if (button) {
+                        button.innerHTML = originalContent;
+                        button.disabled = false;
+                    }
                 }
             });
         }
     );
 }
 
+// Mark a single refund order as refunded (orders.refunded = 1 for that order only)
+function processSingleOrderRefund(tourId, orderId, event) {
+    if (!orderId) return;
+
+    const button = event?.target?.closest('button');
+    const initiated = button?.dataset.refundInitiated === '1';
+    const maxAmount = parseFloat(button?.dataset.refundMax || '0');
+    const currency = button?.dataset.refundCurrency || '';
+    const savedAmount = button?.dataset.refundCurrent;
+    const startingAmount = (savedAmount !== undefined && savedAmount !== '')
+        ? Math.min(parseFloat(savedAmount) || 0, isFinite(maxAmount) ? maxAmount : 0)
+        : (isFinite(maxAmount) ? maxAmount : 0);
+
+    const modalOptions = initiated
+        ? {
+            title: 'Verify Refund',
+            confirmLabel: 'Verify Refund',
+            verifyOnly: true,
+            currency: currency,
+            amount: isFinite(parseFloat(savedAmount)) ? parseFloat(savedAmount) : 0
+        }
+        : {
+            title: 'Initiate Refund',
+            confirmLabel: 'Initiate Refund',
+            maxAmount: isFinite(maxAmount) ? maxAmount : 0,
+            currency: currency,
+            amount: isFinite(startingAmount) ? startingAmount : 0
+        };
+
+    showConfirmationModal(
+        modalOptions.title,
+        initiated
+            ? 'This refund is already initiated. Verify it to complete the service refund.'
+            : 'Enter the refund amount for this service. You can use the full price or a lower amount.',
+        'warning',
+        function(refundAmount) {
+            showLoadingModal(initiated ? 'Verifying Refund' : 'Initiating Refund', 'Please wait...');
+
+            const originalContent = button ? button.innerHTML : '';
+            if (button) {
+                button.innerHTML = '<i class="ri-loader-line spinner-border spinner-border-sm me-1"></i>';
+                button.disabled = true;
+            }
+
+            const payload = {
+                tour_id: tourId,
+                order_id: orderId,
+                action: initiated ? 'verify' : 'initiate',
+                _token: $('meta[name="csrf-token"]').attr('content')
+            };
+            if (!initiated) {
+                payload.refund_amount = refundAmount;
+            }
+
+            $.ajax({
+                url: '{{ route("bookings.process-order-refund-by-order") }}',
+                method: 'POST',
+                data: payload,
+                success: function(response) {
+                    hideModal();
+                    if (response.success) {
+                        showSuccessModal(
+                            'Service Refund Updated',
+                            response.message || 'Selected service marked as refunded.',
+                            function() {
+                                location.reload();
+                            }
+                        );
+                    } else {
+                        showErrorModal('Error Updating Service Refund', response.message || 'Unable to update refunded status.');
+                        if (button) {
+                            button.innerHTML = originalContent;
+                            button.disabled = false;
+                        }
+                    }
+                },
+                error: function(xhr) {
+                    hideModal();
+                    let errorMessage = 'Error updating service refund. Please try again.';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMessage = xhr.responseJSON.message;
+                    }
+                    showErrorModal('Error Updating Service Refund', errorMessage);
+                    if (button) {
+                        button.innerHTML = originalContent;
+                        button.disabled = false;
+                    }
+                }
+            });
+        },
+        modalOptions
+    );
+}
+
 // Advanced Modal Functions
-function showConfirmationModal(title, message, type, confirmCallback) {
+function showConfirmationModal(title, message, type, confirmCallback, options) {
+    options = options || {};
+    const modalTitle = options.title || title || 'Process Refund';
+    const confirmLabel = options.confirmLabel || 'Process Refund';
+    const verifyOnly = !!options.verifyOnly;
+    const hasAmount = !verifyOnly && options.maxAmount !== undefined && options.maxAmount !== null;
+    const maxAmount = hasAmount ? (parseFloat(options.maxAmount) || 0) : 0;
+    const amountValue = (hasAmount || verifyOnly) ? (parseFloat(options.amount) || 0) : 0;
+    const amountCurrency = options.currency || '';
+    const priceLabel = options.priceLabel || 'Order price with markup';
+    const helpText = options.helpText || 'You can refund this amount or less. It cannot be higher than the order price with markup.';
+    const amountBlock = verifyOnly ? `
+                            <div class="alert alert-warning border-0 text-start mb-3" style="background-color: #fff7ed;">
+                                <strong>Refund already initiated</strong>
+                                <div class="mt-1">${amountCurrency ? amountCurrency + ' ' : ''}${amountValue.toFixed(2)}</div>
+                                <div class="small mt-1">The amount stays as entered. This step only verifies the refund.</div>
+                            </div>
+    ` : (hasAmount ? `
+                            <div class="text-start mb-3">
+                                <label class="form-label fw-semibold mb-1">${priceLabel}</label>
+                                <div class="form-control bg-light mb-3">${amountCurrency ? amountCurrency + ' ' : ''}${maxAmount.toFixed(2)}</div>
+                                <label for="refundAmountInput" class="form-label fw-semibold mb-1">Refund amount</label>
+                                <div class="input-group">
+                                    ${amountCurrency ? `<span class="input-group-text">${amountCurrency}</span>` : ''}
+                                    <input type="number" class="form-control" id="refundAmountInput" min="0" max="${maxAmount.toFixed(2)}" step="0.01" value="${Math.min(amountValue, maxAmount).toFixed(2)}" inputmode="decimal">
+                                </div>
+                                <div class="form-text">${helpText}</div>
+                                <div class="text-danger small mt-1 d-none" id="refundAmountError"></div>
+                            </div>
+    ` : '');
+
     const modalHtml = `
         <div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
@@ -851,20 +1381,22 @@ function showConfirmationModal(title, message, type, confirmCallback) {
                         </div>
                         
                         <!-- Refund Title -->
-                        <h4 class="fw-bold text-primary mb-3" id="confirmationModalLabel">Process Refund</h4>
+                        <h4 class="fw-bold ${verifyOnly ? 'text-warning' : 'text-primary'} mb-3" id="confirmationModalLabel">${modalTitle}</h4>
                         
                         <!-- Refund Process Message -->
                         <div class="refund-message mb-4">
-                            <p class="text-dark mb-3 fs-6">
-                                <strong>Tour ID:</strong> <span class="text-primary">#${getTourIdFromButton()}</span>
-                            </p>
-                            <p class="text-muted mb-3">
-                                You are about to process a refund for this tour booking. 
-                                This will update the tour status and initiate the refund process.
-                            </p>
-                            <div class="alert alert-info border-0" style="background-color: #e3f2fd;">
-                                <i class="ri-information-line me-2 text-info"></i>
-                                <strong>Note:</strong> This action will mark the tour as "Refunded" and cannot be undone.
+                            
+                            <p class="text-muted mb-3">${message || 'You are about to process a refund for this tour booking. This will update the tour status and initiate the refund process.'}</p>
+                            ${amountBlock}
+                            <div class="alert ${verifyOnly ? 'alert-warning' : 'alert-info'} border-0" style="background-color: ${verifyOnly ? '#fff7ed' : '#e3f2fd'};">
+                                <i class="ri-information-line me-2"></i>
+                                <strong>Note:</strong> ${options.note
+                                    ? options.note
+                                    : (verifyOnly
+                                    ? 'Verification does not ask for the amount again.'
+                                    : (hasAmount
+                                    ? 'After you initiate, this amount dialog will not open again.'
+                                    : 'This action will mark the tour as "Refunded" and cannot be undone.'))}
                             </div>
                         </div>
                         
@@ -873,9 +1405,16 @@ function showConfirmationModal(title, message, type, confirmCallback) {
                             <button type="button" class="btn btn-outline-secondary px-4 py-2" data-bs-dismiss="modal">
                                 <i class="ri-close-line me-2"></i>Cancel
                             </button>
-                            <button type="button" class="btn btn-primary px-4 py-2" id="confirmButton">
-                                <i class="ri-check-line me-2"></i>Process Refund
+                            <button type="button" class="btn ${verifyOnly ? 'btn-warning' : 'btn-primary'} px-4 py-2" id="confirmButton">
+                                <i class="ri-check-line me-2"></i>${confirmLabel}
                             </button>
+                            @if(
+                                in_array(auth()->user()->role_id, [36, 126, 127])
+                            )
+                            <button type="button" class="btn btn-primary px-4 py-2" id="declineButton">
+                                    <i class="ri-check-line me-2"></i>Decline
+                                </button>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -963,11 +1502,42 @@ function showConfirmationModal(title, message, type, confirmCallback) {
     
     // Handle confirm button click
     $('#confirmButton').off('click').on('click', function() {
+        let refundAmount = null;
+        if (hasAmount) {
+            const input = document.getElementById('refundAmountInput');
+            const error = document.getElementById('refundAmountError');
+            const entered = input ? parseFloat(input.value) : NaN;
+            const showAmountError = function(text) {
+                if (!error) return;
+                error.textContent = text;
+                error.classList.remove('d-none');
+            };
+            if (!isFinite(entered) || entered < 0) {
+                showAmountError('Enter a refund amount of 0 or more.');
+                return;
+            }
+            if (entered - maxAmount > 0.009) {
+                if (input) input.value = maxAmount.toFixed(2);
+                showAmountError('Refund amount cannot be higher than the order price with markup.');
+                return;
+            }
+            if (error) error.classList.add('d-none');
+            refundAmount = entered.toFixed(2);
+        }
         $('#confirmationModal').modal('hide');
         if (confirmCallback) {
-            confirmCallback();
+            confirmCallback(refundAmount);
         }
     });
+
+    if (hasAmount) {
+        $('#refundAmountInput').on('input', function() {
+            const entered = parseFloat(this.value);
+            if (isFinite(entered) && entered - maxAmount > 0.009) {
+                this.value = maxAmount.toFixed(2);
+            }
+        });
+    }
     
     // Clean up when modal is hidden
     $('#confirmationModal').on('hidden.bs.modal', function() {
@@ -980,8 +1550,10 @@ function getTourIdFromButton() {
     const button = event.target.closest('button');
     if (button && button.onclick) {
         const onclickStr = button.onclick.toString();
-        const match = onclickStr.match(/processRefund\((\d+)\)/);
-        return match ? match[1] : 'N/A';
+        const match = onclickStr.match(/processRefund\((\d+)\)|processOrderRefund\((\d+),/);
+        if (match) {
+            return match[1] || match[2] || 'N/A';
+        }
     }
     return 'N/A';
 }
