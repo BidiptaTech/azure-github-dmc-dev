@@ -7,8 +7,10 @@ use App\Helpers\CurrencyHelper;
 use App\Services\Finance\WalletQueryService;
 use App\Services\Finance\WalletService;
 use App\Models\Agent;
+use App\Models\Country;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -33,19 +35,130 @@ class WalletManagementController extends Controller
 
         $roleGroup = $this->resolveRoleGroup($user);
         $allocatorCurrency = $this->resolveAllocatorCurrency($user, $roleGroup);
-        $travclicksSpendByCurrency = $roleGroup === 'travclicks_owner'
-            ? $this->walletQuery->buildTravclicksDmcSpendByCurrency()
-            : [];
+        $isTravclicks = $roleGroup === 'travclicks_owner';
 
         return view('finance.wallet.index', array_merge($context, [
             'wallets' => $wallets,
             'pageTitle' => 'Wallet Management',
             'roleId' => (int) ($user->role_id ?? 0),
             'roleGroup' => $roleGroup,
+            'canAllocate' => $this->canAllocate($roleGroup),
             'dmcIdForRole' => $this->resolveDmcId($user),
             'allocatorCurrency' => $allocatorCurrency,
-            'travclicksSpendByCurrency' => $travclicksSpendByCurrency,
+            'dmcDrill' => $isTravclicks ? $this->initialDrillData() : ($roleGroup === 'master_dmc' ? $this->initialDrillData((int) $user->userId) : null),
         ]));
+    }
+
+    /**
+     * Travclicks drill-down (AJAX): Master DMCs -> DMCs -> DMC ledger.
+     */
+    public function dmcLedger(Request $request)
+    {
+        $roleGroup = $this->resolveRoleGroup(Auth::user());
+        if (! in_array($roleGroup, ['travclicks_owner', 'master_dmc'], true)) {
+            abort(403, 'You cannot view the DMC ledger.');
+        }
+
+        // A Master DMC is pinned to its own record: it starts at its DMC list, never sees other masters.
+        $scoped = $roleGroup === 'master_dmc';
+        $view = (string) $request->input('view', 'masters');
+        $masterId = $scoped ? (int) Auth::user()->userId : (int) $request->input('master_id', 0);
+        $dmcId = (int) $request->input('dmc_id', 0);
+        if ($scoped && $view !== 'ledger') {
+            $view = 'dmcs';
+        }
+
+        if ($view === 'ledger' && $dmcId > 0) {
+            $data = $this->walletQuery->buildTravclicksDmcLedgerViewData(
+                Auth::user(),
+                $dmcId,
+                $request->input('dmc_currency'),
+                $request->input('dmc_entry_type'),
+                $request->input('dmc_date_from'),
+                $request->input('dmc_date_to'),
+                (int) $request->input('dmc_per_page', WalletQueryService::LEDGER_PER_PAGE_DEFAULT),
+                (int) $request->input('dmc_ledger_page', 1),
+            );
+
+            $results = [
+                'dmcLedger' => $data['ledger'],
+                'dmcLedgerQueryParams' => $data['queryParams'] + ['view' => 'ledger', 'master_id' => $masterId],
+                'dmcLedgerTotals' => $data['totalsByCurrency'],
+            ];
+
+            if ($request->boolean('results_only')) {
+                $html = view('finance.partials.dmc-ledger-results', $results)->render();
+            } else {
+                $html = view('finance.partials.dmc-drill', $results + [
+                    'scoped' => $scoped,
+                    'view' => 'ledger',
+                    'masterId' => $masterId,
+                    'dmcId' => $dmcId,
+                    'masterName' => $masterId ? $this->walletQuery->resolveOwnerName('master_dmc', $masterId) : 'Direct DMCs',
+                    'dmcName' => $this->walletQuery->resolveOwnerName('dmc', $dmcId),
+                    'dmcLedgerFilters' => $data['filters'],
+                    'currencyOptions' => $this->walletQuery->listDmcWalletSummaries($dmcId)->pluck('wallet_currency_code')->unique()->values()->all(),
+                ])->render();
+            }
+        } else {
+            $isDmcs = $view === 'dmcs';
+            $q = mb_strtolower(trim((string) $request->input('q', '')));
+            $all = ($isDmcs ? $this->walletQuery->listDmcCardsForMaster($masterId) : $this->walletQuery->listMasterDmcCards())
+                ->filter(fn ($row) => $q === '' || str_contains(mb_strtolower($row->name), $q))
+                ->values();
+
+            $perPage = 10;
+            $page = max(1, (int) $request->input('dmc_ledger_page', 1));
+            $items = new LengthAwarePaginator($all->forPage($page, $perPage)->values(), $all->count(), $perPage, $page, [
+                'path' => route('finance.wallet.dmc-ledger', [], false),
+                'pageName' => 'dmc_ledger_page',
+            ]);
+            $items->appends(array_filter(['view' => $view, 'master_id' => $isDmcs ? $masterId : null, 'q' => $q]));
+
+            $listData = ['view' => $isDmcs ? 'dmcs' : 'masters', 'masterId' => $masterId, 'items' => $items];
+
+            $html = $request->boolean('list_only')
+                ? view('finance.partials.dmc-drill-list', $listData)->render()
+                : view('finance.partials.dmc-drill', $listData + [
+                    'scoped' => $scoped,
+                    'masterName' => $masterId ? $this->walletQuery->resolveOwnerName('master_dmc', $masterId) : 'Direct DMCs',
+                ])->render();
+        }
+
+        return response()->json(['html' => $html]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function initialDrillData(?int $masterId = null): array
+    {
+        $all = $masterId
+            ? $this->walletQuery->listDmcCardsForMaster($masterId)
+            : $this->walletQuery->listMasterDmcCards();
+
+        return [
+            'view' => $masterId ? 'dmcs' : 'masters',
+            'scoped' => (bool) $masterId,
+            'masterName' => $masterId ? $this->walletQuery->resolveOwnerName('master_dmc', $masterId) : '',
+            'masterId' => (int) $masterId,
+            'items' => new LengthAwarePaginator($all->take(10)->values(), $all->count(), 10, 1, [
+                'path' => route('finance.wallet.dmc-ledger', [], false),
+                'pageName' => 'dmc_ledger_page',
+            ]),
+        ];
+    }
+
+    /**
+     * Two-step funding: Travclicks → DMC. DMC → Agency is behind a config flag.
+     */
+    protected function canAllocate(string $roleGroup): bool
+    {
+        return match ($roleGroup) {
+            'travclicks_owner' => true,
+            'dmc' => $this->walletQuery->dmcAgencyAllocationEnabled(),
+            default => false,
+        };
     }
 
     /**
@@ -120,6 +233,33 @@ class WalletManagementController extends Controller
             'converted_amount' => round((float) $converted, 4),
             'exchange_rate' => (float) $rate,
             'same_currency' => false,
+        ]);
+    }
+
+    /**
+     * SGD to currency preview for the Send to DMC form, using the stored Countries rate.
+     */
+    public function sgdPreview(Request $request)
+    {
+        $validated = $request->validate([
+            'amount' => 'required|numeric|min:0.01',
+            'to' => 'required|string|size:3',
+        ]);
+
+        $to = strtoupper($validated['to']);
+        $rate = Country::sgdRateFor($to);
+
+        if ($rate === null) {
+            return response()->json([
+                'success' => false,
+                'message' => "No stored rate for {$to}. Run Sync Currency Rates in Profile.",
+            ], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'converted_amount' => round((float) $validated['amount'] * $rate, 4),
+            'exchange_rate' => round($rate, 2),
         ]);
     }
 
@@ -404,6 +544,10 @@ class WalletManagementController extends Controller
             abort(403, 'Only DMC can access this endpoint.');
         }
 
+        if (! $this->walletQuery->dmcAgencyAllocationEnabled()) {
+            abort(403, 'DMC to Agency wallet funding is currently disabled.');
+        }
+
         $dmcId = $this->resolveDmcId($user);
         if (! $dmcId) {
             abort(403, 'DMC not resolved for this user.');
@@ -541,20 +685,32 @@ class WalletManagementController extends Controller
         $validated = $request->validate([
             'wallet_owner_type' => 'required|in:travclicks,master_dmc,dmc,agent,supplier',
             'wallet_owner_id' => 'required|integer|min:1',
-            'topup_amount' => 'required|numeric|min:0.01',
+            'topup_amount' => 'nullable|numeric|min:0.01',
+            'sgd_amount' => 'nullable|numeric|min:0.01',
             'wallet_currency_code' => 'nullable|string|size:3',
             'ledger_description' => 'nullable|string|max:255',
+            'reference_id' => 'required|string|max:100',
         ]);
 
         try {
             $roleGroup = $this->resolveRoleGroup($user);
             $recipientType = $validated['wallet_owner_type'];
             $recipientId = (int) $validated['wallet_owner_id'];
-            $sourceAmount = (float) $validated['topup_amount'];
+            $sourceAmount = (float) ($validated['topup_amount'] ?? 0);
             $sourceCurrency = $this->resolveAllocatorCurrency($user, $roleGroup);
 
             if ($roleGroup === 'agent') {
                 abort(403, 'Agents cannot allocate wallet amounts.');
+            }
+
+            if (! $this->canAllocate($roleGroup)) {
+                if ($roleGroup !== 'dmc') {
+                    abort(403, 'You cannot allocate wallet amounts.');
+                }
+
+                return redirect()
+                    ->route('finance.wallet.index')
+                    ->with('error', 'DMC to Agency wallet funding is currently disabled. Wallet funds are sent by Travclicks to DMCs only.');
             }
 
             // DMC allocations always credit the agency in the DMC country currency.
@@ -574,21 +730,31 @@ class WalletManagementController extends Controller
                 }
             }
 
-            // Travclicks: amount is always in the DMC's currency (no FX / no Travclicks balance).
+            // Travclicks always sends SGD; the DMC is credited the converted amount in its own currency.
             if ($roleGroup === 'travclicks_owner') {
                 if ($recipientType !== 'dmc') {
                     abort(403, 'Travclicks can send wallet funds only to DMC wallets.');
                 }
-                $sourceCurrency = $targetCurrency;
+                $sourceCurrency = 'SGD';
+                $sourceAmount = (float) ($validated['sgd_amount'] ?? 0);
+            }
+
+            if ($sourceAmount <= 0) {
+                throw new RuntimeException('Enter the amount to send.');
             }
 
             $exchangeRate = 1.0;
             $creditAmount = $sourceAmount;
 
             if ($sourceCurrency !== $targetCurrency) {
-                $rate = CurrencyHelper::getExchangeRate($sourceCurrency, $targetCurrency);
+                // Travclicks to DMC uses the stored Countries rate; other flows keep the live rate.
+                $rate = $roleGroup === 'travclicks_owner'
+                    ? Country::sgdRateFor($targetCurrency)
+                    : CurrencyHelper::getExchangeRate($sourceCurrency, $targetCurrency);
                 if ($rate === null) {
-                    throw new RuntimeException("Unable to convert {$sourceCurrency} to {$targetCurrency}. Exchange rate unavailable.");
+                    throw new RuntimeException($roleGroup === 'travclicks_owner'
+                        ? "No stored rate for {$targetCurrency}. Run Sync Currency Rates in Profile."
+                        : "Unable to convert {$sourceCurrency} to {$targetCurrency}. Exchange rate unavailable.");
                 }
                 $exchangeRate = (float) $rate;
                 $creditAmount = round($sourceAmount * $exchangeRate, 4);
@@ -679,6 +845,7 @@ class WalletManagementController extends Controller
                 'debit_ledger_description' => $ledgerContext['debit_ledger_description'].$fxSuffix,
                 'credit_ledger_description' => $ledgerContext['credit_ledger_description'].$fxSuffix,
                 'metadata' => array_merge($ledgerContext['metadata'], [
+                    'reference_id' => trim($validated['reference_id']),
                     'fx' => [
                         'source_currency' => $sourceCurrency,
                         'source_amount' => number_format($sourceAmount, 4, '.', ''),
@@ -690,7 +857,7 @@ class WalletManagementController extends Controller
             ]);
 
             $successMsg = $roleGroup === 'travclicks_owner'
-                ? "Sent {$sourceAmount} {$targetCurrency} to DMC wallet."
+                ? "Sent {$sourceAmount} SGD to DMC wallet (credited {$creditAmount} {$targetCurrency})."
                 : ($sourceCurrency === $targetCurrency
                     ? 'Wallet allocation successfully.'
                     : "Wallet allocation successfully ({$sourceAmount} {$sourceCurrency} → {$creditAmount} {$targetCurrency}).");

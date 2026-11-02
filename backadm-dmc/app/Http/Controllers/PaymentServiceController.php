@@ -485,15 +485,21 @@ class PaymentServiceController extends Controller
 
         return \App\Models\Country::query()
             ->where('is_active', 1)
-            ->whereNotNull('short_code')
-            ->where('short_code', '!=', '')
             ->orderBy('name')
             ->get(['name', 'short_code', 'currency'])
-            ->map(fn ($row) => (object) [
-                'code' => strtoupper((string) $row->short_code),
-                'name' => (string) $row->name,
-                'currency' => strtoupper((string) ($row->currency ?: '')),
-            ])
+            ->map(function ($row) {
+                $code = \App\Models\Country::resolveShortCode($row->name, $row->short_code);
+                if (! $code || trim((string) $row->name) === '') {
+                    return null;
+                }
+
+                return (object) [
+                    'code' => $code,
+                    'name' => (string) $row->name,
+                    'currency' => strtoupper((string) ($row->currency ?: '')),
+                ];
+            })
+            ->filter()
             ->unique('code')
             ->values();
     }

@@ -52,7 +52,7 @@ class PaymentEligibilityServiceTest extends TestCase
             $walletQuery,
         ])->makePartial()->shouldAllowMockingProtectedMethods();
 
-        $service->shouldReceive('dmcScopedAgentBalance')->andReturn(1000.0);
+        $service->shouldReceive('dmcWalletBalance')->andReturn(1000.0);
 
         $tour = new Tour([
             'tour_id' => 99,
@@ -114,7 +114,7 @@ class PaymentEligibilityServiceTest extends TestCase
             Mockery::mock(WalletQueryService::class),
         ])->makePartial()->shouldAllowMockingProtectedMethods();
 
-        $service->shouldReceive('dmcScopedAgentBalance')->andReturn(50.0);
+        $service->shouldReceive('dmcWalletBalance')->andReturn(50.0);
 
         $tour = new Tour([
             'tour_id' => 11,
@@ -167,7 +167,7 @@ class PaymentEligibilityServiceTest extends TestCase
             Mockery::mock(WalletQueryService::class),
         ])->makePartial()->shouldAllowMockingProtectedMethods();
 
-        $service->shouldReceive('dmcScopedAgentBalance')->andReturn(2700.0);
+        $service->shouldReceive('dmcWalletBalance')->andReturn(2700.0);
 
         $tour = new Tour([
             'tour_id' => 4301,
@@ -220,7 +220,7 @@ class PaymentEligibilityServiceTest extends TestCase
             Mockery::mock(WalletQueryService::class),
         ])->makePartial()->shouldAllowMockingProtectedMethods();
 
-        $service->shouldReceive('dmcScopedAgentBalance')->andReturn(500.0);
+        $service->shouldReceive('dmcWalletBalance')->andReturn(500.0);
 
         $tour = new Tour([
             'tour_id' => 12,
@@ -286,5 +286,55 @@ class PaymentEligibilityServiceTest extends TestCase
         $this->assertSame(100.0, $row['dmc_commission']);
         $this->assertSame('10%', $row['markup_label']);
         $this->assertSame(1000.0, $row['charged_amount']);
+    }
+
+    protected function walletEligibility(float $dmcBalance, ?int $agentId): array
+    {
+        $classification = Mockery::mock(OrderClassificationService::class);
+        $classification->shouldReceive('classifyTour')->andReturn(OrderClassificationService::OFFLINE);
+        $classification->shouldReceive('resolvePaymentStage')->andReturn('dmc_collection');
+        $classification->shouldReceive('resolvePaymentRecipient')->andReturn('dmc');
+        $classification->shouldReceive('amountBreakdown')->andReturn([
+            'classification' => OrderClassificationService::OFFLINE,
+            'online_amount' => 0.0,
+            'offline_amount' => 200.0,
+            'total_amount' => 200.0,
+            'currency' => 'USD',
+        ]);
+        $settings = Mockery::mock(PaymentSettingsService::class);
+        $settings->shouldReceive('get')->andReturn([
+            'offline_enabled' => true, 'wallet_enabled' => true, 'online_enabled' => false,
+            'stripe_mode' => 'test', 'stripe_configured' => false,
+        ]);
+        $service = Mockery::mock(PaymentEligibilityService::class, [
+            $classification, $settings, Mockery::mock(StripeConnectService::class), Mockery::mock(WalletQueryService::class),
+        ])->makePartial()->shouldAllowMockingProtectedMethods();
+        // The agent has no wallet funds at all: only the DMC wallet balance is consulted.
+        $service->shouldReceive('dmcWalletBalance')->with(10, 'USD')->andReturn($dmcBalance);
+
+        $tour = new Tour([
+            'tour_id' => 11, 'tour_status' => 'Confirmed', 'order_classification' => OrderClassificationService::OFFLINE,
+            'dmc_id' => 10, 'agent_id' => $agentId, 'payment_received_currency' => 'USD', 'payment_details' => '[]',
+        ]);
+
+        return collect($service->forTour($tour)['methods'])->firstWhere('code', 'wallet');
+    }
+
+    public function test_wallet_enabled_when_dmc_wallet_covers_amount_even_without_agent_funds(): void
+    {
+        $wallet = $this->walletEligibility(200.0, 20);
+
+        $this->assertTrue($wallet['available']);
+        $this->assertEquals(200.0, $wallet['wallet']['available_balance']);
+    }
+
+    public function test_wallet_disabled_when_dmc_wallet_is_short_or_empty(): void
+    {
+        $short = $this->walletEligibility(199.99, 20);
+        $this->assertFalse($short['available']);
+        $this->assertStringContainsString('Insufficient DMC wallet balance', (string) $short['reason']);
+
+        $empty = $this->walletEligibility(0.0, 20);
+        $this->assertFalse($empty['available']);
     }
 }

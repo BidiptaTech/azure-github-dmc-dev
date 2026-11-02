@@ -134,6 +134,7 @@ Route::get('/clear', function () {
             // Tour prices route
             Route::get('/user/profile', [UserController::class, 'profile'])->name('user.profile');
             Route::post('/user/profile', [UserController::class, 'updateProfile'])->name('user.profile.update');
+            Route::post('/user/profile/sync-currency-rates', [UserController::class, 'syncCurrencyRates'])->name('user.profile.sync-currency-rates');
             Route::post('/user/profile/markup', [UserController::class, 'updateProfileMarkup'])->name('user.profile.markup.update');
             Route::post('/user/password', [UserController::class, 'updatePassword'])->name('user.password.update');
             Route::get('/user/account-status', function () {
@@ -883,7 +884,9 @@ Route::get('/clear', function () {
         Route::get('/finance/commission', [CommissionReportController::class, 'index'])->name('finance.commission.index');
         Route::get('/finance/wallet', [WalletManagementController::class, 'index'])->name('finance.wallet.index');
         Route::get('/finance/wallet/ledger', [WalletManagementController::class, 'ledger'])->name('finance.wallet.ledger');
+        Route::get('/finance/wallet/dmc-ledger', [WalletManagementController::class, 'dmcLedger'])->name('finance.wallet.dmc-ledger');
         Route::get('/finance/wallet/transactions', [WalletManagementController::class, 'transactionsGlance'])->name('finance.wallet.transactions');
+        Route::get('/finance/wallet/sgd-preview', [WalletManagementController::class, 'sgdPreview'])->name('finance.wallet.sgd-preview');
         Route::get('/finance/wallet/convert-preview', [WalletManagementController::class, 'convertPreview'])->name('finance.wallet.convert-preview');
         Route::post('/finance/wallet/topup', [WalletManagementController::class, 'topup'])->name('finance.wallet.topup');
 

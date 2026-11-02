@@ -407,20 +407,14 @@ class PaymentEligibilityService
 
         $walletCurrency = $orderCurrency;
         try {
-            if ($agentId > 0 && Schema::hasTable('wallet')) {
+            if ($dmcId > 0 && Schema::hasTable('wallet')) {
+                // Wallet payments are debited from the DMC wallet: prefer the order currency, else the latest DMC wallet.
                 $query = DB::table('wallet')
-                    ->where('wallet_owner_type', 'agent')
-                    ->whereIn('wallet_owner_id', $this->agencyAgentIds($agentId))
+                    ->where('wallet_owner_type', 'dmc')
+                    ->where('wallet_owner_id', $dmcId)
                     ->whereNull('deleted_at');
-                if (Schema::hasColumn('wallet', 'source_dmc_id') && $dmcId > 0) {
-                    $query->where(function ($q) use ($dmcId) {
-                        $q->where('source_dmc_id', $dmcId);
-                        if (config('payment.wallet_legacy_unscoped_agent', true)) {
-                            $q->orWhereNull('source_dmc_id');
-                        }
-                    });
-                }
-                $code = $query->orderByDesc('id')->value('wallet_currency_code');
+                $code = (clone $query)->whereRaw('UPPER(wallet_currency_code) = ?', [$orderCurrency])->value('wallet_currency_code')
+                    ?: $query->orderByDesc('id')->value('wallet_currency_code');
                 if (is_string($code) && $code !== '') {
                     $walletCurrency = CurrencyHelper::toIsoCode($code, $orderCurrency);
                 }
@@ -484,8 +478,8 @@ class PaymentEligibilityService
             return ['available' => false, 'reason' => 'Wallet payments are disabled.', 'available_balance' => 0];
         }
 
-        if ($agentId <= 0 || $dmcId <= 0) {
-            return ['available' => false, 'reason' => 'Wallet requires an agent and DMC on the tour.', 'available_balance' => 0];
+        if ($dmcId <= 0) {
+            return ['available' => false, 'reason' => 'Wallet requires a DMC on the tour.', 'available_balance' => 0];
         }
 
         if (! Schema::hasTable('wallet')) {
@@ -493,7 +487,7 @@ class PaymentEligibilityService
         }
 
         $currency = CurrencyHelper::toIsoCode($currency, 'SGD');
-        $balance = $this->dmcScopedAgentBalance($agentId, $dmcId, $currency);
+        $balance = $this->dmcWalletBalance($dmcId, $currency);
 
         if ($amount <= 0) {
             return [
@@ -513,8 +507,8 @@ class PaymentEligibilityService
             'reason' => $sufficient
                 ? null
                 : ($balance <= 0
-                    ? "No {$currency} wallet balance for this agency under the tour DMC."
-                    : "Insufficient wallet balance ({$currency} {$balance} available, {$amount} required)."),
+                    ? "No {$currency} balance in the DMC wallet."
+                    : "Insufficient DMC wallet balance ({$currency} {$balance} available, {$amount} required)."),
             'available_balance' => round($balance, 4),
             'required_amount' => round($amount, 4),
             'currency' => $currency,
@@ -577,26 +571,19 @@ class PaymentEligibilityService
         return $ownerId ? (int) $ownerId : $agentId;
     }
 
-    public function dmcScopedAgentBalance(int $agentId, int $dmcId, string $currency): float
+    public function dmcWalletBalance(int $dmcId, string $currency): float
     {
         $currency = CurrencyHelper::toIsoCode($currency, strtoupper($currency));
-        $agentIds = $this->agencyAgentIds($agentId);
-        if ($agentIds === []) {
-            return 0.0;
-        }
 
-        $query = DB::table('wallet')
-            ->where('wallet_owner_type', 'agent')
-            ->whereIn('wallet_owner_id', $agentIds)
+        return (float) DB::table('wallet')
+            ->where('wallet_owner_type', 'dmc')
+            ->where('wallet_owner_id', $dmcId)
             ->whereRaw('UPPER(wallet_currency_code) = ?', [$currency])
             ->whereNull('deleted_at')
             ->where(function ($q) {
                 $q->where('wallet_status', 'active')->orWhereNull('wallet_status');
-            });
-
-        $this->scopeWalletToDmc($query, $dmcId);
-
-        return (float) $query->sum('available_balance');
+            })
+            ->sum('available_balance');
     }
 
     protected function scopeWalletToDmc($query, int $dmcId): void
