@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\Driver;
+use App\Models\Guide;
+use App\Models\Jobsheet;
 use App\Models\Tour;
 use App\Services\FirebaseService;
 use Illuminate\Support\Facades\DB;
@@ -65,6 +68,92 @@ class ChatController extends Controller
         ];
     }
 
+    /**
+     * Build Firebase chat fields from jobsheets for this tour:
+     * ID/{order_id}/{driverId|guideId}, shared dmc_id, and driver/guide emails.
+     */
+    private function buildJobsheetChatPayload(int $tourId): array
+    {
+        $jobsheets = Jobsheet::query()
+            ->where('tour_id', $tourId)
+            ->get(['order_id', 'driver_id', 'guide_id', 'dmc_id']);
+
+        $idMap = [];
+        $driverIds = [];
+        $guideIds = [];
+        $dmcId = null;
+
+        foreach ($jobsheets as $row) {
+            if ($dmcId === null && !empty($row->dmc_id)) {
+                $dmcId = (int) $row->dmc_id;
+            }
+
+            $assignment = [];
+
+            if (!empty($row->driver_id)) {
+                $driverId = (int) $row->driver_id;
+                $assignment['driverId'] = $driverId;
+                $driverIds[] = $driverId;
+            }
+
+            if (!empty($row->guide_id)) {
+                $guideId = (int) $row->guide_id;
+                $assignment['guideId'] = $guideId;
+                $guideIds[] = $guideId;
+            }
+
+            $orderKey = $row->order_id === null ? '' : trim((string) $row->order_id);
+            if ($orderKey === '' || empty($assignment)) {
+                continue;
+            }
+
+            $idMap[$orderKey] = array_merge($idMap[$orderKey] ?? [], $assignment);
+        }
+
+        $emails = [];
+
+        if (!empty($driverIds)) {
+            $emails = array_merge(
+                $emails,
+                Driver::query()
+                    ->whereIn('driver_id', array_values(array_unique($driverIds)))
+                    ->pluck('email')
+                    ->all()
+            );
+        }
+
+        if (!empty($guideIds)) {
+            $emails = array_merge(
+                $emails,
+                Guide::query()
+                    ->whereIn('guide_id', array_values(array_unique($guideIds)))
+                    ->pluck('email')
+                    ->all()
+            );
+        }
+
+        $emails = array_values(array_unique(array_filter(array_map(
+            static function ($email) {
+                if (!is_string($email)) {
+                    return null;
+                }
+
+                $email = trim($email);
+
+                return $email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)
+                    ? strtolower($email)
+                    : null;
+            },
+            $emails
+        ))));
+
+        return [
+            'ID' => $idMap,
+            'dmc_id' => $dmcId,
+            'emails' => $emails,
+        ];
+    }
+
     public function createChat(Request $request)
     {
         $request->validate([
@@ -83,19 +172,24 @@ class ChatController extends Controller
                 ], 404);
             }
 
-            if (empty($tour->dmc_id)) {
+            $jobsheetPayload = $this->buildJobsheetChatPayload((int) $tour->tour_id);
+            $dmcId = $jobsheetPayload['dmc_id'] ?? (!empty($tour->dmc_id) ? (int) $tour->dmc_id : null);
+
+            if (empty($dmcId)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'DMC ID is missing for this tour.',
                 ], 422);
             }
 
+            $jobsheetPayload['dmc_id'] = (int) $dmcId;
             $tourDetails = $this->buildTourDetailsPayload($tour);
 
             $result = $this->firebaseService->createChatRoom(
                 $tour->tour_id,
-                (int) $tour->dmc_id,
-                $tourDetails
+                (int) $dmcId,
+                $tourDetails,
+                $jobsheetPayload
             );
 
             return response()->json($result);
