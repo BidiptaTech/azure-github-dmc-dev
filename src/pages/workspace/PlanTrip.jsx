@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
-import TripSearchCard from "@/components/workspace/TripSearchCard";
+import Hero1 from "@/components/hero/hero-1";
 import TourPackages from "@/components/Tour-Packages";
 import { setSearchCriteria } from "@/slice/tour-packages/tourPackageSlice";
 import { appPath } from "@/utils/appPaths";
@@ -58,18 +58,9 @@ export default function PlanTrip() {
 
   return (
     <div>
-      <div className="partner-hero">
-        <div>
-          <div className="partner-kicker">Plan a trip</div>
-          <h1 className="partner-title">One trip. Everything connected.</h1>
-          <p className="partner-lede">
-            Start with a destination, then choose stays, transfers and
-            experiences.
-          </p>
-        </div>
+      <div className="partner-plan-hero">
+        <Hero1 />
       </div>
-
-      <TripSearchCard />
 
       <section className="partner-card">
         <h2 className="partner-card__title">Prefer a tailor-made proposal?</h2>
