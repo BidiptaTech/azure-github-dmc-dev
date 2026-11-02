@@ -238,8 +238,8 @@
                     <button type="button" 
                             class="btn btn-danger btn-sm d-flex align-items-center justify-content-center rounded-circle" 
                             style="width: 28px; height: 28px; padding: 0;" 
-                            data-toggle="modal" 
-                            data-target="#deleteModal"
+                            data-bs-toggle="modal"
+                            data-bs-target="#deleteModal"
                            
                             onclick="setDeleteForm('{{ route('agents.destroy', $agent->agent_id) }}')">
                       <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">
@@ -280,7 +280,7 @@
         Are you sure want to delete?
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
           <form id="deleteForm" action="" method="POST" style="display:inline">
               @csrf
               @method('DELETE')
@@ -308,7 +308,7 @@
                 </div>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 <button type="submit" class="btn btn-primary">Add Money</button>
             </div>
                 </form>
@@ -365,7 +365,7 @@
 </script>
 <!-- End DataTable JS -->
 
-<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+{{-- Do not load Bootstrap 4 here — it overwrites layout Bootstrap 5 and breaks Create Tour Pro (sidebar). --}}
 <script>
   function setDeleteForm(url) {
     document.getElementById('deleteForm').action = url;

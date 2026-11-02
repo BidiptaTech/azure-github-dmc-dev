@@ -41,6 +41,16 @@
 <script>window.jQuery || document.write('<script src="{{ $assetBase }}/assets/vendor/libs/jquery/jquery.js"><\/script>');</script>
 <script src="{{ $assetBase }}/assets/vendor/libs/popper/popper.js"></script>
 <script src="{{ $assetBase }}/assets/vendor/js/bootstrap.js"></script>
+{{-- Snapshot Bootstrap 5 for Create Tour Pro. Many templates later load Bootstrap 4 and
+     replace window.bootstrap — CTP must keep using this snapshot on every page. --}}
+<script>
+    (function () {
+        var bs = window.bootstrap;
+        if (bs && bs.Modal) {
+            window.__ctpBootstrap = bs;
+        }
+    })();
+</script>
 <script src="{{ $assetBase }}/assets/vendor/libs/node-waves/node-waves.js"></script>
 <script src="{{ $assetBase }}/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.js"></script>
 <script src="{{ $assetBase }}/assets/vendor/libs/hammer/hammer.js"></script>
