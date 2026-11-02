@@ -526,7 +526,7 @@ const MainFilterSearchBox = () => {
     });
 
     // Use placeholder id since router expects an :id param; actual tour will be created on booking/enquiry
-    navigate(`/dashboard/db-dashboard/view-hotel-search/0?${searchParams}`);
+    navigate(`/app/view-hotel-search/0?${searchParams}`);
   };
 
   const canSearchSingle = selectedCities.length === 1 && hasTotalDates;

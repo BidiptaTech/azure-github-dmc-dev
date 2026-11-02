@@ -108,7 +108,7 @@ const MainMenu = ({ style = "", onDark = false }) => {
     if (!hasDmcData && !hasSelectedCountries && !dmcCountLoading) {
       // Only auto-open for Agent users, and only if we're on a relevant page
       if (userRole === "Agent") {
-        if (pathname.includes("/dashboard/db-dashboard/home_1")) {
+        if (pathname.includes("/app/home_1")) {
           console.log('🌍 Auto-opening Book Tour location modal - no location selected');
           //setIsBookTourLocationModalOpen(true);
         }
@@ -126,8 +126,8 @@ const MainMenu = ({ style = "", onDark = false }) => {
     userRole === "DMC Assistant Operational Manager";
   // Determine packages path based on user role
   const packagesPath = userRole === "Agent" 
-    ? "/dashboard/pre-define-packages" 
-    : "/dashboard/db-dashboard/tour-packages";
+    ? "/app/pre-define-packages" 
+    : "/app/tour-packages";
 
   // Common style for menu items
   const menuItemStyle = {
@@ -166,7 +166,7 @@ const MainMenu = ({ style = "", onDark = false }) => {
     // if (dmcCountLoading) {
     //   return;
     // }
-    navigate("/dashboard/db-dashboard/home_1");
+    navigate("/app/home_1");
     
     // Always show location modal
     //setIsBookTourLocationModalOpen(true);
@@ -193,7 +193,7 @@ const MainMenu = ({ style = "", onDark = false }) => {
 
   const handleDMCSelect = (selectedDMC) => {
     // Navigate to the tour booking page with the selected DMC and search criteria
-    navigate("/dashboard/db-dashboard/home_1", { 
+    navigate("/app/home_1", { 
       state: { 
         selectedDMC,
         searchCriteria 
@@ -216,7 +216,7 @@ const MainMenu = ({ style = "", onDark = false }) => {
     
     // Navigate directly to enquiry page
     // User will select location on the Quick Enquiry page itself
-    navigate("/dashboard/db-dashboard/home_2");
+    navigate("/app/home_2");
   };
 
   // === Packages Handlers (Direct Navigation - No Modal, Same as Quick Enquiry) ===
@@ -244,7 +244,7 @@ const MainMenu = ({ style = "", onDark = false }) => {
 
   const handleCartClick = (e) => {
     e.preventDefault();
-    navigate("/dashboard/db-dashboard/cart");
+    navigate("/app/cart");
   };
 
   return (
@@ -253,14 +253,14 @@ const MainMenu = ({ style = "", onDark = false }) => {
       <ul className={`menu__nav ${style} -is-active`} style={{ display: "flex", alignItems: "center", gap: 22 }}>
         <li
           className={`menu-item ${
-            pathname === "/dashboard/db-dashboard" ? "current" : ""
+            pathname === "/app" ? "current" : ""
           }`}
           style={menuItemStyle}
         >
                      <Link
-             to="/dashboard/db-dashboard"
+             to="/app"
              className="d-flex items-center text-decoration-none"
-             style={pillStyle(pathname === "/dashboard/db-dashboard")}
+             style={pillStyle(pathname === "/app")}
            >
                 <FaChartLine style={{ fontSize: 15 }} />
                 <span>Dashboard</span>
@@ -270,7 +270,7 @@ const MainMenu = ({ style = "", onDark = false }) => {
         {!isManagerOrSalesHead && (
           <li
             className={`menu-item ${
-              pathname === "/dashboard/db-dashboard/home_1" ? "current" : ""
+              pathname === "/app/home_1" ? "current" : ""
             }`}
             style={menuItemStyle}
           >
@@ -278,7 +278,7 @@ const MainMenu = ({ style = "", onDark = false }) => {
                  href="#"
                  onClick={handleBookTourClick}
                className="d-flex items-center text-decoration-none"
-               style={pillStyle(pathname === "/dashboard/db-dashboard/home_1")}
+               style={pillStyle(pathname === "/app/home_1")}
              >
                   <FaCompass style={{ fontSize: 15 }} />
                   <span>Book Tour</span>
@@ -289,7 +289,7 @@ const MainMenu = ({ style = "", onDark = false }) => {
         {!isManagerOrSalesHead && (
           <li
             className={`menu-item ${
-              pathname === "/dashboard/db-dashboard/home_2" ? "current" : ""
+              pathname === "/app/home_2" ? "current" : ""
             }`}
             style={menuItemStyle}
           >
@@ -297,7 +297,7 @@ const MainMenu = ({ style = "", onDark = false }) => {
                  href="#"
                  onClick={handleBookEnquiryClick}
                className="d-flex items-center text-decoration-none"
-               style={pillStyle(pathname === "/dashboard/db-dashboard/home_2")}
+               style={pillStyle(pathname === "/app/home_2")}
              >
                   <FaEnvelopeOpenText style={{ fontSize: 15 }} />
                   <span>Quick Enquiry</span>
@@ -329,14 +329,14 @@ const MainMenu = ({ style = "", onDark = false }) => {
         {!isManagerOrSalesHead && (
           <li
             className={`menu-item ${
-              pathname === "/dashboard/db-dashboard/cart" ? "current" : ""
+              pathname === "/app/cart" ? "current" : ""
             }`}
           >
             <a
               href="#"
               onClick={handleCartClick}
               className="d-flex items-center text-decoration-none"
-              style={pillStyle(pathname === "/dashboard/db-dashboard/cart")}
+              style={pillStyle(pathname === "/app/cart")}
               title="View Cart"
             >
               <Badge
@@ -350,12 +350,12 @@ const MainMenu = ({ style = "", onDark = false }) => {
                     height: 16,
                     fontWeight: 700,
                     bgcolor: onDark
-                      ? pathname === "/dashboard/db-dashboard/cart"
+                      ? pathname === "/app/cart"
                         ? "#0f1f4b"
                         : "#ffffff"
                       : "#3554d1",
                     color: onDark
-                      ? pathname === "/dashboard/db-dashboard/cart"
+                      ? pathname === "/app/cart"
                         ? "#ffffff"
                         : "#0f1f4b"
                       : "#fff",

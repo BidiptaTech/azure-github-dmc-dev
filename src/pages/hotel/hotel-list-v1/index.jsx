@@ -1,31 +1,34 @@
+import { useSelector } from "react-redux";
 import MainFilterSearchBox from "@/components/hotel-list/hotel-list-v1/MainFilterSearchBox";
 import TopHeaderFilter from "@/components/hotel-list/hotel-list-v1/TopHeaderFilter";
 import HotelProperties from "@/components/hotel-list/hotel-list-v1/HotelProperties";
 import Sidebar from "@/components/hotel-list/hotel-list-v1/Sidebar";
-
 import MetaComponent from "@/components/common/MetaComponent";
-
-import { useSelector } from "react-redux";
 import CustomStepper from "@/components/common/sub_common/CustomStepper";
-import { useLocation } from "react-router-dom";
 import TourStatus from "@/components/common/sub_common/TourStatus";
+import TripWorkspaceShell from "@/components/workspace/TripWorkspaceShell";
 import "@/styles/hotelListHero.css";
 
 const metadata = {
-  title: "Hotel List || Travclick - Travel & Tour",
-  description: "Travclick - Travel & Tour",
+  title: "Hotel List || Travclicks - Travel Technology Transformed",
+  description: "Travclicks - Travel Technology Transformed",
 };
 
 const HotelListPage1 = () => {
   const hotelsdata = useSelector((state) => state.hotels);
-  const location = useLocation();
-  const hotel = location.state?.hotel;
+  const tourdetails = useSelector((state) => state.hotels?.tourdetails);
+  const searchState = useSelector((state) => state.hotels?.searchState);
+  const hotelCount = Array.isArray(hotelsdata?.hotels)
+    ? hotelsdata.hotels.length
+    : 0;
+  const adults = tourdetails?.adult || searchState?.guests?.adults || 2;
+  const children = tourdetails?.child || searchState?.guests?.children || 0;
 
   return (
-    <>
+    <div className="pw-trip-workspace">
       <MetaComponent meta={metadata} />
-      {/* Stepper and Tour Status — header-margin clears the fixed header */}
-      <div className="header-margin">
+
+      <div className="header-margin" aria-hidden>
         <div className="container">
           <div className="hotel-list-lite-stack">
             <div className="hotel-list-lite-panel">
@@ -36,8 +39,7 @@ const HotelListPage1 = () => {
         </div>
       </div>
 
-
-      <div className="hotel-list-top">
+      <div className="hotel-list-top" aria-hidden>
         <div className="container">
           <div className="hotel-list-hero">
             <MainFilterSearchBox layout="hero" />
@@ -45,55 +47,33 @@ const HotelListPage1 = () => {
         </div>
       </div>
 
-      
-
-      <section className="hotel-list-results layout-pb-lg">
-        <div className="container">
-          <div className="row y-gap-30">
-            <div className="col-xl-3">
-              <aside className="sidebar y-gap-40 xl:d-none">
-                <Sidebar />
-              </aside>
-
-              <div
-                className="offcanvas offcanvas-start"
-                tabIndex="-1"
-                id="listingSidebar"
-              >
-                <div className="offcanvas-header">
-                  <h5 className="offcanvas-title" id="offcanvasLabel">
-                    Filter Hotels
-                  </h5>
-                  <button
-                    type="button"
-                    className="btn-close"
-                    data-bs-dismiss="offcanvas"
-                    aria-label="Close"
-                  ></button>
-                </div>
-
-                <div className="offcanvas-body">
-                  <aside className="sidebar y-gap-40 xl:d-block">
-                    <Sidebar />
-                  </aside>
-                </div>
-              </div>
-            </div>
-
-            <div className="col-xl-9 ">
-              <TopHeaderFilter
-                hotel={hotel}
-                hotelsdata={hotelsdata}
-                location={location}
-              />
-              <div className="row y-gap-30">
-                <HotelProperties />
-              </div>
-            </div>
-          </div>
+      <TripWorkspaceShell
+        filters={
+          <>
+            <h3>Find your client&apos;s stay</h3>
+            <Sidebar />
+          </>
+        }
+      >
+        <div className="pw-results-head">
+          <h2>
+            {hotelCount > 0
+              ? `${hotelCount} hotel${hotelCount === 1 ? "" : "s"} found`
+              : "Hotels"}
+          </h2>
+          <small>
+            Live inventory · {adults} adult{adults === 1 ? "" : "s"}
+            {children
+              ? `, ${children} child${children === 1 ? "" : "ren"}`
+              : ""}
+          </small>
         </div>
-      </section>
-    </>
+        <TopHeaderFilter hotelsdata={hotelsdata} />
+        <div className="row y-gap-30">
+          <HotelProperties />
+        </div>
+      </TripWorkspaceShell>
+    </div>
   );
 };
 

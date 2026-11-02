@@ -134,7 +134,7 @@ const CartCheckout = () => {
     if (isSubmitting || isEnquiring) return;
     if (!trip?.bookings?.length) {
       toast.error("No trip to checkout.");
-      navigate("/dashboard/db-dashboard/cart");
+      navigate("/app/cart");
       return;
     }
     if (!customerRef.current?.isFormValid()) {
@@ -184,7 +184,7 @@ const CartCheckout = () => {
             ? "Booking confirmed."
             : `${results.length} bookings confirmed.`
       );
-      navigate("/dashboard/db-dashboard/ThankYou", {
+      navigate("/app/ThankYou", {
         replace: true,
         state: {
           bookingResponse: results[results.length - 1]?.response,
@@ -233,7 +233,7 @@ const CartCheckout = () => {
           </Typography>
           <Button
             variant="contained"
-            onClick={() => navigate("/dashboard/db-dashboard/cart")}
+            onClick={() => navigate("/app/cart")}
             sx={{ bgcolor: "#3554d1", textTransform: "none" }}
           >
             Back to cart
@@ -265,7 +265,7 @@ const CartCheckout = () => {
           <Box>
             <Button
               startIcon={<ArrowBackIcon />}
-              onClick={() => navigate("/dashboard/db-dashboard/cart")}
+              onClick={() => navigate("/app/cart")}
               sx={{ textTransform: "none", color: "#64748b", mb: 1, px: 0 }}
             >
               Back to cart

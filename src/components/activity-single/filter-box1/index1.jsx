@@ -271,7 +271,7 @@ const Index1 = () => {
     };
 
     dispatch(setentrydata(details));
-    navigate(`/dashboard/db-dashboard/CheckOut`, {
+    navigate(`/app/CheckOut`, {
       state: { vehicles: vehicles },
     });
    

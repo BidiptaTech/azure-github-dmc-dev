@@ -174,11 +174,11 @@ const CartPage = () => {
     // 0 hotel, 1 port, 2 attraction, 3 guide, 4 restaurants, 5 local transfer
     const stepPaths = {
       0: null, // hotel uses query params below
-      1: "/dashboard/db-dashboard/pickupdrop",
-      2: "/dashboard/db-dashboard/attractions",
-      3: "/dashboard/db-dashboard/tourguide",
-      4: "/dashboard/db-dashboard/restaurants",
-      5: "/dashboard/db-dashboard/localtransfer",
+      1: "/app/pickupdrop",
+      2: "/app/attractions",
+      3: "/app/tourguide",
+      4: "/app/restaurants",
+      5: "/app/localtransfer",
     };
 
     if (stepIndex > 0 && stepPaths[stepIndex]) {
@@ -201,7 +201,7 @@ const CartPage = () => {
         Infants: trip.infant || 0,
       }),
     });
-    navigate(`/dashboard/db-dashboard/view-hotel-search/0?${searchParams}`, {
+    navigate(`/app/view-hotel-search/0?${searchParams}`, {
       state: navState,
     });
   };
@@ -209,7 +209,7 @@ const CartPage = () => {
   const handleTripCheckout = (trip) => {
     restoreTripToRedux(trip);
     dispatch(setCheckoutTripId(trip.tripId));
-    navigate("/dashboard/db-dashboard/cart-checkout", {
+    navigate("/app/cart-checkout", {
       state: {
         cartTripId: trip.tripId,
         cartTrip: trip,
@@ -262,7 +262,7 @@ const CartPage = () => {
           </Typography>
           <Button
             variant="contained"
-            onClick={() => navigate("/dashboard/db-dashboard/home_1")}
+            onClick={() => navigate("/app/home_1")}
             sx={{
               bgcolor: "#3554d1",
               textTransform: "none",
@@ -1122,7 +1122,7 @@ const CartPage = () => {
                   variant="text"
                   onClick={() => {
                     if (trips[0]) handleEditTrip(trips[0]);
-                    else navigate("/dashboard/db-dashboard/home_1");
+                    else navigate("/app/home_1");
                   }}
                   sx={{ textTransform: "none", color: "#64748b" }}
                 >

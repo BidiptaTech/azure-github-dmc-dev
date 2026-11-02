@@ -142,7 +142,7 @@ const HotelSingleV1Dynamic = () => {
         <TourStatus variant="lite" />
       </div>
 
-      <Header11 />
+      {/* Header provided by PartnerLayout */}
 
       <StickyHeader hotel={hotel} />
 

@@ -180,7 +180,7 @@ const truncateToWords = (text, wordLimit) => {
 
   useEffect(() => {
     if (!userInfo || !userInfo.fullName) {
-      navigate("/dashboard/db-dashboard/tour-single/:id");
+      navigate("/app/tour-single/:id");
     }
   }, [userInfo, navigate]);
 
@@ -268,7 +268,7 @@ const truncateToWords = (text, wordLimit) => {
          toast.error(
            "Customer information is missing. Please fill out the form first."
          );
-         navigate("/dashboard/db-dashboard/tour-single/:id");
+         navigate("/app/tour-single/:id");
          setIsSubmitting(false); // Reset loading state
          return;
        }
@@ -343,7 +343,7 @@ const truncateToWords = (text, wordLimit) => {
            autoClose: 3000,
          });
  
-         navigate("/dashboard/db-dashboard/restaurants-thank-you", {
+         navigate("/app/restaurants-thank-you", {
            state: { bookingResponse: response },
          });
        }
@@ -375,7 +375,7 @@ const truncateToWords = (text, wordLimit) => {
        
        if (!userInfo || !userInfo.fullName) {
          toast.error("Customer information is missing. Please fill out the form first.");
-         navigate("/dashboard/db-dashboard/tour-single/:id");
+         navigate("/app/tour-single/:id");
          setIsEnquiring(false); // Reset loading state
          return;
        }
@@ -460,7 +460,7 @@ const truncateToWords = (text, wordLimit) => {
        });
 
        // Navigate only after successful submission
-       navigate("/dashboard/db-dashboard/restaurants-thank-you", {
+       navigate("/app/restaurants-thank-you", {
          state: { bookingResponse: response },
        });
        
@@ -487,7 +487,7 @@ const truncateToWords = (text, wordLimit) => {
     };
     
     // Navigate back with state indicator
-    navigate('/dashboard/db-dashboard/restaurants-details/:id', { 
+    navigate('/app/restaurants-details/:id', { 
       state: { fromBooking: true } 
     });
   };

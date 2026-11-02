@@ -784,7 +784,7 @@ const TourProperties = () => {
 
     dispatch(setSelectedAttraction(item));
 
-    navigate(`/dashboard/db-dashboard/tour-single/${item.id}`, {
+    navigate(`/app/tour-single/${item.id}`, {
       state: {
         attraction: item,
         mode: currentMode,

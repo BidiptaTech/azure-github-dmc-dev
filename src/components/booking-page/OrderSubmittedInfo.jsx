@@ -75,7 +75,7 @@ const OrderSubmittedInfo = () => {
 
   const handleClick = () => {
     console.log("Clicked");
-    navigate("/dashboard/db-dashboard/view-hotel-search/:id");
+    navigate("/app/view-hotel-search/:id");
   };
   return (
     <>

@@ -85,7 +85,7 @@ const Header1 = ({ onViewProfile }) => {
   // Modal handlers
   const handleSearchSubmit = (searchData) => {
     if (searchData.skipDMCModal && searchData.selectedDMC) {
-      navigate("/dashboard/db-dashboard/home_1", { 
+      navigate("/app/home_1", { 
         state: { 
           selectedDMC: searchData.selectedDMC,
           searchCriteria: { country: searchData.country }
@@ -99,14 +99,14 @@ const Header1 = ({ onViewProfile }) => {
   };
 
   const handleDMCSelect = (selectedDMC) => {
-    navigate("/dashboard/db-dashboard/home_1", { 
+    navigate("/app/home_1", { 
       state: { selectedDMC, searchCriteria } 
     });
   };
 
   const handleEnquirySearchSubmit = (searchData) => {
     if (searchData.skipDMCModal && searchData.selectedDMC) {
-      navigate("/dashboard/db-dashboard/home_2", { 
+      navigate("/app/home_2", { 
         state: { 
           selectedDMCs: [searchData.selectedDMC],
           searchCriteria: { country: searchData.country }
@@ -120,15 +120,15 @@ const Header1 = ({ onViewProfile }) => {
   };
 
   const handleEnquiryDMCSelect = (selectedDMCs) => {
-    navigate("/dashboard/db-dashboard/home_2", { 
+    navigate("/app/home_2", { 
       state: { selectedDMCs, searchCriteria: enquirySearchCriteria } 
     });
   };
 
   const handlePackagesSearchSubmit = (searchData) => {
     const packagesPath = userRole === "Agent" 
-      ? "/dashboard/pre-define-packages" 
-      : "/dashboard/db-dashboard/tour-packages";
+      ? "/app/pre-define-packages" 
+      : "/app/tour-packages";
       
     if (searchData.skipDMCModal && searchData.selectedDMC) {
       navigate(packagesPath, { 
@@ -146,8 +146,8 @@ const Header1 = ({ onViewProfile }) => {
 
   const handlePackagesDMCSelect = (selectedDMC) => {
     const packagesPath = userRole === "Agent" 
-      ? "/dashboard/pre-define-packages" 
-      : "/dashboard/db-dashboard/tour-packages";
+      ? "/app/pre-define-packages" 
+      : "/app/tour-packages";
       
     dispatch(resetPackages());
     navigate(packagesPath, { 
@@ -243,7 +243,7 @@ const Header1 = ({ onViewProfile }) => {
         <div className="header__container" style={{ width: "100%" }}>
           <div style={{ display: "flex", alignItems: "center", width: "100%", maxWidth: 1400, margin: "0 auto", height: 88, padding: "0 28px", gap: 28 }}>
             <div style={{ display: "flex", alignItems: "center", minWidth: 220, flexShrink: 0 }}>
-                <Link to="/dashboard/db-dashboard" className="header-logo">
+                <Link to="/app" className="header-logo">
                   <img
                     src={isAuthenticated && userRole == "Agent" ? agencyLogo : dmcLogo}
                     alt="logo icon"

@@ -2092,7 +2092,7 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
             
             // After showing thank you page, redirect to agent dashboard
             setTimeout(() => {
-              window.location.href = '/dashboard/db-dashboard';
+              window.location.href = '/app';
             }, 5000); // Redirect after 5 seconds 
           }, 2000);
         }

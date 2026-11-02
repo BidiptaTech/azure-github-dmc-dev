@@ -107,7 +107,7 @@ const TourSingleV1Dynamic = () => {
       <MetaComponent meta={metadata} />
       <div className="header-margin"></div>
 
-      <Header11 />
+      {/* Header provided by PartnerLayout */}
 
       <CustomStepper variant="lite" />
       <TourStatus variant="lite" />
@@ -118,7 +118,7 @@ const TourSingleV1Dynamic = () => {
             <div className="col-auto">
               {/* <button 
                 className="btn btn-outline-primary mb-3"
-                onClick={() => navigate("/dashboard/db-dashboard/attractions")}
+                onClick={() => navigate("/app/attractions")}
               >
                 Back
               </button> */}
@@ -138,7 +138,7 @@ const TourSingleV1Dynamic = () => {
                     left: "-100px", // Moves it 100px to the left
                   }}
                   onClick={() =>
-                    navigate("/dashboard/db-dashboard/attractions")
+                    navigate("/app/attractions")
                   }
                 >
                   ← Back To Listing

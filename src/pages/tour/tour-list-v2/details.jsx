@@ -82,8 +82,7 @@ const RestaurantsDetails = () => {
       <div className="header-margin"></div>
       {/* header top margin */}
 
-      <Header11 />
-      {/* End Header 1 */}
+      {/* Header provided by PartnerLayout */}
       <CustomStepper variant="lite" />
       <TourStatus variant="lite" />
       {/* <TopBreadCrumb /> */}
@@ -101,7 +100,7 @@ const RestaurantsDetails = () => {
                   zIndex: "10",
                   minHeight: "40px",
                 }}
-                onClick={() => navigate("/dashboard/db-dashboard/restaurants")}
+                onClick={() => navigate("/app/restaurants")}
               >
                 ← Back To Listing
               </button> */}
@@ -121,7 +120,7 @@ const RestaurantsDetails = () => {
                     left: "-100px", 
                   }}
                   onClick={() =>
-                    navigate("/dashboard/db-dashboard/restaurants")
+                    navigate("/app/restaurants")
                   }
                 >
                   ← Back To Listing

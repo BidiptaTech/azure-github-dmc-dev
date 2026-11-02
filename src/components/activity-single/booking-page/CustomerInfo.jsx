@@ -592,7 +592,7 @@ const CustomerInfo = ({
 
         // Navigate to the Thank You page after a short delay to ensure Redux updates
         setTimeout(() => {
-          navigate("/dashboard/db-dashboard/ThankYou");
+          navigate("/app/ThankYou");
           // Reset navigation state after navigation completes
           setTimeout(() => {
             dispatch(setIsNavigating(false));
@@ -739,7 +739,7 @@ const CustomerInfo = ({
       console.log("Navigating to Thank You page...");
       // Navigate to the Thank You page
       setTimeout(() => {
-        navigate("/dashboard/db-dashboard/ThankYou");
+        navigate("/app/ThankYou");
         // Reset navigation state after navigation completes
         setTimeout(() => {
           dispatch(setIsNavigating(false));

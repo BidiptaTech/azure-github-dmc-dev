@@ -52,7 +52,7 @@ const ActivitySingleV1Dynamic = () => {
 
   useEffect(() => {
     if (!guide?.guide) {
-      navigate("/dashboard/db-dashboard/tourguide", { replace: true });
+      navigate("/app/tourguide", { replace: true });
     }
   }, [guide, navigate]);
 
@@ -86,7 +86,7 @@ const ActivitySingleV1Dynamic = () => {
             minHeight: "40px",
             marginBottom: "20px",
           }}
-          onClick={() => navigate("/dashboard/db-dashboard/tourguide")}
+          onClick={() => navigate("/app/tourguide")}
         >
           ← Back To Listing
         </button>

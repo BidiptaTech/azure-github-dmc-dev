@@ -66,7 +66,7 @@ const ThankYouPage = ({ onBackToHome }) => {
       setCountdown(prevCount => {
         if (prevCount <= 1) {
           clearInterval(timer);
-          window.location.href = '/dashboard/db-dashboard';
+          window.location.href = '/app';
           return 0;
         }
         return prevCount - 1;
@@ -99,7 +99,7 @@ const ThankYouPage = ({ onBackToHome }) => {
   
   // Handle dashboard navigation
   const goToDashboard = () => {
-    window.location.href = '/dashboard/db-dashboard';
+    window.location.href = '/app';
   };
 
   return (

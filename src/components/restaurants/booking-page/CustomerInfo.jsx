@@ -371,7 +371,7 @@ const CustomerInfo = forwardRef(function CustomerInfo(props, ref) {
         dispatch(setHaveBooking(true));
         // Navigate to thank you page after a short delay to ensure Redux updates
         setTimeout(() => {
-          navigate("/dashboard/db-dashboard/restaurants-thank-you", {
+          navigate("/app/restaurants-thank-you", {
             state: { 
               bookingResponse: response,
               from: 'booking'
@@ -521,7 +521,7 @@ const CustomerInfo = forwardRef(function CustomerInfo(props, ref) {
         
         // Navigate to thank you page after a short delay to ensure Redux updates
         setTimeout(() => {
-          navigate("/dashboard/db-dashboard/restaurants-thank-you", {
+          navigate("/app/restaurants-thank-you", {
             state: { 
               bookingResponse: response,
               from: 'enquiry'

@@ -316,7 +316,7 @@ const Index2Zone = () => {
     }
     lockCartDmc(dispatch, details);
     toast.success("Added to cart successfully.");
-    navigate(`/dashboard/db-dashboard/cart`);
+    navigate(`/app/cart`);
   };
 
   // const handleFinalSubmit = async () => {

@@ -92,7 +92,7 @@ export default function TourPackages() {
         >
           <Button 
             component={Link}
-            to="/dashboard/db-dashboard/tour-packages"
+            to="/app/tour-packages"
             variant="outlined"
             startIcon={<ArrowBackIcon />}
             size="small"

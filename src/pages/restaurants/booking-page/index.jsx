@@ -57,8 +57,7 @@ const BookingPage = () => {
       </div>
       {/* header top margin */}
 
-      <Header11 />
-      {/* End Header 1 */}
+      {/* Header provided by PartnerLayout */}
 
       <section className="pt-40 layout-pb-md">
         <div className="container">

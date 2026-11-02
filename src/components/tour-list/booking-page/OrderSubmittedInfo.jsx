@@ -39,7 +39,7 @@ const OrderSubmittedInfo = () => {
   const orderData = order?.data || [];  // Assuming order.data is already an array
 
   const handleClick = () => {
-    navigate("/dashboard/db-dashboard/attractions");
+    navigate("/app/attractions");
   };
 
   return (

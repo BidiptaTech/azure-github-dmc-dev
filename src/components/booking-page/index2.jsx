@@ -227,7 +227,7 @@ export default function Index2() {
   // If no user info, redirect back
   useEffect(() => {
     if (!userInfo || !userInfo.fullName) {
-      navigate("/dashboard/db-dashboard/hotel-details");
+      navigate("/app/hotel-details");
     }
   }, [userInfo, navigate]);
 
@@ -264,7 +264,7 @@ export default function Index2() {
         toast.error(
           "Customer information is missing. Please fill out the form first."
         );
-        navigate("/dashboard/db-dashboard/hotel-details");
+        navigate("/app/hotel-details");
         return;
       }
 
@@ -329,7 +329,7 @@ export default function Index2() {
       
       console.log("🚀 About to navigate to thank-you page...");
 
-      navigate("/dashboard/db-dashboard/thank-you", {
+      navigate("/app/thank-you", {
         state: { bookingResponse: response },
         replace: true,
       });
@@ -435,7 +435,7 @@ export default function Index2() {
       // Keep userInfo for next booking, just set isNavigating
       dispatch(setIsNavigating(true));
 
-      navigate("/dashboard/db-dashboard/thank-you", {
+      navigate("/app/thank-you", {
         state: { bookingResponse: response },
         replace: true,
       });
@@ -534,7 +534,7 @@ export default function Index2() {
       >
         <Button
           startIcon={<Box component="span">←</Box>}
-          onClick={() => navigate("/dashboard/db-dashboard/hotel-details")}
+          onClick={() => navigate("/app/hotel-details")}
           sx={{
             color: "#3554D1",
             fontWeight: "medium",

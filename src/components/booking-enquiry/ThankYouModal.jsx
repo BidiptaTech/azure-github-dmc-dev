@@ -99,7 +99,7 @@ const StatusChip = styled(Chip)(({ theme }) => ({
 
 // Removed ProgressWrapper since we no longer need countdown progress
 
-const ThankYouModal = ({ open, onClose, redirectUrl = '/dashboard/db-dashboard', delay = 7 }) => {
+const ThankYouModal = ({ open, onClose, redirectUrl = '/app', delay = 7 }) => {
   // Removed countdown state since we don't want auto-redirect
   
   // Get enquiry data from Redux state only

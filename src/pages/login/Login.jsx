@@ -75,7 +75,7 @@ function Login() {
         );
       }
 
-      navigate("/dashboard/db-dashboard");
+      navigate("/app");
     } else {
       setIsLoading(false);
     }

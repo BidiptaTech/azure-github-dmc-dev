@@ -387,7 +387,7 @@ const Index4 = () => {
     }
     lockCartDmc(dispatch, details);
     toast.success("Added to cart successfully.");
-    navigate(`/dashboard/db-dashboard/cart`);
+    navigate(`/app/cart`);
 
     // setMappedData(data); // Update state with final values
     // setIsModalOpen(true);
