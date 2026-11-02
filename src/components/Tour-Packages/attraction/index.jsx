@@ -1497,6 +1497,7 @@ export default function AttractionComponent({ date, dayIndex, attractionspack, t
                             <Box sx={{ minHeight: '42px', display: 'flex', alignItems: 'center' }}>
                                                           <TicketTypeSelector
                               selectedTicketType={section.ticketType}
+                              selectedTicketName={section.originalData?.ticketName || ""}
                               onTicketTypeChange={(value) => handleInputChange(sectionIndex, 'ticketType', value)}
                               disabled={!section.attraction}
                               sectionIndex={sectionIndex}
