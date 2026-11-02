@@ -2631,28 +2631,109 @@
 </script> 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Open modal when Create Single Tour Pro is clicked
-        const createTourBtn = document.getElementById('createSingleTourProBtn');
-        if (createTourBtn) {
-            createTourBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                const modalEl = document.getElementById('createTourProModal');
-                const modal = new bootstrap.Modal(modalEl);
-                modal.show();
-                loadDestinations();
-                if (modalEl) {
-                    modalEl.addEventListener('shown.bs.modal', function onCtpShown() {
-                        modalEl.removeEventListener('shown.bs.modal', onCtpShown);
-                        ctpBindAgencyAgentHandlers();
-                        loadAgenciesForDmc();
-                        ctpInitTourProSelect2();
-                        if (typeof window.ctpApplyTourStartFloor === 'function') window.ctpApplyTourStartFloor();
-                        if (typeof ctpUpdateSubmitButtonState === 'function') ctpUpdateSubmitButtonState();
-                        if (typeof ctpBindLeadGuestAccordion === 'function') ctpBindLeadGuestAccordion();
-                    });
+        // Always use layout Bootstrap 5 snapshot (window.__ctpBootstrap / window.ctpBootstrap).
+        // Many templates load Bootstrap 4 later and replace window.bootstrap — that must not break CTP.
+        function ctpBs() {
+            if (typeof window.ctpBootstrap === 'function') return window.ctpBootstrap();
+            return window.__ctpBootstrap || window.bootstrap || null;
+        }
+        function ctpGetOrCreateModal(el, opts) {
+            if (typeof window.ctpGetOrCreateModal === 'function'
+                && window.ctpGetOrCreateModal !== ctpGetOrCreateModal) {
+                return window.ctpGetOrCreateModal(el, opts);
+            }
+            const bs = ctpBs();
+            if (!el || !bs || !bs.Modal) return null;
+            if (typeof bs.Modal.getOrCreateInstance === 'function') {
+                return bs.Modal.getOrCreateInstance(el, opts || {});
+            }
+            if (typeof bs.Modal.getInstance === 'function') {
+                const existing = bs.Modal.getInstance(el);
+                if (existing) return existing;
+            }
+            try {
+                return new bs.Modal(el, opts || {});
+            } catch (err) {
+                console.warn('Create Tour Pro: could not create Modal', err);
+                return null;
+            }
+        }
+        function ctpGetModalInstance(el) {
+            if (typeof window.ctpGetModalInstance === 'function'
+                && window.ctpGetModalInstance !== ctpGetModalInstance) {
+                return window.ctpGetModalInstance(el);
+            }
+            const bs = ctpBs();
+            if (!el || !bs || !bs.Modal) return null;
+            if (typeof bs.Modal.getInstance === 'function') return bs.Modal.getInstance(el);
+            return null;
+        }
+        function ctpCollapseShow(el) {
+            const bs = ctpBs();
+            if (!el) return;
+            if (bs && bs.Collapse) {
+                if (typeof bs.Collapse.getOrCreateInstance === 'function') {
+                    bs.Collapse.getOrCreateInstance(el, { toggle: false }).show();
+                    return;
                 }
+                if (typeof bs.Collapse.getInstance === 'function') {
+                    const existing = bs.Collapse.getInstance(el);
+                    if (existing) { existing.show(); return; }
+                }
+                try { new bs.Collapse(el, { toggle: false }).show(); return; } catch (e) { /* fall through */ }
+            }
+            el.classList.add('show');
+            document.getElementById('ctpLeadGuestToggle')?.classList.remove('collapsed');
+        }
+        function ctpInitTooltips(root) {
+            const bs = ctpBs();
+            if (!bs || !bs.Tooltip || !root) return;
+            root.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(t) {
+                try {
+                    if (typeof bs.Tooltip.getOrCreateInstance === 'function') {
+                        bs.Tooltip.getOrCreateInstance(t);
+                    } else {
+                        new bs.Tooltip(t);
+                    }
+                } catch (e3) { /* ignore */ }
             });
         }
+
+        function ctpOpenCreateTourProModal() {
+            const modalEl = document.getElementById('createTourProModal');
+            if (!modalEl) return;
+            if (modalEl.parentElement !== document.body) {
+                document.body.appendChild(modalEl);
+            }
+            const guestEl = document.getElementById('tourProGuestModal');
+            if (guestEl && guestEl.parentElement !== document.body) {
+                document.body.appendChild(guestEl);
+            }
+            const modal = (typeof window.ctpGetOrCreateModal === 'function')
+                ? window.ctpGetOrCreateModal(modalEl)
+                : ctpGetOrCreateModal(modalEl);
+            if (modal) modal.show();
+            if (typeof loadDestinations === 'function') loadDestinations();
+            modalEl.addEventListener('shown.bs.modal', function onCtpShown() {
+                modalEl.removeEventListener('shown.bs.modal', onCtpShown);
+                if (typeof ctpBindAgencyAgentHandlers === 'function') ctpBindAgencyAgentHandlers();
+                if (typeof loadAgenciesForDmc === 'function') loadAgenciesForDmc();
+                if (typeof ctpInitTourProSelect2 === 'function') ctpInitTourProSelect2();
+                if (typeof window.ctpApplyTourStartFloor === 'function') window.ctpApplyTourStartFloor();
+                if (typeof ctpUpdateSubmitButtonState === 'function') ctpUpdateSubmitButtonState();
+                if (typeof ctpBindLeadGuestAccordion === 'function') ctpBindLeadGuestAccordion();
+            });
+        }
+        window.ctpOpenCreateTourProModal = ctpOpenCreateTourProModal;
+
+        // Open modal when Create Single Tour Pro is clicked (delegation = works on every template)
+        document.addEventListener('click', function(e) {
+            const btn = e.target && e.target.closest ? e.target.closest('#createSingleTourProBtn') : null;
+            if (!btn) return;
+            e.preventDefault();
+            e.stopPropagation();
+            ctpOpenCreateTourProModal();
+        }, true);
 
         // Create Tour Pro — FIT pax vs Group (FOC + guest modal, Create Lite parity)
         // Auto FIT/GROUP from DMC group_pax (same rule as Lite: adults + children >= threshold → GROUP)
@@ -2777,12 +2858,7 @@
         function ctpExpandLeadGuestAccordion() {
             const body = document.getElementById('ctpLeadGuestBody');
             if (!body) return;
-            if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
-                bootstrap.Collapse.getOrCreateInstance(body, { toggle: false }).show();
-            } else {
-                body.classList.add('show');
-                document.getElementById('ctpLeadGuestToggle')?.classList.remove('collapsed');
-            }
+            ctpCollapseShow(body);
         }
         function ctpBindLeadGuestAccordion() {
             const body = document.getElementById('ctpLeadGuestBody');
@@ -3379,15 +3455,20 @@
             ctpSyncTourTypeFromPax();
             if (focSec) focSec.classList.toggle('d-none', !ctpIsGroup());
             const el = document.getElementById('tourProGuestModal');
-            if (!el || !window.bootstrap) return;
-            const bm = bootstrap.Modal.getOrCreateInstance(el);
+            if (!el) return;
+            if (el.parentElement !== document.body) {
+                document.body.appendChild(el);
+            }
+            const bm = (typeof window.ctpGetOrCreateModal === 'function')
+                ? window.ctpGetOrCreateModal(el)
+                : ctpGetOrCreateModal(el);
+            if (!bm) {
+                console.error('Create Tour Pro: guest modal unavailable (Bootstrap Modal missing)');
+                return;
+            }
             el.addEventListener('shown.bs.modal', function onShown() {
                 el.removeEventListener('shown.bs.modal', onShown);
-                try {
-                    document.querySelectorAll('#tourProGuestModal [data-bs-toggle="tooltip"]').forEach(function(t) {
-                        bootstrap.Tooltip.getOrCreateInstance(t);
-                    });
-                } catch (e3) { /* ignore */ }
+                ctpInitTooltips(el);
                 ctpSyncTourTypeFromPax();
             }, { once: true });
             bm.show();
@@ -3455,7 +3536,7 @@
                 ctpSyncTourTypeFromPax();
                 ctpRenderGuestSummary();
                 const gmod = document.getElementById('tourProGuestModal');
-                const inst = gmod && window.bootstrap ? bootstrap.Modal.getInstance(gmod) : null;
+                const inst = ctpGetModalInstance(gmod);
                 if (inst) inst.hide();
             });
         }
