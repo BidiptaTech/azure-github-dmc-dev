@@ -131,7 +131,7 @@ const PriceCardHeader = styled(Box)(({ theme, type }) => {
   };
 });
 
-const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, sectionIndex, formSections, bookingDate, dayIndex, packages = [] }) => {
+const TicketTypeSelector = ({ selectedTicketType, selectedTicketName = "", onTicketTypeChange, disabled, sectionIndex, formSections, bookingDate, dayIndex, packages = [] }) => {
   const theme = useTheme();
   // States
   const [modalOpen, setModalOpen] = useState(false);
@@ -521,16 +521,34 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
     setNriStatus(event.target.value);
   };
 
+  const staticTicketOption = selectedTicketName
+    ? {
+        ticket_id: selectedTicketType,
+        ticket_name: selectedTicketName,
+        type: "attraction",
+      }
+    : null;
+
+  const ticketOptions =
+    staticTicketOption &&
+    !allOptions.some((ticket) => String(ticket.ticket_id) === String(selectedTicketType))
+      ? [staticTicketOption, ...allOptions]
+      : allOptions;
+
+  const selectedTicketOption =
+    ticketOptions.find((ticket) => String(ticket.ticket_id) === String(selectedTicketType)) ||
+    staticTicketOption;
+
   return (
     <Box sx={{ position: 'relative', width: '100%' }}>
       <Autocomplete
-        value={allOptions.find(t => t.ticket_id === selectedTicketType) || null}
+        value={selectedTicketOption}
         onChange={(event, newValue) => {
           if (newValue) {
             handleOpenModal(newValue);
           }
         }}
-        options={allOptions}
+        options={ticketOptions}
         getOptionLabel={(option) => capitalizeWords(option.ticket_name || '')}
         noOptionsText="No tickets available"
         disabled={disabled}
@@ -650,7 +668,7 @@ const TicketTypeSelector = ({ selectedTicketType, onTicketTypeChange, disabled, 
           );
         }}
         renderInput={(params) => {
-          const selectedOption = allOptions.find(t => t.ticket_id === selectedTicketType);
+          const selectedOption = selectedTicketOption;
           return (
           <TextField
             {...params}
