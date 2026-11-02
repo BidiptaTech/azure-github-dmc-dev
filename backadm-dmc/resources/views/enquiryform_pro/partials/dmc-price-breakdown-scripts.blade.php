@@ -432,29 +432,286 @@
     };
 
     /**
+     * Seed / remember the Way that currently matches Cost/Sell unit inputs.
+     * Used so manual prices can rescale 1-way ↔ both-way like zone pricing.
+     */
+    window.enquiryProSeedTransferUnitLastWay = function (domRow, way) {
+        if (!domRow) return;
+        const wayEl = domRow.querySelector('.arr-dep-vehicle-way');
+        const w = String(way || wayEl?.value || 'one-way');
+        if (wayEl && !wayEl.dataset.lastWay) wayEl.dataset.lastWay = w;
+        if (!domRow.dataset.lastWay) domRow.dataset.lastWay = w;
+        return w;
+    };
+
+    /**
+     * When Cost/Sell were typed by the user (dataset.userEdited), rescale those
+     * after-way units when Way changes — same ×2 / ÷2 behaviour as calculateTransferPrice.
+     * Qty / Shared pax still apply separately via line = unit × qty|pax.
+     */
+    window.enquiryProApplyManualUnitWayRescale = function (domRow, nextWay, opts) {
+        opts = opts || {};
+        const ucEl = opts.ucEl || domRow?.querySelector?.('.arr-dep-unit-cost') || null;
+        const usEl = opts.usEl || domRow?.querySelector?.('.arr-dep-unit-sell') || null;
+        const wayEl = opts.wayEl || domRow?.querySelector?.('.arr-dep-vehicle-way') || null;
+        let unitCost = parseFloat(opts.unitCost != null ? opts.unitCost : (ucEl && ucEl.value)) || 0;
+        let unitSell = parseFloat(opts.unitSell != null ? opts.unitSell : (usEl && usEl.value)) || 0;
+        const costEdited = !!(ucEl && ucEl.dataset.userEdited === '1');
+        const sellEdited = !!(usEl && usEl.dataset.userEdited === '1');
+        const next = String(nextWay || wayEl?.value || 'one-way');
+        const nextMult = window.enquiryProTransferWayMultiplier(next);
+
+        if (!costEdited && !sellEdited) {
+            if (wayEl) wayEl.dataset.lastWay = next;
+            if (domRow) domRow.dataset.lastWay = next;
+            return { unitCost: unitCost, unitSell: unitSell, rescaled: false, nextWay: next };
+        }
+
+        const prev = String(
+            (wayEl && wayEl.dataset.lastWay)
+            || (domRow && domRow.dataset.lastWay)
+            || next
+        );
+        const prevMult = window.enquiryProTransferWayMultiplier(prev);
+        let rescaled = false;
+
+        if (prevMult !== nextMult && (unitCost > 0 || unitSell > 0)) {
+            if (costEdited && unitCost > 0) {
+                unitCost = (unitCost / prevMult) * nextMult;
+                if (ucEl) ucEl.value = unitCost.toFixed(2);
+            }
+            if (sellEdited && unitSell > 0) {
+                unitSell = (unitSell / prevMult) * nextMult;
+                if (usEl) usEl.value = unitSell.toFixed(2);
+            }
+            rescaled = true;
+        }
+
+        if (wayEl) wayEl.dataset.lastWay = next;
+        if (domRow) domRow.dataset.lastWay = next;
+        return { unitCost: unitCost, unitSell: unitSell, rescaled: rescaled, nextWay: next };
+    };
+
+    /**
+     * Peel parent entry cost/sell onto vehicle unitCost/unitSell when missing
+     * so hotel/A-D modal restore can fill Cost/Sell inputs from saved data.
+     */
+    window.enquiryProPeelTransferUnitsOntoVehicleList = function (list, entry) {
+        if (!Array.isArray(list) || !list.length) return list || [];
+        entry = entry || {};
+        const entryCost = parseFloat(entry.cost != null ? entry.cost : entry.adultCost) || 0;
+        const entrySell = parseFloat(entry.sell != null ? entry.sell : entry.adultSell) || 0;
+        const entryPax = Math.max(0,
+            (parseInt(entry.adults ?? entry.adultsQty ?? 0, 10) || 0)
+            + (parseInt(entry.child ?? entry.childQty ?? 0, 10) || 0)
+        );
+        const entryType = String(entry.transferType || entry.type || '').toUpperCase();
+        return list.map(function (v) {
+            const copy = Object.assign({}, v || {});
+            let uc = parseFloat(copy.unitCost != null ? copy.unitCost : copy.unit_cost) || 0;
+            let us = parseFloat(copy.unitSell != null ? copy.unitSell : copy.unit_sell) || 0;
+            if (uc <= 0) uc = parseFloat(copy.adultCost != null ? copy.adultCost : copy.cost) || 0;
+            if (us <= 0) us = parseFloat(copy.adultSell != null ? copy.adultSell : copy.sell) || 0;
+            const qty = Math.max(1, parseInt(copy.qty || copy.quantity || 1, 10) || 1);
+            const rowType = String(copy.transferType || copy.type || entryType || 'S').toUpperCase();
+            const rowPax = Math.max(0,
+                (parseInt(copy.adults ?? copy.adultsQty ?? 0, 10) || 0)
+                + (parseInt(copy.child ?? copy.childQty ?? 0, 10) || 0)
+            ) || entryPax;
+            if (uc <= 0 && list.length === 1 && entryCost > 0) {
+                // Shared saves cost as line (unit × pax); Private as unit × qty
+                if ((rowType === 'S' || rowType === 'SHARED') && rowPax > 1) {
+                    uc = entryCost / rowPax;
+                } else {
+                    uc = entryCost / qty;
+                }
+            }
+            if (us <= 0 && list.length === 1 && entrySell > 0) {
+                if ((rowType === 'S' || rowType === 'SHARED') && rowPax > 1) {
+                    us = entrySell / rowPax;
+                } else {
+                    us = entrySell / qty;
+                }
+            }
+            if (uc > 0) copy.unitCost = uc;
+            if (us > 0) copy.unitSell = us;
+            return copy;
+        });
+    };
+
+    /** Mark restored Cost/Sell inputs as manual so zone refresh cannot wipe them. */
+    window.enquiryProMarkArrDepUnitsUserEdited = function (side, opts) {
+        opts = opts || {};
+        let container = null;
+        if (typeof getArrDepVehicleRowsContainer === 'function') {
+            container = getArrDepVehicleRowsContainer(side);
+        }
+        if (!container) {
+            const idMap = {
+                arrival: 'arrivalVehicleRows',
+                departure: 'departureVehicleRows',
+                local: 'localVehicleRows',
+                restaurant: 'restaurantVehicleRows'
+            };
+            const sideStr = String(side || '');
+            container = document.getElementById(idMap[side] || '')
+                || (sideStr.indexOf('attr:') === 0
+                    ? document.getElementById('attractionVehicleRows_' + sideStr.slice(5))
+                    : null)
+                || (sideStr === 'rest:meal' || sideStr === 'restaurant'
+                    ? document.getElementById('restaurantVehicleRows')
+                    : null)
+                || (sideStr.indexOf('attr-mv-') === 0
+                    ? document.getElementById(String(side) + '-rows')
+                    : null);
+        }
+        if (!container && opts.container) container = opts.container;
+        if (!container) return false;
+        let any = false;
+        const force = !!opts.force;
+        container.querySelectorAll('.arr-dep-unit-cost, .arr-dep-unit-sell').forEach(function (inp) {
+            const val = parseFloat(inp.value) || 0;
+            if (force || val > 0) {
+                inp.dataset.userEdited = '1';
+                any = true;
+            }
+        });
+        return any;
+    };
+
+    window.enquiryProSetArrDepGuideManualPrices = function (side, guideEntry) {
+        const key = side === 'arrival' ? '_arrivalGuideManualPrices' : '_departureGuideManualPrices';
+        if (!guideEntry) {
+            window[key] = null;
+            return null;
+        }
+        const masterId = String(guideEntry.guideId || guideEntry.guide_id || guideEntry.guideID || '').trim();
+        const cost = parseFloat(guideEntry.cost != null ? guideEntry.cost : guideEntry.adultCost) || 0;
+        const sell = parseFloat(guideEntry.sell != null ? guideEntry.sell : guideEntry.adultSell) || 0;
+        const payload = {
+            guideId: masterId,
+            entryId: guideEntry.id != null ? String(guideEntry.id) : '',
+            cost: cost,
+            sell: sell,
+            hours: parseInt(guideEntry.hours, 10) || 12
+        };
+        window[key] = (cost > 0 || sell > 0) ? payload : null;
+        return window[key];
+    };
+
+    window.enquiryProGetArrDepGuideManualPrices = function (side, selectedGuideMasterId) {
+        const key = side === 'arrival' ? '_arrivalGuideManualPrices' : '_departureGuideManualPrices';
+        const m = window[key];
+        if (!m) return null;
+        if (selectedGuideMasterId && m.guideId
+            && String(m.guideId) !== String(selectedGuideMasterId)) {
+            return null;
+        }
+        if ((parseFloat(m.cost) || 0) <= 0 && (parseFloat(m.sell) || 0) <= 0) return null;
+        return m;
+    };
+
+    window.enquiryProClearArrDepGuideManualPrices = function (side) {
+        if (side === 'arrival' || !side) window._arrivalGuideManualPrices = null;
+        if (side === 'departure' || !side) window._departureGuideManualPrices = null;
+    };
+
+    /**
+     * Prefer saved/manual guide cost+sell when syncing hotel A/D guides so catalog
+     * twelve_hour_price (e.g. 169) does not overwrite listing values (170/172).
+     */
+    window.enquiryProPreferSavedGuideCostSell = function (existingGuide, catalogCost, catalogSell, manual) {
+        let cost = parseFloat(catalogCost) || 0;
+        let sell = parseFloat(catalogSell) || 0;
+        const prevCost = parseFloat(existingGuide && existingGuide.cost) || 0;
+        const prevSell = parseFloat(existingGuide && existingGuide.sell) || 0;
+        const manCost = parseFloat(manual && manual.cost) || 0;
+        const manSell = parseFloat(manual && manual.sell) || 0;
+        if (manCost > 0) cost = manCost;
+        else if (prevCost > 0) cost = prevCost;
+        if (manSell > 0) sell = manSell;
+        else if (prevSell > 0) sell = prevSell;
+        return { cost: cost, sell: sell };
+    };
+
+    /**
      * Resolve transfer sell base before DMC markup (Lite rule).
      * Shared: per-pax unit × (adults+child). Private: private unit × vehicle qty.
      * Both-way: same as one-way, with way ×2 on the unit when unit is zone/base (not already on line).
+     * Local MV: parent.sell is often LINE (unit×pax); vehicles[].unitSell is the true unit — never × pax again.
      */
     window.enquiryProResolveTransferSellBase = function (item) {
         item = item || {};
         const isShared = window.enquiryProIsSharedTransfer(item);
-        const adults = Math.max(0, parseInt(item.adultsQty ?? item.adults ?? 0, 10) || 0);
-        const child = Math.max(0, parseInt(item.childQty ?? item.child ?? item.children ?? 0, 10) || 0);
-        const pax = Math.max(0, adults + child);
+        let adults = Math.max(0, parseInt(item.adultsQty ?? item.adults ?? 0, 10) || 0);
+        let child = Math.max(0, parseInt(item.childQty ?? item.child ?? item.children ?? 0, 10) || 0);
+        let pax = Math.max(0, adults + child);
         const qty = window.enquiryProTransferVehicleQty(item);
         const wayMult = window.enquiryProTransferWayMultiplier(item.way || item.transferWay || item.transfer_way);
+        const v0 = (Array.isArray(item.vehicles) && item.vehicles.length) ? item.vehicles[0] : null;
+        if (v0) {
+            const va = Math.max(0, parseInt(v0.adults ?? v0.adultsQty ?? 0, 10) || 0);
+            const vc = Math.max(0, parseInt(v0.child ?? v0.childQty ?? 0, 10) || 0);
+            if ((va + vc) > 0 && pax <= 0) {
+                adults = va;
+                child = vc;
+                pax = va + vc;
+            }
+        }
 
-        // Prefer stored BASE line (edit JSON often has marked lineSell + base_grand_total)
+        // Dedicated unit fields (zone / unitSell) — never treat line totals as unit
+        let dedicatedUnit = NaN;
+        const unitCandidates = isShared
+            ? [
+                item.unitSell, item.unit_sell,
+                v0 && v0.unitSell, v0 && v0.unit_sell,
+                item.zoneSharedPrice, item.shared_price,
+                v0 && v0.zoneSharedPrice
+            ]
+            : [
+                item.unitSell, item.unit_sell,
+                v0 && v0.unitSell, v0 && v0.unit_sell,
+                item.zonePrivatePrice, item.private_price,
+                v0 && v0.zonePrivatePrice
+            ];
+        for (let i = 0; i < unitCandidates.length; i++) {
+            const n = parseFloat(unitCandidates[i]);
+            if (Number.isFinite(n) && n > 0) { dedicatedUnit = n; break; }
+        }
+
+        // Explicit line totals — prefer vehicle lineSell / base_grand_total, else parent lineSell
+        let explicitLine = parseFloat(
+            item.base_grand_total != null ? item.base_grand_total
+                : (item.dmc_profile_markup && item.dmc_profile_markup.base_price)
+        );
+        if (!Number.isFinite(explicitLine) || explicitLine <= 0) {
+            explicitLine = parseFloat(item.lineSell != null ? item.lineSell : item.line_sell);
+        }
+        if ((!Number.isFinite(explicitLine) || explicitLine <= 0) && v0) {
+            explicitLine = parseFloat(v0.lineSell != null ? v0.lineSell : v0.line_sell);
+        }
+        if (!Number.isFinite(explicitLine) || explicitLine <= 0) {
+            explicitLine = parseFloat(item.totalSell != null ? item.totalSell : item.total_sell);
+        }
+        if (!Number.isFinite(explicitLine) || explicitLine <= 0) explicitLine = NaN;
+
+        // Prefer stored BASE line only when we do not already have a clearer unit from vehicles
+        // (avoids using a double-counted base_grand_total as Adult unit × pax again)
         const storedBaseLine = parseFloat(
             item.base_grand_total != null ? item.base_grand_total
                 : (item.dmc_profile_markup && item.dmc_profile_markup.base_price)
         );
         if (Number.isFinite(storedBaseLine) && storedBaseLine > 0
-            && !(Array.isArray(item.vehicles) && item.vehicles.length > 1)) {
-            const unitFromBase = isShared && pax > 0
+            && !(Array.isArray(item.vehicles) && item.vehicles.length > 1)
+            && !(Number.isFinite(dedicatedUnit) && dedicatedUnit > 0)) {
+            let unitFromBase = isShared && pax > 0
                 ? (storedBaseLine / pax)
                 : (storedBaseLine / Math.max(1, qty));
+            // Guard: if base already looks like (unit×pax)×pax, peel twice
+            if (isShared && pax > 1 && Number.isFinite(dedicatedUnit) && dedicatedUnit > 0
+                && Math.abs(storedBaseLine - dedicatedUnit * pax * pax) < 0.05) {
+                unitFromBase = dedicatedUnit;
+            }
             return {
                 isShared: isShared,
                 unit: Math.round(unitFromBase * 100) / 100,
@@ -463,33 +720,11 @@
                 pax: pax,
                 qty: qty,
                 wayMult: wayMult,
-                base: Math.round(storedBaseLine * 100) / 100,
-                vehicleName: item.vehicleName || item.vehicle_name || item.vehicles_name || ''
+                base: Math.round((isShared ? unitFromBase * Math.max(1, pax || 1) : unitFromBase * qty) * 100) / 100,
+                vehicleName: item.vehicleName || item.vehicle_name || item.vehicles_name
+                    || (v0 && (v0.vehicleName || v0.vehicle_name)) || ''
             };
         }
-
-        // Dedicated unit fields (zone / unitSell) — never treat line totals as unit
-        let dedicatedUnit = NaN;
-        const unitCandidates = isShared
-            ? [item.unitSell, item.unit_sell, item.zoneSharedPrice, item.shared_price]
-            : [item.unitSell, item.unit_sell, item.zonePrivatePrice, item.private_price];
-        for (let i = 0; i < unitCandidates.length; i++) {
-            const n = parseFloat(unitCandidates[i]);
-            if (Number.isFinite(n) && n > 0) { dedicatedUnit = n; break; }
-        }
-
-        // Explicit line totals — prefer base_grand_total on this slice, else lineSell
-        let explicitLine = parseFloat(
-            item.base_grand_total != null ? item.base_grand_total
-                : (item.dmc_profile_markup && item.dmc_profile_markup.base_price)
-        );
-        if (!Number.isFinite(explicitLine) || explicitLine <= 0) {
-            explicitLine = parseFloat(item.lineSell != null ? item.lineSell : item.line_sell);
-        }
-        if (!Number.isFinite(explicitLine) || explicitLine <= 0) {
-            explicitLine = parseFloat(item.totalSell != null ? item.totalSell : item.total_sell);
-        }
-        if (!Number.isFinite(explicitLine) || explicitLine <= 0) explicitLine = NaN;
 
         // Multi-vehicle: sum each vehicle line (same Shared/Private + way rules per vehicle)
         if ((!Number.isFinite(explicitLine) || explicitLine <= 0)
@@ -500,7 +735,16 @@
                     vehicles: null,
                     way: v.way || item.way,
                     type: v.typeLabel || v.transferType || v.type || item.type,
-                    transferType: v.transferType || item.transferType
+                    transferType: v.transferType || item.transferType,
+                    adults: v.adults ?? v.adultsQty ?? item.adults,
+                    adultsQty: v.adultsQty ?? v.adults ?? item.adultsQty,
+                    child: v.child ?? v.childQty ?? item.child,
+                    childQty: v.childQty ?? v.child ?? item.childQty,
+                    unitSell: v.unitSell != null ? v.unitSell : v.unit_sell,
+                    lineSell: v.lineSell != null ? v.lineSell : v.line_sell,
+                    sell: (v.unitSell != null || v.unit_sell != null)
+                        ? (v.unitSell != null ? v.unitSell : v.unit_sell)
+                        : (v.sell != null ? v.sell : item.sell)
                 })).base;
             });
             if (sum > 0) {
@@ -522,13 +766,29 @@
         let unit = dedicatedUnit;
         const sellRaw = parseFloat(item.sell || item.adultSell || item.adult_sell || 0) || 0;
 
-        // If dedicated unit missing, peel sell: listing often stores per-pax unit (with way already applied)
+        // If dedicated unit missing, peel sell: parent.sell for local Shared is often LINE (unit×pax)
         if (!Number.isFinite(unit) || unit <= 0) {
             if (sellRaw > 0) {
-                // If sell looks like a full line (shared × pax), peel to unit
-                if (isShared && pax > 1 && Number.isFinite(explicitLine) && Math.abs(explicitLine - sellRaw) < 0.01) {
+                if (isShared && pax > 1) {
+                    // sell == lineSell → peel; sell == unit×pax from vehicle line → peel;
+                    // sell already equals a plausible unit (listing unit×qty) → keep
+                    if (Number.isFinite(explicitLine) && explicitLine > 0
+                        && Math.abs(explicitLine - sellRaw) < 0.02) {
+                        unit = sellRaw / pax;
+                    } else if (Number.isFinite(explicitLine) && explicitLine > 0
+                        && Math.abs(explicitLine - sellRaw * pax) < 0.05) {
+                        unit = sellRaw;
+                    } else if (Math.abs(sellRaw / pax) > 0 && Number.isFinite(explicitLine)
+                        && Math.abs(explicitLine - (sellRaw / pax) * pax) < 0.05) {
+                        unit = sellRaw / pax;
+                } else {
+                    // Shared without lineSell: prefer peel when pax>1 (MV totalSell is LINE).
+                    // Listing sometimes stores unit in sell — only peel when sell looks like unit×pax
+                    // vs a dedicated vehicle unit, else keep sell as unit.
                     unit = sellRaw / pax;
-                } else if (!isShared && qty > 1 && Number.isFinite(explicitLine) && Math.abs(explicitLine - sellRaw) < 0.01) {
+                }
+                } else if (!isShared && qty > 1 && Number.isFinite(explicitLine)
+                    && Math.abs(explicitLine - sellRaw) < 0.01) {
                     unit = sellRaw / qty;
                 } else {
                     unit = sellRaw;
@@ -536,32 +796,79 @@
             } else {
                 unit = 0;
             }
+        } else if (isShared && pax > 1 && sellRaw > 0
+            && Math.abs(dedicatedUnit - sellRaw) < 0.02
+            && Math.abs(sellRaw - unit * pax) > 0.05) {
+            // Guard: unitSell accidentally stored as LINE (same as parent.sell line)
+            // e.g. dedicatedUnit=1120, sell=1120, pax=4 → real unit is 280
+            if (Number.isFinite(explicitLine) && Math.abs(explicitLine - sellRaw) < 0.02) {
+                unit = sellRaw / pax;
+            } else if (!Number.isFinite(explicitLine) || explicitLine <= 0) {
+                // parent.sell is line when it equals "unit" that is huge vs cost listing unit
+                const costRaw = parseFloat(item.cost || item.adultCost || item.unitCost || 0) || 0;
+                if (costRaw > 0 && Math.abs(costRaw - sellRaw) > 0.05
+                    && Math.abs((costRaw * pax) - sellRaw) < 0.05) {
+                    // cost looks like unit, sell looks like line — use cost as unit for peel ratio
+                    unit = sellRaw / pax;
+                } else if (costRaw > 0 && Math.abs(costRaw - sellRaw) < 0.02) {
+                    // both look like units (listing) — keep dedicatedUnit
+                } else if (Math.abs(sellRaw / pax - Math.round(sellRaw / pax * 100) / 100) < 0.011) {
+                    // sell divisible by pax cleanly and equals dedicated → treat as line pollution
+                    unit = sellRaw / pax;
+                }
+            }
         } else if (wayMult > 1) {
             // Zone unit is one-way; apply both-way on dedicated zone/unit when line not precomputed
             // calculateTransferPrice already ×2 into unitSell for MV — detect by comparing to zone
             const zoneOneWay = isShared
-                ? (parseFloat(item.zoneSharedPrice) || 0)
-                : (parseFloat(item.zonePrivatePrice) || 0);
+                ? (parseFloat(item.zoneSharedPrice) || parseFloat(v0 && v0.zoneSharedPrice) || 0)
+                : (parseFloat(item.zonePrivatePrice) || parseFloat(v0 && v0.zonePrivatePrice) || 0);
             if (zoneOneWay > 0 && Math.abs(dedicatedUnit - zoneOneWay) < 0.01) {
                 unit = dedicatedUnit * wayMult;
+            }
+        }
+
+        // If dedicated unit equals Shared line (unit×pax) but vehicles have true unit, prefer vehicle
+        if (isShared && pax > 1 && Number.isFinite(unit) && unit > 0 && v0) {
+            const vu = parseFloat(v0.unitSell != null ? v0.unitSell : v0.unit_sell);
+            if (Number.isFinite(vu) && vu > 0 && Math.abs(unit - vu * pax) < 0.05) {
+                unit = vu;
             }
         }
 
         let line;
         if (Number.isFinite(explicitLine) && explicitLine > 0) {
             // Trust lineSell, but if it equals dedicated one-way unit only, scale up
-            if (Number.isFinite(dedicatedUnit) && dedicatedUnit > 0
-                && Math.abs(explicitLine - dedicatedUnit) < 0.01) {
-                const scaledUnit = (wayMult > 1
-                    && Math.abs(dedicatedUnit - (isShared ? (parseFloat(item.zoneSharedPrice) || 0) : (parseFloat(item.zonePrivatePrice) || 0))) < 0.01)
-                    ? dedicatedUnit * wayMult
-                    : dedicatedUnit;
+            if (Number.isFinite(unit) && unit > 0
+                && Math.abs(explicitLine - unit) < 0.01) {
+                const zoneOneWay = isShared
+                    ? (parseFloat(item.zoneSharedPrice) || 0)
+                    : (parseFloat(item.zonePrivatePrice) || 0);
+                const scaledUnit = (wayMult > 1 && zoneOneWay > 0 && Math.abs(unit - zoneOneWay) < 0.01)
+                    ? unit * wayMult
+                    : unit;
                 line = isShared ? scaledUnit * Math.max(1, pax || 1) : scaledUnit * qty;
+            } else if (isShared && pax > 1 && Number.isFinite(unit) && unit > 0
+                && Math.abs(explicitLine - unit * pax * pax) < 0.05) {
+                // lineSell was double-counted (unit×pax)×pax — correct to unit×pax
+                line = unit * Math.max(1, pax || 1);
             } else {
                 line = explicitLine;
             }
         } else {
             line = isShared ? (unit * Math.max(1, pax || 1)) : (unit * qty);
+        }
+
+        // Final Shared guard: never show Adult (unit×pax) × pax
+        if (isShared && pax > 1 && Number.isFinite(unit) && unit > 0
+            && Math.abs(line - unit * pax) > 0.05
+            && Math.abs(line - unit) < 0.02) {
+            line = unit * Math.max(1, pax || 1);
+        }
+        if (isShared && pax > 1 && Number.isFinite(unit) && unit > 0
+            && Math.abs(line - unit * pax * pax) < 0.05) {
+            line = unit * Math.max(1, pax || 1);
+            unit = line / pax;
         }
 
         return {
@@ -573,7 +880,8 @@
             qty: qty,
             wayMult: wayMult,
             base: Math.round(Math.max(0, line) * 100) / 100,
-            vehicleName: item.vehicleName || item.vehicle_name || item.vehicles_name || ''
+            vehicleName: item.vehicleName || item.vehicle_name || item.vehicles_name
+                || (v0 && (v0.vehicleName || v0.vehicle_name)) || ''
         };
     };
 
@@ -1041,8 +1349,64 @@
 
     function buildTransferBreakdown(tr) {
         const cur = resolveCurrency(tr);
-        const resolved = window.enquiryProResolveTransferSellBase(tr);
-        let lines = transferItemLinesHtml(resolved, cur);
+        let transferBase = 0;
+        let lines = '';
+        let metaResolved = null;
+
+        // Prefer per-vehicle slices so Shared unitSell (e.g. 280) is not confused with LINE sell (1120)
+        let slices = [];
+        if (typeof expandArrDepVehiclesForOrderStore === 'function') {
+            try { slices = expandArrDepVehiclesForOrderStore(tr) || []; } catch (e) { slices = []; }
+        }
+        if ((!slices || !slices.length) && Array.isArray(tr.vehicles) && tr.vehicles.length) {
+            slices = tr.vehicles;
+        }
+        if (slices && slices.length) {
+            slices.forEach(function (slice) {
+                const vUnit = parseFloat(slice.unitSell != null ? slice.unitSell : slice.unit_sell);
+                const vLine = parseFloat(slice.lineSell != null ? slice.lineSell : slice.line_sell);
+                const seed = Object.assign({}, tr, slice, {
+                    vehicles: null,
+                    type: slice.typeLabel || slice.transferType || slice.type || tr.transferType || tr.type,
+                    transferType: slice.transferType || slice.type || tr.transferType || tr.type,
+                    // Pass UNIT as sell so resolve never treats LINE as Adult unit
+                    sell: (Number.isFinite(vUnit) && vUnit > 0) ? vUnit
+                        : (slice.adultSell != null ? slice.adultSell : tr.sell),
+                    adultSell: (Number.isFinite(vUnit) && vUnit > 0) ? vUnit
+                        : (slice.adultSell != null ? slice.adultSell : tr.adultSell),
+                    unitSell: Number.isFinite(vUnit) && vUnit > 0 ? vUnit : slice.unitSell,
+                    lineSell: (Number.isFinite(vLine) && vLine > 0) ? vLine
+                        : ((Number.isFinite(vUnit) && vUnit > 0)
+                            ? (window.enquiryProIsSharedTransfer(tr)
+                                ? vUnit * Math.max(1, (parseInt(slice.adults ?? slice.adultsQty ?? tr.adults ?? 0, 10) || 0)
+                                    + (parseInt(slice.child ?? slice.childQty ?? tr.child ?? 0, 10) || 0) || 1)
+                                : vUnit * Math.max(1, parseInt(slice.qty || 1, 10) || 1))
+                            : tr.lineSell),
+                    adults: slice.adults ?? slice.adultsQty ?? tr.adults,
+                    adultsQty: slice.adultsQty ?? slice.adults ?? tr.adultsQty ?? tr.adults,
+                    child: slice.child ?? slice.childQty ?? tr.child,
+                    childQty: slice.childQty ?? slice.child ?? tr.childQty ?? tr.child,
+                    vehicleQty: slice.qty || slice.quantity || 1,
+                    vehicleName: slice.vehicleName || slice.vehicle_name || tr.vehicleName,
+                    base_grand_total: null,
+                    dmc_profile_markup: null
+                });
+                const resolved = window.enquiryProResolveTransferSellBase(seed);
+                transferBase += resolved.base;
+                lines += transferItemLinesHtml(resolved, cur);
+                metaResolved = resolved;
+            });
+        }
+        if (!(transferBase > 0) && !lines) {
+            const resolved = window.enquiryProResolveTransferSellBase(tr);
+            transferBase = resolved.base;
+            lines = transferItemLinesHtml(resolved, cur);
+            metaResolved = resolved;
+        }
+        if (!metaResolved) {
+            metaResolved = window.enquiryProResolveTransferSellBase(tr);
+        }
+
         let guideBase = 0;
         let guide = null;
         if (tr.guideId && typeof guideList !== 'undefined' && Array.isArray(guideList)) {
@@ -1058,10 +1422,10 @@
                 cur
             );
         }
-        const transferMk = window.enquiryProApplyDmcMarkup(resolved.base, 'other');
+        const transferMk = window.enquiryProApplyDmcMarkup(transferBase, 'other');
         const guideMk = guideBase > 0 ? window.enquiryProApplyDmcMarkup(guideBase, 'other') : null;
         const applied = {
-            base_price: Math.round((resolved.base + guideBase) * 100) / 100,
+            base_price: Math.round((transferBase + guideBase) * 100) / 100,
             markup_amount: Math.round((transferMk.markup_amount + (guideMk ? guideMk.markup_amount : 0)) * 100) / 100,
             price: Math.round((transferMk.price + (guideMk ? guideMk.price : 0)) * 100) / 100,
             markup_type: transferMk.markup_type,
@@ -1069,10 +1433,10 @@
             markup_kind: 'other',
             dmc_id: transferMk.dmc_id
         };
-        const name = resolved.vehicleName || tr.vehicleName || tr.vehicles_name || 'Transfer';
+        const name = metaResolved.vehicleName || tr.vehicleName || tr.vehicles_name || 'Transfer';
         return {
             title: name + ' — Price breakdown',
-            html: transferMetaHtml(tr, resolved)
+            html: transferMetaHtml(tr, metaResolved)
                 + '<div class="ep-pd-section-label">Items</div><div class="ep-pd-summary" style="margin-bottom:10px;">'
                 + lines + '</div>'
                 + '<div class="ep-pd-section-label">Summary</div><div class="ep-pd-summary">'
