@@ -219,6 +219,8 @@ const initialState = {
   dmcCount: null,
   dmcCountLoading: false,
   dmcCountError: null,
+  // Online / offline dataset for the selected DMC
+  dataMode: "online",
 };
 
 // DMC slice
@@ -266,6 +268,11 @@ const dmcSlice = createSlice({
       } catch (error) {
         // Error handling silently
       }
+    },
+
+    setDmcDataMode: (state, action) => {
+      const mode = action.payload === "offline" ? "offline" : "online";
+      state.dataMode = mode;
     },
 
     // Clear selected DMC (single selection - for Book Tour)
@@ -496,6 +503,7 @@ export const {
   setSelectedCountries,
   clearError,
   setDmcFromAuth,
+  setDmcDataMode,
   resetDMCState
 } = dmcSlice.actions;
 
@@ -517,6 +525,7 @@ export const selectSelectedDmcsData = (state) => state.dmc.selectedDmcsData;
 export const selectDmcCount = (state) => state.dmc.dmcCount;
 export const selectDmcCountLoading = (state) => state.dmc.dmcCountLoading;
 export const selectDmcCountError = (state) => state.dmc.dmcCountError;
+export const selectDmcDataMode = (state) => state.dmc.dataMode || "online";
 
 // Export reducer
 export default dmcSlice.reducer; 

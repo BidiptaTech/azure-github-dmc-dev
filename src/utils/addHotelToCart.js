@@ -123,6 +123,26 @@ export const buildHotelCartItem = ({
   });
   const addressFromCityCountry = [city, country].filter(Boolean).join(", ");
 
+  const sourceRooms = Array.isArray(hotelDetails?.rooms) ? hotelDetails.rooms : [];
+  const enrichedRooms = rooms.map((selected) => {
+    const match = sourceRooms.find(
+      (room) => String(room?.room_id) === String(selected?.room_id)
+    );
+    if (!match) return selected;
+    return {
+      ...selected,
+      rate_plan_id: match.rate_plan_id || null,
+      rate_plan_name: match.rate_plan_name || match.meal_plan || null,
+      supplier_code: match.supplier_code || match.booking?.supplier_code || null,
+      session_id: match.booking?.session_id || hotelDetails?.session_id || null,
+      currency: match.booking?.currency || hotelDetails?.currency || null,
+      booking: match.booking || null,
+      meal_plan: match.meal_plan || null,
+    };
+  });
+  const leadRoom = enrichedRooms[0] || {};
+  const isOnline = hotelDetails?.data_mode === "online";
+
   return {
     hotel_id: hotelDetails?.hotel_id || hotelDetails?.id || "",
     hotel_name: hotelDetails?.hotel_name || "",
@@ -135,7 +155,7 @@ export const buildHotelCartItem = ({
       addressFromCityCountry ||
       "",
     location: hotelDetails?.location || city || "",
-    bookingArray: rooms,
+    bookingArray: enrichedRooms,
     totalPrice: Math.ceil(Number(totalPrice) || 0),
     priceMode: priceMode || null,
     pricemode: priceMode || null,
@@ -147,7 +167,7 @@ export const buildHotelCartItem = ({
     infant: Number(tourDetails?.infant ?? searchState?.guests?.infant ?? 0),
     nights: countNights(check_in, check_out),
     roomCount,
-    room_summary: rooms
+    room_summary: enrichedRooms
       .map((room) => room.room_type)
       .filter(Boolean)
       .join(", "),
@@ -156,6 +176,11 @@ export const buildHotelCartItem = ({
       hotelDetails?.dmc_id ??
       hotelDetails?.dmcId ??
       null,
+    data_mode: isOnline ? "online" : "offline",
+    session_id: hotelDetails?.session_id || leadRoom.session_id || null,
+    supplier_code: hotelDetails?.supplier_code || leadRoom.supplier_code || null,
+    currency: hotelDetails?.currency || leadRoom.currency || null,
+    rate_plan_id: leadRoom.rate_plan_id || null,
   };
 };
 

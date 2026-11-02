@@ -10,10 +10,10 @@ import {
   Avatar,
   CircularProgress,
   Alert,
-  Paper
+  Paper,
 } from '@mui/material';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchDMCsByCountry, setSelectedDmcId } from '../../../slice/dmc/dmcSlice';
+import { fetchDMCsByCountry, setSelectedDmcId, setDmcDataMode, selectDmcDataMode } from '../../../slice/dmc/dmcSlice';
 import { triggerSearch } from '../../../slice/common/stepsSlice';
 import BusinessIcon from '@mui/icons-material/Business';
 import { resetHotels } from '@/slice/hotel/hotelSlice';
@@ -76,7 +76,7 @@ const resolveTransferServiceId = (booking, type) => {
   return booking.id || null;
 };
 
-const DmcFilter = () => {
+const DmcFilter = ({ showMode = false }) => {
   const dispatch = useDispatch();
   const step = useSelector((state) => state.steps.localStepStatus);
   const haveBooking = useSelector((state) => state.common.haveBooking);
@@ -135,6 +135,7 @@ const DmcFilter = () => {
   const selectedDmcCompanyName = useSelector((state) => state.dmc?.selectedDmcCompanyName);
   
   const [localSelectedDmc, setLocalSelectedDmc] = useState('');
+  const dataMode = useSelector(selectDmcDataMode);
 
   // Fetch DMCs when destination changes (skip if booking/cart locks DMC)
   useEffect(() => {
@@ -327,6 +328,14 @@ const DmcFilter = () => {
     }
   };
 
+  const handleModeChange = (event) => {
+    const nextMode = event.target.value === "offline" ? "offline" : "online";
+    if (nextMode === dataMode) return;
+    dispatch(setDmcDataMode(nextMode));
+    dispatch(resetHotels());
+    dispatch(triggerSearch("hotel"));
+  };
+
   // Handle "All DMCs" selection (clear filter)
   const handleClearSelection = () => {
     setLocalSelectedDmc('');
@@ -363,6 +372,7 @@ const DmcFilter = () => {
   // Otherwise show all DMCs
   const displayDmcList = lockDmcSelection && selectedDmcData 
     ? [{
+        ...(selectedDmcData?.originalData || {}),
         userId: selectedDmcId,
         company_name: selectedDmcCompanyName || selectedDmcData?.name,
         name: selectedDmcData?.name,
@@ -382,7 +392,7 @@ const DmcFilter = () => {
           zone_on: 0,
         }]
     : dmcList;
-  
+
   // Don't show filter if no DMCs available
   if (displayDmcList.length === 0) {
     return null;
@@ -471,7 +481,47 @@ const DmcFilter = () => {
             ))}
           </RadioGroup>
         </FormControl>
-        
+
+        {showMode && (
+        <Box sx={{ mt: 2, pt: 2, borderTop: "1px solid", borderColor: "divider" }}>
+          <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 0.5 }}>
+            Mode
+          </Typography>
+          <FormControl component="fieldset" fullWidth>
+            <RadioGroup value={dataMode} onChange={handleModeChange}>
+              <FormControlLabel
+                value="online"
+                control={
+                  <Radio
+                    size="small"
+                    sx={{ "&.Mui-checked": { color: "#3554D1" } }}
+                  />
+                }
+                label={
+                  <Typography variant="body2" sx={{ fontSize: "0.875rem" }}>
+                    Online
+                  </Typography>
+                }
+              />
+              <FormControlLabel
+                value="offline"
+                control={
+                  <Radio
+                    size="small"
+                    sx={{ "&.Mui-checked": { color: "#3554D1" } }}
+                  />
+                }
+                label={
+                  <Typography variant="body2" sx={{ fontSize: "0.875rem" }}>
+                    Offline
+                  </Typography>
+                }
+              />
+            </RadioGroup>
+          </FormControl>
+        </Box>
+        )}
+
         {/* Show selected count */}
         {localSelectedDmc && (
           <Box sx={{ mt: 2, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
