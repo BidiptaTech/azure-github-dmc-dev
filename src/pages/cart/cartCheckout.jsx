@@ -97,6 +97,7 @@ const CartCheckout = () => {
   const [isEnquiring, setIsEnquiring] = useState(false);
   const [progress, setProgress] = useState(null);
   const bookingType = useSelector((state) => state.common?.bookingType);
+  console.log("bookingType", bookingType);
   const hasBookingType = Boolean(String(bookingType || "").trim());
   const showBookNow = !hasBookingType || bookingType === "booking";
   const showEnquiry = !hasBookingType || bookingType === "enquiry";
@@ -457,7 +458,7 @@ const CartCheckout = () => {
           zIndex: 20,
         }}
       >
-        <Stack spacing={1} direction="row">
+        {/* <Stack spacing={1} direction="row">
           {showBookNow && (
             <Button
               fullWidth
@@ -494,7 +495,7 @@ const CartCheckout = () => {
               {isEnquiring ? "Enquiring…" : "Make an Enquiry"}
             </Button>
           )}
-        </Stack>
+        </Stack> */}
       </Box>
 
       <ToastContainer />

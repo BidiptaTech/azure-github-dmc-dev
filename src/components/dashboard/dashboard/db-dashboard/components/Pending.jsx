@@ -765,7 +765,7 @@ export default function Pending({ filters = {} }) {
 
         // Extract data from the nested structure
         const data = response.data;
-        const bookingType = data.bookingType || "booking";
+        const bookingType = data.bookingType || "enquiry";
         dispatch(setBookingType(bookingType));
         
 

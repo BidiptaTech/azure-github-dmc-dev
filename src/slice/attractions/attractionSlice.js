@@ -15,7 +15,7 @@ import { parseCityCountry } from "@/utils/locationFormat";
 export const fetchAttractions = createAsyncThunk(
   "attractions/fetchAttractions",
   async (
-    { city, country, date, adults, children, tour_id, selectedDate, fromMainSearch, start , limit  },
+    { city, country, date, adults, children, tour_id, selectedDate, fromMainSearch, start , limit, listingMode, currentPage },
     { rejectWithValue, dispatch, getState }
   ) => {
     try {
@@ -33,48 +33,49 @@ export const fetchAttractions = createAsyncThunk(
       // console.log('🎯 AttractionsSlice - Fetching attractions with DMC ID:', selectedDmcId);
 
       const queryParams = new URLSearchParams();
-
-      // Handle date parameter
-      if (date) {
-        // Format date as {"0":"YYYY-MM-DD"}
-        queryParams.append("date", JSON.stringify({ 0: date }));
-      } else if (selectedDate) {
-        // Fallback to selectedDate if date is not provided
-        queryParams.append(
-          "date",
-          JSON.stringify({ 0: selectedDate.format("YYYY-MM-DD") })
-        );
-      } else {
-        // If no date is provided, send an empty object
-        queryParams.append("date", "{}");
-      }
-
-      // Prefer tour destination as country when caller didn't pass one
-     
+      // Online (/online-attractions) is disabled for now. Offline is always used.
+      const isOnline = false && listingMode === "online";
       const { cityName, countryName } = parseCityCountry(city, country);
 
-      console.log("🌍 Attraction API params:", { cityName, countryName, date, tour_id });
+      const visitDate = date
+        ? String(date)
+        : selectedDate && selectedDate.format
+          ? selectedDate.format("YYYY-MM-DD")
+          : selectedDate
+            ? String(selectedDate)
+            : "";
 
-      // Append other query parameters as usual
-      if (cityName) queryParams.append("city", cityName);
-      if (countryName) queryParams.append("country", countryName);
-      if (adults) queryParams.append("adults", adults);
-      if (children) queryParams.append("children", children);
-      
-      // Always send tour_id field (empty string if not available)
-      queryParams.append("tour_id", tour_id || "");
-      
-      // Add pagination parameters
-      if (start) queryParams.append("start", start);
-      if (limit) queryParams.append("limit", limit);
-      
-      // Add DMC ID to query parameters if available
-      if (selectedDmcId) {
-        queryParams.append("dmc_id", selectedDmcId);
+      if (isOnline) {
+        if (cityName) queryParams.append("city", cityName);
+        if (visitDate) queryParams.append("visit_date", visitDate);
+        if (adults != null && adults !== "") queryParams.append("adults", adults);
+        if (children != null && children !== "") queryParams.append("children", children);
+        queryParams.append("display_limit", 20);
+        queryParams.append("current_page", currentPage || 1);
+        if (countryName) queryParams.append("country", countryName);
+        queryParams.append("tour_id", tour_id || "");
+        if (selectedDmcId) queryParams.append("dmc_id", selectedDmcId);
+      } else {
+        if (visitDate) {
+          queryParams.append("date", JSON.stringify({ 0: visitDate }));
+        } else {
+          queryParams.append("date", "{}");
+        }
+
+        if (cityName) queryParams.append("city", cityName);
+        if (countryName) queryParams.append("country", countryName);
+        if (adults) queryParams.append("adults", adults);
+        if (children) queryParams.append("children", children);
+        queryParams.append("tour_id", tour_id || "");
+        if (start) queryParams.append("start", start);
+        if (limit) queryParams.append("limit", limit);
+        if (selectedDmcId) queryParams.append("dmc_id", selectedDmcId);
       }
 
+      const endpoint = isOnline ? "online-attractions" : "attraction";
+
       const response = await axios.get(
-        `${BASE_URL}/attraction?${queryParams.toString()}`,
+        `${BASE_URL}/${endpoint}?${queryParams.toString()}`,
         {
           headers: {
             Authorization: `Bearer ${authToken}`,
@@ -316,6 +317,7 @@ const initialState = {
     mode: null,
   },
   status: "idle",
+  listingMode: "offline",
   error: null,
   bookingDate: null,
   bookings: [],
@@ -367,6 +369,9 @@ const attractionsSlice = createSlice({
     setAttractionService: (state, action) => {
       // console.log('AttractionService', action.payload);
       state.services = action.payload;
+    },
+    setAttractionListingMode: (state, action) => {
+      state.listingMode = action.payload === "online" ? "online" : "offline";
     },
     setSearchParams: (state, action) => {
       const serializedPayload = {
@@ -430,8 +435,9 @@ const attractionsSlice = createSlice({
         }
         
         // Get pagination parameters
-        const { start = 0 } = action.meta.arg;
-        const isFirstPage = start === 0;
+        const { start = 0, currentPage, listingMode } = action.meta.arg || {};
+        const isFirstPage =
+          listingMode === "online" ? (currentPage || 1) <= 1 : start === 0;
         
         // Handle the response
         if (!action.payload) {
@@ -498,6 +504,7 @@ export const {
   setCheckoutData,
   setAttractionService,
   setSearchParams,
+  setAttractionListingMode,
   setSearchFilter,
   setSelectedModeData,
   addAttractionBookings,
@@ -513,6 +520,8 @@ export const selectAttractionDetails = (state) =>
 export const selectFilteredAttractions = (state) =>
   state.attractions.filteredAttractions;
 export const selectFilters = (state) => state.attractions.filters;
+export const selectAttractionListingMode = (state) =>
+  state.attractions.listingMode || "offline";
 
 export default attractionsSlice.reducer;
 

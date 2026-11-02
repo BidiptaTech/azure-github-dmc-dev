@@ -212,6 +212,38 @@ const Sidebar = () => {
           <DmcFilter />
         </div>
       </div>
+
+      {/* Attraction Mode (Online / Offline) is hidden for now. Offline is the only active mode.
+      <div className="sidebar__item">
+        <h5 className="text-18 fw-500 mb-10">Attraction Mode</h5>
+        <div className="sidebar-checkbox">
+          {[
+            { value: "offline", label: "Offline" },
+            { value: "online", label: "Online" },
+          ].map((option) => (
+            <div className="row y-gap-10 items-center justify-between" key={option.value}>
+              <div className="col-auto">
+                <div className="form-radio">
+                  <div className="radio d-flex items-center">
+                    <input
+                      type="radio"
+                      name={listingModeGroup}
+                      value={option.value}
+                      checked={listingMode === option.value}
+                      onChange={handleListingModeChange}
+                    />
+                    <div className="radio__mark">
+                      <div className="radio__icon" />
+                    </div>
+                    <div className="text-15 ml-10">{option.label}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      */}
       
     </>
   );

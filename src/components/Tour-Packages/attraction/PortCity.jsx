@@ -12,18 +12,25 @@ import { LocationOn } from '@mui/icons-material';
 
 const PortCity = ({ onLocationSelect, hasError, setError, disabled = false }) => {
   const cityData = useSelector((state) => state.city.city);
+  console.log("cityData12", cityData);
   const [selectedItem, setSelectedItem] = useState(null);
 
   // Transform city data to match the expected format
   const options = useMemo(() => {
     if (!cityData || !Array.isArray(cityData)) return [];
     
-    return cityData.map((city, index) => ({
-      id: index + 1,
-      name: city.split(",")[0],
-      address: city,
-      country: city.split(",").length > 1 ? city.split(",")[1].trim() : "",
-    }));
+    return cityData.map((city, index) => {
+      const label = typeof city === "string"
+        ? city
+        : city?.address || city?.name || "";
+      const [rawName, ...rest] = String(label).split(",");
+      return {
+        id: index + 1,
+        name: rawName.trim(),
+        address: String(label).trim(),
+        country: rest.join(",").trim(),
+      };
+    }).filter((item) => item.name);
   }, [cityData]);
 
   // Handle selection

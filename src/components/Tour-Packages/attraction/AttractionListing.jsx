@@ -260,7 +260,7 @@ const AttractionListing = ({ attractions, selectedAttraction, onAttractionChange
     const hasTravclicksPrice = attraction.travClicks_adult_price > 0;
     
     // Default to DMC if available, otherwise use travclicks
-    const mode = hasDmcPrice ? "dmc" : hasTravclicksPrice ? "travclicks" : null;
+    const mode = "dmc";
     
     // If no valid pricing mode, don't proceed
     if (!mode) return;
