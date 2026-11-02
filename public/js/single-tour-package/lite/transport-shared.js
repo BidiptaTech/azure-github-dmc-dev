@@ -2872,6 +2872,86 @@
         return window.confirm('Are you sure you want to remove this service?');
     }
 
+    function currentTourStatus() {
+        return String(
+            (window.STP_LITE_EDIT && window.STP_LITE_EDIT.tourStatus) ||
+            (cfg().edit && cfg().edit.tourStatus) ||
+            (cfg().tourStatus) ||
+            ''
+        ).trim();
+    }
+
+    function ensureRejectRefundDialog() {
+        if (document.getElementById('stpLiteRejectRefundStyle')) return;
+        var style = document.createElement('style');
+        style.id = 'stpLiteRejectRefundStyle';
+        style.textContent =
+            '#stpLiteRejectRefund{display:none;position:fixed;inset:0;z-index:1080;background:rgba(15,23,42,.45);align-items:center;justify-content:center;padding:16px;}' +
+            '#stpLiteRejectRefund .stp-reject-card{width:100%;max-width:400px;background:#fff;border-radius:16px;box-shadow:0 25px 50px -12px rgba(0,0,0,.25);padding:1.5rem 1.5rem 1.25rem;text-align:center;}' +
+            '#stpLiteRejectRefund .stp-reject-icon{display:flex;align-items:center;justify-content:center;width:56px;height:56px;margin:0 auto 1rem;background:linear-gradient(135deg,#fff7ed 0%,#fed7aa 100%);border-radius:14px;color:#ea580c;font-size:1.75rem;}' +
+            '#stpLiteRejectRefund h2{font-size:1.25rem;font-weight:700;color:#1e293b;margin:0 0 .5rem;}' +
+            '#stpLiteRejectRefund p{font-size:.9375rem;line-height:1.6;color:#64748b;margin:0;}' +
+            '#stpLiteRejectRefund p strong{color:#334155;font-weight:600;}' +
+            '#stpLiteRejectRefund .stp-reject-note{display:flex;align-items:flex-start;gap:.5rem;margin-top:.75rem;padding:.75rem;text-align:left;background:linear-gradient(135deg,#eff6ff 0%,#e0e7ff 100%);border:1px solid rgba(99,102,241,.3);border-radius:10px;color:#3730a3;font-size:.8125rem;line-height:1.5;}' +
+            '#stpLiteRejectRefund .stp-reject-note i{color:#4f46e5;font-size:1rem;margin-top:.125rem;}' +
+            '#stpLiteRejectRefund .stp-reject-actions{display:flex;justify-content:center;gap:.75rem;margin-top:1.25rem;}' +
+            '#stpLiteRejectRefund .stp-reject-cancel{background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:10px;padding:.625rem 1.25rem;font-weight:500;}' +
+            '#stpLiteRejectRefund .stp-reject-ok{background:linear-gradient(135deg,#dc2626 0%,#b91c1c 100%);color:#fff;border:none;border-radius:10px;padding:.625rem 1.25rem;font-weight:600;}';
+        document.head.appendChild(style);
+        var wrap = document.createElement('div');
+        wrap.id = 'stpLiteRejectRefund';
+        wrap.innerHTML =
+            '<div class="stp-reject-card" role="dialog" aria-modal="true">' +
+            '  <div class="stp-reject-icon"><i class="ri-error-warning-line"></i></div>' +
+            '  <h2 id="stpLiteRejectRefundTitle">Reject service?</h2>' +
+            '  <p id="stpLiteRejectRefundBody"></p>' +
+            '  <div class="stp-reject-note"><i class="ri-shield-check-line"></i><span><strong>Tour status</strong> and <strong>payment details</strong> stay unchanged. Only this service is rejected (refunds workflow). <strong>This cannot be undone.</strong></span></div>' +
+            '  <div class="stp-reject-actions">' +
+            '    <button type="button" id="stpLiteRejectRefundCancel" class="stp-reject-cancel">Cancel</button>' +
+            '    <button type="button" id="stpLiteRejectRefundOk" class="stp-reject-ok">Yes, Reject</button>' +
+            '  </div>' +
+            '</div>';
+        document.body.appendChild(wrap);
+    }
+
+    function openRejectRefundDialog(serviceLabel, onConfirm) {
+        ensureRejectRefundDialog();
+        var dialog = document.getElementById('stpLiteRejectRefund');
+        var title = document.getElementById('stpLiteRejectRefundTitle');
+        var body = document.getElementById('stpLiteRejectRefundBody');
+        var ok = document.getElementById('stpLiteRejectRefundOk');
+        var cancel = document.getElementById('stpLiteRejectRefundCancel');
+        var label = serviceLabel || 'Service';
+        title.textContent = 'Reject ' + label + '?';
+        body.innerHTML = 'Reject this <strong>' + esc(label) + '</strong> service for refund / credit processing?';
+        dialog.style.display = 'flex';
+
+        function close() {
+            dialog.style.display = 'none';
+            ok.onclick = null;
+            cancel.onclick = null;
+        }
+        cancel.onclick = function () { close(); };
+        ok.onclick = function () {
+            close();
+            if (typeof onConfirm === 'function') onConfirm();
+        };
+    }
+
+    /**
+     * Definite tours use the same reject popup as the bookings list.
+     * The refund amount is entered later on the Refunds page.
+     */
+    function requestServiceRemoval(row, onConfirm, serviceLabel) {
+        var bookingId = parseInt(row && (row._booking_id || row.booking_id), 10) || 0;
+        if (currentTourStatus().toLowerCase() === 'definite' && bookingId > 0) {
+            openRejectRefundDialog(serviceLabel || 'Service', onConfirm);
+            return;
+        }
+        if (!confirmRemoveService()) return;
+        if (typeof onConfirm === 'function') onConfirm();
+    }
+
     /**
      * Match classic orderSelect*: enquiry for New Enquiry / Prospect / Tentative;
      * booking for Definite / Actual / Confirmed / etc. Edit must not force enquiry.
@@ -2966,6 +3046,7 @@
         availableGuidePackages: availableGuidePackages,
         fillInlineGuideHours: fillInlineGuideHours,
         confirmRemoveService: confirmRemoveService,
+        requestServiceRemoval: requestServiceRemoval,
         defaultBookingType: defaultBookingType,
         resolveRowBookingType: resolveRowBookingType,
         keepRowBookingId: keepRowBookingId,

@@ -177,7 +177,23 @@
         color: inherit;
     }
     #toursTable .action-icon-badge:hover { background: #f1f5f9; border-color: #cbd5e1; }
+    #toursTable tr.refund-row-warning > td { background-color: #fff7ed !important; }
+    #toursTable .action-icon-badge.is-refund-initiated,
+    #toursTable .action-icon-badge.is-refunded {
+        border: none !important;
+        --action-color: #fff;
+    }
+    #toursTable .action-icon-badge.is-refund-initiated {
+        background: #f59e0b !important;
+    }
+    #toursTable .action-icon-badge.is-refund-initiated:hover { background: #d97706 !important; }
+    #toursTable .action-icon-badge.is-refunded {
+        background: #22c55e !important;
+    }
+    #toursTable .action-icon-badge.is-refunded:hover { background: #16a34a !important; }
     #toursTable .action-icon-badge i { font-size: 1rem; color: var(--action-color, #475569); }
+    #toursTable .action-icon-badge.is-refund-initiated i,
+    #toursTable .action-icon-badge.is-refunded i { color: #fff !important; }
     #toursTable button.action-icon-badge { border: 1px solid #e2e8f0; background: #f8fafc; }
     #toursTable td.col-auto-cancel { font-size: 0.7rem; }
     #service-icon-global-tooltip {
@@ -312,8 +328,8 @@
                     <label class="form-label mb-0 small text-muted">Refund Status</label>
                     <select class="form-select form-select-sm" id="statusFilter">
                         <option value="">All Status</option>
-                        <option value="Refund - Pending">Pending</option>
-                        <option value="Refunded">Refunded</option>
+                        <option value="pending">Pending</option>
+                        <option value="refunded">Refunded</option>
                     </select>
                 </div>
                 <div class="col-12 col-sm-6 col-md-4 col-lg">
@@ -356,11 +372,10 @@
                         <col style="width: 2%">
                         <col style="width: 16%">
                         <col style="width: 10%">
-                        <col style="width: 10%">
+                        <col style="width: 12%">
                         <col style="width: 12%">
                         <col style="width: 10%">
                         <col style="width: 14%">
-                        <col style="width: 8%">
                         <col style="width: 8%">
                     </colgroup>
                     <thead class="table-light">
@@ -373,18 +388,40 @@
                             <!-- <th class="th-tooltip" data-tooltip="Refund Services">Cancel Services</th> -->
                             <th class="th-tooltip" data-tooltip="Actions">Actions</th>
                             <th class="th-tooltip" data-tooltip="Created">Created</th>
-                            <th class="th-tooltip" data-tooltip="Auto Cancel Date">Auto Cancel Date</th>
+                            <th class="th-tooltip" data-tooltip="Auto Cancel">Auto Cancel</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($tours as $key => $tour)
+                        @php
+                            $rowRefundOrders = collect($tour->booking ?? [])->filter(function ($order) {
+                                return (int) ($order->is_refund ?? 0) === 1;
+                            });
+                            $rowHasInitiatedRefund = $rowRefundOrders->contains(function ($order) {
+                                return (int) ($order->is_verify ?? 0) === 2 && ! ((bool) ($order->refunded ?? false));
+                            });
+                            $isTourCancel = in_array($tour->tour_status, ['Refund - Pending', 'Refunded'], true);
+                            if ($isTourCancel) {
+                                $hasPendingRefund = $tour->tour_status === 'Refund - Pending';
+                                $hasRefunded = $tour->tour_status === 'Refunded';
+                            } else {
+                                $hasPendingRefund = $rowRefundOrders->contains(function ($order) {
+                                    return ! ((bool) ($order->refunded ?? false));
+                                });
+                                $hasRefunded = $rowRefundOrders->contains(function ($order) {
+                                    return (bool) ($order->refunded ?? false);
+                                });
+                            }
+                        @endphp
                         <tr 
-                            class="{{ $tour->tour_status === 'Refund - Pending' ? 'table-danger' : 'table-success' }}"
+                            class="{{ $rowHasInitiatedRefund ? 'refund-row-warning' : ($tour->tour_status === 'Refund - Pending' ? 'table-danger' : 'table-success') }}"
                             data-created-at="{{ optional($tour->destination_created_at ?? $tour->created_at)->toDateString() }}"
                             data-updated-at="{{ optional($tour->updated_at)->toDateString() }}"
                             data-adult="{{ $tour->adult ?? 0 }}"
                             data-child="{{ $tour->child ?? 0 }}"
                             data-tour-status="{{ $tour->tour_status }}"
+                            data-has-pending="{{ $hasPendingRefund ? '1' : '0' }}"
+                            data-has-refunded="{{ $hasRefunded ? '1' : '0' }}"
                             data-agent="{{ $tour->agent_name }}"
                             data-destination="{{ $tour->destination }}"
                         >
@@ -480,6 +517,7 @@
                                         Refunded
                                     </span>
                                 @endif
+                                @include('bookings.partials.refund-money-summary', ['tour' => $tour, 'currency' => $currency ?? ''])
                             </td>
                             @else
                             <td class="align-top">
@@ -506,7 +544,7 @@
                                         return !((bool)($order->refunded ?? false));
                                     });
                                 @endphp
-                                <div class="d-flex flex-wrap gap-1">
+                                <div class="d-flex flex-wrap gap-2">
                                     <!-- @if($hasPendingOrderRefund)
                                         <button type="button"
                                                 class="action-icon-badge"
@@ -522,28 +560,36 @@
                                             $refundType = $refundOrder->type ?? null;
                                             $serviceMeta = $refundServiceIcons[$refundType] ?? ['icon' => 'ri-service-line', 'label' => ucfirst(str_replace('_', ' ', (string)$refundType))];
                                             $isRefundCompleteForOrder = (bool)($refundOrder->refunded ?? false);
-                                            $isOnHoldForFinance = (int)($refundOrder->is_verify ?? 0) === 2;
-                                            $currentRoleId = (int)(auth()->user()->role_id ?? 0);
-                                            $holdRoleIds = [33, 12, 37, 38];
-                                            $isHoldLockedForRole33 = in_array($currentRoleId, $holdRoleIds, true) && $isOnHoldForFinance;
+                                            $isRefundInitiated = (int)($refundOrder->is_verify ?? 0) === 2 && ! $isRefundCompleteForOrder;
                                             // Always use primary key for action endpoints to avoid
                                             // mismatching records that share booking_id.
                                             $orderActionId = $refundOrder->id ?? null;
                                             $orderIdentifier = $refundOrder->booking_id ?? $refundOrder->id ?? null;
+                                            $refundPriceMax = (float) ($refundOrder->refund_price_with_markup ?? 0);
+                                            $refundPriceCurrency = trim((string) ($refundOrder->refund_price_currency ?? ($currency ?? '')));
+                                            $savedRefundAmount = $refundOrder->refund_amount;
                                             $serviceTooltip = $serviceMeta['label']
                                                 . ' ('
-                                                . ($isRefundCompleteForOrder ? 'Refunded' : ($isOnHoldForFinance ? 'On Hold Payment' : 'Pending'))
+                                                . ($isRefundCompleteForOrder ? 'Refunded' : ($isRefundInitiated ? 'Refund initiated — click to verify' : 'Initiate refund'))
                                                 . ')'
-                                                . ($orderIdentifier ? (' · Order: ' . $orderIdentifier) : '');
+                                                . ($orderIdentifier ? (' · Order: ' . $orderIdentifier) : '')
+                                                . ($savedRefundAmount !== null && $savedRefundAmount !== ''
+                                                    ? (' · Refund ' . $refundPriceCurrency . ' ' . number_format((float) $savedRefundAmount, 2))
+                                                    : '');
                                         @endphp
+                                        <div class="d-flex flex-column align-items-center">
                                         <button type="button"
-                                                class="action-icon-badge"
-                                                style="--action-color: {{ $isRefundCompleteForOrder ? '#dc2626' : ($isOnHoldForFinance ? '#f59e0b' : '#7c3aed') }}; {{ $isRefundCompleteForOrder ? 'background:#fee2e2;border-color:#fecaca;' : ($isOnHoldForFinance ? 'background:#fff7ed;border-color:#fed7aa;' : '') }}"
+                                                class="action-icon-badge {{ $isRefundCompleteForOrder ? 'is-refunded' : ($isRefundInitiated ? 'is-refund-initiated' : '') }}"
+                                                style="--action-color: {{ ($isRefundCompleteForOrder || $isRefundInitiated) ? '#ffffff' : '#7c3aed' }};"
                                                 data-tooltip="{{ $serviceTooltip }}"
                                                 data-tour-id="{{ $tour->tour_id }}"
                                                 data-service-type="{{ $refundType }}"
                                                 data-order-id="{{ $orderActionId }}"
-                                                @if($isRefundCompleteForOrder || $isHoldLockedForRole33)
+                                                data-refund-initiated="{{ $isRefundInitiated ? '1' : '0' }}"
+                                                data-refund-max="{{ number_format($refundPriceMax, 2, '.', '') }}"
+                                                data-refund-currency="{{ $refundPriceCurrency }}"
+                                                data-refund-current="{{ ($savedRefundAmount !== null && $savedRefundAmount !== '') ? number_format((float) $savedRefundAmount, 2, '.', '') : '' }}"
+                                                @if($isRefundCompleteForOrder)
                                                     disabled
                                                     aria-disabled="true"
                                                 @else
@@ -551,10 +597,12 @@
                                                 @endif>
                                             <i class="{{ $serviceMeta['icon'] }}"></i>
                                         </button>
+                                        </div>
                                     @empty
                                         <span class="text-muted small">N/A</span>
                                     @endforelse
                                 </div>
+                                @include('bookings.partials.refund-money-summary', ['tour' => $tour, 'currency' => $currency ?? ''])
                             </td>
                             @endif
                             <td>
@@ -571,10 +619,16 @@
                                         <i class="ri-eye-line"></i>
                                     </a>
                                     @if($tour->tour_status === 'Refund - Pending')
+                                        @php
+                                            $tourRefundMax = (float) ($tour->tour_refund_max ?? 0);
+                                            $tourRefundCurrency = trim((string) ($tour->tour_refund_currency ?? ($currency ?? '')));
+                                        @endphp
                                         <button type="button"
                                                 class="action-icon-badge" style="--action-color: #047857;"
-                                                onclick="processRefund({{ $tour->tour_id }})"
-                                                data-tooltip="Process Refund">
+                                                onclick="processRefund({{ $tour->tour_id }}, event)"
+                                                data-refund-max="{{ number_format($tourRefundMax, 2, '.', '') }}"
+                                                data-refund-currency="{{ $tourRefundCurrency }}"
+                                                data-tooltip="Process tour refund">
                                             <i class="ri-money-dollar-circle-line"></i>
                                         </button>
                                     @else
@@ -615,7 +669,7 @@
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="9" class="text-center py-4">
+                            <td colspan="8" class="text-center py-4">
                                 <div class="d-flex flex-column align-items-center">
                                     <i class="ri-money-dollar-circle-line ri-48px text-muted mb-3"></i>
                                     <h6 class="text-muted">No refunds found</h6>
@@ -763,6 +817,8 @@
             const destination = row.getAttribute('data-destination') || '';
             const agent = row.getAttribute('data-agent') || '';
             const rowStatus = row.getAttribute('data-tour-status') || '';
+            const hasPending = row.getAttribute('data-has-pending') === '1';
+            const hasRefunded = row.getAttribute('data-has-refunded') === '1';
             const createdAt = row.getAttribute('data-created-at');
             const updatedAt = row.getAttribute('data-updated-at');
 
@@ -787,7 +843,10 @@
                 show = false;
             }
 
-            if (statusFilter && rowStatus !== statusFilter) {
+            if (statusFilter === 'pending' && !hasPending) {
+                show = false;
+            }
+            if (statusFilter === 'refunded' && !hasRefunded) {
                 show = false;
             }
 
@@ -823,10 +882,10 @@
 
             if (show) {
                 visibleCount++;
-                if (rowStatus === 'Refund - Pending') {
+                if (hasPending) {
                     pendingCount++;
                 }
-                if (rowStatus === 'Refunded') {
+                if (hasRefunded) {
                     refundedCount++;
                 }
             }
@@ -1053,26 +1112,31 @@
     });
 
 // Process refund function
-function processRefund(tourId) {
-    // Create advanced confirmation modal
+function processRefund(tourId, event) {
+    const button = event?.target?.closest('button');
+    const maxAmount = parseFloat(button?.dataset.refundMax || '0');
+    const currency = button?.dataset.refundCurrency || '';
+    const tourMax = isFinite(maxAmount) ? maxAmount : 0;
+
     showConfirmationModal(
         'Process Refund Confirmation',
-        'Are you sure you want to process the refund for this tour?<br><small class="text-muted">This action cannot be undone.</small>',
+        'Are you sure you want to process the refund for this tour?',
         'warning',
-        function() {
-            // Show loading modal
+        function(refundAmount) {
             showLoadingModal('Processing Refund', 'Please wait while we process the refund...');
-            
-            const button = event.target.closest('button');
-            const originalContent = button.innerHTML;
-            button.innerHTML = '<i class="ri-loader-line spinner-border spinner-border-sm me-1"></i>';
-            button.disabled = true;
+
+            const originalContent = button ? button.innerHTML : '';
+            if (button) {
+                button.innerHTML = '<i class="ri-loader-line spinner-border spinner-border-sm me-1"></i>';
+                button.disabled = true;
+            }
 
             $.ajax({
                 url: '{{ route("bookings.process-refund") }}',
                 method: 'POST',
                 data: {
                     tour_id: tourId,
+                    refund_amount: refundAmount,
                     _token: $('meta[name="csrf-token"]').attr('content')
                 },
                 success: function(response) {
@@ -1087,9 +1151,10 @@ function processRefund(tourId) {
                         );
                     } else {
                         showErrorModal('Error Processing Refund', response.message || 'An error occurred while processing the refund.');
-                        // Restore button state
-                        button.innerHTML = originalContent;
-                        button.disabled = false;
+                        if (button) {
+                            button.innerHTML = originalContent;
+                            button.disabled = false;
+                        }
                     }
                 },
                 error: function(xhr) {
@@ -1099,11 +1164,22 @@ function processRefund(tourId) {
                         errorMessage = xhr.responseJSON.message;
                     }
                     showErrorModal('Error Processing Refund', errorMessage);
-                    // Restore button state
-                    button.innerHTML = originalContent;
-                    button.disabled = false;
+                    if (button) {
+                        button.innerHTML = originalContent;
+                        button.disabled = false;
+                    }
                 }
             });
+        },
+        {
+            title: 'Process Refund Confirmation',
+            confirmLabel: 'Process Refund',
+            priceLabel: 'Tour price with markup',
+            helpText: 'You can refund this amount or less. It cannot be higher than the tour price with markup.',
+            note: 'This action will mark the tour as "Refunded" and cannot be undone.',
+            maxAmount: tourMax,
+            currency: currency,
+            amount: tourMax
         }
     );
 }
@@ -1170,28 +1246,60 @@ function processOrderRefund(tourId, event) {
 function processSingleOrderRefund(tourId, orderId, event) {
     if (!orderId) return;
 
-    showConfirmationModal(
-        'Mark Service Refunded',
-        `Mark this service (Order: <strong>#${orderId}</strong>) as refunded?<br><small class="text-muted">Only this order will be updated.</small>`,
-        'warning',
-        function() {
-            showLoadingModal('Updating Service Refund', 'Please wait while we update the refunded status...');
+    const button = event?.target?.closest('button');
+    const initiated = button?.dataset.refundInitiated === '1';
+    const maxAmount = parseFloat(button?.dataset.refundMax || '0');
+    const currency = button?.dataset.refundCurrency || '';
+    const savedAmount = button?.dataset.refundCurrent;
+    const startingAmount = (savedAmount !== undefined && savedAmount !== '')
+        ? Math.min(parseFloat(savedAmount) || 0, isFinite(maxAmount) ? maxAmount : 0)
+        : (isFinite(maxAmount) ? maxAmount : 0);
 
-            const button = event?.target?.closest('button');
+    const modalOptions = initiated
+        ? {
+            title: 'Verify Refund',
+            confirmLabel: 'Verify Refund',
+            verifyOnly: true,
+            currency: currency,
+            amount: isFinite(parseFloat(savedAmount)) ? parseFloat(savedAmount) : 0
+        }
+        : {
+            title: 'Initiate Refund',
+            confirmLabel: 'Initiate Refund',
+            maxAmount: isFinite(maxAmount) ? maxAmount : 0,
+            currency: currency,
+            amount: isFinite(startingAmount) ? startingAmount : 0
+        };
+
+    showConfirmationModal(
+        modalOptions.title,
+        initiated
+            ? 'This refund is already initiated. Verify it to complete the service refund.'
+            : 'Enter the refund amount for this service. You can use the full price or a lower amount.',
+        'warning',
+        function(refundAmount) {
+            showLoadingModal(initiated ? 'Verifying Refund' : 'Initiating Refund', 'Please wait...');
+
             const originalContent = button ? button.innerHTML : '';
             if (button) {
                 button.innerHTML = '<i class="ri-loader-line spinner-border spinner-border-sm me-1"></i>';
                 button.disabled = true;
             }
 
+            const payload = {
+                tour_id: tourId,
+                order_id: orderId,
+                action: initiated ? 'verify' : 'initiate',
+                _token: $('meta[name="csrf-token"]').attr('content')
+            };
+            if (!initiated) {
+                payload.refund_amount = refundAmount;
+            }
+
             $.ajax({
                 url: '{{ route("bookings.process-order-refund-by-order") }}',
                 method: 'POST',
-                data: {
-                    tour_id: tourId,
-                    order_id: orderId,
-                    _token: $('meta[name="csrf-token"]').attr('content')
-                },
+                data: payload,
                 success: function(response) {
                     hideModal();
                     if (response.success) {
@@ -1223,12 +1331,43 @@ function processSingleOrderRefund(tourId, orderId, event) {
                     }
                 }
             });
-        }
+        },
+        modalOptions
     );
 }
 
 // Advanced Modal Functions
-function showConfirmationModal(title, message, type, confirmCallback) {
+function showConfirmationModal(title, message, type, confirmCallback, options) {
+    options = options || {};
+    const modalTitle = options.title || title || 'Process Refund';
+    const confirmLabel = options.confirmLabel || 'Process Refund';
+    const verifyOnly = !!options.verifyOnly;
+    const hasAmount = !verifyOnly && options.maxAmount !== undefined && options.maxAmount !== null;
+    const maxAmount = hasAmount ? (parseFloat(options.maxAmount) || 0) : 0;
+    const amountValue = (hasAmount || verifyOnly) ? (parseFloat(options.amount) || 0) : 0;
+    const amountCurrency = options.currency || '';
+    const priceLabel = options.priceLabel || 'Order price with markup';
+    const helpText = options.helpText || 'You can refund this amount or less. It cannot be higher than the order price with markup.';
+    const amountBlock = verifyOnly ? `
+                            <div class="alert alert-warning border-0 text-start mb-3" style="background-color: #fff7ed;">
+                                <strong>Refund already initiated</strong>
+                                <div class="mt-1">${amountCurrency ? amountCurrency + ' ' : ''}${amountValue.toFixed(2)}</div>
+                                <div class="small mt-1">The amount stays as entered. This step only verifies the refund.</div>
+                            </div>
+    ` : (hasAmount ? `
+                            <div class="text-start mb-3">
+                                <label class="form-label fw-semibold mb-1">${priceLabel}</label>
+                                <div class="form-control bg-light mb-3">${amountCurrency ? amountCurrency + ' ' : ''}${maxAmount.toFixed(2)}</div>
+                                <label for="refundAmountInput" class="form-label fw-semibold mb-1">Refund amount</label>
+                                <div class="input-group">
+                                    ${amountCurrency ? `<span class="input-group-text">${amountCurrency}</span>` : ''}
+                                    <input type="number" class="form-control" id="refundAmountInput" min="0" max="${maxAmount.toFixed(2)}" step="0.01" value="${Math.min(amountValue, maxAmount).toFixed(2)}" inputmode="decimal">
+                                </div>
+                                <div class="form-text">${helpText}</div>
+                                <div class="text-danger small mt-1 d-none" id="refundAmountError"></div>
+                            </div>
+    ` : '');
+
     const modalHtml = `
         <div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
@@ -1242,18 +1381,22 @@ function showConfirmationModal(title, message, type, confirmCallback) {
                         </div>
                         
                         <!-- Refund Title -->
-                        <h4 class="fw-bold text-primary mb-3" id="confirmationModalLabel">Process Refund</h4>
+                        <h4 class="fw-bold ${verifyOnly ? 'text-warning' : 'text-primary'} mb-3" id="confirmationModalLabel">${modalTitle}</h4>
                         
                         <!-- Refund Process Message -->
                         <div class="refund-message mb-4">
                             
-                            <p class="text-muted mb-3">
-                                You are about to process a refund for this tour booking. 
-                                This will update the tour status and initiate the refund process.
-                            </p>
-                            <div class="alert alert-info border-0" style="background-color: #e3f2fd;">
-                                <i class="ri-information-line me-2 text-info"></i>
-                                <strong>Note:</strong> This action will mark the tour as "Refunded" and cannot be undone.
+                            <p class="text-muted mb-3">${message || 'You are about to process a refund for this tour booking. This will update the tour status and initiate the refund process.'}</p>
+                            ${amountBlock}
+                            <div class="alert ${verifyOnly ? 'alert-warning' : 'alert-info'} border-0" style="background-color: ${verifyOnly ? '#fff7ed' : '#e3f2fd'};">
+                                <i class="ri-information-line me-2"></i>
+                                <strong>Note:</strong> ${options.note
+                                    ? options.note
+                                    : (verifyOnly
+                                    ? 'Verification does not ask for the amount again.'
+                                    : (hasAmount
+                                    ? 'After you initiate, this amount dialog will not open again.'
+                                    : 'This action will mark the tour as "Refunded" and cannot be undone.'))}
                             </div>
                         </div>
                         
@@ -1262,8 +1405,8 @@ function showConfirmationModal(title, message, type, confirmCallback) {
                             <button type="button" class="btn btn-outline-secondary px-4 py-2" data-bs-dismiss="modal">
                                 <i class="ri-close-line me-2"></i>Cancel
                             </button>
-                            <button type="button" class="btn btn-primary px-4 py-2" id="confirmButton">
-                                <i class="ri-check-line me-2"></i>Process Refund
+                            <button type="button" class="btn ${verifyOnly ? 'btn-warning' : 'btn-primary'} px-4 py-2" id="confirmButton">
+                                <i class="ri-check-line me-2"></i>${confirmLabel}
                             </button>
                             @if(
                                 in_array(auth()->user()->role_id, [36, 126, 127])
@@ -1359,11 +1502,42 @@ function showConfirmationModal(title, message, type, confirmCallback) {
     
     // Handle confirm button click
     $('#confirmButton').off('click').on('click', function() {
+        let refundAmount = null;
+        if (hasAmount) {
+            const input = document.getElementById('refundAmountInput');
+            const error = document.getElementById('refundAmountError');
+            const entered = input ? parseFloat(input.value) : NaN;
+            const showAmountError = function(text) {
+                if (!error) return;
+                error.textContent = text;
+                error.classList.remove('d-none');
+            };
+            if (!isFinite(entered) || entered < 0) {
+                showAmountError('Enter a refund amount of 0 or more.');
+                return;
+            }
+            if (entered - maxAmount > 0.009) {
+                if (input) input.value = maxAmount.toFixed(2);
+                showAmountError('Refund amount cannot be higher than the order price with markup.');
+                return;
+            }
+            if (error) error.classList.add('d-none');
+            refundAmount = entered.toFixed(2);
+        }
         $('#confirmationModal').modal('hide');
         if (confirmCallback) {
-            confirmCallback();
+            confirmCallback(refundAmount);
         }
     });
+
+    if (hasAmount) {
+        $('#refundAmountInput').on('input', function() {
+            const entered = parseFloat(this.value);
+            if (isFinite(entered) && entered - maxAmount > 0.009) {
+                this.value = maxAmount.toFixed(2);
+            }
+        });
+    }
     
     // Clean up when modal is hidden
     $('#confirmationModal').on('hidden.bs.modal', function() {

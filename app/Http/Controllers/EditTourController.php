@@ -295,6 +295,9 @@ class EditTourController extends Controller
                         $jobsheets->deleteForOrder($order);
                     }
                 }
+                if (strcasecmp((string) ($tour->tour_status ?? ''), 'Definite') === 0) {
+                    $this->markDefiniteOrderForRefund($order);
+                }
                 $order->delete();
                 $deletedCount++;
             }
@@ -326,6 +329,23 @@ class EditTourController extends Controller
                 'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
+    }
+
+    /**
+     * Definite removal only marks the order for the Refunds page.
+     * Amount, initiate, and verify happen there.
+     */
+    private function markDefiniteOrderForRefund(Order $order): void
+    {
+        if (strtolower((string) ($order->bookingType ?? 'booking')) === 'enquiry') {
+            return;
+        }
+
+        $order->is_refund = 1;
+        $order->is_verify = 0;
+        $order->refunded = false;
+        $order->refund_amount = null;
+        $order->save();
     }
 
     /**
