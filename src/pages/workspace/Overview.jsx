@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import TripSearchCard from "@/components/workspace/TripSearchCard";
+import Hero1 from "@/components/hero/hero-1";
 import SalesManagerDashboard from "@/components/dashboard/dashboard/db-dashboard/components/SalesManagerDashboard";
 import { fetchEnquiries } from "@/slice/enquiries/enquiryListSlice";
 import { fetchLists } from "@/slice/common/TourlistSlice";
@@ -169,7 +169,9 @@ export default function Overview() {
         </button>
       </div>
 
-      <TripSearchCard />
+      <div className="partner-plan-hero partner-plan-hero--overview">
+        <Hero1 />
+      </div>
 
       <div className="partner-summary-grid">
         <button

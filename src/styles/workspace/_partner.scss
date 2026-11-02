@@ -190,6 +190,19 @@
   padding: 36px 28px 64px;
 }
 
+/* Full-bleed classic book-tour search inside partner shell */
+.partner-plan-hero {
+  margin: -36px -28px 28px;
+}
+
+.partner-plan-hero--overview {
+  margin: 8px -28px 28px;
+}
+
+.partner-plan-hero .masthead.-type-1 {
+  border-radius: 0;
+}
+
 .partner-main--wide {
   max-width: 1480px;
   padding: 36px 4% 64px;
@@ -700,6 +713,14 @@
 
   .partner-main {
     padding: 24px 18px 48px;
+  }
+
+  .partner-plan-hero {
+    margin: -24px -18px 24px;
+  }
+
+  .partner-plan-hero--overview {
+    margin: 8px -18px 24px;
   }
 
   .partner-searchbar {
