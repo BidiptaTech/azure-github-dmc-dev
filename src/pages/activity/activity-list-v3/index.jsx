@@ -39,6 +39,7 @@ import {
 import MetaComponent from "@/components/common/MetaComponent";
 import CustomStepper from "@/components/common/sub_common/CustomStepper";
 import TourStatus from "@/components/common/sub_common/TourStatus";
+import TripWorkspaceShell from "@/components/workspace/TripWorkspaceShell";
 import { FaAngleUp, FaAngleDown } from "react-icons/fa";
 import { fetchViewDetails } from "@/slice/common/ViewDetails";
 import { selectCart } from "@/slice/cart/carSlice";
@@ -1382,7 +1383,7 @@ console.log("zone_on5", zone_on);
       .unwrap() // Unwrap the promise to handle the payload directly
       .then((data) => {
         dispatch(setCheckoutVehicle(data));
-        navigate(`/dashboard/db-dashboard/activity-single-2`, {
+        navigate(`/app/activity-single-2`, {
           state: { vehicles: data },
         });
       });
@@ -2380,116 +2381,88 @@ console.log("zone_on5", zone_on);
           </div>
         </section>
       ) : (
-        <>
-          {/* header top margin */}
-          {/* <Header11 /> */}
-          {/* End Header 1 */}
-          <section className="pt-40 pb-40 bg-light-2">
-            <div
-              className={
-                selectedPort === "Hourly" ? "container" : "container-xxl padding-left-right-5"
-              }
-            >
-              <div className="row" style={{ padding: "20px" }}>
-                <div className="col-12">
-                  <div className="text-center">
-                    <h1 className="text-30 fw-600">Local Tour</h1>
-                  </div>
-                  {/* End text-center */}
-                  <MainFilterSearchBox Location={Location} />
-                </div>
-                {/* End col-12 */}
-              </div>
+        <div className="pw-trip-workspace">
+          <TripWorkspaceShell
+            filters={
+              <>
+                <h3>Find local transfers</h3>
+                <Sidebar
+                  hourlyPrices={hourlyPrices}
+                  priceRange={priceRange}
+                  setPriceRange={setPriceRange}
+                />
+              </>
+            }
+          >
+            <div className="pw-service-search mb-20">
+              <MainFilterSearchBox Location={Location} />
             </div>
-          </section>
-          <section className="layout-pt-md layout-pb-lg">
-            <div className="container-xxl padding-left-right-5`">
-              <div className="row y-gap-30" style={{ padding: "20px" }}>
-                <div className="col-xl-3  d-xl-block">
-                  <aside className="sidebar y-gap-40 xl:d-none">
-                    <Sidebar
-                      hourlyPrices={hourlyPrices}
-                      priceRange={priceRange}
-                      setPriceRange={setPriceRange}
-                    />
-                  </aside>
-                </div>
+            <div className="pw-results-head">
+              <h2>
+                {displayedVehicleCount > 0
+                  ? `${displayedVehicleCount} vehicle${
+                      displayedVehicleCount === 1 ? "" : "s"
+                    } found`
+                  : "Local transfers"}
+              </h2>
+              <small>Live inventory · local transport</small>
+            </div>
 
-                {/* Mobile Filter Section */}
-                <div className="col-12 d-xl-none">
-                  <div className="filter-mobile-section">
-                    <button
-                      className="filter-button"
-                      onClick={() => setIsFilterVisible(!isFilterVisible)}
-                      aria-expanded={isFilterVisible}
-                    >
-                      <div className="button-content">
-                        <div className="left-content">
-                          <i className="icon-filter text-20" />
-                          <span>Filter</span>
-                        </div>
-                        <div className="arrow-icon">
-                          {isFilterVisible ? (
-                            <FaAngleUp className="arrow-icon-svg" />
-                          ) : (
-                            <FaAngleDown className="arrow-icon-svg" />
-                          )}
-                        </div>
-                      </div>
-                    </button>
-
-                    {/* Collapsible Filter Content */}
-                    <div
-                      className={`filter-content ${
-                        isFilterVisible ? "show" : ""
-                      }`}
-                    >
-                      <aside className="sidebar y-gap-40 mb-30">
-                        <Sidebar
-                          hourlyPrices={hourlyPrices}
-                          priceRange={priceRange}
-                          setPriceRange={setPriceRange}
-                        />
-                      </aside>
-                    </div>
+            <div className="d-xl-none mb-20">
+              <button
+                className="filter-button"
+                type="button"
+                onClick={() => setIsFilterVisible(!isFilterVisible)}
+                aria-expanded={isFilterVisible}
+              >
+                <div className="button-content">
+                  <div className="left-content">
+                    <i className="icon-filter text-20" />
+                    <span>Filter</span>
+                  </div>
+                  <div className="arrow-icon">
+                    {isFilterVisible ? (
+                      <FaAngleUp className="arrow-icon-svg" />
+                    ) : (
+                      <FaAngleDown className="arrow-icon-svg" />
+                    )}
                   </div>
                 </div>
-                {/* End col */}
-
-                <div className="col-xl-9 ">
-                  <TopHeaderFilter
-                    Location={Location}
-                    vehicles={vehicles}
-                    handleSort={handleSort}
-                    sortOrder={sortOrder}
-                    filteredCount={displayedVehicleCount}
+              </button>
+              <div
+                className={`filter-content ${isFilterVisible ? "show" : ""}`}
+              >
+                <aside className="sidebar y-gap-40 mb-30">
+                  <Sidebar
+                    hourlyPrices={hourlyPrices}
+                    priceRange={priceRange}
+                    setPriceRange={setPriceRange}
                   />
-                  <div className="mt-30"></div>
-                  {/* End mt--30 */}
-                  <div className="row y-gap-30" style={{ marginTop: "0px", paddingLeft: "2rem" }}>
-                    <ActivityProperties1
-                      vehicles={filteredVehicles}
-                      status={status}
-                      onVehicleClick={handleVehicleClick}
-                      selectedModes={mode} // ✅ Pass selected modes
-                      setSelectedModes={handleModeChange} // ✅ Allow child to update mode
-                      priceMode={priceMode}
-                      hasMore={hasMore}
-                      isLoadingMore={isLoadingMore}
-                    />
-                  </div>
-                  {/* End .row */}
-                  {/* <Pagination /> */}
-                </div>
-                {/* End .col for right content */}
+                </aside>
               </div>
-              {/* End .row */}
             </div>
-            {/* End .container */}
-          </section>
-          {/* End halfMap content */}
-          {/* <DefaultFooter /> */}
-        </>
+
+            <TopHeaderFilter
+              Location={Location}
+              vehicles={vehicles}
+              handleSort={handleSort}
+              sortOrder={sortOrder}
+              filteredCount={displayedVehicleCount}
+            />
+            <div className="row y-gap-30">
+              <ActivityProperties1
+                vehicles={filteredVehicles}
+                status={status}
+                onVehicleClick={handleVehicleClick}
+                selectedModes={mode}
+                setSelectedModes={handleModeChange}
+                priceMode={priceMode}
+                hasMore={hasMore}
+                isLoadingMore={isLoadingMore}
+              />
+            </div>
+          </TripWorkspaceShell>
+        </div>
       )}
 
       <style jsx>{`

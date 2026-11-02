@@ -11,7 +11,7 @@ const Sidebar = () => {
       id: 1,
       icon: "/img/dashboard/sidebar/compass.svg",
       name: "Dashboard",
-      routePath: "/dashboard/db-dashboard",
+      routePath: "/app",
     },
     {
       id: 2,

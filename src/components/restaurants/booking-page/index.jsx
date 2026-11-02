@@ -57,7 +57,7 @@ const Index = () => {
             whiteSpace: "nowrap",
             minHeight: "40px",
           }}
-          onClick={() => navigate('/dashboard/db-dashboard/restaurants-details/:id')}
+          onClick={() => navigate('/app/restaurants-details/:id')}
         >
           ← Back To Details
         </button>

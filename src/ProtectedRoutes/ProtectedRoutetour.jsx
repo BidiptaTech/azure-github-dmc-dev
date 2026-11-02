@@ -58,7 +58,7 @@ const ProtectedRoutetour = ({ children }) => {
       return children;
     }
     console.log("Redirecting to dashboard due to missing tourId.");
-    return <Navigate to="/dashboard/db-dashboard" replace />;
+    return <Navigate to="/app" replace />;
   }
 
   return children;

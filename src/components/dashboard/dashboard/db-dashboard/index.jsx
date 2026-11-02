@@ -423,7 +423,7 @@ const DashboardLayout = () => {
 
 
   // Ensure dashboard content appears ONLY on the exact dashboard route
-  const isDashboardPage = location.pathname === "/dashboard/db-dashboard";
+  const isDashboardPage = location.pathname === "/app";
 
   // Book Tour / Quick Enquiry hero pages: allow expanded search to grow past viewport
   const isBookTourHeroPage =
@@ -441,7 +441,7 @@ const DashboardLayout = () => {
   // Leaving ProtectedRoutetour / booking module → clear session + Redux
   useEffect(() => {
     const path = location.pathname || "";
-    if (!path.startsWith("/dashboard/db-dashboard")) return;
+    if (!path.startsWith("/app")) return;
 
     const stillInBookingFlow = BOOKING_FLOW_SEGMENTS.some((segment) =>
       path.includes(segment)

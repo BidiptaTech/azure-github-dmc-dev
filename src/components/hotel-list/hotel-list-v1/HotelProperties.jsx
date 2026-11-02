@@ -610,7 +610,7 @@ export default function HotelProperties() {
         })
       );
 
-      navigate("/dashboard/db-dashboard/hotel-details", {
+      navigate("/app/hotel-details", {
         state: {
           hotel: selectedHotel,
           priceMode: selectedMode, // Keep this as string for hotel details page compatibility
@@ -1229,7 +1229,7 @@ export default function HotelProperties() {
                             whiteSpace: "nowrap",
                           }}
                         >
-                          See Availability
+                          Select room →
                         </Button>
                       </div>
                     </div>

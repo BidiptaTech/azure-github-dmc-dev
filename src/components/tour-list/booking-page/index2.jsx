@@ -176,7 +176,7 @@ export default function Index2() {
   // Redirect if no user info
   useEffect(() => {
     if (!userInfo || !userInfo.fullName) {
-      navigate("/dashboard/db-dashboard/tour-single/:id");
+      navigate("/app/tour-single/:id");
     }
   }, [userInfo, navigate]);
 
@@ -228,7 +228,7 @@ export default function Index2() {
     const tourId = tourdetails?.tour_id || "";
 
     // Navigate with the right ID parameter
-    navigate(`/dashboard/db-dashboard/tour-single/${tourId || ":id"}`, {
+    navigate(`/app/tour-single/${tourId || ":id"}`, {
       state: { fromBackButton: true },
     });
   };
@@ -409,7 +409,7 @@ export default function Index2() {
 
         // Navigate to thank you page, but don't reset isNavigating state until
         // AFTER navigation is complete to avoid flashing components
-        navigate("/dashboard/db-dashboard/attraction-thank-you", {
+        navigate("/app/attraction-thank-you", {
           state: {
             bookingResponse: response,
             from: "booking",
@@ -598,7 +598,7 @@ export default function Index2() {
         setEnquiryComment("");
 
         // Navigate directly without nested timeouts to avoid flashing
-        navigate("/dashboard/db-dashboard/attraction-thank-you", {
+        navigate("/app/attraction-thank-you", {
           state: {
             bookingResponse: response,
             from: "enquiry",

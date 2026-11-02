@@ -40,7 +40,7 @@ const OrderSubmittedInfo = () => {
   const orderData = order?.data || [];  // Assuming order.data is already an array
 
   const handleClick = () => {
-    navigate("/dashboard/db-dashboard/restaurants");
+    navigate("/app/restaurants");
   };
 
   // Format price with commas for thousands

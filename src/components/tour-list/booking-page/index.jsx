@@ -26,7 +26,7 @@ const Index = () => {
             whiteSpace: "nowrap",
             minHeight: "40px",
           }}
-          onClick={() => navigate('/dashboard/db-dashboard/tour-single/:id')}
+          onClick={() => navigate('/app/tour-single/:id')}
         >
           ← Back To Details
         </button>

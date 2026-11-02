@@ -246,7 +246,11 @@ export default function Pending({ filters = {} }) {
   // Trigger API call when navigating to Dashboard
   useEffect(() => {
     // Trigger fetchLists only when navigating to "/dashboard"
-    if (location.pathname === "/dashboard/db-dashboard") {
+    if (
+      location.pathname === "/app" ||
+      location.pathname === "/app/bookings" ||
+      location.pathname === "/dashboard/db-dashboard"
+    ) {
       dispatch(setTourType("past"));
       dispatch(fetchLists({ reset: true, type: "past" }));
       
@@ -552,7 +556,7 @@ export default function Pending({ filters = {} }) {
 
   //       // Set success snackbar message after the operation
   //       dispatch(settourdetails(data));
-  //       navigate(`/dashboard/db-dashboard/view-hotel-search/${id}`, {
+  //       navigate(`/app/view-hotel-search/${id}`, {
   //         state: { tourDetails: data },
   //       });
 

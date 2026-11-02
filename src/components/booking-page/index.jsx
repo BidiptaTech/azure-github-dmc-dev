@@ -161,7 +161,7 @@ const Index = () => {
         dispatch(setUserInfo(formData));
         
         console.log("🚀 Navigating to thank-you page NOW");
-        navigate("/dashboard/db-dashboard/thank-you", { 
+        navigate("/app/thank-you", { 
           replace: true,
           state: { bookingResponse: response }
         });
@@ -271,7 +271,7 @@ const Index = () => {
         // Store user info for next booking (don't clear it)
         dispatch(setUserInfo(formData));
 
-        navigate("/dashboard/db-dashboard/thank-you", { 
+        navigate("/app/thank-you", { 
           replace: true,
           state: { bookingResponse: response }
         });
@@ -299,7 +299,7 @@ const Index = () => {
             left: "-80px",
             minHeight: "40px",
           }}
-          onClick={() => navigate("/dashboard/db-dashboard/hotel-details")}
+          onClick={() => navigate("/app/hotel-details")}
         >
           ← Back To Details
         </button>

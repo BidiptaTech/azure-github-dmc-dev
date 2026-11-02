@@ -1,14 +1,10 @@
-import CallToActions from "@/components/common/CallToActions";
-import Header11 from "@/components/header/header-11";
-import DefaultFooter from "@/components/footer/default";
-// import TopHeaderFilter from "@/components/restaurants/tour-list-v1/TopHeaderFilter";
 import TourProperties from "@/components/restaurants/tour-list-v1/TourProperties";
-// import Pagination from "@/components/restaurants/common/Pagination";
 import Sidebar from "@/components/restaurants/tour-list-v1/Sidebar";
 import MainFilterSearchBox from "@/components/restaurants/tour-list-v1/MainFilterSearchBox";
 import MetaComponent from "@/components/common/MetaComponent";
 import TourStatus from "@/components/common/sub_common/TourStatus";
 import CustomStepper from "@/components/common/sub_common/CustomStepper";
+import TripWorkspaceShell from "@/components/workspace/TripWorkspaceShell";
 import "@/styles/hotelListHero.css";
 
 const metadata = {
@@ -18,11 +14,10 @@ const metadata = {
 
 const TourListPage2 = () => {
   return (
-    <>
+    <div className="pw-trip-workspace">
       <MetaComponent meta={metadata} />
-      {/* End Page Title */}
 
-      <div className="header-margin">
+      <div className="header-margin" aria-hidden>
         <div className="container">
           <div className="hotel-list-lite-stack">
             <div className="hotel-list-lite-panel">
@@ -33,7 +28,7 @@ const TourListPage2 = () => {
         </div>
       </div>
 
-      <div className="hotel-list-top">
+      <div className="hotel-list-top" aria-hidden>
         <div className="container">
           <div className="hotel-list-hero">
             <MainFilterSearchBox layout="hero" />
@@ -41,70 +36,23 @@ const TourListPage2 = () => {
         </div>
       </div>
 
-      <section className="hotel-list-results layout-pb-lg">
-        <div className="container">
-          <div className="row y-gap-30">
-            <div className="col-xl-3">
-              <aside
-                className="sidebar y-gap-40 xl:d-none"
-                style={{ position: "relative", top: "90px" }}
-              >
-                <Sidebar />
-              </aside>
-              {/* End sidebar for desktop */}
-
-              <div
-                className="offcanvas offcanvas-start"
-                tabIndex="-1"
-                id="listingSidebar"
-              >
-                <div className="offcanvas-header">
-                  <h5 className="offcanvas-title" id="offcanvasLabel">
-                    Filter Tours
-                  </h5>
-                  <button
-                    type="button"
-                    className="btn-close"
-                    data-bs-dismiss="offcanvas"
-                    aria-label="Close"
-                  ></button>
-                </div>
-                {/* End offcanvas header */}
-
-                <div className="offcanvas-body">
-                  <aside className="sidebar y-gap-40  xl:d-block">
-                    <Sidebar />
-                  </aside>
-                </div>
-                {/* End offcanvas body */}
-              </div>
-              {/* End mobile menu sidebar */}
-            </div>
-            {/* End col */}
-
-            <div className="col-xl-9 ">
-              {/* <TopHeaderFilter /> */}
-              {/* <div className="mt-30"></div> */}
-              {/* End mt--30 */}
-              <div className="row y-gap-30">
-                <TourProperties />
-              </div>
-              {/* End .row */}
-              {/* <Pagination /> */}
-            </div>
-            {/* End .col for right content */}
-          </div>
-          {/* End .row */}
+      <TripWorkspaceShell
+        filters={
+          <>
+            <h3>Find dining</h3>
+            <Sidebar />
+          </>
+        }
+      >
+        <div className="pw-results-head">
+          <h2>Dining</h2>
+          <small>Live inventory · restaurants</small>
         </div>
-        {/* End .container */}
-      </section>
-      {/* End layout for listing sidebar and content */}
-
-      {/* <CallToActions /> */}
-      {/* End Call To Actions Section */}
-      {/* 
-      <DefaultFooter /> */}
-    </>
+        <div className="row y-gap-30">
+          <TourProperties />
+        </div>
+      </TripWorkspaceShell>
+    </div>
   );
 };
 

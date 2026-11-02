@@ -785,7 +785,7 @@ const TourProperties = () => {
 
     dispatch(setListRestaurant(item));
     
-    navigate(`/dashboard/db-dashboard/restaurants-details/${item.id}`, {
+    navigate(`/app/restaurants-details/${item.id}`, {
       state: { restaurants: item },
     });
   };

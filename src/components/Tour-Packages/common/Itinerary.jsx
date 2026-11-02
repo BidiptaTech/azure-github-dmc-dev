@@ -562,7 +562,7 @@ export default function Itinerary({ onBookingSuccess }) {
         setSnackbarMessage('Package booked successfully!');
         setSnackbarSeverity('success');
         setOpenSnackbar(true);
-        navigate('/dashboard/db-dashboard');
+        navigate('/app');
         // Call the callback to reset current step in parent component
         if (onBookingSuccess) {
           onBookingSuccess();
@@ -581,7 +581,7 @@ export default function Itinerary({ onBookingSuccess }) {
         setSnackbarMessage('Package Upadated successfully!');
         setSnackbarSeverity('success');
         setOpenSnackbar(true);
-        navigate('/dashboard/db-dashboard');
+        navigate('/app');
         // Call the callback to reset current step in parent component
         if (onBookingSuccess) {
           onBookingSuccess();

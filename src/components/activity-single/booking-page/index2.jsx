@@ -194,7 +194,7 @@ export default function Index2() {
   );
   //   useEffect(() => {
   //     if (!userInfo || !userInfo.fullName) {
-  //       navigate("/dashboard/db-dashboard/tour-single/:id");
+  //       navigate("/app/tour-single/:id");
   //     }
   //   }, [userInfo, navigate]);
 
@@ -338,7 +338,7 @@ export default function Index2() {
 
   const handleClick = () => {
     if (type === "entryport" || type === "exitport") {
-      navigate("/dashboard/db-dashboard/activity-single-1", {
+      navigate("/app/activity-single-1", {
         state: { vehicles: vehicles },
       });
     } else if (
@@ -346,11 +346,11 @@ export default function Index2() {
       type === "travelhourly" ||
       type === "travelpointzone"
     ) {
-      navigate("/dashboard/db-dashboard/activity-single-2", {
+      navigate("/app/activity-single-2", {
         state: { vehicles: vehicles },
       });
     } else if (type === "guide") {
-      navigate("/dashboard/db-dashboard/activity-single", {
+      navigate("/app/activity-single", {
         state: { guide: guide },
       });
     }
@@ -450,7 +450,7 @@ export default function Index2() {
       }
 
       setTimeout(() => {
-        navigate("/dashboard/db-dashboard/ThankYou");
+        navigate("/app/ThankYou");
       }, 500);
       setIsSubmitting(false);
     } else {
@@ -536,7 +536,7 @@ export default function Index2() {
 
         // Navigate to the Thank You page after a short delay to ensure Redux updates
         setTimeout(() => {
-          navigate("/dashboard/db-dashboard/ThankYou");
+          navigate("/app/ThankYou");
         }, 500);
         setIsEnquiring(false);
       } else {

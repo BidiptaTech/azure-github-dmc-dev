@@ -92,7 +92,7 @@ const ActivitySingleV3Dynamic = () => {
             minHeight: "40px",
             marginBottom: "20px",
           }}
-          onClick={() => navigate("/dashboard/db-dashboard/localtransfer")}
+          onClick={() => navigate("/app/localtransfer")}
         >
           ← Back To Listing
         </button>

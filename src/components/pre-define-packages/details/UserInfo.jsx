@@ -161,7 +161,7 @@ const selectedDate = searchParams?.date ?
         onSubmit({ ...bookingData, user_info: formData, bookingResponse });
         onClose();
         // Navigate to dashboard pre-define-packages after successful booking
-        navigate('/dashboard/pre-define-packages');
+        navigate('/app/pre-define-packages');
       }, 5000);
     }
   }, [bookingSuccess, bookingResponse, bookingData, formData, onSubmit, onClose, navigate]);

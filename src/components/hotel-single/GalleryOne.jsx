@@ -89,7 +89,7 @@ export default function GalleryOne({ hotel }) {
       return;
     }
     toast.success("Added to cart successfully.");
-    navigate("/dashboard/db-dashboard/cart");
+    navigate("/app/cart");
   }, [
     address,
     bookingArray,
@@ -129,7 +129,7 @@ export default function GalleryOne({ hotel }) {
             marginTop: "-30px",
             //position: "absolute",
           }}
-          onClick={() => navigate("/dashboard/db-dashboard/view-hotel-search/:id")}
+          onClick={() => navigate("/app/view-hotel-search/:id")}
         >
           ← Back To Listing
         </button>

@@ -87,7 +87,7 @@ const ActivitySingleV2Dynamic = () => {
             minHeight: "40px",
             marginBottom: "20px",
           }}
-          onClick={() => navigate("/dashboard/db-dashboard/pickupdrop")}
+          onClick={() => navigate("/app/pickupdrop")}
         >
           ← Back To Listing
         </button>

@@ -292,7 +292,7 @@ const Index2 = () => {
       // totalPrice: totalPrice,
     };
     dispatch(setexitdata(details));
-    navigate(`/dashboard/db-dashboard/CheckOut`, {
+    navigate(`/app/CheckOut`, {
       state: { vehicles: vehicles },
     });
     // setMappedData(data); // Update state with final values

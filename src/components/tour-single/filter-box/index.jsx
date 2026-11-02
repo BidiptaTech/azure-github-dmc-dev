@@ -402,7 +402,7 @@ const index = () => {
       return;
     }
     toast.success("Added to cart successfully.");
-    navigate("/dashboard/db-dashboard/cart");
+    navigate("/app/cart");
   };
 
   // Format price in different currencies

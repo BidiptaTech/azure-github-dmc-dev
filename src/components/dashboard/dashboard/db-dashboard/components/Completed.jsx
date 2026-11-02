@@ -138,7 +138,11 @@ export default function Pending() {
   // Trigger API call when navigating to Dashboard
   useEffect(() => {
     // Trigger fetchLists only when navigating to "/dashboard"
-    if (location.pathname === "/dashboard/db-dashboard") {
+    if (
+      location.pathname === "/app" ||
+      location.pathname === "/app/bookings" ||
+      location.pathname === "/dashboard/db-dashboard"
+    ) {
       dispatch(fetchLists({ reset: true }));
     }
   }, [location.pathname, dispatch]); // Depend on the pathname // Dependency on location.pathname
@@ -156,32 +160,32 @@ export default function Pending() {
     () => [
       {
         label: "Hotels",
-        path: `/dashboard/db-dashboard/view-hotel-search/${tourId}`,
+        path: `/app/view-hotel-search/${tourId}`,
         key: "hotel",
       },
       {
         label: "Pickup/Drop(Entry & Exit Port)",
-        path: "/dashboard/db-dashboard/pickupdrop",
+        path: "/app/pickupdrop",
         key: "port",
       },
       {
         label: "Attractions",
-        path: "/dashboard/db-dashboard/attractions",
+        path: "/app/attractions",
         key: "attraction",
       },
       {
         label: "Local Transfer",
-        path: "/dashboard/db-dashboard/localtransfer",
+        path: "/app/localtransfer",
         key: "travel",
       },
       {
         label: "Tour Guide",
-        path: "/dashboard/db-dashboard/tourguide",
+        path: "/app/tourguide",
         key: "guide",
       },
       {
         label: "Restaurants",
-        path: "/dashboard/db-dashboard/restaurants",
+        path: "/app/restaurants",
         key: "restaurent",
       },
     ],

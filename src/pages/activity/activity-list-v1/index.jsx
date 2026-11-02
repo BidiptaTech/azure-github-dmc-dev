@@ -27,6 +27,7 @@ import {
 import MetaComponent from "@/components/common/MetaComponent";
 import CustomStepper from "@/components/common/sub_common/CustomStepper";
 import TourStatus from "@/components/common/sub_common/TourStatus";
+import TripWorkspaceShell from "@/components/workspace/TripWorkspaceShell";
 import "@/styles/hotelListHero.css";
 import { FaAngleUp, FaAngleDown } from "react-icons/fa";
 import { toCityOnly } from "@/utils/locationFormat";
@@ -202,7 +203,7 @@ const ActivityListPage1 = () => {
         dispatch(setentrypickup(city));
         dispatch(setpickupdate(searchParams.date));
         dispatch(setCheckoutGuide(guide));
-        navigate(`/dashboard/db-dashboard/activity-single`, {
+        navigate(`/app/activity-single`, {
           state: { guide: guide },
         });
       })
@@ -299,9 +300,9 @@ const ActivityListPage1 = () => {
   const displayedGuideCount = displayedGuides.length;
 
   return (
-    <>
+    <div className="pw-trip-workspace">
       <MetaComponent meta={metadata} />
-      <div className="header-margin">
+      <div className="header-margin" aria-hidden>
         <div className="container">
           <div className="hotel-list-lite-stack">
             <div className="hotel-list-lite-panel">
@@ -312,7 +313,7 @@ const ActivityListPage1 = () => {
         </div>
       </div>
 
-      <div className="hotel-list-top">
+      <div className="hotel-list-top" aria-hidden>
         <div className="container">
           <div className="hotel-list-hero">
             <MainFilterSearchBox layout="hero" Location={Location} />
@@ -320,90 +321,86 @@ const ActivityListPage1 = () => {
         </div>
       </div>
 
-      <section className="hotel-list-results layout-pb-lg">
-        <div className="container">
-          <div className="row y-gap-30">
-            <div className="col-xl-3  d-xl-block">
-              {/* Desktop Sidebar */}
-              <aside className="sidebar y-gap-40 xl:d-none">
-                <Sidebar
-                  hourlyPrices={hourlyPrices}
-                  priceRange={priceRange}
-                  setPriceRange={setPriceRange}
-                />
-              </aside>
-            </div>
+      <TripWorkspaceShell
+        filters={
+          <>
+            <h3>Find guides</h3>
+            <Sidebar
+              hourlyPrices={hourlyPrices}
+              priceRange={priceRange}
+              setPriceRange={setPriceRange}
+            />
+          </>
+        }
+      >
+        <div className="pw-results-head">
+          <h2>
+            {displayedGuideCount > 0
+              ? `${displayedGuideCount} guide${
+                  displayedGuideCount === 1 ? "" : "s"
+                } found`
+              : "Guides"}
+          </h2>
+          <small>Live inventory · tour guides</small>
+        </div>
 
-            {/* Mobile Sidebar */}
-            <div className="col-12 d-xl-none">
-              <div className="filter-mobile-section">
-                <button
-                  className="filter-button"
-                  onClick={() => setIsFilterVisible(!isFilterVisible)}
-                  aria-expanded={isFilterVisible}
-                >
-                  <div className="button-content">
-                    <div className="left-content">
-                      <i className="icon-filter text-20" />
-                      <span>Filter</span>
-                    </div>
-                    <div className="arrow-icon">
-                      {isFilterVisible ? (
-                        <FaAngleUp className="arrow-icon-svg" />
-                      ) : (
-                        <FaAngleDown className="arrow-icon-svg" />
-                      )}
-                    </div>
-                  </div>
-                </button>
-
-                <div
-                  className={`filter-content ${isFilterVisible ? "show" : ""}`}
-                >
-                  <aside className="sidebar y-gap-40 mb-30">
-                    <Sidebar
-                      hourlyPrices={hourlyPrices}
-                      priceRange={priceRange}
-                      setPriceRange={setPriceRange}
-                    />
-                  </aside>
-                </div>
+        <div className="d-xl-none mb-20">
+          <button
+            className="filter-button"
+            type="button"
+            onClick={() => setIsFilterVisible(!isFilterVisible)}
+            aria-expanded={isFilterVisible}
+          >
+            <div className="button-content">
+              <div className="left-content">
+                <i className="icon-filter text-20" />
+                <span>Filter</span>
+              </div>
+              <div className="arrow-icon">
+                {isFilterVisible ? (
+                  <FaAngleUp className="arrow-icon-svg" />
+                ) : (
+                  <FaAngleDown className="arrow-icon-svg" />
+                )}
               </div>
             </div>
-
-            <div className="col-xl-9 ">
-              <TopHeaderFilter
-                Location={Location}
-                guides={guides}
-                handleSort={handleSort}
-                sortOrder={sortOrder}
-                filteredCount={displayedGuideCount}
+          </button>
+          <div className={`filter-content ${isFilterVisible ? "show" : ""}`}>
+            <aside className="sidebar y-gap-40 mb-30">
+              <Sidebar
+                hourlyPrices={hourlyPrices}
+                priceRange={priceRange}
+                setPriceRange={setPriceRange}
               />
-
-              <div className="mt-30"></div>
-
-              <div className="row y-gap-15" style={{ marginTop: "0px", paddingLeft: "2rem" }}>
-                <ActivityProperties
-                  guides={filteredGuides}
-                  searchText={searchText}
-                  filters={filters}
-                  sortBy={sortBy}
-                  status={status}
-                  error={error}
-                  onGuideClick={handleGuideClick}
-                  selectedModes={mode} // ✅ Pass selected modes
-                  setSelectedModes={handleModeChange} // ✅ Allow child to update mode
-                  priceMode={priceMode}
-                  hasMore={hasMore}
-                  isLoadingMore={isLoadingMore}
-                />
-              </div>
-            </div>
+            </aside>
           </div>
         </div>
-      </section>
-      {/* <CallToActions /> */}
-      {/* <DefaultFooter /> */}
+
+        <TopHeaderFilter
+          Location={Location}
+          guides={guides}
+          handleSort={handleSort}
+          sortOrder={sortOrder}
+          filteredCount={displayedGuideCount}
+        />
+        <div className="row y-gap-15">
+          <ActivityProperties
+            guides={filteredGuides}
+            searchText={searchText}
+            filters={filters}
+            sortBy={sortBy}
+            status={status}
+            error={error}
+            onGuideClick={handleGuideClick}
+            selectedModes={mode}
+            setSelectedModes={handleModeChange}
+            priceMode={priceMode}
+            hasMore={hasMore}
+            isLoadingMore={isLoadingMore}
+          />
+        </div>
+      </TripWorkspaceShell>
+
       <style jsx>{`
         .filter-mobile-section {
           position: relative;
@@ -481,8 +478,7 @@ const ActivityListPage1 = () => {
           }
         }
       `}</style>
-      ;
-    </>
+    </div>
   );
 };
 

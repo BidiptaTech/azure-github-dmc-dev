@@ -25,12 +25,12 @@ const footercontent = [
     id: 3,
     title: "Other Services",
     menuList: [
-      { name: "Hotel", routerPath: "/dashboard/db-dashboard/view-hotel-search/:id" },
-      { name: "Pick up drop", routerPath: "/dashboard/db-dashboard/pickupdrop" },
-      { name: "Attraction", routerPath: "/dashboard/db-dashboard/attractions" },
-      { name: "Local Transfer", routerPath: "/dashboard/db-dashboard/localtransfer" },
-      { name: "Tour Guide", routerPath: "/dashboard/db-dashboard/tourguide" },
-      { name: "Restaurants", routerPath: "/dashboard/db-dashboard/restaurants" },
+      { name: "Hotel", routerPath: "/app/view-hotel-search/:id" },
+      { name: "Pick up drop", routerPath: "/app/pickupdrop" },
+      { name: "Attraction", routerPath: "/app/attractions" },
+      { name: "Local Transfer", routerPath: "/app/localtransfer" },
+      { name: "Tour Guide", routerPath: "/app/tourguide" },
+      { name: "Restaurants", routerPath: "/app/restaurants" },
     ],
   },
 ];

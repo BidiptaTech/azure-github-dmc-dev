@@ -8,21 +8,16 @@ import "swiper/css/scrollbar";
 import "swiper/css/effect-cards";
 import "aos/dist/aos.css";
 import "./styles/index.scss";
-import { Provider, useDispatch } from "react-redux";
-import { store } from "./store/store";
-//import { useDispatch } from "react-redux";
+import { useDispatch } from "react-redux";
 
 if (typeof window !== "undefined") {
   import("bootstrap");
 }
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import ScrollTopBehaviour from "./components/common/ScrollTopBehaviour";
-import Home from "./pages";
 import LandingPage from "./pages/landing";
 import Home_1 from "./pages/homes/home_1";
 import Home_2 from "./pages/homes/home_2";
-import NotFoundPage from "./pages/not-found";
-import DBDashboard from "./pages/dashboard/dashboard/db-dashboard";
 import HotelListPage1 from "./pages/hotel/hotel-list-v1";
 import HotelSingleV1Dynamic from "./pages/hotel/hotel-single-v1";
 import BookingPage from "./pages/hotel/booking-page";
@@ -31,7 +26,6 @@ import BookingPage2 from "./pages/attractions/index";
 
 import TourListPage1 from "./pages/tour/tour-list-v1";
 import TourListPage2 from "./pages/tour/tour-list-v2";
-// import TourListPage3 from "./pages/tour/tour-list-v3";
 import TourSingleV1Dynamic from "./pages/tour/tour-single";
 import ActivityListPage1 from "./pages/activity/activity-list-v1";
 import ActivityListPage2 from "./pages/activity/activity-list-v2";
@@ -51,40 +45,46 @@ import ActivitySingleV2Dynamic from "./pages/activity/activity-single-1";
 import ActivitySingleV3Dynamic from "./pages/activity/activity-single-2";
 import ProtectedRoutetour from "./ProtectedRoutes/ProtectedRoutetour";
 
-
-// import { useEffect } from "react";
-// import { useDispatch } from "react-redux";
 import { logoutUser } from "./slice/common/authSlices";
 import BookingPage5 from "./pages/activity/booking-page";
 import OrderSubmittedInfo5 from "./components/activity-single/booking-page/OrderSubmittedInfo5";
 import Updatebooking from "./components/dashboard/dashboard/db-dashboard/components/Updatebooking";
-import TourPackages from "./pages/tour-packages/index";
-import PreDefinePackagesPage from "./pages/pre-define-packages/index";
-import Packages from "./pages/packages";
-import PackageDetails from "./pages/pre-define-packages/package-details";
+import PackageDetailsEmbed from "./pages/workspace/PackageDetailsEmbed";
 
-import BookingEnquiryPage from "./pages/booking-enquiry";
 import DemoPage from "./pages/demo";
 import CartPage from "./pages/cart/cartPage";
 import CartCheckout from "./pages/cart/cartCheckout";
 
-const AUTO_LOGOUT_TIME = 7 * 24 * 60 * 60 * 1000; //Logout after 1 week
+import PartnerLayout from "./layouts/PartnerLayout";
+import Overview from "./pages/workspace/Overview";
+import PlanTrip from "./pages/workspace/PlanTrip";
+import Bookings from "./pages/workspace/Bookings";
+import Quotes from "./pages/workspace/Quotes";
+import Wallet from "./pages/workspace/Wallet";
+import PackagesPage from "./pages/workspace/PackagesPage";
+import TourPackagesEmbed from "./pages/workspace/TourPackagesEmbed";
+import PreDefinePackagesEmbed from "./pages/workspace/PreDefinePackagesEmbed";
+import BookingEnquiryEmbed from "./pages/workspace/BookingEnquiryEmbed";
+import LegacyDashboardRedirect from "./pages/workspace/LegacyDashboardRedirect";
+
+const AUTO_LOGOUT_TIME = 7 * 24 * 60 * 60 * 1000;
+
+function PackageDetailsRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/app/package-details/${id}`} replace />;
+}
 
 function App() {
   const dispatch = useDispatch();
-
-  // Do not wipe sessionStorage/localStorage on load — that destroys the
-  // active tour booking session used to survive browser refresh.
 
   useEffect(() => {
     const timer = setTimeout(() => {
       dispatch(logoutUser());
     }, AUTO_LOGOUT_TIME);
 
-    return () => clearTimeout(timer); // Clear timer on unmount
+    return () => clearTimeout(timer);
   }, [dispatch]);
 
-  // Handle login
   const handleLogin = () => {
     dispatch(loginUser());
   };
@@ -96,403 +96,141 @@ function App() {
     });
   }, []);
 
+  const withTour = (element) => (
+    <ProtectedRoute>
+      <ProtectedRoutetour>{element}</ProtectedRoutetour>
+    </ProtectedRoute>
+  );
+
+  const withAuth = (element) => <ProtectedRoute>{element}</ProtectedRoute>;
+
   return (
     <main>
-      {/* <Provider store={store}> */}
       <BrowserRouter>
         <Routes>
-          {/* <Route path="/"> */}
-          {/* <Route path="/" element={<Navigate to="/" replace />} /> */}
           <Route path="/login" element={<Login onLogin={handleLogin} />} />
           <Route path="/register" element={<Register />} />
           <Route path="/verify-otp" element={<OTPVerification />} />
-          {/* <Route index element={<Home />} /> */}
-
-          {/* <Route path="home_2" element={<Home_2 />} />
-              <Route path="home_3" element={<Home_3 />} /> */}
-          {/* <Route path="home_4" element={<Home_4 />} /> */}
-          {/* <Route path="home_5" element={<Home_5 />} />
-              <Route path="home_6" element={<Home_6 />} />
-              <Route path="home_7" element={<Home_7 />} />
-              <Route path="home_8" element={<Home_8 />} />
-              <Route path="home_9" element={<Home_9 />} />
-              <Route path="home_10" element={<Home_10 />} /> */}
-
-          {/* <Route path="signup" element={<SignUp />} />
-              <Route path="login" element={<LogIn />} /> */}
-          {/* <Route path="terms" element={<Terms />} />
-          <Route path="invoice" element={<Invoice />} />
-          <Route path="contact" element={<Contact />} /> */}
-          {/*  <Route path="destinations" element={<Destinations />} /> */}
-          <Route
-            path="/"
-            element={<LandingPage />}
-          />
+          <Route path="/" element={<LandingPage />} />
           <Route path="/demo" element={<DemoPage />} />
-          <Route path="/dashboard/tour-packages" element={
-            <ProtectedRoute>
-              <TourPackages />
-            </ProtectedRoute>
-          } />
-          <Route path="/dashboard/pre-define-packages" element={
-            <ProtectedRoute>
-              <PreDefinePackagesPage />
-            </ProtectedRoute>
-          } />
-          <Route path="/package-details/:id" element={
-            <ProtectedRoute>
-              <PackageDetails />
-            </ProtectedRoute>
-          } />
-          {/* <Route path="/modal-test" element={
-            <ModalTestRoute />
-          } /> */}
-          <Route path="/booking-enquiry" element={
-            <ProtectedRoute>
-              <BookingEnquiryPage />
-            </ProtectedRoute>
-          } />
-          <Route path="dashboard">
-            <Route
-              path="db-dashboard/*"
-              element={
-                <ProtectedRoute>
-                  <DBDashboard />
-                </ProtectedRoute>
-              }
-            >
-              {/* Index = dashboard home. Do NOT use path="*" here — it
-                  swallows nested booking routes (pickupdrop, etc.) on refresh
-                  and forces Navigate back to /dashboard/db-dashboard. */}
-              <Route index element={null} />
-              <Route
-                path="updatebooking"
-                element={
-                <ProtectedRoute>
-                  <Updatebooking />
-                </ProtectedRoute>
-                }
-              />
 
-              <Route
-                path="home_1"
-                element={
-                  <ProtectedRoute>
-                    <Home_1 />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="home_2"
-                element={
-                  <ProtectedRoute>
-                    <Home_2 />
-                  </ProtectedRoute>
-                }
-              />
-               <Route
-                path="tour-packages"
-                element={
-                  <ProtectedRoute>
-                    <Packages/>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="pre-define-packages"
-                element={
-                  <ProtectedRoute>
-                    <PreDefinePackagesPage/>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="tour-packages-page"
-                element={
-                  <ProtectedRoute>
-                    <TourPackages/>
-                  </ProtectedRoute>
-                }
-              />
-              {/* <Route
-                path="tour-packages"
-                element={
-                  <ProtectedRoute>
-                    <TourPackages/>
-                  </ProtectedRoute>
-                }
-              /> */}
-              {/* <Route
-              path="db-booking"
-              element={
-                <ProtectedRoute>
-                  <DBBooking />
-                </ProtectedRoute>
-              }
+          {/* Legacy redirects into partner workspace */}
+          <Route
+            path="/package-details/:id"
+            element={<PackageDetailsRedirect />}
+          />
+          <Route
+            path="/booking-enquiry"
+            element={<Navigate to="/app/booking-enquiry" replace />}
+          />
+          <Route
+            path="/dashboard/db-dashboard"
+            element={<Navigate to="/app" replace />}
+          />
+          <Route
+            path="/dashboard/db-dashboard/*"
+            element={<LegacyDashboardRedirect />}
+          />
+          <Route
+            path="/dashboard/tour-packages"
+            element={<Navigate to="/app/tour-packages-page" replace />}
+          />
+          <Route
+            path="/dashboard/pre-define-packages"
+            element={<Navigate to="/app/pre-define-packages" replace />}
+          />
+
+          <Route
+            path="/app"
+            element={withAuth(<PartnerLayout />)}
+          >
+            <Route index element={<Overview />} />
+            <Route path="plan" element={<PlanTrip />} />
+            <Route path="bookings" element={<Bookings />} />
+            <Route path="quotes" element={<Quotes />} />
+            <Route path="wallet" element={<Wallet />} />
+            <Route path="packages" element={<PackagesPage />} />
+            <Route path="booking-enquiry" element={<BookingEnquiryEmbed />} />
+
+            <Route path="tour-packages" element={<PackagesPage />} />
+            <Route path="tour-packages-page" element={<TourPackagesEmbed />} />
+            <Route
+              path="pre-define-packages"
+              element={<PreDefinePackagesEmbed />}
             />
             <Route
-              path="db-wishlist"
-              element={
-                <ProtectedRoute>
-                  <DBWishlist />
-                </ProtectedRoute>
-              }
+              path="package-details/:id"
+              element={<PackageDetailsEmbed />}
+            />
+            <Route path="home_1" element={withAuth(<Home_1 />)} />
+            <Route path="home_2" element={withAuth(<Home_2 />)} />
+            <Route path="updatebooking" element={withAuth(<Updatebooking />)} />
+
+            <Route
+              path="view-hotel-search/:id"
+              element={withTour(<HotelListPage1 />)}
             />
             <Route
-              path="db-settings"
-              element={
-                <ProtectedRoute>
-                  <DBSettings />
-                </ProtectedRoute>
-              }
-            /> */}
+              path="hotel-details"
+              element={withTour(<HotelSingleV1Dynamic />)}
+            />
+            <Route path="hotel-checkout" element={withTour(<BookingPage />)} />
+            <Route path="thank-you" element={withTour(<OrderSubmittedInfo />)} />
 
-              {/* <Route path="vendor-dashboard">
-            <Route path="dashboard" element={<VendorDashboard />} />
-            <Route path="add-hotel" element={<VendorAddHotel />} />
-            <Route path="booking" element={<VendorBooking />} />
-            <Route path="hotels" element={<BVVendorHotel />} />
-            <Route path="recovery" element={<BDVendorRecovery />} />
-          </Route> */}
-              {/* //hotel list page */}
-              <Route
-                path="view-hotel-search/:id"
-                element={
-                  <ProtectedRoute>
-                    <ProtectedRoutetour>
-                      <HotelListPage1 />
-                    </ProtectedRoutetour>
-                  </ProtectedRoute>
-                }
-              />
-              {/* <Route path="hotel-list-v2" element={<HotelListPage2 />} />
-              <Route path="hotel-list-v3" element={<HotelListPage3 />} />
-              <Route path="hotel-list-v4" element={<HotelListPage4 />} />
-              <Route path="hotel-list-v5" element={<HotelListPage5 />} /> */}
-
-              {/* hotel details page */}
-              <Route
-                path="hotel-details"
-                element={
-                  <ProtectedRoute>
-                    <ProtectedRoutetour>
-                      <HotelSingleV1Dynamic />
-                    </ProtectedRoutetour>
-                  </ProtectedRoute>
-                }
-              />
-              {/* <Route
-                path="hotel-single-v2/:id"
-                element={<HotelSingleV2Dynamic />}
-              /> */}
-              <Route
-                path="hotel-checkout"
-                element={
-                  <ProtectedRoute>
-                    <ProtectedRoutetour>
-                      <BookingPage />
-                    </ProtectedRoutetour>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="thank-you"
-                element={
-                  <ProtectedRoute>
-                    <ProtectedRoutetour>
-                      <OrderSubmittedInfo />
-                    </ProtectedRoutetour>
-                  </ProtectedRoute>
-                }
-              />
-
-              <Route
-                path="attractions"
-                element={
-                  <ProtectedRoute>
-                    <ProtectedRoutetour>
-                      <TourListPage1 />
-                    </ProtectedRoutetour>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="restaurants"
-                element={
-                  <ProtectedRoute>
-                    <ProtectedRoutetour>
-                      <TourListPage2 />
-                    </ProtectedRoutetour>
-                  </ProtectedRoute>
-                }
-              />
-              {/* <Route path="tour-list-v3" element={<TourListPage3 />} /> */}
-              <Route
-                path="tour-single/:id"
-                element={
-                  <ProtectedRoute>
-                    <ProtectedRoutetour>
-                      <TourSingleV1Dynamic />
-                    </ProtectedRoutetour>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="restaurants-details/:id"
-                element={
-                  <ProtectedRoute>
-                    <ProtectedRoutetour>
-                      <RestaurantsDetails />
-                    </ProtectedRoutetour>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="restaurants-checkout"
-                element={
-                  <ProtectedRoute>
-                    <ProtectedRoutetour>
-                      <BookingPage1 />
-                    </ProtectedRoutetour>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="attraction-checkout"
-                element={
-                  <ProtectedRoute>
-                    <ProtectedRoutetour>
-                      <BookingPage2 />
-                    </ProtectedRoutetour>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="restaurants-thank-you"
-                element={
-                  <ProtectedRoute>
-                    <ProtectedRoutetour>
-                      <OrderSubmittedInfo1 />
-                    </ProtectedRoutetour>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="attraction-thank-you"
-                element={
-                  <ProtectedRoute>
-                    <ProtectedRoutetour>
-                      <OrderSubmittedInfo2 />
-                    </ProtectedRoutetour>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="tourguide"
-                element={
-                  <ProtectedRoute>
-                    <ProtectedRoutetour>
-                      <ActivityListPage1 />
-                    </ProtectedRoutetour>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="pickupdrop"
-                element={
-                  <ProtectedRoute>
-                    <ProtectedRoutetour>
-                      <ActivityListPage2 />
-                    </ProtectedRoutetour>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="localtransfer"
-                element={
-                  <ProtectedRoute>
-                    <ProtectedRoutetour>
-                      <ActivityListPage3 />
-                    </ProtectedRoutetour>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="activity-single"
-                element={
-                  <ProtectedRoute>
-                    <ProtectedRoutetour>
-                      <ActivitySingleV1Dynamic />
-                    </ProtectedRoutetour>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="activity-single-1"
-                element={
-                  <ProtectedRoute>
-                    <ProtectedRoutetour>
-                      <ActivitySingleV2Dynamic />
-                    </ProtectedRoutetour>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="activity-single-2"
-                element={
-                  <ProtectedRoute>
-                    <ProtectedRoutetour>
-                      <ActivitySingleV3Dynamic />
-                    </ProtectedRoutetour>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="CheckOut"
-                element={
-                  <ProtectedRoute>
-                    <ProtectedRoutetour>
-                      <BookingPage5 />
-                    </ProtectedRoutetour>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="cart"
-                element={
-                  <ProtectedRoute>
-                    <CartPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="cart-checkout"
-                element={
-                  <ProtectedRoute>
-                    <ProtectedRoutetour>
-                      <CartCheckout />
-                    </ProtectedRoutetour>
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="ThankYou"
-                element={
-                  <ProtectedRoute>
-                    <ProtectedRoutetour>
-                      <OrderSubmittedInfo5 />
-                    </ProtectedRoutetour>
-                  </ProtectedRoute>
-                }
-              />
-            </Route>
+            <Route path="attractions" element={withTour(<TourListPage1 />)} />
+            <Route path="restaurants" element={withTour(<TourListPage2 />)} />
+            <Route
+              path="tour-single/:id"
+              element={withTour(<TourSingleV1Dynamic />)}
+            />
+            <Route
+              path="restaurants-details/:id"
+              element={withTour(<RestaurantsDetails />)}
+            />
+            <Route
+              path="restaurants-checkout"
+              element={withTour(<BookingPage1 />)}
+            />
+            <Route
+              path="attraction-checkout"
+              element={withTour(<BookingPage2 />)}
+            />
+            <Route
+              path="restaurants-thank-you"
+              element={withTour(<OrderSubmittedInfo1 />)}
+            />
+            <Route
+              path="attraction-thank-you"
+              element={withTour(<OrderSubmittedInfo2 />)}
+            />
+            <Route path="tourguide" element={withTour(<ActivityListPage1 />)} />
+            <Route path="pickupdrop" element={withTour(<ActivityListPage2 />)} />
+            <Route
+              path="localtransfer"
+              element={withTour(<ActivityListPage3 />)}
+            />
+            <Route
+              path="activity-single"
+              element={withTour(<ActivitySingleV1Dynamic />)}
+            />
+            <Route
+              path="activity-single-1"
+              element={withTour(<ActivitySingleV2Dynamic />)}
+            />
+            <Route
+              path="activity-single-2"
+              element={withTour(<ActivitySingleV3Dynamic />)}
+            />
+            <Route path="CheckOut" element={withTour(<BookingPage5 />)} />
+            <Route path="cart" element={withAuth(<CartPage />)} />
+            <Route path="cart-checkout" element={withTour(<CartCheckout />)} />
+            <Route path="ThankYou" element={withTour(<OrderSubmittedInfo5 />)} />
           </Route>
         </Routes>
         <ScrollTopBehaviour />
       </BrowserRouter>
 
       <SrollTop />
-      {/* </Provider> */}
     </main>
   );
 }

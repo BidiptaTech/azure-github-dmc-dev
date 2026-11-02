@@ -43,15 +43,15 @@ const Index = () => {
 
   const handleClick = () => {
     if (type === "entryport" || type === "exitport") {
-      navigate("/dashboard/db-dashboard/activity-single-1", {
+      navigate("/app/activity-single-1", {
         state: { vehicles: vehicles },
       });
     } else if (type === "travelpoint" || type === "travelhourly" || type === "travelpointzone") {
-      navigate("/dashboard/db-dashboard/activity-single-2", {
+      navigate("/app/activity-single-2", {
         state: { vehicles: vehicles },
       });
     } else if (type === "guide") {
-      navigate("/dashboard/db-dashboard/activity-single", {
+      navigate("/app/activity-single", {
         state: { guide: guide },
       });
     }

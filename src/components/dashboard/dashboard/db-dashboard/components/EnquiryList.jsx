@@ -435,7 +435,7 @@ useEffect(() => {
       ).unwrap()
       .then((response) => {
         dispatch(resetPackages());
-        navigate("/dashboard/tour-packages");
+        navigate("/app/tour-packages-page");
         console.log("Full Response Data:", response);
       })
       .catch((error) => {

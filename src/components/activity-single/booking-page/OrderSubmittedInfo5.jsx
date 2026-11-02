@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate, useLocation } from "react-router-dom";
 
-const DASHBOARD_PATH = "/dashboard/db-dashboard";
+const DASHBOARD_PATH = "/app";
 const REDIRECT_DELAY_MS = 3500;
 
 const OrderSubmittedInfo5 = () => {

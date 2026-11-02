@@ -47,8 +47,8 @@ const MobileMenu = ({ onMenuClose }) => {
 
   // Determine packages path based on user role
   const packagesPath = userRole === "Agent" 
-    ? "/dashboard/pre-define-packages" 
-    : "/dashboard/db-dashboard/tour-packages";
+    ? "/app/pre-define-packages" 
+    : "/app/tour-packages";
 
   // Automatically fetch DMC count when component mounts
   useEffect(() => {
@@ -67,7 +67,7 @@ const MobileMenu = ({ onMenuClose }) => {
   const handleDashboardClick = () => {
     console.log('📱 Dashboard clicked');
     closeMobileMenu();
-    navigate("/dashboard/db-dashboard");
+    navigate("/app");
   };
 
   const handleBookTourClick = () => {
@@ -75,7 +75,7 @@ const MobileMenu = ({ onMenuClose }) => {
     
     // Close mobile menu and navigate directly (no modal)
     closeMobileMenu();
-    navigate("/dashboard/db-dashboard/home_1");
+    navigate("/app/home_1");
   };
 
   const handleBookEnquiryClick = () => {
@@ -83,7 +83,7 @@ const MobileMenu = ({ onMenuClose }) => {
     
     // Close mobile menu and navigate directly (no modal)
     closeMobileMenu();
-    navigate("/dashboard/db-dashboard/home_2");
+    navigate("/app/home_2");
   };
 
   const handlePackagesClick = () => {
@@ -129,7 +129,7 @@ const MobileMenu = ({ onMenuClose }) => {
       label: 'Dashboard',
       icon: <DashboardIcon />,
       onClick: handleDashboardClick,
-      active: pathname === "/dashboard/db-dashboard",
+      active: pathname === "/app",
       show: true
     },
     {
@@ -137,7 +137,7 @@ const MobileMenu = ({ onMenuClose }) => {
       label: 'Book Tour',
       icon: <ExploreIcon />,
       onClick: handleBookTourClick,
-      active: pathname === "/dashboard/db-dashboard/home_1",
+      active: pathname === "/app/home_1",
       show: !isManagerOrSalesHead
     },
     {
@@ -145,7 +145,7 @@ const MobileMenu = ({ onMenuClose }) => {
       label: 'Quick Enquiry',
       icon: <EmailIcon />,
       onClick: handleBookEnquiryClick,
-      active: pathname === "/dashboard/db-dashboard/home_2",
+      active: pathname === "/app/home_2",
       show: !isManagerOrSalesHead
     },
     {

@@ -134,32 +134,32 @@ export default function CustomStepper({ variant = "default" }) {
     () => [
       {
         label: "Hotels",
-        path: `/dashboard/db-dashboard/view-hotel-search/${id || 0}`,
+        path: `/app/view-hotel-search/${id || 0}`,
         key: "hotel",
       },
       {
         label: "Entry/Exit Port",
-        path: "/dashboard/db-dashboard/pickupdrop",
+        path: "/app/pickupdrop",
         key: "port",
       },
       {
         label: "Attractions & Experiences",
-        path: "/dashboard/db-dashboard/attractions",
+        path: "/app/attractions",
         key: "attraction",
       },
       {
         label: "Tour Guide",
-        path: "/dashboard/db-dashboard/tourguide",
+        path: "/app/tourguide",
         key: "guide",
       },
       {
         label: "Restaurants",
-        path: "/dashboard/db-dashboard/restaurants",
+        path: "/app/restaurants",
         key: "restaurent",
       },
       {
         label: "Local Transfer",
-        path: "/dashboard/db-dashboard/localtransfer",
+        path: "/app/localtransfer",
         key: "travel",
       },
     ],
@@ -303,7 +303,7 @@ export default function CustomStepper({ variant = "default" }) {
             dispatch(setType(null));
             dispatch(statusUpdate())
               .then(() => {
-                navigate("/dashboard/db-dashboard");
+                navigate("/app");
                 setIsTourCompleted(true);
                 setSnackbarMessage("Tour completed!");
                 setOpenSnackbar(true);
@@ -343,7 +343,7 @@ export default function CustomStepper({ variant = "default" }) {
         setOpenSnackbar(true);
         setIsTourCompleted(true);
         setIsProgressing(false);
-        navigate("/dashboard/db-dashboard");
+        navigate("/app");
       }
     }
   };

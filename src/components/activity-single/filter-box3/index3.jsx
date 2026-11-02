@@ -282,7 +282,7 @@ const Index3 = () => {
     };
 
     dispatch(setpointdata(details));
-    navigate(`/dashboard/db-dashboard/CheckOut`, {
+    navigate(`/app/CheckOut`, {
       state: { vehicles: vehicles },
     });
 
