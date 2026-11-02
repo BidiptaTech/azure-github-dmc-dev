@@ -85,6 +85,7 @@ export default function HotelProperties() {
   const priceMode = useSelector((state) => state.category.priceMode);
   const globalPriceMode = useSelector((state) => state.category.priceMode);
   const bookingType = useSelector((state) => state.common.bookingType);
+  const dataMode = useSelector((state) => state.dmc?.dataMode || "online");
 
   const [loading, setLoading] = useState(false);
   const { hotels, hasMore, status, start } = useSelector(
@@ -365,7 +366,13 @@ export default function HotelProperties() {
   
   // For this debug version, don't filter at all - just show all hotels
   const filteredHotels = hotels.filter((hotel) => {
-    // Show every hotel, regardless of price
+    const rawMode = hotel?.data_mode ?? hotel?.mode ?? hotel?.booking_mode;
+    if (rawMode != null && rawMode !== "") {
+      const value = String(rawMode).toLowerCase();
+      if ((value === "online" || value === "offline") && value !== dataMode) {
+        return false;
+      }
+    }
     return true;
     
     /* Original filtering code - commented out for debugging
@@ -594,10 +601,12 @@ export default function HotelProperties() {
       dispatch(
         fetchRoomData({
           id,
+          hotel_id: selectedHotel.hotel_id || id,
           tour_id,
           priceMode: selectedMode, // Keep this as string for API compatibility
           priceModeId: priceModeId,
           dmc_id: selectedHotel.dmc_id,
+          online: selectedHotel.data_mode === "online",
         })
       );
 

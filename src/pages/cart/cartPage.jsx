@@ -81,6 +81,21 @@ const getHotelStay = (item) => {
   return getDate(item);
 };
 
+const isOnlineHotelBooking = (item) => {
+  if (item?.data_mode === "online" || item?.online === true) return true;
+  if (item?.data_mode === "offline") return false;
+  const rooms = Array.isArray(item?.bookingArray) ? item.bookingArray : [];
+  return rooms.some((room) => {
+    const roomId = String(room?.room_id ?? "");
+    if (roomId && !/^\d+$/.test(roomId)) return true;
+    const beds = Array.isArray(room?.beds) ? room.beds : [];
+    return beds.some((bed) => {
+      const bedId = String(bed?.bed_id ?? "");
+      return bedId && !/^\d+$/.test(bedId);
+    });
+  });
+};
+
 const getHotelRooms = (item) => {
   if (item.room_summary) return item.room_summary;
   if (item.roomCount) {
@@ -509,6 +524,17 @@ const CartPage = () => {
                                         fontWeight: 600,
                                       }}
                                     />
+                                    {item.type === "hotel" && isOnlineHotelBooking(item) && (
+                                      <Chip
+                                        size="small"
+                                        label="Online"
+                                        sx={{
+                                          bgcolor: "#ecfdf3",
+                                          color: "#067647",
+                                          fontWeight: 700,
+                                        }}
+                                      />
+                                    )}
                                     {(item.pricemode || item.Mode || item.priceMode) && (
                                       <Chip
                                         size="small"

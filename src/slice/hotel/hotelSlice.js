@@ -17,6 +17,57 @@ import { toCityOnly, extractCityNamesFromLocation, formatDestinationDisplay, nor
 // Selector to get DMC ID from dmc slice
 const selectDmcId = (state) => state.dmc?.dmcId;
 
+const toApiDate = (value) => {
+  if (!value) return "";
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+    return value.slice(0, 10);
+  }
+  const parsed = dayjs(value);
+  return parsed.isValid() ? parsed.format("YYYY-MM-DD") : "";
+};
+
+const toNumberList = (value) => {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((age) => Number(age))
+    .filter((age) => Number.isFinite(age));
+};
+
+const collectImageUrls = (images) => {
+  if (!Array.isArray(images)) return [];
+  return images
+    .map((image) => {
+      if (typeof image === "string") return image;
+      return image?.url || image?.image || image?.src || "";
+    })
+    .filter(Boolean);
+};
+
+const lowestRate = (hotel) => {
+  const rates = Array.isArray(hotel?.rates) ? hotel.rates : [];
+  const prices = rates
+    .map((rate) => Number(rate?.price ?? rate?.total ?? rate?.amount ?? rate?.rate ?? 0))
+    .filter((price) => price > 0);
+  if (prices.length > 0) return Math.min(...prices);
+  const fallback = Number(hotel?.price ?? hotel?.min_price ?? hotel?.dmc_price ?? 0);
+  return Number.isFinite(fallback) ? fallback : 0;
+};
+
+const normalizeOnlineHotel = (hotel) => {
+  const images = collectImageUrls(hotel?.images);
+  return {
+    ...hotel,
+    id: hotel?.hotel_id ?? hotel?.id,
+    hotel_id: hotel?.hotel_id ?? hotel?.id,
+    hotel_name: hotel?.hotel_name || hotel?.name || "",
+    site_image: images,
+    room_image: images,
+    dmc_price: lowestRate(hotel),
+    category: hotel?.category || hotel?.star_rating || hotel?.rating || "",
+    data_mode: "online",
+  };
+};
+
 // Async thunk for fetching hotels
 export const fetchHotels = createAsyncThunk(
   "hotels/fetchHotels",
@@ -26,8 +77,12 @@ export const fetchHotels = createAsyncThunk(
       const state = getState();
      const { location, ucheckIn, ucheckOut, guests } = state.hotels.searchState;
      const selectedDmcId = selectDmcId(state);
+     const dataMode = state.dmc?.dataMode || "online";
 
-     const { adults, children, infant } = guests;
+     const { adults, children, infant } = guests || {};
+     const guestCounts = state.common?.guestCounts || {};
+     const bookingGuests = state.bookings?.guests || {};
+     const tourDetails = state.hotels?.tourdetails || {};
 
       // Prefer the city sent in params (zone / city select). Fall back to search state.
       const locationSource =
@@ -46,6 +101,47 @@ export const fetchHotels = createAsyncThunk(
         throw new Error("Authorization and AgentId are missing.");
       }
 
+      const headers = {
+        Authorization: `Bearer ${authToken}`,
+        "agent-id": AgentId,
+      };
+
+      if (dataMode === "online") {
+        const city = String(formattedLocation || "")
+          .split(",")
+          .map((part) => part.trim())
+          .filter(Boolean)[0] || "";
+        const childAges = toNumberList(
+          guests?.ages ||
+            guests?.childrenAges ||
+            guestCounts?.ages ||
+            bookingGuests?.childrenAges ||
+            []
+        );
+        const payload = {
+          dmc_id: selectedDmcId != null ? Number(selectedDmcId) : null,
+          city,
+          check_in: toApiDate(ucheckIn),
+          check_out: toApiDate(ucheckOut),
+          adults: Number(adults ?? guests?.Adults ?? guestCounts?.Adults ?? tourDetails?.adult ?? 1) || 1,
+          children: Number(children ?? guests?.Children ?? guestCounts?.Children ?? tourDetails?.child ?? 0) || 0,
+          child_ages: childAges,
+          rooms: Number(guests?.rooms ?? bookingGuests?.rooms ?? tourDetails?.rooms ?? 1) || 1,
+        };
+
+        const response = await axios.get(`${BASE_URL}/online-hotels`, {
+          params: payload,
+          paramsSerializer: { indexes: false },
+          headers,
+        });
+
+        const hotels = response.data?.data?.hotels || [];
+        return {
+          hotels: hotels.map(normalizeOnlineHotel),
+          online: true,
+        };
+      }
+
       const response = await axios.get(
         `${BASE_URL}/location`,
         {
@@ -57,19 +153,27 @@ export const fetchHotels = createAsyncThunk(
             adults,
             children,
             infant,
-            dmc_id: selectedDmcId ? JSON.stringify([selectedDmcId]) : JSON.stringify([]) // Pass DMC ID as JSON string array for hotel listing
+            dmc_id: selectedDmcId ? JSON.stringify([selectedDmcId]) : JSON.stringify([])
                 // Added guests
           },
         
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-            "agent-id": AgentId,
-          },
+          headers,
         }
       );
 
-    //  console.log("API Response:", response.data);
-      return response.data;
+      const body = response.data;
+      const hotels = Array.isArray(body)
+        ? body
+        : Array.isArray(body?.data)
+          ? body.data
+          : Array.isArray(body?.hotels)
+            ? body.hotels
+            : [];
+
+      return hotels.map((hotel) => ({
+        ...hotel,
+        data_mode: "offline",
+      }));
     } catch (error) {
      // console.error("API Error:", error);
       return rejectWithValue(error.response?.data || error.message);
@@ -410,23 +514,29 @@ const hotelSlice = createSlice({
       })
       .addCase(fetchHotels.fulfilled, (state, action) => {
         state.status = "succeeded";
+
+        const isOnlineResult = action.payload?.online === true;
+        const incomingHotels = isOnlineResult
+          ? action.payload.hotels
+          : Array.isArray(action.payload)
+            ? action.payload
+            : [];
         
         // Check if response is an array (has data) or empty (no more data)
-        if (Array.isArray(action.payload) && action.payload.length > 0) {
+        if (Array.isArray(incomingHotels) && incomingHotels.length > 0) {
           // Avoid duplicate hotels
           const existingIds = state.hotels.map((hotel) => hotel.id);
-          const newHotels = action.payload.filter(
+          const newHotels = incomingHotels.filter(
             (hotel) => !existingIds.includes(hotel.id)
           );
 
           state.hotels = [...state.hotels, ...newHotels];
           
-          // Only set hasMore to true if we received the full amount requested
-          // This prevents additional calls if we receive fewer items than requested
-          state.hasMore = newHotels.length === 5; // Assuming limit is 5
+          // Online search returns the full list. Offline pages keep loading in batches of 5.
+          state.hasMore = isOnlineResult ? false : newHotels.length === 5;
           
           // Increment the start value
-          if (newHotels.length > 0) {
+          if (!isOnlineResult && newHotels.length > 0) {
             state.start += newHotels.length;
           }
         } else {

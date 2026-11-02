@@ -18,6 +18,14 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 
+const readSelectionId = (value) => {
+  if (value == null || value === "") return null;
+  const text = String(value).trim();
+  if (!text || text === "null" || text === "undefined") return null;
+  if (/^\d+$/.test(text)) return Number(text);
+  return text;
+};
+
 const RoomCard = ({
   title,
   price,
@@ -389,8 +397,8 @@ const handleRoomUpdate = (
 
 // Handler functions (unchanged)
 const handleAddRoom = (event) => {
-  const roomId = Number(event.currentTarget.getAttribute("data-room-id"));
-  const bedId = Number(event.currentTarget.getAttribute("data-bed-id"));
+  const roomId = readSelectionId(event.currentTarget.getAttribute("data-room-id"));
+  const bedId = readSelectionId(event.currentTarget.getAttribute("data-bed-id"));
   const personCount = parseInt(event.currentTarget.getAttribute("data-head"));
   const price = parseInt(event.currentTarget.getAttribute("data-price"));
   const bedType = event.currentTarget.getAttribute("data-bed-type");
@@ -423,8 +431,8 @@ const handleAddRoom = (event) => {
 };
 
 const handleIncrement = (event) => {
-  const roomId = Number(event.currentTarget.getAttribute("data-room-id"));
-  const bedId = Number(event.currentTarget.getAttribute("data-bed-id"));
+  const roomId = readSelectionId(event.currentTarget.getAttribute("data-room-id"));
+  const bedId = readSelectionId(event.currentTarget.getAttribute("data-bed-id"));
   const personCount = parseInt(event.currentTarget.getAttribute("data-head"));
   const price = parseInt(event.currentTarget.getAttribute("data-price"));
   const mealType = event.currentTarget.getAttribute("data-meal-type");
@@ -464,8 +472,8 @@ const handleIncrement = (event) => {
 };
 
 const handleDecrement = (event) => {
-  const roomId = Number(event.currentTarget.getAttribute("data-room-id"));
-  const bedId = Number(event.currentTarget.getAttribute("data-bed-id"));
+  const roomId = readSelectionId(event.currentTarget.getAttribute("data-room-id"));
+  const bedId = readSelectionId(event.currentTarget.getAttribute("data-bed-id"));
   const bedType = event.currentTarget.getAttribute("data-bed-type");
   const personCount = parseInt(event.currentTarget.getAttribute("data-head"));
   const price = parseInt(event.currentTarget.getAttribute("data-price"));
