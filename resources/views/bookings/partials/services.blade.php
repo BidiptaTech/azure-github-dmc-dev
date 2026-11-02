@@ -220,6 +220,12 @@
         color: #b91c1c !important;
     }
 
+    .svc-btn-cancel-zero {
+        background: #fff !important;
+        border: 1px solid #475569 !important;
+        color: #334155 !important;
+    }
+
     .svc-footer-btn {
         border-radius: 4px !important;
         font-size: 0.8rem !important;
@@ -1258,8 +1264,10 @@
                 '<i class="ri-check-line me-1"></i>Approve</button>';
         }
         if (opts.canReject && opts.onReject) {
-            html += '<button type="button" class="btn btn-sm svc-btn svc-btn-reject" onclick="' + opts.onReject + '">' +
-                '<i class="ri-close-line me-1"></i>Reject</button>';
+            html += '<button type="button" class="btn btn-sm svc-btn svc-btn-reject" onclick="window.__cancelWithoutRefund=false;' + opts.onReject + '">' +
+                '<i class="ri-close-line me-1"></i>Cancel with refund</button>';
+            html += '<button type="button" class="btn btn-sm svc-btn svc-btn-cancel-zero" onclick="window.__cancelWithoutRefund=true;' + opts.onReject + '">' +
+                '<i class="ri-close-circle-line me-1"></i>Cancel without refund</button>';
         }
         return html;
     };

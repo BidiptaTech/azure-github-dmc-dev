@@ -11054,6 +11054,11 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $status = Tour::where('tour_id', $tourId)->value('tour_status');
         if (in_array($status ?? '', ['Definite', 'Actual'], true)) {
             $updateData['is_refund'] = 1;
+            if (request()->boolean('without_refund')) {
+                $updateData['refund_amount'] = 0;
+                $updateData['is_verify'] = 1;
+                $updateData['refunded'] = true;
+            }
         }
 
         return $updateData;

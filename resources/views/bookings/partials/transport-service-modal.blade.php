@@ -444,8 +444,12 @@
                                                 @endif
                                                 @if($canRejectTransport)
                                                 <button type="button" class="btn btn-sm svc-btn svc-btn-reject"
-                                                        onclick="{{ $meta['rejectFn'] }}({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})">
-                                                    <i class="ri-close-line me-1"></i>Reject
+                                                        onclick="window.__cancelWithoutRefund=false; {{ $meta['rejectFn'] }}({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})">
+                                                    <i class="ri-close-line me-1"></i>Cancel with refund
+                                                </button>
+                                                <button type="button" class="btn btn-sm svc-btn svc-btn-cancel-zero"
+                                                        onclick="window.__cancelWithoutRefund=true; {{ $meta['rejectFn'] }}({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})">
+                                                    <i class="ri-close-circle-line me-1"></i>Cancel without refund
                                                 </button>
                                                 @endif
                                             @else

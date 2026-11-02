@@ -2136,7 +2136,7 @@
                                                             class="btn btn-outline-danger btn-sm px-2 py-1" 
                                                             onclick="rejectIndividualHotel({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }}, '{{ $actualCancelDateStr }}')"
                                                             style="border-radius: 6px; font-size: 0.75rem;">
-                                                        <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
+                                                        <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Cancel
                                                     </button>
                                                     @endif
                                                 </div>
@@ -2823,7 +2823,7 @@
                                                             class="btn btn-outline-danger btn-sm px-2 py-1" 
                                                              onclick="rejectIndividualRestaurant({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}, '{{ $actualCancelDateStr }}')"
                                                             style="border-radius: 6px; font-size: 0.75rem;">
-                                                        <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
+                                                        <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Cancel
                                                      </button>
                                                      @endif
                                                  </div>
@@ -3088,7 +3088,7 @@
                                                             class="btn btn-outline-danger btn-sm px-2 py-1" 
                                                              onclick="rejectIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
                                                             style="border-radius: 6px; font-size: 0.75rem;">
-                                                        <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
+                                                        <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Cancel
                                                      </button>
                                                      @endif
                                                  </div>
@@ -3964,7 +3964,7 @@
                                                             class="btn btn-outline-danger btn-sm px-2 py-1" 
                                                             onclick="rejectTravelHourlyBooking({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
                                                             style="border-radius: 6px; font-size: 0.75rem;">
-                                                        <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
+                                                        <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Cancel
                                                     </button>
                                                     @endif
                                                 </div>
@@ -4305,7 +4305,7 @@
                                                             class="btn btn-outline-danger btn-sm px-3 py-2" 
                                                             onclick="rejectTravelPointBooking({{ $tour->tour_id }}, {{ $index }}, {{ $actualBookingIndex }})"
                                                             style="border-radius: 25px;">
-                                                        <i class="ri-close-line me-1"></i>Reject
+                                                        <i class="ri-close-line me-1"></i>Cancel
                                                     </button>
                                                     @endif
                                                 </div>
@@ -4993,7 +4993,7 @@ function generateIndividualGuideContent(guideBooking, modalId, tourId, guideOrde
                                 class="btn btn-outline-danger btn-sm px-2 py-1" 
                                 onclick="rejectIndividualGuide(${tourId}, ${guideOrderIndex}, ${bookingIndex})"
                                 style="border-radius: 6px; font-size: 0.75rem;">
-                            <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
+                            <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Cancel
                         </button>
                     `;
                 }
@@ -6321,7 +6321,7 @@ function confirmIndividualTravelHourlyRejection(tourId, travelHourlyOrderIndex, 
         // Show loading state
         const rejectButton = event.target;
         const originalText = rejectButton.innerHTML;
-        rejectButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Rejecting...';
+        rejectButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Canceling...';
         rejectButton.disabled = true;
         
         console.log('⏰ INDIVIDUAL TRAVEL HOURLY REJECT: Submitting form data:', Object.fromEntries(formData.entries()));
@@ -7857,7 +7857,7 @@ function generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrde
                     buttonsHTML += `<button type="button" class="btn btn-sm svc-btn svc-btn-approve" onclick="approveIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')"><i class="ri-check-line me-1"></i>Approve</button>`;
                 }
                 if (canReject) {
-                    buttonsHTML += `<button type="button" class="btn btn-sm svc-btn svc-btn-reject" onclick="rejectIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')"><i class="ri-close-line me-1"></i>Reject</button>`;
+                    buttonsHTML += `<button type="button" class="btn btn-sm svc-btn svc-btn-reject" onclick="rejectIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')"><i class="ri-close-line me-1"></i>Cancel</button>`;
                 }
                 buttonsContainer.innerHTML = buttonsHTML;
             } else {
@@ -8859,7 +8859,7 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                     buttonsHTML += `
                         <button type="button" class="btn btn-sm svc-btn svc-btn-reject"
                                 onclick="window.rejectIndividualAttraction ? window.rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}') : rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')">
-                            <i class="ri-close-line me-1"></i>Reject
+                            <i class="ri-close-line me-1"></i>Cancel
                         </button>
                     `;
                 }
@@ -9427,7 +9427,7 @@ function loadIndividualRestaurantContent(tourId, restaurantOrderIndex, bookingIn
                                     class="btn btn-outline-danger btn-sm px-2 py-1" 
                                     onclick="rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')"
                                     style="border-radius: 6px; font-size: 0.75rem;">
-                                <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
+                                <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Cancel
                             </button>
                         `;
                     }
@@ -9619,7 +9619,7 @@ function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, 
                 <button type="button" 
                         class="btn btn-sm svc-btn svc-btn-reject" 
                         onclick="rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${autoCancelDate}')">
-                    <i class="ri-close-line me-1"></i>Reject
+                    <i class="ri-close-line me-1"></i>Cancel
                 </button>
             ` : ''}
             <button type="button" 
@@ -13569,7 +13569,7 @@ function generateIndividualTravelHourlyContent(travelHourlyData, modalId, tourId
                                     class="btn btn-outline-danger btn-sm px-2 py-1" 
                                     onclick="rejectTravelHourlyBooking(${tourId}, ${travelHourlyOrderIndex}, ${bookingIndex})"
                                     style="border-radius: 6px; font-size: 0.75rem;">
-                                <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Reject
+                                <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Cancel
                             </button>
                         `;
                     }
@@ -14839,7 +14839,7 @@ function displayTravelPointErrorContent(modalId, message) {
 //                                             class="btn btn-outline-danger btn-sm px-3 py-2" 
 //                                             onclick="rejectTravelPointBooking(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
 //                                             style="border-radius: 25px;">
-//                                         <i class="ri-close-line me-1"></i>Reject
+//                                         <i class="ri-close-line me-1"></i>Cancel
 //                                     </button>
 //                                     @endif
 //                                 </div>
@@ -15420,7 +15420,7 @@ function confirmIndividualTravelPointRejection(tourId, travelPointOrderIndex, bo
         // Show loading state
         const rejectButton = event.target;
         const originalText = rejectButton.innerHTML;
-        rejectButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Rejecting...';
+        rejectButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Canceling...';
         rejectButton.disabled = true;
         
         console.log('🚗 TRAVEL POINT REJECT: Submitting form data:', Object.fromEntries(formData.entries()));
@@ -16362,7 +16362,7 @@ function generateIndividualTravelPointContent(travelPointData, modalId, tourId, 
                                     class="btn btn-outline-danger btn-sm px-3 py-1" 
                                     onclick="rejectTravelPointBooking(${tourId}, ${travelPointOrderIndex}, ${bookingIndex})"
                                     style="border-radius: 8px; font-size: 0.85rem;">
-                                <i class="ri-close-line me-1"></i>Reject
+                                <i class="ri-close-line me-1"></i>Cancel
                             </button>
                         `;
                     }
@@ -17328,7 +17328,7 @@ function generateIndividualLocalTransportContent(localTransportData, modalId, to
                             buttonsHTML += `<button type="button" class="btn btn-sm svc-btn svc-btn-edit" onclick="editIndividualLocalTransport(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})"><i class="ri-edit-line me-1"></i>Edit</button>`;
                         }
                         if (canReject) {
-                            buttonsHTML += `<button type="button" class="btn btn-sm svc-btn svc-btn-reject" onclick="rejectIndividualLocalTransport(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})"><i class="ri-close-line me-1"></i>Reject</button>`;
+                            buttonsHTML += `<button type="button" class="btn btn-sm svc-btn svc-btn-reject" onclick="rejectIndividualLocalTransport(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})"><i class="ri-close-line me-1"></i>Cancel</button>`;
                         }
                     }
                 } else {
@@ -20974,7 +20974,7 @@ function confirmIndividualHotelRejection(tourId, hotelOrderIndex, bookingIndex) 
         // Show loading state
         const rejectButton = event.target;
         const originalText = rejectButton.innerHTML;
-        rejectButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Rejecting...';
+        rejectButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Canceling...';
         rejectButton.disabled = true;
         
         // Get reject reason
@@ -23636,7 +23636,7 @@ function confirmIndividualAttractionRejection(tourId, attractionOrderIndex, book
         // Show loading state
         const rejectButton = event.target;
         const originalText = rejectButton.innerHTML;
-        rejectButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Rejecting...';
+        rejectButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Canceling...';
         rejectButton.disabled = true;
         
         // Here you would typically send the data to the server
@@ -24826,7 +24826,7 @@ function confirmIndividualRestaurantRejection(tourId, restaurantOrderIndex, book
         // Show loading state
         const rejectButton = event.target;
         const originalText = rejectButton.innerHTML;
-        rejectButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Rejecting...';
+        rejectButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Canceling...';
         rejectButton.disabled = true;
         
         console.log('Rejecting individual restaurant booking:', Object.fromEntries(formData.entries()));

@@ -2903,12 +2903,12 @@
         wrap.innerHTML =
             '<div class="stp-reject-card" role="dialog" aria-modal="true">' +
             '  <div class="stp-reject-icon"><i class="ri-error-warning-line"></i></div>' +
-            '  <h2 id="stpLiteRejectRefundTitle">Reject service?</h2>' +
+            '  <h2 id="stpLiteRejectRefundTitle">Partial cancellation &amp; Refund?</h2>' +
             '  <p id="stpLiteRejectRefundBody"></p>' +
-            '  <div class="stp-reject-note"><i class="ri-shield-check-line"></i><span><strong>Tour status</strong> and <strong>payment details</strong> stay unchanged. Only this service is rejected (refunds workflow). <strong>This cannot be undone.</strong></span></div>' +
+            '  <div class="stp-reject-note"><i class="ri-shield-check-line"></i><span><strong>Tour status</strong> and <strong>payment details</strong> stay unchanged. Only this service is included in partial cancellation &amp; refund. <strong>This cannot be undone.</strong></span></div>' +
             '  <div class="stp-reject-actions">' +
-            '    <button type="button" id="stpLiteRejectRefundCancel" class="stp-reject-cancel">Cancel</button>' +
-            '    <button type="button" id="stpLiteRejectRefundOk" class="stp-reject-ok">Yes, Reject</button>' +
+            '    <button type="button" id="stpLiteRejectRefundCancel" class="stp-reject-cancel">Close</button>' +
+            '    <button type="button" id="stpLiteRejectRefundOk" class="stp-reject-ok">Cancel</button>' +
             '  </div>' +
             '</div>';
         document.body.appendChild(wrap);
@@ -2922,8 +2922,8 @@
         var ok = document.getElementById('stpLiteRejectRefundOk');
         var cancel = document.getElementById('stpLiteRejectRefundCancel');
         var label = serviceLabel || 'Service';
-        title.textContent = 'Reject ' + label + '?';
-        body.innerHTML = 'Reject this <strong>' + esc(label) + '</strong> service for refund / credit processing?';
+        title.textContent = 'Partial cancellation & Refund?';
+        body.innerHTML = 'Partial cancellation &amp; refund for this <strong>' + esc(label) + '</strong> service?';
         dialog.style.display = 'flex';
 
         function close() {

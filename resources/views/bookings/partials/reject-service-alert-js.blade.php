@@ -124,7 +124,7 @@
 }
 </style>
 <script>
-function showRejectServiceAlert(serviceType, callback, tourId) {
+function showRejectServiceAlert(serviceType, callback, tourId, withoutRefund) {
     const labels = {
         'hotel': 'Hotel', 'restaurant': 'Restaurant', 'attraction': 'Attraction', 'guide': 'Guide',
         'arrival': 'Arrival Transfer', 'departure': 'Departure Transfer', 'hourly': 'Hourly Transport',
@@ -137,18 +137,24 @@ function showRejectServiceAlert(serviceType, callback, tourId) {
 
     const iconHtml = `<div class="reject-modal-icon"><i class="ri-error-warning-line"></i></div>`;
     const titleHtml = `<h2 class="reject-modal-title">Reject ${serviceLabel}?</h2>`;
+    const titleRefundsHtml = `<h2 class="reject-modal-title">Partial cancellation &amp; Refund?</h2>`;
     const msgWithNegotiation = `${iconHtml}${titleHtml}
         <p class="mb-0">Permanently reject this <strong>${serviceLabel}</strong> service?</p>
         <div class="reject-info-note"><i class="ri-information-line"></i><span>Tour status may revert to <strong>New Enquiry</strong> and payment details will be cleared. <strong>Cannot be undone.</strong></span></div>`;
     const msgNoNegotiation = `${iconHtml}${titleHtml}
         <p class="mb-0">Permanently reject this <strong>${serviceLabel}</strong> service? <strong>This cannot be undone.</strong></p>`;
-    /* Same idea as refunds: only this service is rejected; tour & payment stay as-is */
-    const msgRefundsStyle = `${iconHtml}${titleHtml}
-        <p class="mb-0">Reject this <strong>${serviceLabel}</strong> service for refund / credit processing?</p>
-        <div class="reject-info-note reject-info-note--refunds"><i class="ri-shield-check-line"></i><span><strong>Tour status</strong> and <strong>payment details</strong> stay unchanged. Only this service is rejected (refunds workflow). <strong>This cannot be undone.</strong></span></div>`;
+    const msgRefundsStyle = `${iconHtml}${titleRefundsHtml}
+        <p class="mb-0">Partial cancellation &amp; refund for this <strong>${serviceLabel}</strong> service?</p>
+        <div class="reject-info-note reject-info-note--refunds"><i class="ri-shield-check-line"></i><span><strong>Tour status</strong> and <strong>payment details</strong> stay unchanged. Only this service is included in partial cancellation &amp; refund. <strong>This cannot be undone.</strong></span></div>`;
+    const titleZeroHtml = `<h2 class="reject-modal-title">Cancel without refund?</h2>`;
+    const msgZeroRefund = `${iconHtml}${titleZeroHtml}
+        <p class="mb-0">Remove this <strong>${serviceLabel}</strong> service and complete the refund at <strong>0</strong>?</p>
+        <div class="reject-info-note reject-info-note--refunds"><i class="ri-shield-check-line"></i><span><strong>Tour status</strong> and <strong>payment details</strong> stay unchanged. The refund is completed with <strong>0</strong> payment. <strong>This cannot be undone.</strong></span></div>`;
 
     let html;
-    if (isDefiniteOrActualPage) {
+    if (isDefiniteOrActualPage && withoutRefund) {
+        html = msgZeroRefund;
+    } else if (isDefiniteOrActualPage) {
         html = msgRefundsStyle;
     } else if (hasNegotiation) {
         html = msgWithNegotiation;
@@ -163,8 +169,8 @@ function showRejectServiceAlert(serviceType, callback, tourId) {
         showCancelButton: true,
         confirmButtonColor: '#dc2626',
         cancelButtonColor: '#64748b',
-        confirmButtonText: 'Yes, Reject',
-        cancelButtonText: 'Cancel',
+        confirmButtonText: isDefiniteOrActualPage ? 'Cancel' : 'Yes, Reject',
+        cancelButtonText: isDefiniteOrActualPage ? 'Close' : 'Cancel',
         width: '400px',
         padding: '0',
         customClass: {
@@ -179,7 +185,85 @@ function showRejectServiceAlert(serviceType, callback, tourId) {
         didOpen: () => document.querySelector('.swal2-container')?.classList.add('reject-modal-backdrop'),
         didClose: () => document.querySelector('.swal2-container')?.classList.remove('reject-modal-backdrop')
     }).then((result) => {
+        if (!result.isConfirmed) {
+            window.__cancelWithoutRefund = false;
+        }
         if (result.isConfirmed && typeof callback === 'function') callback();
     });
 }
+
+(function () {
+    if (window.__cancelRefundButtonsReady) return;
+    window.__cancelRefundButtonsReady = true;
+
+    var nativeFetch = window.fetch;
+    if (typeof nativeFetch === 'function') {
+        window.fetch = function (url, options) {
+            var target = typeof url === 'string' ? url : (url && url.url) || '';
+            if (window.__cancelWithoutRefund && target.indexOf('/booking/reject-') !== -1 && options) {
+                window.__cancelWithoutRefund = false;
+                if (typeof options.body === 'string') {
+                    try {
+                        var payload = JSON.parse(options.body);
+                        payload.without_refund = 1;
+                        options = Object.assign({}, options, { body: JSON.stringify(payload) });
+                    } catch (e) { /* leave body unchanged */ }
+                } else if (typeof FormData !== 'undefined' && options.body instanceof FormData) {
+                    options.body.append('without_refund', '1');
+                }
+            }
+            return nativeFetch.call(this, url, options);
+        };
+    }
+
+    function labelOf(btn) {
+        return (btn.textContent || '').replace(/\s+/g, ' ').trim();
+    }
+
+    function setLabel(btn, label) {
+        var icon = btn.querySelector('i');
+        if (!icon) {
+            btn.textContent = label;
+            return;
+        }
+        btn.textContent = '';
+        btn.appendChild(icon);
+        btn.appendChild(document.createTextNode(label));
+    }
+
+    function splitCancelButtons() {
+        document.querySelectorAll('button').forEach(function (btn) {
+            if (btn.dataset.refundSplit) return;
+            var onclick = btn.getAttribute('onclick') || '';
+            if (onclick.indexOf('__cancelWithoutRefund') !== -1) {
+                btn.dataset.refundSplit = 'ready';
+                return;
+            }
+            if (!/reject(Individual|Travel|Arrival|Departure)/.test(onclick)) return;
+            var label = labelOf(btn);
+            if (label !== 'Cancel') return;
+            btn.dataset.refundSplit = 'with';
+            setLabel(btn, 'Cancel with refund');
+            btn.setAttribute('onclick', 'window.__cancelWithoutRefund=false;' + onclick);
+            var zero = btn.cloneNode(true);
+            zero.dataset.refundSplit = 'without';
+            zero.classList.remove('svc-btn-reject', 'btn-outline-danger');
+            zero.classList.add('svc-btn-cancel-zero');
+            zero.setAttribute('onclick', 'window.__cancelWithoutRefund=true;' + onclick);
+            setLabel(zero, 'Cancel without refund');
+            var icon = zero.querySelector('i');
+            if (icon) icon.className = icon.className.replace('ri-close-line', 'ri-close-circle-line');
+            btn.insertAdjacentElement('afterend', zero);
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', splitCancelButtons);
+    } else {
+        splitCancelButtons();
+    }
+    if (window.MutationObserver && document.body) {
+        new MutationObserver(function () { splitCancelButtons(); }).observe(document.body, { childList: true, subtree: true });
+    }
+})();
 </script>
