@@ -60,8 +60,18 @@ const HotelSingleV1Dynamic = () => {
     if (!stateHotel) return;
 
     dispatch(setCheckoutHotel(stateHotel));
-    dispatch(setHotelDetails(stateHotel));
-    if (stateHotel.images) dispatch(setHotelImages(stateHotel.images));
+    const detailsId = hotelDetails?.hotel_id || hotelDetails?.id;
+    const listingId = stateHotel.hotel_id || stateHotel.id;
+    const detailsAlreadyLoaded =
+      hotelDetails?.data_mode === "online" &&
+      detailsId &&
+      listingId &&
+      String(detailsId) === String(listingId) &&
+      Boolean(hotelDetails?.description || hotelDetails?.address);
+    if (!detailsAlreadyLoaded) {
+      dispatch(setHotelDetails(stateHotel));
+      if (stateHotel.images) dispatch(setHotelImages(stateHotel.images));
+    }
 
     const selectedMode = location.state?.priceMode;
     const selectedModeId = location.state?.priceModeId;
@@ -73,9 +83,17 @@ const HotelSingleV1Dynamic = () => {
   }, [dispatch, location.state]);
 
   useEffect(() => {
-    const hasRooms = Boolean(roomData?.room_data?.length);
     const hotelId = hotel?.id || hotel?.hotel_id || roomsHotelId;
-    if (hasRooms || !hotelId || roomsStatus === "loading") return;
+    const wantsOnline = hotel?.data_mode === "online";
+    const loadedId = String(roomData?.hotel_id || "");
+    const hotelIds = [hotel?.id, hotel?.hotel_id, hotelId]
+      .filter((value) => value != null && value !== "")
+      .map(String);
+    const roomsMatchThisHotel =
+      roomData?.loaded === true &&
+      hotelIds.includes(loadedId) &&
+      (wantsOnline ? roomData?.online === true : roomData?.online !== true);
+    if (roomsMatchThisHotel || !hotelId || roomsStatus === "loading") return;
 
     const selectedMode = location.state?.priceMode
       || (typeof categoryPriceMode === "string"
@@ -94,10 +112,12 @@ const HotelSingleV1Dynamic = () => {
     dispatch(
       fetchRoomData({
         id: hotelId,
+        hotel_id: hotel?.hotel_id || hotelId,
         tour_id: effectiveTourId,
         priceMode: selectedMode,
         priceModeId,
         dmc_id: hotel?.dmc_id,
+        online: hotel?.data_mode === "online",
       })
     );
   }, [

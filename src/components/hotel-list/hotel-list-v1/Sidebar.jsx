@@ -347,7 +347,7 @@ const Sidebar = () => {
       <div className="sidebar__item -no-border">
         <h5 className="text-18 fw-500 mb-10">DMC</h5>
         <div className="sidebar-checkbox">
-          <DmcFilter />
+          <DmcFilter showMode />
         </div>
       </div>
       
