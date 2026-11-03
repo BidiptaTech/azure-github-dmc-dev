@@ -826,7 +826,7 @@
                 <!-- End Products Section -->
             @endif
 
-            @if(in_array(auth()->user()->role_id, [1,2,3,4,10,11,20]))
+            @if(in_array(auth()->user()->role_id, [1,2,3,4,10,11,20,138]))
               <!-- Finance & Wallet -->
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Finance">Finance</span>
@@ -859,11 +859,15 @@
                     </a>
                 </li>
                 @endif
+            @endif
+
+            {{-- View Reports: same tabs for admin/finance roles + multi-role 138 (sales+finance+operation+product) --}}
+            @if(in_array(auth()->user()->role_id, [1,2,3,4,10,11,20,33,37,38,128,129,130,134,135,136,138]))
               <!-- Reports -->
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="View Reports">View Reports</span>
                 </li>
-                <li class="menu-item @if(Request::is('reports/sales-revenue*') || Request::is('reports/ledger') || Request::is('reports/balance-sheet*') || Request::is('booking-list/daily-arrival')) open active @endif">
+                <li class="menu-item @if(Request::is('reports/sales-revenue*') || Request::is('reports/ledger') || Request::is('reports/balance-sheet*') || Request::is('reports/redeemed-restaurant-vouchers*') || Request::is('booking-list/daily-arrival')) open active @endif">
                     <a href="#" class="menu-link menu-toggle">
                         <i class="menu-icon tf-icons ri-bar-chart-box-line"></i>
                         <div data-i18n="Reports & Analytics">Reports & Analytics</div>
@@ -881,13 +885,18 @@
                                     <div data-i18n="Ledger Report">Ledger Report</div>
                                 </a>
                             </li>
+                            <li class="menu-item @if(Request::is('reports/redeemed-restaurant-vouchers*')) active @endif">
+                                <a href="{{ route('reports.redeemed-restaurant-vouchers') }}" class="menu-link">
+                                    <div data-i18n="Redeemed Voucher (Restaurant)">Redeemed Voucher (Restaurant)</div>
+                                </a>
+                            </li>
                         @endif
                         {{-- <li class="menu-item @if(Request::is('reports/balance-sheet')) active @endif">
                             <a href="{{ route('reports.balance-sheet') }}" class="menu-link">
                                 <div data-i18n="Balance Sheet & P&L">Balance Sheet & P&L</div>
                             </a>
                         </li> --}}
-                        @if(in_array(auth()->user()->role_id, [11, 36, 126,127]))
+                        @if(in_array(auth()->user()->role_id, [11, 36, 126, 127, 138]))
                             <li class="menu-item @if(Request::is('booking-list/daily-arrival')) active @endif">
                                 <a href="{{ route('booking-list.daily-arrival') }}" class="menu-link">
                                     <div data-i18n="Daily Arrival">Daily Arrival</div>

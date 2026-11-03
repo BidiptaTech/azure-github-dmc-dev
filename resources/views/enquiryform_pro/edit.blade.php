@@ -1194,7 +1194,6 @@
 <!-- SweetAlert2 for remove form selection confirmation -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
-@include('enquiryform_pro.partials.modal-save-loader')
 @include('enquiryform_pro.partials.remove-form-selection-alert-js')
 @include('enquiryform_pro.partials.hotel-check-times-js')
 @include('enquiryform_pro.partials.stay-rate-full-calendar')
@@ -3161,7 +3160,7 @@ window.enquiryProCancelOrderUrl = @json(url('/api/orders/__ID__/cancel'));
                 <button type="button" class="btn btn-secondary btn-sm" onclick="addAnotherAccommodation()" style="font-size: 11px;">
                     <i class="ri-add-line me-1"></i>Add Another
                 </button>
-                <button type="button" class="btn btn-primary btn-sm" onclick="epSaveAccommodation()" id="saveAccommodationBtn" style="font-size: 11px;">
+                <button type="button" class="btn btn-primary btn-sm" onclick="saveSelectedHotels()" id="saveAccommodationBtn" style="font-size: 11px;">
                     <i class="ri-save-line me-1"></i><span id="saveAccommodationBtnText">Save & Close</span>
                 </button>
                 <button type="button" class="btn btn-danger btn-sm" data-bs-dismiss="modal" style="font-size: 11px;">
@@ -3353,7 +3352,7 @@ window.enquiryProCancelOrderUrl = @json(url('/api/orders/__ID__/cancel'));
                 <button type="button" class="btn btn-secondary btn-sm" onclick="addAnotherAttraction()" style="font-size: 11px;">
                     <i class="ri-add-line me-1"></i>Add Another
                 </button>
-                <button type="button" class="btn btn-primary btn-sm" id="saveAttractionBtn" onclick="epSaveAttractions()" style="font-size: 11px;">
+                <button type="button" class="btn btn-primary btn-sm" onclick="saveAndCloseAttractions()" style="font-size: 11px;">
                     <i class="ri-save-line me-1"></i>Save & Close
                 </button>
                 <button type="button" class="btn btn-danger btn-sm" data-bs-dismiss="modal" style="font-size: 11px;">
@@ -3449,7 +3448,7 @@ window.enquiryProCancelOrderUrl = @json(url('/api/orders/__ID__/cancel'));
                 <button type="button" class="btn btn-secondary btn-sm" onclick="addAnotherGuide()" style="font-size: 11px;">
                     <i class="ri-add-line me-1"></i>Add Another
                 </button>
-                <button type="button" class="btn btn-primary btn-sm" id="saveGuideBtn" onclick="epSaveGuides()" style="font-size: 11px;">
+                <button type="button" class="btn btn-primary btn-sm" onclick="saveAndCloseGuides()" style="font-size: 11px;">
                     <i class="ri-save-line me-1"></i>Save & Close
                 </button>
                 <button type="button" class="btn btn-danger btn-sm" data-bs-dismiss="modal" style="font-size: 11px;">
@@ -3524,7 +3523,7 @@ window.enquiryProCancelOrderUrl = @json(url('/api/orders/__ID__/cancel'));
                 <button type="button" class="btn btn-secondary btn-sm" onclick="addAnotherMisc()" style="font-size: 11px;">
                     <i class="ri-add-line me-1"></i>Add Another
                 </button>
-                <button type="button" class="btn btn-primary btn-sm" id="saveMiscBtn" onclick="epSaveMisc()" style="font-size: 11px;">
+                <button type="button" class="btn btn-primary btn-sm" id="saveMiscBtn" onclick="saveAndCloseMisc()" style="font-size: 11px;">
                     <i class="ri-save-line me-1"></i><span id="saveMiscBtnText">Save & Close</span>
                 </button>
                 <button type="button" class="btn btn-danger btn-sm" data-bs-dismiss="modal" style="font-size: 11px;">
@@ -3795,7 +3794,7 @@ window.enquiryProCancelOrderUrl = @json(url('/api/orders/__ID__/cancel'));
                 <button type="button" class="btn btn-secondary btn-sm" onclick="addAnotherMeal()" style="font-size: 11px;">
                     <i class="ri-add-line me-1"></i>Add Another
                 </button>
-                <button type="button" class="btn btn-primary btn-sm" id="saveMealBtn" onclick="epSaveMeals()" style="font-size: 11px;">
+                <button type="button" class="btn btn-primary btn-sm" onclick="saveAndCloseMeals()" style="font-size: 11px;">
                     <i class="ri-save-line me-1"></i>Save & Close
                 </button>
                 <button type="button" class="btn btn-danger btn-sm" data-bs-dismiss="modal" style="font-size: 11px;">
@@ -4414,7 +4413,7 @@ window.enquiryProCancelOrderUrl = @json(url('/api/orders/__ID__/cancel'));
                 <button type="button" class="btn btn-secondary btn-sm" onclick="addAnotherTransfer()" style="font-size: 11px;">
                     <i class="ri-add-line me-1"></i>Add Another
                 </button>
-                <button type="button" class="btn btn-primary btn-sm" onclick="epSaveTransfer()" id="saveTransferBtn" style="font-size: 11px;">
+                <button type="button" class="btn btn-primary btn-sm" onclick="saveTransferPackage()" id="saveTransferBtn" style="font-size: 11px;">
                     <i class="ri-save-line me-1"></i><span id="saveTransferBtnText">Save & Close</span>
                 </button>
                 <button type="button" class="btn btn-danger btn-sm" data-bs-dismiss="modal" style="font-size: 11px;">
@@ -14514,7 +14513,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         }
         document.getElementById('selectedHotelsList').innerHTML = '';
         document.getElementById('noHotelsMessage').style.display = 'block';
-        window.enquiryProSetSaveBtnText('saveAccommodationBtnText', 'Save & Close');
+        var _epSaveAccTxt = document.getElementById('saveAccommodationBtnText'); if (_epSaveAccTxt) _epSaveAccTxt.textContent = 'Save & Close';
         
         // Hide room combinations section initially
         const roomCombinationsSection = document.getElementById('roomCombinationsSection');
@@ -21896,7 +21895,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         document.getElementById('modalTitleText').textContent = 'Edit Hotel';
         
         // Change the save button text to "Update"
-        window.enquiryProSetSaveBtnText('saveAccommodationBtnText', 'Save & Close');
+        var _epSaveAccTxt = document.getElementById('saveAccommodationBtnText'); if (_epSaveAccTxt) _epSaveAccTxt.textContent = 'Save & Close';
         
         // Open the modal FIRST
         const accommodationModalEl = document.getElementById('accommodationModal');
@@ -21943,7 +21942,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         document.getElementById('modalTitleIcon').className = 'ri-flight-takeoff-line me-2';
         document.getElementById('modalTitleText').textContent = 'Add Arrival / Departure';
         document.getElementById('arrivalDepartureSectionTitle').textContent = 'Arrival/Departure Flight Information';
-        window.enquiryProSetSaveBtnText('saveAccommodationBtnText', 'Save & Close');
+        var _epSaveAccTxt = document.getElementById('saveAccommodationBtnText'); if (_epSaveAccTxt) _epSaveAccTxt.textContent = 'Save & Close';
         
         // Hide hotel selection sections
         document.getElementById('hotelSelectionRow1').style.display = 'none';
@@ -22932,9 +22931,9 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             
             // Update button text based on type
             if (arrivalDeparture.type === 'Arrival') {
-                window.enquiryProSetSaveBtnText('saveAccommodationBtnText', 'Save & Close');
+                var _epSaveAccTxt = document.getElementById('saveAccommodationBtnText'); if (_epSaveAccTxt) _epSaveAccTxt.textContent = 'Save & Close';
             } else {
-                window.enquiryProSetSaveBtnText('saveAccommodationBtnText', 'Save & Close');
+                var _epSaveAccTxt = document.getElementById('saveAccommodationBtnText'); if (_epSaveAccTxt) _epSaveAccTxt.textContent = 'Save & Close';
             }
             
             // Set editing flags (isArrivalDepartureOnlyMode already set earlier)
@@ -32113,7 +32112,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         window._localTransferRestoreState = null;
         window.editingTransferIndex = null;
         document.getElementById('transferModalTitleText').textContent = 'Add Transfer Package';
-        window.enquiryProSetSaveBtnText('saveTransferBtnText', 'Save & Close');
+        var _epSaveTfTxt = document.getElementById('saveTransferBtnText'); if (_epSaveTfTxt) _epSaveTfTxt.textContent = 'Save & Close';
         
         // Auto-fill adults, children, infants, and country from header
         autoFillModalFields('transfer');
@@ -33775,7 +33774,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         if (_tpFoc) _tpFoc.checked = !!transfer.focServiceDiscount;
 
         document.getElementById('transferModalTitleText').textContent = 'Edit Transfer Package';
-        window.enquiryProSetSaveBtnText('saveTransferBtnText', 'Save & Close');
+        var _epSaveTfTxt = document.getElementById('saveTransferBtnText'); if (_epSaveTfTxt) _epSaveTfTxt.textContent = 'Save & Close';
         
         const showTransferEditModal = function () {
             if (typeof bindTransferModalLocationRestore === 'function') {
