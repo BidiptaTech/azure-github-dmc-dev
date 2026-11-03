@@ -768,6 +768,7 @@
             @foreach($geoGroup['items'] as $item)
             @php
                 $serviceDetails = $item->service_details ?? [];
+                $attractionPax = \App\Services\InvoiceService::resolveAttractionDisplayPax($item, $invoice ?? null);
                 $visitDate = $serviceDetails['booking_date'] ?? '';
                 $visitDateDisplay = '';
                 if ($visitDate) {
@@ -803,9 +804,9 @@
                 <td>{{ $vehicleDetails ?: '' }}</td>
                 <td>{{ $guideRequiredDisplay }}</td>
                 <td>{{ $guideNameDisplay }}</td>
-                <td>{{ $item->quantity_adults ?? 0 }}</td>
-                <td>{{ $item->quantity_children ?? 0 }}</td>
-                <td>{{ $item->quantity_infants ?? 0 }}</td>
+                <td>{{ $attractionPax['adults'] ?? 0 }}</td>
+                <td>{{ $attractionPax['children'] ?? 0 }}</td>
+                <td>{{ $attractionPax['infants'] ?? 0 }}</td>
             </tr>
             @endforeach
         </tbody>
@@ -839,6 +840,7 @@
             @foreach($geoGroup['items'] as $item)
             @php
                 $serviceDetails = $item->service_details ?? [];
+                $restaurantPax = \App\Services\InvoiceService::resolveRestaurantDisplayPax($item, $invoice ?? null);
                 $visitDate = $serviceDetails['booking_date'] ?? '';
                 $visitDateDisplay = '';
                 if ($visitDate) {
@@ -859,16 +861,16 @@
             @endphp
             <tr>
                 <td>{{ $serviceDetails['restaurant_name'] ?? ($item->description ?? '') }}</td>
-                <td>{{ $serviceDetails['meal_type'] ?? '' }}</td>
+                <td>{{ $restaurantPax['meal_type'] ?? ($serviceDetails['meal_type'] ?? '') }}</td>
                 <td>{{ $visitDateDisplay }}</td>
                 <td>{{ $transferRequired }}</td>
                 <td>{{ $transferType ?: '' }}</td>
                 <td>{{ $transferWay ?: '' }}</td>
                 <td>{{ $vehicleDetails ?: '' }}</td>
                 @if($isPro)<td>{{ $restaurantGuideDisplay }}</td>@endif
-                <td>{{ $item->quantity_adults ?? 0 }}</td>
-                <td>{{ $item->quantity_children ?? 0 }}</td>
-                <td>{{ $item->quantity_infants ?? 0 }}</td>
+                <td>{{ $restaurantPax['adults'] ?? 0 }}</td>
+                <td>{{ $restaurantPax['children'] ?? 0 }}</td>
+                <td>{{ $restaurantPax['infants'] ?? 0 }}</td>
             </tr>
             @endforeach
         </tbody>

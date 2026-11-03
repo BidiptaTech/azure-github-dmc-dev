@@ -822,6 +822,7 @@ use Illuminate\Support\Facades\Crypt;
                                 @foreach($geoGroup['items'] as $item)
                                 @php
                                     $serviceDetails = $item->service_details ?? [];
+                                    $attractionPax = \App\Services\InvoiceService::resolveAttractionDisplayPax($item, $invoice ?? null);
                                     $visitDate = $serviceDetails['booking_date'] ?? '';
                                     $visitDateDisplay = 'N/A';
                                     if ($visitDate) {
@@ -857,9 +858,9 @@ use Illuminate\Support\Facades\Crypt;
                                     <td>{{ $vehicleDetails ?: 'N/A' }}</td>
                                     <td>{{ $guideRequiredDisplay }}</td>
                                     <td>{{ $guideNameDisplay ?: 'N/A' }}</td>
-                                    <td>{{ $item->quantity_adults ?? 0 }}</td>
-                                    <td>{{ $item->quantity_children ?? 0 }}</td>
-                                    <td>{{ $item->quantity_infants ?? 0 }}</td>
+                                    <td>{{ $attractionPax['adults'] ?? 0 }}</td>
+                                    <td>{{ $attractionPax['children'] ?? 0 }}</td>
+                                    <td>{{ $attractionPax['infants'] ?? 0 }}</td>
                                     @php
                                         $attractionDisplayTotal = isset($attractionCorrectedTotals[$item->id]) ? $attractionCorrectedTotals[$item->id] : ($item->total_price ?? 0);
                                         $attractionDisplayUnit = isset($attractionCorrectedTotals[$item->id]) ? $attractionDisplayTotal : ($item->unit_price ?? 0);
@@ -900,6 +901,7 @@ use Illuminate\Support\Facades\Crypt;
                                 @foreach($geoGroup['items'] as $item)
                                 @php
                                     $serviceDetails = $item->service_details ?? [];
+                                    $restaurantPax = \App\Services\InvoiceService::resolveRestaurantDisplayPax($item, $invoice ?? null);
                                     $visitDate = $serviceDetails['booking_date'] ?? '';
                                     $visitDateDisplay = 'N/A';
                                     if ($visitDate) {
@@ -916,15 +918,15 @@ use Illuminate\Support\Facades\Crypt;
                                 @endphp
                                 <tr>
                                     <td><strong>{{ $serviceDetails['restaurant_name'] ?? ($item->description ?? 'N/A') }}</strong></td>
-                                    <td>{{ $serviceDetails['meal_type'] ?? 'N/A' }}</td>
+                                    <td>{{ $restaurantPax['meal_type'] ?? ($serviceDetails['meal_type'] ?? 'N/A') }}</td>
                                     <td>{{ $visitDateDisplay }}</td>
                                     <td>{{ $transferRequired }}</td>
                                     <td>{{ $transferType ?: 'N/A' }}</td>
                                     <td>{{ $transferWay ?: 'N/A' }}</td>
                                     <td>{{ $vehicleDetails ?: 'N/A' }}</td>
-                                    <td>{{ $item->quantity_adults ?? 0 }}</td>
-                                    <td>{{ $item->quantity_children ?? 0 }}</td>
-                                    <td>{{ $item->quantity_infants ?? 0 }}</td>
+                                    <td>{{ $restaurantPax['adults'] ?? 0 }}</td>
+                                    <td>{{ $restaurantPax['children'] ?? 0 }}</td>
+                                    <td>{{ $restaurantPax['infants'] ?? 0 }}</td>
                                     @php
                                         $restaurantDisplayTotal = isset($restaurantCorrectedTotals[$item->id]) ? $restaurantCorrectedTotals[$item->id] : ($item->total_price ?? 0);
                                         $restaurantDisplayUnit = isset($restaurantCorrectedTotals[$item->id]) ? $restaurantDisplayTotal : ($item->unit_price ?? 0);
