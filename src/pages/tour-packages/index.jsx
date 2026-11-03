@@ -1,17 +1,11 @@
-import TourPackages from '@/components/Tour-Packages'; 
-import React from 'react';
-import Header11 from '@/components/header/header-11';
-import DefaultFooter from '@/components/footer/default';
+import TourPackages from "@/components/Tour-Packages";
+import React from "react";
 
+/** Standalone fallback — PartnerLayout supplies the header under /app. */
 export default function TourPackagesPage() {
   return (
-    <>
-      <Header11 />
     <div className="tour-packages-page">
-      
-      <TourPackages />
+      <TourPackages mode="packages" />
     </div>
-    <DefaultFooter />
-    </>
-  )
+  );
 }

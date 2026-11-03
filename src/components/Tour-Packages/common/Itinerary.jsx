@@ -608,21 +608,21 @@ export default function Itinerary({ onBookingSuccess }) {
           width: shouldShowSidebar() ? '75%' : '100%',
         }}>
           {/* Top Level Hotel Section */}
-          <Paper elevation={2} sx={{ p: 2, mb: 2, borderRadius: 1.5 }}>
+          <Paper elevation={0} sx={{ p: 2, mb: 2, borderRadius: '13px', border: '1px solid #e4eaf3' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
               <Box 
                 sx={{ 
-                  bgcolor: 'primary.main', 
-                  color: 'white', 
+                  bgcolor: '#eef3ff', 
+                  color: '#3554D1', 
                   p: 0.5, 
-                  borderRadius: '50%', 
+                  borderRadius: '8px', 
                   mr: 0.8,
                   display: 'flex'
                 }}
               >
                 <HotelIcon sx={{ fontSize: '1rem' }} />
               </Box>
-              <Typography variant="h6" sx={{ fontSize: '1.1rem' }}>Hotels</Typography>
+              <Typography variant="h6" sx={{ fontSize: '1.05rem', fontWeight: 700, color: '#14213d' }}>Hotels</Typography>
             </Box>
             
             {/* Hotel Component */}
@@ -633,21 +633,21 @@ export default function Itinerary({ onBookingSuccess }) {
           
           
           {/* Transports and Activities Section */}
-          <Paper elevation={2} sx={{ p: 2, mb: 2, borderRadius: 1.5 }}>
+          <Paper elevation={0} sx={{ p: 2, mb: 2, borderRadius: '13px', border: '1px solid #e4eaf3' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
               <Box 
                 sx={{ 
-                  bgcolor: 'primary.main', 
-                  color: 'white', 
+                  bgcolor: '#eef3ff', 
+                  color: '#3554D1', 
                   p: 0.5, 
-                  borderRadius: '50%', 
+                  borderRadius: '8px', 
                   mr: 0.8,
                   display: 'flex'
                 }}
               >
                 <DirectionsCarIcon sx={{ fontSize: '1rem' }} />
               </Box>
-              <Typography variant="h6" sx={{ fontSize: '1.1rem' }}>Transports and Other Services</Typography>
+              <Typography variant="h6" sx={{ fontSize: '1.05rem', fontWeight: 700, color: '#14213d' }}>Transports and other services</Typography>
             </Box>
             
             
@@ -891,20 +891,21 @@ export default function Itinerary({ onBookingSuccess }) {
           
           {/* Book Package Button Section - nazwane with Validation */}
           <Paper 
-            elevation={2} 
+            elevation={0} 
             sx={{ 
               mt: 2, 
               p: 2.5, 
               display: 'flex', 
               flexDirection: 'column', 
               alignItems: 'center', 
-              borderRadius: 1.5,
-              background: 'linear-gradient(to right, rgba(255,255,255,0.95), rgba(245,245,255,0.95))',
-              boxShadow: '0 4px 16px rgba(0,0,0,0.1)'
+              borderRadius: '13px',
+              background: '#fff',
+              border: '1px solid #e4eaf3',
+              boxShadow: 'none',
             }}
           >
-            <Typography variant="h6" gutterBottom sx={{ mb: 1.5, fontWeight: 600, fontSize: '1rem' }}>
-              Ready to book this amazing package?
+            <Typography variant="h6" gutterBottom sx={{ mb: 1.5, fontWeight: 700, fontSize: '1rem', color: '#14213d' }}>
+              Ready to book this package?
             </Typography>
 
             {/* Show warning if no services are added */}

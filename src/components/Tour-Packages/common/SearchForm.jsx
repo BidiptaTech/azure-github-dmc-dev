@@ -33,10 +33,14 @@ import {
   Warning as WarningIcon,
   Clear
 } from '@mui/icons-material';
-import LocationSearch from './LocationSearch';
+import LocationSearch from "@/components/hero/hero-1/LocationSearch";
 import DateRangePicker from './DateRangePicker';
 import PaxSelector from './PaxSelector';
 import { useDispatch, useSelector } from "react-redux";
+import {
+  clearSelectedCities,
+  addSelectedCity,
+} from "@/slice/common/citiesSlice";
 import moment from "moment";
 import {
   resetHotels,
@@ -84,15 +88,23 @@ const Alert = React.forwardRef(function Alert(props, ref) {
   return <MuiAlert elevation={6} ref={ref} variant="filled" {...props} />;
 });
 
-export default function SearchForm({ onNext, setActiveTab, packageData: propPackageData }) {
+export default function SearchForm({
+  onNext,
+  setActiveTab,
+  packageData: propPackageData,
+  mode = "packages",
+}) {
 
   const dispatch = useDispatch();
   const tourdetails = useSelector((state) => state.hotels.tourdetails);
   const [selectedLocation, setSelectedLocation] = useState(null);
-  console.log("selectedLocationxx",selectedLocation);
+  const [tripType, setTripType] = useState("single"); // single | multi — same as Plan & book
   // State to track if button should be hidden after click
   const [isButtonHidden, setIsButtonHidden] = useState(false);
   const [isupdated, setIsupdated] = useState(false);
+  const reduxSelectedCities = useSelector(
+    (state) => state.cities?.selectedCities || []
+  );
   
   // Get all services for validation
   const allServices = useSelector((state) => state.tourPackages.AllServices);
@@ -499,66 +511,88 @@ export default function SearchForm({ onNext, setActiveTab, packageData: propPack
     setOpenSnackbar(false);
   };
 
-  const handleLocationSelect = (location) => {
+  /** Map Plan & book LocationSearch (Redux cities) into Tour Packages location shape */
+  const syncLocationFromCities = (cities) => {
     const destinationCountries = getTourDestinationCountries();
-    let nextLocation = location;
-
-    if (location?.cities?.length) {
-      const cities = location.cities.map((city, index) => ({
-        ...city,
-        country:
-          city?.country ||
-          destinationCountries[index] ||
-          null,
-      }));
-      const countryNames = cities.map((c) => c.country).filter(Boolean);
-      nextLocation = {
-        ...location,
-        cities,
-        country:
-          countryNames.join(", ") ||
-          packageData?.tour?.destination ||
-          enquirydetail?.country ||
-          null,
-      };
+    if (!cities || cities.length === 0) {
+      setSelectedLocation(null);
+      setCityWiseDateRanges([]);
+      dispatch(clearPackages());
+      return;
     }
+
+    const mappedCities = cities.map((city, index) => ({
+      ...city,
+      country: city?.country || destinationCountries[index] || null,
+    }));
+    const countryNames = mappedCities.map((c) => c.country).filter(Boolean);
+    const cityNames = mappedCities
+      .map((c) => c.city || c.name)
+      .filter(Boolean);
+
+    const nextLocation = {
+      cities: mappedCities,
+      city: cityNames.join(", "),
+      cityCode: mappedCities[0]?.city_id || null,
+      country:
+        countryNames.join(", ") ||
+        packageData?.tour?.destination ||
+        enquirydetail?.country ||
+        null,
+      countryCode: mappedCities[0]?.country_code || null,
+    };
 
     setSelectedLocation(nextLocation);
 
-    // Keep city-wise date rows in sync with selected cities
-    if (nextLocation?.cities?.length) {
-      setCityWiseDateRanges((prev) => {
-        const packageRanges = getInitialCityWiseDateRanges();
-        return nextLocation.cities.map((cityItem) => {
-          const cityName = cityItem.city || cityItem.name;
-          const existing = prev.find(
-            (item) =>
-              String(item.city || "").toLowerCase() ===
-              String(cityName || "").toLowerCase()
-          );
-          if (existing) return { ...existing, city: cityName };
+    setCityWiseDateRanges((prev) => {
+      const packageRanges = getInitialCityWiseDateRanges();
+      return mappedCities.map((cityItem) => {
+        const cityName = cityItem.city || cityItem.name;
+        const existing = prev.find(
+          (item) =>
+            String(item.city || "").toLowerCase() ===
+            String(cityName || "").toLowerCase()
+        );
+        if (existing) return { ...existing, city: cityName };
 
-          const fromPackage = packageRanges.find(
-            (item) =>
-              String(item.city || "").toLowerCase() ===
-              String(cityName || "").toLowerCase()
-          );
-          if (fromPackage) return fromPackage;
+        const fromPackage = packageRanges.find(
+          (item) =>
+            String(item.city || "").toLowerCase() ===
+            String(cityName || "").toLowerCase()
+        );
+        if (fromPackage) return fromPackage;
 
-          return {
-            city: cityName,
-            checkIn: startDate
-              ? moment(startDate).format("DD/MM/YYYY")
-              : "",
-            checkOut: endDate ? moment(endDate).format("DD/MM/YYYY") : "",
-          };
-        });
+        return {
+          city: cityName,
+          checkIn: startDate ? moment(startDate).format("DD/MM/YYYY") : "",
+          checkOut: endDate ? moment(endDate).format("DD/MM/YYYY") : "",
+        };
       });
-    }
-    
-    // Clear previous packages data
+    });
+
     dispatch(clearPackages());
   };
+
+  const handleLocationSelect = () => {
+    // hero-1 LocationSearch stores cities in Redux; read latest after its dispatch
+    const cities = store.getState().cities?.selectedCities || [];
+    syncLocationFromCities(cities);
+  };
+
+  // Keep selectedLocation in sync if cities change elsewhere
+  useEffect(() => {
+    if (!Array.isArray(reduxSelectedCities)) return;
+    const key = reduxSelectedCities
+      .map((c) => c.city_id || c.city)
+      .join("|");
+    const prevKey = (selectedLocation?.cities || [])
+      .map((c) => c.city_id || c.city)
+      .join("|");
+    if (key !== prevKey) {
+      syncLocationFromCities(reduxSelectedCities);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reduxSelectedCities]);
 
   const parseCodeList = (value) => {
     if (Array.isArray(value)) {
@@ -1728,127 +1762,143 @@ dispatch(fetchHotels());
   // Determine button text based on data source
   const getButtonText = () => {
     if (isDataFromEnquiryDetail) {
-      return '🚀 Create Tour for Enquiry';
+      return "SEARCH";
     }
     if (isUpdatingExistingPackage) {
-      return '🔄 Update Tour Package';
+      return "UPDATE";
     }
-    return '🚀 Create Amazing Tour Package';
+    return "SEARCH";
   };
   
+  const isPlanMode = mode === "plan";
+
   const getButtonSubtext = () => {
     if (isDataFromEnquiryDetail) {
-      return '📋 Processing existing enquiry with dates and guest details';
+      return "Using enquiry dates and guest details";
     }
     if (isUpdatingExistingPackage) {
-      return '📝 Modify existing tour package details';
+      return "Update this package itinerary";
     }
-    return '✨ Build personalized travel experiences in seconds';
+    if (isPlanMode) {
+      return "Build hotels, transfers and experiences in one itinerary";
+    }
+    return "Build hotels, transfers and experiences into one package";
   };
 
+  const tripTypeHint = isPlanMode
+    ? "Book hotels, transfers & experiences for your clients"
+    : "Compose a custom package — hotels, transfers & experiences";
+
   return (
-    <Box component="form" onSubmit={handleFormSubmit} sx={{ width: '100%' }}>
+    <Box
+      component="form"
+      onSubmit={handleFormSubmit}
+      className="tp-plan-search"
+      sx={{
+        width: "100%",
+        position: "relative",
+        zIndex: 50,
+        borderRadius: "16px",
+        boxShadow: "0 12px 40px rgba(15, 23, 42, 0.16)",
+        border: "1px solid rgba(15, 23, 42, 0.06)",
+        bgcolor: "#fff",
+        p: "18px 18px 14px",
+        maxWidth: 1100,
+        mx: "auto",
+      }}
+    >
+      <div
+        className="tp-plan-search__toolbar d-flex items-center justify-between flex-wrap"
+        style={{ gap: 12, marginBottom: 14 }}
+      >
+        <div className="d-flex items-center flex-wrap" style={{ gap: 18 }}>
+          {[
+            { id: "single", label: "Single City" },
+            { id: "multi", label: "Multi City" },
+          ].map((opt) => (
+            <label
+              key={opt.id}
+              className="d-flex items-center cursor-pointer"
+              style={{
+                gap: 8,
+                fontSize: 14,
+                fontWeight: 600,
+                color: "#0f172a",
+              }}
+            >
+              <input
+                type="radio"
+                name="tpTripType"
+                checked={tripType === opt.id}
+                onChange={() => {
+                  setTripType(opt.id);
+                  if (opt.id === "single" && reduxSelectedCities.length > 1) {
+                    const keep = reduxSelectedCities[0];
+                    dispatch(clearSelectedCities());
+                    if (keep) dispatch(addSelectedCity(keep));
+                  }
+                }}
+                style={{ accentColor: "#3554D1", width: 16, height: 16 }}
+              />
+              {opt.label}
+            </label>
+          ))}
+        </div>
+        <div style={{ fontSize: 13, color: "#64748b", fontWeight: 500 }}>
+          {tripTypeHint}
+        </div>
+      </div>
+
       <Grid container spacing={1.5}>
         {/* Single Row: All Form Fields */}
         <Grid item xs={12}>
-          <Grid container spacing={1.5}>
-            {/* Location Search - 4 columns */}
-            <Grid item xs={12} sm={6} md={4}>
+          <Grid container spacing={0} className="tp-plan-search__row">
+            {/* Destination — same control as Plan & book */}
+            <Grid item xs={12} sm={6} md={4} className="tp-plan-search__cell">
               <Box
                 sx={{
-                  p: 1,
-                  borderRadius: 1.5,
-                  bgcolor: '#f8fafc',
-                  border: '1px solid #e2e8f0',
-                  height: '100%',
-                  minHeight: '60px',
-                  position: 'relative',
+                  height: "100%",
+                  minHeight: 92,
+                  position: "relative",
                   zIndex: 20,
-                  overflow: 'visible',
-                  '&:hover': {
-                    borderColor: '#3b82f6',
-                    bgcolor: '#f1f5f9'
-                  },
-                  transition: 'all 0.2s ease-in-out'
+                  overflow: "visible",
                 }}
               >
-                <Typography 
-                  variant="caption" 
-                  sx={{ 
-                    mb: 0.5, 
-                    fontWeight: 600, 
-                    color: '#374151',
-                    textTransform: 'uppercase',
-                    fontSize: '0.65rem',
-                    letterSpacing: '0.05em',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.5
-                  }}
-                >
-                  <LocationIcon sx={{ color: '#ef4444', fontSize: 14 }} />
-                  Destination
-                </Typography>
-                <LocationSearch 
+                <LocationSearch
                   onLocationSelect={handleLocationSelect}
-                  defaultDestination={getDestinationValue()}
-                  defaultCity={getCityValue()}
-                  defaultCities={getCityValue()}
-                  destinationCountries={getTourDestinationCountries()}
+                  multiSelect={tripType === "multi"}
                 />
               </Box>
             </Grid>
 
-            {/* Date Range - 3 columns */}
-            <Grid item xs={12} sm={6} md={3}>
+            {/* Date Range */}
+            <Grid item xs={12} sm={6} md={3} className="tp-plan-search__cell">
               <Box
                 sx={{
-                  p: 1,
-                  borderRadius: 1.5,
-                  bgcolor: isDateGuestLocked ? '#f5f5f5' : 'white',
-                  border: '1px solid #e2e8f0',
-                  height: '100%',
-                  minHeight: '60px',
-                  position: 'relative',
+                  p: "16px 18px",
+                  bgcolor: isDateGuestLocked ? "#f8fafc" : "transparent",
+                  height: "100%",
+                  minHeight: 92,
+                  position: "relative",
                   zIndex: 10,
-                  overflow: 'visible',
+                  overflow: "visible",
                   opacity: isDateGuestLocked ? 0.7 : 1,
-                  '&:hover': {
-                    borderColor: isDateGuestLocked ? '#e2e8f0' : '#3b82f6',
-                    boxShadow: isDateGuestLocked ? 'none' : '0 2px 6px rgba(59, 130, 246, 0.1)'
-                  },
-                  transition: 'all 0.2s ease-in-out'
                 }}
               >
-                <Typography 
-                  variant="caption" 
-                  sx={{ 
-                    mb: 0.5, 
-                    fontWeight: 600, 
-                    color: isDateGuestLocked ? '#9ca3af' : '#374151',
-                    textTransform: 'uppercase',
-                    fontSize: '0.65rem',
-                    letterSpacing: '0.05em',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.5
+                <Typography
+                  variant="caption"
+                  sx={{
+                    mb: 0.5,
+                    fontWeight: 600,
+                    color: isDateGuestLocked ? "#94a3b8" : "#64748b",
+                    textTransform: "uppercase",
+                    fontSize: "11px",
+                    letterSpacing: "0.04em",
+                    display: "block",
                   }}
                 >
-                  <CalendarIcon sx={{ color: isDateGuestLocked ? '#9ca3af' : '#10b981', fontSize: 14 }} />
-                  Travel Dates
-                  {isDateGuestLocked && (
-                    <Typography 
-                      variant="caption" 
-                      sx={{ 
-                        ml: 1, 
-                        color: '#6b7280', 
-                        fontSize: '0.6rem',
-                        fontStyle: 'italic'
-                      }}
-                    >
-                      (Locked)
-                    </Typography>
-                  )}
+                  Travel dates
+                  {isDateGuestLocked ? " (Locked)" : ""}
                 </Typography>
                 <Box sx={{ position: 'relative' }}>
                   <DateRangePicker 
@@ -1875,56 +1925,34 @@ dispatch(fetchHotels());
               </Box>
             </Grid>
 
-            {/* Guest Selection - 3 columns */}
-            <Grid item xs={12} sm={6} md={3}>
+            {/* Guests */}
+            <Grid item xs={12} sm={6} md={3} className="tp-plan-search__cell">
               <Box
                 sx={{
-                  p: 1,
-                  borderRadius: 1.5,
-                  bgcolor: isDateGuestLocked ? '#f5f5f5' : 'white',
-                  border: '1px solid #e2e8f0',
-                  height: '100%',
-                  minHeight: '60px',
-                  position: 'relative',
+                  p: "16px 18px",
+                  bgcolor: isDateGuestLocked ? "#f8fafc" : "transparent",
+                  height: "100%",
+                  minHeight: 92,
+                  position: "relative",
                   zIndex: 9,
-                  overflow: 'visible',
+                  overflow: "visible",
                   opacity: isDateGuestLocked ? 0.7 : 1,
-                  '&:hover': {
-                    borderColor: isDateGuestLocked ? '#e2e8f0' : '#3b82f6',
-                    boxShadow: isDateGuestLocked ? 'none' : '0 2px 6px rgba(59, 130, 246, 0.1)'
-                  },
-                  transition: 'all 0.2s ease-in-out'
                 }}
               >
-                <Typography 
-                  variant="caption" 
-                  sx={{ 
-                    mb: 0.5, 
-                    fontWeight: 600, 
-                    color: isDateGuestLocked ? '#9ca3af' : '#374151',
-                    textTransform: 'uppercase',
-                    fontSize: '0.65rem',
-                    letterSpacing: '0.05em',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.5
+                <Typography
+                  variant="caption"
+                  sx={{
+                    mb: 0.5,
+                    fontWeight: 600,
+                    color: isDateGuestLocked ? "#94a3b8" : "#64748b",
+                    textTransform: "uppercase",
+                    fontSize: "11px",
+                    letterSpacing: "0.04em",
+                    display: "block",
                   }}
                 >
-                  <PeopleIcon sx={{ color: isDateGuestLocked ? '#9ca3af' : '#f59e0b', fontSize: 14 }} />
-                  Guests
-                  {isDateGuestLocked && (
-                    <Typography 
-                      variant="caption" 
-                      sx={{ 
-                        ml: 1, 
-                        color: '#6b7280', 
-                        fontSize: '0.6rem',
-                        fontStyle: 'italic'
-                      }}
-                    >
-                      (Locked)
-                    </Typography>
-                  )}
+                  Travellers
+                  {isDateGuestLocked ? " (Locked)" : ""}
                 </Typography>
                 <Box sx={{ position: 'relative' }}>
                   <PaxSelector 
@@ -1950,50 +1978,55 @@ dispatch(fetchHotels());
               </Box>
             </Grid>
 
-            {/* Agent Selection - 2 columns */}
-            <Grid item xs={12} sm={6} md={2}>
-              <Box>
-                <Typography 
-                  variant="caption" 
-                  sx={{ 
-                    mb: 0.5, 
-                    fontWeight: 600, 
-                    color: '#374151',
-                    textTransform: 'uppercase',
-                    fontSize: '0.65rem',
-                    letterSpacing: '0.05em',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.5
+            {/* Agent */}
+            <Grid item xs={12} sm={6} md={2} className="tp-plan-search__cell">
+              <Box
+                sx={{
+                  p: "16px 18px",
+                  bgcolor: isAgentFromPackageData ? "#f8fafc" : "transparent",
+                  height: "100%",
+                  minHeight: 92,
+                }}
+              >
+                <Typography
+                  variant="caption"
+                  sx={{
+                    mb: 0.5,
+                    fontWeight: 600,
+                    color: "#64748b",
+                    textTransform: "uppercase",
+                    fontSize: "11px",
+                    letterSpacing: "0.04em",
+                    display: "block",
                   }}
                 >
-                  <PersonIcon sx={{ color: '#8b5cf6', fontSize: 14 }} />
                   Agent
                 </Typography>
-                <FormControl 
-                  fullWidth 
+                <FormControl
+                  fullWidth
                   size="small"
                   variant="outlined"
-                  sx={{ 
-                    '& .MuiOutlinedInput-root': {
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
                       borderRadius: 1,
-                      bgcolor: isAgentFromPackageData ? '#f5f5f5' : '#f8fafc',
-                      fontSize: '0.8rem',
-                      minHeight: '32px',
-                      '&:hover': {
-                        bgcolor: isAgentFromPackageData ? '#f5f5f5' : 'white'
+                      bgcolor: isAgentFromPackageData ? "#f5f5f5" : "#f8fafc",
+                      fontSize: "0.8rem",
+                      minHeight: "32px",
+                      "& fieldset": { borderColor: "#e2e8f0" },
+                      "&:hover": {
+                        bgcolor: isAgentFromPackageData ? "#f5f5f5" : "white",
                       },
-                      '&.Mui-focused': {
-                        bgcolor: isAgentFromPackageData ? '#f5f5f5' : 'white'
-                      }
+                      "&.Mui-focused": {
+                        bgcolor: isAgentFromPackageData ? "#f5f5f5" : "white",
+                      },
                     },
-                    '& .MuiInputLabel-root': {
+                    "& .MuiInputLabel-root": {
                       fontWeight: 500,
-                      fontSize: '0.8rem'
+                      fontSize: "0.8rem",
                     },
-                    '& .MuiSelect-select': {
-                      overflow: 'visible'
-                    }
+                    "& .MuiSelect-select": {
+                      overflow: "visible",
+                    },
                   }}
                 >
                   {isAgentFromPackageData ? (
@@ -2332,58 +2365,23 @@ dispatch(fetchHotels());
                 type="submit"
                 variant="contained" 
                 size="large"
-                startIcon={<SearchIcon sx={{ fontSize: 24 }} />}
+                className="partner-tour-packages__cta"
                 sx={{ 
-                  borderRadius: 3,
-                  px: 6,
-                  py: 2.5,
-                  fontSize: '1.1rem',
+                  borderRadius: "9px",
+                  px: 4,
+                  py: 1.5,
+                  fontSize: "0.95rem",
                   fontWeight: 700,
-                  textTransform: 'none',
-                  minWidth: '280px',
-                  background: isDataFromEnquiryDetail
-                    ? 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)'
-                    : isUpdatingExistingPackage 
-                      ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' 
-                      : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  boxShadow: isDataFromEnquiryDetail
-                    ? '0 8px 32px rgba(107, 114, 128, 0.4)'
-                    : isUpdatingExistingPackage
-                      ? '0 8px 32px rgba(16, 185, 129, 0.4)'
-                      : '0 8px 32px rgba(102, 126, 234, 0.4)',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  color: 'white',
-                  '&::before': {
-                    content: '""',
-                    position: 'absolute',
-                    top: 0,
-                    left: '-100%',
-                    width: '100%',
-                    height: '100%',
-                    background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)',
-                    transition: 'left 0.5s ease'
+                  textTransform: "none",
+                  minWidth: 220,
+                  background: "#3554D1",
+                  boxShadow: "none",
+                  color: "#fff",
+                  "&:hover": {
+                    background: "#2c46b3",
+                    boxShadow: "none",
+                    transform: "none",
                   },
-                  '&:hover': {
-                    background: isDataFromEnquiryDetail
-                      ? 'linear-gradient(135deg, #4b5563 0%, #374151 100%)'
-                      : isUpdatingExistingPackage
-                        ? 'linear-gradient(135deg, #059669 0%, #047857 100%)'
-                        : 'linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)',
-                    boxShadow: isDataFromEnquiryDetail
-                      ? '0 12px 40px rgba(107, 114, 128, 0.6)'
-                      : isUpdatingExistingPackage
-                        ? '0 12px 40px rgba(16, 185, 129, 0.6)'
-                        : '0 12px 40px rgba(102, 126, 234, 0.6)',
-                    transform: isDataFromEnquiryDetail ? 'none' : 'translateY(-3px) scale(1.02)',
-                    '&::before': {
-                      left: '100%'
-                    }
-                  },
-                  '&:active': {
-                    transform: isDataFromEnquiryDetail ? 'none' : 'translateY(-1px) scale(1.01)'
-                  },
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
                 }}
               >
                 {getButtonText()}
@@ -2391,15 +2389,14 @@ dispatch(fetchHotels());
             )}
           </Box>
           
-          {/* Optional: Add helpful text below button */}
           {!isButtonHidden && (
-            <Box sx={{ textAlign: 'center', mt: 1 }}>
+            <Box sx={{ textAlign: "center", mt: 1 }}>
               <Typography 
                 variant="caption" 
                 sx={{ 
-                  color: '#6b7280',
-                  fontSize: '0.75rem',
-                  fontStyle: 'italic'
+                  color: "#7788ad",
+                  fontSize: "0.8rem",
+                  fontStyle: "normal",
                 }}
               >
                 {getButtonSubtext()}

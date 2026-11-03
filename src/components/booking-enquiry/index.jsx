@@ -436,9 +436,9 @@ const Index = () => {
       style={{
         position: "relative",
         minHeight: "100%",
-        background: "#f4f6f8",
-        paddingTop: 50,
-        paddingBottom: 24,
+        background: "transparent",
+        paddingTop: 0,
+        paddingBottom: 8,
         overflow: "visible",
       }}
     >
