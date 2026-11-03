@@ -1,0 +1,320 @@
+/* Quick enquiry builder — partner workspace chrome */
+
+.booking-enquiry-page,
+.enquiry-corp-page {
+  background: transparent !important;
+  padding-top: 0 !important;
+}
+
+/* Search step already has its own hero — hide partner page title there */
+.booking-enquiry-page:has(.masthead) > .partner-hero {
+  display: none;
+}
+
+.booking-enquiry-page:has(.masthead) {
+  margin-top: -12px;
+}
+
+.enquiry-summary-bar-wrap {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 18px;
+}
+
+.enquiry-summary-bar {
+  width: 100%;
+  background: #fff;
+  border: 1px solid var(--pw-line, #e4eaf3);
+  border-radius: 13px;
+  padding: 14px 16px;
+  box-shadow: none;
+  box-sizing: border-box;
+}
+
+.enquiry-summary-fields {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  align-items: stretch;
+}
+
+.enquiry-summary-field {
+  min-width: 0;
+  background: #f7f9fc;
+  border: 1px solid var(--pw-line, #e4eaf3);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.enquiry-summary-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--pw-muted, #7788ad);
+  margin-bottom: 4px;
+  line-height: 1.2;
+}
+
+.enquiry-summary-primary {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--pw-ink, #14213d);
+  line-height: 1.3;
+}
+
+.enquiry-summary-secondary {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--pw-muted, #7788ad);
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+.booking-enquiry-page .MuiAlert-root,
+.enquiry-corp-page .MuiAlert-root {
+  border-radius: 10px !important;
+  border: 1px solid #d7e3ff !important;
+  background: #eef3ff !important;
+  color: #3554d1 !important;
+  box-shadow: none !important;
+}
+
+.booking-enquiry-page .MuiAlert-icon,
+.enquiry-corp-page .MuiAlert-icon {
+  color: #3554d1 !important;
+}
+
+.enquiry-hints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.enquiry-hint {
+  flex: 1 1 220px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #eef3ff;
+  border: 1px solid #d7e3ff;
+  color: #3554d1;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.enquiry-builder-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 280px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.enquiry-builder-sidebar,
+.enquiry-builder-main {
+  min-width: 0;
+}
+
+.enquiry-selections-panel {
+  margin-top: 16px;
+  padding: 18px;
+  background: #fff;
+  border: 1px solid var(--pw-line, #e4eaf3);
+  border-radius: 13px;
+}
+
+.enquiry-selections-panel h3 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--pw-ink, #14213d);
+}
+
+.enquiry-continue-wrap {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+  margin-bottom: 8px;
+}
+
+.enquiry-review .partner-hero {
+  margin-bottom: 18px;
+}
+
+.enquiry-review__trip {
+  margin-bottom: 18px;
+}
+
+.enquiry-review__trip-body .enquiry-summary-bar-wrap {
+  margin-bottom: 0;
+}
+
+.enquiry-review__trip-body .enquiry-summary-bar {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.enquiry-review__trip-body .enquiry-summary-fields {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.enquiry-review__grid {
+  margin-top: 0 !important;
+}
+
+.enquiry-review__dmc {
+  height: 100%;
+}
+
+/* Flatten nested DMC panel inside partner card */
+.enquiry-review__dmc .MuiPaper-root,
+.enquiry-review__dmc .enquiry-dmc-summary {
+  box-shadow: none !important;
+  border: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  max-height: none !important;
+  position: static !important;
+}
+
+.enquiry-review__dmc .MuiCard-root {
+  box-shadow: none !important;
+  border-radius: 10px !important;
+}
+
+.enquiry-review__services {
+  margin-bottom: 16px;
+}
+
+.enquiry-review__stats {
+  margin-bottom: 14px;
+}
+
+.enquiry-review__services .MuiCard-root {
+  box-shadow: none !important;
+  border: 1px solid #e4eaf3 !important;
+  border-radius: 12px !important;
+  background: #fff !important;
+}
+
+.enquiry-review__services .MuiAccordion-root {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.enquiry-review__services .MuiAccordionSummary-root {
+  border-radius: 8px !important;
+}
+
+.enquiry-review__trust {
+  margin-bottom: 16px;
+}
+
+.enquiry-review__trust-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.enquiry-review__trust-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #e4eaf3;
+  border-radius: 10px;
+  background: #f7f9fc;
+}
+
+.enquiry-review__trust-item strong {
+  display: block;
+  font-size: 14px;
+  color: #14213d;
+  margin-bottom: 2px;
+}
+
+.enquiry-review__trust-item p {
+  margin: 0;
+  font-size: 12px;
+  color: #7788ad;
+}
+
+.enquiry-review__trust-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #eef3ff;
+  color: #3554d1;
+  flex-shrink: 0;
+}
+
+.enquiry-review__trust-icon--amber {
+  background: #fff8eb;
+  color: #a2751f;
+}
+
+.enquiry-review__actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+
+.enquiry-review__actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Hide duplicate partner page title while reviewing (ConfirmDetails has its own) */
+.booking-enquiry-page:has(.enquiry-review) > .partner-hero {
+  display: none;
+}
+
+@media (max-width: 959px) {
+  .enquiry-review__trip-body .enquiry-summary-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .enquiry-review__trust-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 959px) {
+  .enquiry-summary-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .enquiry-builder-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .enquiry-summary-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .enquiry-review__trip-body .enquiry-summary-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .enquiry-review__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

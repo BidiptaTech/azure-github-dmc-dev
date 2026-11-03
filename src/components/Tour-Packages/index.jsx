@@ -1,198 +1,109 @@
-import React, { useState, useEffect } from 'react';
-import { Container, Typography, Box, Grid, Paper, Button } from '@mui/material';
-import { useSelector } from 'react-redux';
-import { Link } from 'react-router-dom';
-import SearchForm from './common/SearchForm';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import TravelExploreIcon from '@mui/icons-material/TravelExplore';
-import { setSearchCriteria} from '@/slice/tour-packages/tourPackageSlice';
-import { useDispatch } from 'react-redux';
+import React, { useState } from "react";
+import { Box } from "@mui/material";
+import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import Hero1 from "@/components/hero/hero-1";
+import SearchForm from "./common/SearchForm";
+import Itinerary from "./common/Itinerary";
+import { appPath } from "@/utils/appPaths";
 
-
-// Import service components
-import Itinerary from './common/Itinerary';
-
-// Import icons
-import ViewTimelineIcon from '@mui/icons-material/ViewTimeline';
-import { settourdetails,updateSearchState } from '@/slice/hotel/hotelSlice';
-import { fetchCitiesByCountry } from '@/slice/common/citiesSlice';
-
-export default function TourPackages() {
+export default function TourPackages({ mode = "packages" } = {}) {
   const [currentStep, setCurrentStep] = useState(1);
-  const dispatch = useDispatch();
+  const navigate = useNavigate();
   const packageData = useSelector((state) => state.tourPackages.packageData);
 
-   // Fetch cities when a country is selected
-   
-  console.log("packageDataddd", packageData);
-  // useEffect(() => {
-  //   if(packageData){
-  //     dispatch(settourdetails(packageData.tour));
-  //     // dispatch(fetchCitiesByCountry(packageData.tour.destination))
-  //     // .unwrap()
-  //     // .then((response) => {
-  //     //   dispatch(setCity(response.data));
-  //     // })
-  //     // .catch((error) => {
-  //     //   console.error("Error fetching cities:", error);
-  //     // });
-  //     // fetchCities(packageData.tour.destination);
-  //     dispatch(updateSearchState({ location: packageData.tour.destination }));
-  //     dispatch(setSearchCriteria({
-  //       destination: packageData.tour.destination,
-  //       checkIn: packageData.tour.check_in_time,
-  //       checkOut: packageData.tour.check_out_time,
-  //       guests: {
-  //         adults: packageData.tour.adult,
-  //         children: packageData.tour.child,
-  //         infants: packageData.tour.infant,
-  //         maleCount: packageData.tour.male_count,
-  //         femaleCount: packageData.tour.female_count,
-  //         childrenAges: packageData.tour.child_ages ? packageData.tour.child_ages.split(', ') : [],
-  //       }
-  //     }));
-      
-  //     // Dispatch the booking services if they exist
-  //     // if (packageData.tour.booking && Array.isArray(packageData.tour.booking)) {
-  //     //   dispatch(setAllServices(packageData.tour.booking));
-  //     // }
-      
-  //     //setCurrentStep(2);
-  //   }
-  // }, [packageData]);
-
-
-
   const handleNext = () => {
-     // Scroll to top when moving to next step to prevent unwanted scroll down
-     window.scrollTo(0,300);
-    setCurrentStep(currentStep + 1);
-    
+    window.scrollTo(0, 200);
+    setCurrentStep((step) => step + 1);
   };
 
   const handleBookingSuccess = () => {
     setCurrentStep(1);
   };
 
+  const isBuilding = currentStep > 1;
+  const isPlanMode = mode === "plan";
+
+  const heroTitle = packageData
+    ? isPlanMode
+      ? "Update this trip for your clients"
+      : "Update your tour package"
+    : isPlanMode
+      ? "Plan & book tours for your clients"
+      : "Create your own tour package";
+
+  const heroSubtitle = packageData
+    ? "Adjust destination, dates and travellers — then refine the package itinerary"
+    : isPlanMode
+      ? "Set destinations, dates and pax — then add hotels, transfers and experiences"
+      : "Pick destination, dates and travellers — then build a sellable package itinerary";
+
+  const footerNote = isPlanMode
+    ? "Build complete itineraries — hotels, attractions, transfers, guides & more"
+    : "Package itineraries — hotels, attractions, transfers, guides & more";
+
   return (
-    <Box sx={{ bgcolor: '#f8fafc', minHeight: '102vh' }}>
-      <Container maxWidth="xl" sx={{ py: 2 , width: '96%' }}>
-        {/* Compact Header */}
-        <Box 
-          sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'space-between',
-            mb: 2,
-            bgcolor: 'white',
-            p: 1.5,
-            borderRadius: 2,
-            boxShadow: '0 1px 4px rgba(0,0,0,0.04)'
-          }}
-        >
-          <Button 
-            component={Link}
-            to="/app/tour-packages"
-            variant="outlined"
-            startIcon={<ArrowBackIcon />}
-            size="small"
-            sx={{ 
-              borderColor: '#e2e8f0',
-              color: '#64748b',
-              fontSize: '0.875rem',
-              '&:hover': { 
-                borderColor: '#cbd5e1',
-                bgcolor: '#f8fafc'
-              }
-            }}
-          >
-            Back
-          </Button>
-          
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <TravelExploreIcon sx={{ color: '#3b82f6', fontSize: 24 }} />
-            <Typography
-              variant="h6"
-              component="h1"
-              sx={{ 
-                mt: 1,
-                fontWeight: 600,
-                color: '#1e293b'
-              }}
+    <div className={`partner-tour-packages${isBuilding ? " is-building" : ""}`}>
+      {!isBuilding ? (
+        <div className="partner-plan-hero partner-tour-packages__hero">
+          {!isPlanMode ? (
+            <div className="partner-tour-packages__back">
+              <button
+                type="button"
+                className="partner-btn partner-btn--secondary"
+                onClick={() => navigate(appPath("packages"))}
+              >
+                ← Back to packages
+              </button>
+            </div>
+          ) : null}
+          <Hero1
+            title={heroTitle}
+            subtitle={heroSubtitle}
+            footerNote={footerNote}
+            searchSlot={
+              <div className="tp-hero-search">
+                <SearchForm
+                  onNext={handleNext}
+                  packageData={packageData}
+                  mode={mode}
+                />
+              </div>
+            }
+          />
+        </div>
+      ) : (
+        <>
+          <div className="partner-hero">
+            <div>
+              <div className="partner-kicker">
+                {isPlanMode ? "Trip builder" : "Tour packages"}
+              </div>
+              <h1 className="partner-title">
+                {isPlanMode ? "Build your itinerary" : "Build your package itinerary"}
+              </h1>
+              <p className="partner-lede">
+                {isPlanMode
+                  ? "Add hotels, ports, attractions, dining and more into one journey."
+                  : "Add hotels, ports, attractions, dining and more into one package."}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="partner-btn partner-btn--secondary"
+              onClick={() => setCurrentStep(1)}
             >
-              Tour Packages
-            </Typography>
-          </Box>
-          
-          <Box sx={{ width: '70px' }}></Box>
-        </Box>
+              ← Edit search
+            </button>
+          </div>
 
-      <Box sx={{ mb: 5 }}>
-        <Paper
-          elevation={0}
-          sx={{
-            borderRadius: 3,
-            overflow: 'hidden',
-            backgroundColor: 'transparent'
-          }}
-        >
-          <Box
-            sx={{
-              background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-              p: 2,
-              position: 'relative'
-            }}
-          >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-              <TravelExploreIcon sx={{ color: 'white', fontSize: 24 }} />
-              <Box>
-                <Typography 
-                  variant="h6" 
-                  component="div" 
-                  sx={{ 
-                    color: 'white', 
-                    fontWeight: 600,
-                    fontSize: '1.1rem'
-                  }}
-                >
-                  {packageData ? "Update Tour Packages" : "Create Tour Packages"}
-                </Typography>
-                <Typography 
-                  variant="caption" 
-                  component="div" 
-                  sx={{ 
-                    color: 'rgba(255,255,255,0.9)', 
-                    fontWeight: 400
-                  }}
-                >
-                  {packageData ? " " : "Search and customize your packages"}
-                </Typography>
-              </Box>
+          <section className="partner-card partner-tour-packages__itinerary">
+            <Box className="partner-tour-packages__itinerary-body" sx={{ py: 1 }}>
+              <Itinerary onBookingSuccess={handleBookingSuccess} />
             </Box>
-          </Box>
-
-          {/* Search Form Section */}
-          <Box sx={{ 
-            p: 2, 
-            bgcolor: '#ffffff',
-            overflow: 'visible',
-            position: 'relative'
-          }}>
-           <SearchForm onNext={handleNext} packageData={packageData}/>
-          </Box>
-        </Paper>
-      </Box>
-
-      {/* Render services when search is completed */}
-      {currentStep > 1 && (
-        <Box sx={{ mt: 4 }}>
-          {/* Service content area */}
-          <Box sx={{ py: 2 }}>
-            <Itinerary onBookingSuccess={handleBookingSuccess} />
-          </Box>
-        </Box>
+          </section>
+        </>
       )}
-    </Container>
-    </Box>
+    </div>
   );
-} 
+}

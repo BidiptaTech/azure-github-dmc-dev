@@ -637,6 +637,157 @@
   margin-top: 22px;
 }
 
+/* Quotes — partner Quick Enquiries */
+.partner-quotes-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 16px;
+  color: var(--pw-muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+.partner-quotes-empty--error {
+  color: #b42318;
+}
+
+.partner-enquiry__stats {
+  margin-bottom: 18px;
+}
+
+.partner-enquiry__toolbar {
+  margin-bottom: 8px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--pw-line);
+}
+
+.partner-enquiry__filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.partner-enquiry__item {
+  align-items: flex-start;
+}
+
+.partner-enquiry__main {
+  min-width: 0;
+  flex: 1;
+}
+
+.partner-enquiry__main h3 {
+  margin-top: 8px;
+}
+
+.partner-enquiry__services {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.partner-enquiry__svc {
+  appearance: none;
+  border: 1px solid var(--pw-line);
+  background: #f4f7fb;
+  color: var(--pw-muted);
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: default;
+}
+
+.partner-enquiry__svc.is-active {
+  background: #eef3ff;
+  border-color: #c9d7ff;
+  color: var(--pw-blue);
+  cursor: pointer;
+}
+
+.partner-enquiry__svc.is-active:hover {
+  filter: brightness(0.98);
+}
+
+.partner-enquiry__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+  flex-shrink: 0;
+}
+
+.partner-enquiry__pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+  color: var(--pw-muted);
+  font-size: 13px;
+}
+
+.partner-chip--amber {
+  background: var(--pw-amber-bg, #fff4e5);
+  color: var(--pw-amber-ink, #9a5b00);
+}
+
+.partner-chip--blue {
+  background: #eef3ff;
+  color: var(--pw-blue);
+}
+
+.partner-chip--muted {
+  background: #eef1f6;
+  color: var(--pw-muted);
+}
+
+/* Packages section — match Bookings / Quotes chrome */
+.partner-packages__search {
+  overflow: visible;
+}
+
+.partner-packages__embed {
+  margin-top: 8px;
+}
+
+.partner-packages__embed .MuiContainer-root {
+  max-width: 100% !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* Partner hero already titles the page — hide old white masthead */
+.partner-packages__embed .MuiBox-root > .MuiBox-root:first-of-type h1,
+.partner-packages__embed .MuiBox-root > .MuiBox-root:first-of-type h3,
+.partner-packages__embed .MuiBox-root > .MuiBox-root:first-of-type .MuiTypography-root,
+.partner-packages__embed .MuiBox-root > .MuiBox-root:first-of-type .MuiDivider-root {
+  color: var(--pw-ink) !important;
+}
+
+.partner-packages__embed .MuiBox-root > .MuiBox-root:first-of-type {
+  display: none;
+}
+
+.partner-packages__embed .MuiPaper-root {
+  border-radius: 14px !important;
+  box-shadow: none !important;
+  border: 1px solid var(--pw-line);
+}
+
+.partner-packages .pre-define-packages-background,
+.partner-packages .background-image-overlay {
+  background: transparent !important;
+  min-height: auto !important;
+}
+
 /* Legacy aliases used by other workspace pages */
 .partner-hero {
   display: flex;
@@ -721,6 +872,19 @@
 
   .partner-plan-hero--overview {
     margin: 8px -18px 24px;
+  }
+
+  .partner-enquiry__filters {
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .partner-enquiry__item {
+    flex-direction: column;
+  }
+
+  .partner-enquiry__actions {
+    width: 100%;
   }
 
   .partner-searchbar {

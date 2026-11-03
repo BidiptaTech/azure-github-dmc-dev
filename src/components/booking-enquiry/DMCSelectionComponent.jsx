@@ -34,43 +34,44 @@ import {
 
 // Styled components
 const DMCSelectionPanel = styled(Paper)(({ theme }) => ({
-  padding: theme.spacing(1.5),
+  padding: theme.spacing(2),
   height: 'fit-content',
   maxHeight: '80vh',
   overflowY: 'auto',
   position: 'sticky',
   top: theme.spacing(2),
-  background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-  border: '1px solid rgba(102, 126, 234, 0.1)',
-  borderRadius: theme.spacing(2),
-  boxShadow: '0 8px 32px rgba(102, 126, 234, 0.1)',
+  background: '#fff',
+  border: '1px solid #e4eaf3',
+  borderRadius: 13,
+  boxShadow: 'none',
   '&::-webkit-scrollbar': {
     width: '6px',
   },
   '&::-webkit-scrollbar-track': {
-    background: 'rgba(0,0,0,0.05)',
+    background: '#f4f7fb',
     borderRadius: '3px',
   },
   '&::-webkit-scrollbar-thumb': {
-    background: 'rgba(102, 126, 234, 0.3)',
+    background: '#c9d7ff',
     borderRadius: '3px',
     '&:hover': {
-      background: 'rgba(102, 126, 234, 0.5)',
+      background: '#3554D1',
     },
   },
 }));
 
 const DMCCard = styled(Card)(({ theme, selected }) => ({
   marginBottom: theme.spacing(1),
-  border: selected ? '2px solid #667eea' : '1px solid #e0e3e8',
-  backgroundColor: selected ? 'rgba(102, 126, 234, 0.05)' : 'white',
+  border: selected ? '1.5px solid #3554D1' : '1px solid #e4eaf3',
+  backgroundColor: selected ? '#eef3ff' : '#fff',
   cursor: 'pointer',
-  transition: 'all 0.3s ease',
-  borderRadius: theme.spacing(1.5),
+  transition: 'border-color 0.2s ease, background 0.2s ease',
+  borderRadius: 10,
+  boxShadow: 'none',
   '&:hover': {
-    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.15)',
-    transform: 'translateY(-2px)',
-    border: '2px solid #667eea',
+    boxShadow: 'none',
+    transform: 'none',
+    border: '1.5px solid #3554D1',
   },
 }));
 
@@ -144,12 +145,8 @@ const DMCSelectionComponent = ({
   // Render summary mode (only selected DMCs)
   if (mode === 'summary') {
     return (
-      <DMCSelectionPanel elevation={3}>
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 700, color: '#333', fontSize: '0.8rem' }}>
-            🏢 Selected DMC Partners
-          </Typography>
-          
+      <DMCSelectionPanel elevation={0} className="enquiry-dmc-summary">
+        <Box sx={{ mb: 0 }}>
           {selectedDmcsData.length === 0 ? (
             <Box sx={{ 
               p: 2, 
@@ -183,7 +180,7 @@ const DMCSelectionComponent = ({
                           <BusinessIcon fontSize="small" />
                         </Avatar>
                       ) : (
-                        <Avatar sx={{ width: 32, height: 32, mr: 1.5, bgcolor: '#667eea' }}>
+                        <Avatar sx={{ width: 32, height: 32, mr: 1.5, bgcolor: '#3554D1' }}>
                           <BusinessIcon fontSize="small" />
                         </Avatar>
                       )}
@@ -191,7 +188,7 @@ const DMCSelectionComponent = ({
                       <Box sx={{ flex: 1, minWidth: 0 }}>
                         <Typography variant="subtitle2" sx={{ 
                           fontWeight: 600, 
-                          color: '#667eea',
+                          color: '#3554D1',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
@@ -236,15 +233,15 @@ const DMCSelectionComponent = ({
           {activeLocation ? (
             <Box sx={{ 
               p: 1, 
-              bgcolor: 'rgba(102, 126, 234, 0.08)', 
-              borderRadius: 2, 
-              border: '1px solid rgba(102, 126, 234, 0.2)',
+              bgcolor: '#eef3ff', 
+              borderRadius: '10px', 
+              border: '1px solid #c9d7ff',
               display: 'flex',
               alignItems: 'center'
             }}>
-              <LocationIcon sx={{ fontSize: 18, color: '#667eea', mr: 1 }} />
+              <LocationIcon sx={{ fontSize: 18, color: '#3554D1', mr: 1 }} />
               <Box>
-                <Typography variant="body2" sx={{ fontWeight: 500, color: '#333' }}>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: '#14213d' }}>
                   {activeLocation.country || activeLocation.countryName || 'Location Selected'}
                 </Typography>
               </Box>
@@ -361,7 +358,7 @@ const DMCSelectionComponent = ({
                     <BusinessIcon fontSize="small" />
                   </Avatar>
                 ) : (
-                  <Avatar sx={{ width: 32, height: 32, mr: 1.5, bgcolor: '#667eea' }}>
+                  <Avatar sx={{ width: 32, height: 32, mr: 1.5, bgcolor: '#3554D1' }}>
                     <BusinessIcon fontSize="small" />
                   </Avatar>
                 )}
@@ -369,7 +366,7 @@ const DMCSelectionComponent = ({
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Typography variant="subtitle2" sx={{ 
                     fontWeight: 600, 
-                    color: isDMCSelected(dmc) ? '#667eea' : '#333',
+                    color: isDMCSelected(dmc) ? '#3554D1' : '#14213d',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
@@ -406,11 +403,11 @@ const DMCSelectionComponent = ({
               ✅ Selected ({selectedDmcsData.length})
             </Typography>
             {enquiryListLoading && (
-              <CircularProgress size={12} sx={{ color: '#667eea' }} />
+              <CircularProgress size={12} sx={{ color: '#3554D1' }} />
             )}
           </Box>
           {enquiryListLoading && (
-            <Typography variant="caption" sx={{ color: '#667eea', fontSize: '0.7rem', mb: 1, display: 'block' }}>
+            <Typography variant="caption" sx={{ color: '#3554D1', fontSize: '0.7rem', mb: 1, display: 'block' }}>
               Updating data...
             </Typography>
           )}

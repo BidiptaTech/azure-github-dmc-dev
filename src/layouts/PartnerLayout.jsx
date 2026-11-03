@@ -146,7 +146,7 @@ export default function PartnerLayout() {
 
       <main
         className={`partner-main${
-          /view-hotel-search|hotel-details|pickupdrop|attractions|tourguide|restaurants|localtransfer/i.test(
+          /view-hotel-search|hotel-details|pickupdrop|attractions|tourguide|restaurants|localtransfer|booking-enquiry|tour-packages-page|pre-define-packages|packages/i.test(
             location.pathname
           )
             ? " partner-main--wide"
