@@ -110,6 +110,7 @@ const formatChipDates = (entry) => {
 const MainFilterSearchBox = ({ layout = "default" }) => {
   const dispatch = useDispatch();
   const isHeroLayout = layout === "hero";
+  const isWorkspaceLayout = layout === "workspace";
 
   const tourDetails = useSelector((state) => state.hotels.tourdetails);
   const hotelService = useSelector((state) => state.hotels.hotelService || []);
@@ -439,12 +440,14 @@ const MainFilterSearchBox = ({ layout = "default" }) => {
     cityChipItems.length > 0 ? (
       <div
         className={
-          isHeroLayout
-            ? "hotel-list-hero__pills"
-            : "d-flex flex-wrap items-center gap-2 mt-20 mb-10"
+          isWorkspaceLayout
+            ? "pw-service-searchbox__pills"
+            : isHeroLayout
+              ? "hotel-list-hero__pills"
+              : "d-flex flex-wrap items-center gap-2 mt-20 mb-10"
         }
       >
-        {!isHeroLayout && (
+        {!isHeroLayout && !isWorkspaceLayout && (
           <span className="text-14 text-light-1 mr-5">Cities:</span>
         )}
         {cityChipItems.map((entry) => (
@@ -453,14 +456,18 @@ const MainFilterSearchBox = ({ layout = "default" }) => {
             type="button"
             onClick={() => handleCityChipClick(entry)}
             className={
-              isHeroLayout
-                ? `hotel-list-city-pill${entry.active ? " is-active" : ""}${
+              isWorkspaceLayout
+                ? `pw-city-pill${entry.active ? " is-active" : ""}${
                     entry.booked ? " is-booked" : ""
                   }`
-                : "d-inline-flex align-items-center border-0 rounded-100 px-15 py-8 cursor-pointer"
+                : isHeroLayout
+                  ? `hotel-list-city-pill${entry.active ? " is-active" : ""}${
+                      entry.booked ? " is-booked" : ""
+                    }`
+                  : "d-inline-flex align-items-center border-0 rounded-100 px-15 py-8 cursor-pointer"
             }
             style={
-              isHeroLayout
+              isHeroLayout || isWorkspaceLayout
                 ? undefined
                 : {
                     background: entry.active
@@ -490,15 +497,27 @@ const MainFilterSearchBox = ({ layout = "default" }) => {
               entry.booked && (
                 <i
                   className="icon-check text-12 mr-5"
-                  style={{ color: entry.active ? "#fff" : "#2e7d32" }}
+                  style={{
+                    color: entry.active
+                      ? "#fff"
+                      : isWorkspaceLayout
+                        ? "currentColor"
+                        : "#2e7d32",
+                  }}
                 />
               )
             )}
             <span>{toCityOnly(entry.city)}</span>
             <span
-              className={isHeroLayout ? "hotel-list-city-pill__dates" : "ml-8"}
+              className={
+                isWorkspaceLayout
+                  ? "pw-city-pill__dates"
+                  : isHeroLayout
+                    ? "hotel-list-city-pill__dates"
+                    : "ml-8"
+              }
               style={
-                isHeroLayout
+                isHeroLayout || isWorkspaceLayout
                   ? undefined
                   : {
                       opacity: entry.active ? 0.9 : 0.65,
@@ -513,17 +532,51 @@ const MainFilterSearchBox = ({ layout = "default" }) => {
       </div>
     ) : null;
 
+  const dateLockedHint =
+    hasCityWiseDates && selectedLocation ? (
+      <div
+        className={
+          isWorkspaceLayout
+            ? "pw-service-searchbox__hint"
+            : isHeroLayout
+              ? "hotel-list-dates-locked"
+              : "text-12 text-light-1 mt-5"
+        }
+      >
+        {isHeroLayout ? (
+          <>
+            <i className="icon-info-circle text-12" aria-hidden="true" />
+            <span>Dates locked to {toCityOnly(selectedLocation)}</span>
+          </>
+        ) : (
+          <>Dates locked to {toCityOnly(selectedLocation)}</>
+        )}
+      </div>
+    ) : null;
+
   const searchFields = (
-    <div className="button-grid items-center">
+    <div
+      className={
+        isWorkspaceLayout
+          ? "pw-service-searchbox__fields"
+          : "button-grid items-center"
+      }
+    >
       <LocationSearch
         onLocationSelect={handleLocationSelect}
         hasError={locationError}
         setError={setLocationError}
         controlledCity={selectedLocation}
-        label={isHeroLayout ? "Destination" : "City"}
+        label={isHeroLayout || isWorkspaceLayout ? "Destination" : "City"}
       />
 
-      <div className="searchMenu-date px-30 lg:py-20 sm:px-20 js-form-dd js-calendar">
+      <div
+        className={
+          isWorkspaceLayout
+            ? "searchMenu-date js-form-dd js-calendar"
+            : "searchMenu-date px-30 lg:py-20 sm:px-20 js-form-dd js-calendar"
+        }
+      >
         <div>
           <div className="d-flex">
             {isHeroLayout && (
@@ -541,28 +594,13 @@ const MainFilterSearchBox = ({ layout = "default" }) => {
                 formattedDateRange={formattedDateRange}
                 initialMinDate={initialMinDate}
                 initialMaxDate={initialMaxDate}
-                displayFormat={isHeroLayout ? "MMM DD, YYYY" : "YYYY-MM-DD"}
+                displayFormat={
+                  isHeroLayout || isWorkspaceLayout
+                    ? "MMM DD, YYYY"
+                    : "YYYY-MM-DD"
+                }
               />
-              {hasCityWiseDates && selectedLocation && (
-                <div
-                  className={
-                    isHeroLayout
-                      ? "hotel-list-dates-locked"
-                      : "text-12 text-light-1 mt-5"
-                  }
-                >
-                  {isHeroLayout ? (
-                    <>
-                      <i className="icon-info-circle text-12" aria-hidden="true" />
-                      <span>
-                        Dates locked to {toCityOnly(selectedLocation)}
-                      </span>
-                    </>
-                  ) : (
-                    <>Dates locked to {toCityOnly(selectedLocation)}</>
-                  )}
-                </div>
-              )}
+              {dateLockedHint}
             </div>
           </div>
         </div>
@@ -575,21 +613,31 @@ const MainFilterSearchBox = ({ layout = "default" }) => {
         showDropdown={showDropdown}
         setShowDropdown={setShowDropdown}
         dropdownRef={dropdownRef}
-        heroStyle={isHeroLayout}
+        heroStyle={isHeroLayout || isWorkspaceLayout}
       />
 
-      <div className="button-item h-full">
+      {isWorkspaceLayout ? (
         <button
+          type="button"
           onClick={handleSearch}
-          className={`button -dark-1 py-15 px-40 h-full col-12 bg-blue-1 text-white ${
-            isHeroLayout ? "" : "rounded-0"
-          }`}
-          style={isHeroLayout ? { borderRadius: 14 } : undefined}
+          className="partner-btn partner-btn--primary pw-service-searchbox__submit"
         >
-          <i className="icon-search text-20 mr-10" />
-          {isHeroLayout ? "Search Hotels" : "Search"}
+          Search hotels
         </button>
-      </div>
+      ) : (
+        <div className="button-item h-full">
+          <button
+            onClick={handleSearch}
+            className={`button -dark-1 py-15 px-40 h-full col-12 bg-blue-1 text-white ${
+              isHeroLayout ? "" : "rounded-0"
+            }`}
+            style={isHeroLayout ? { borderRadius: 14 } : undefined}
+          >
+            <i className="icon-search text-20 mr-10" />
+            {isHeroLayout ? "Search Hotels" : "Search"}
+          </button>
+        </div>
+      )}
     </div>
   );
 
@@ -604,6 +652,15 @@ const MainFilterSearchBox = ({ layout = "default" }) => {
       {searchFields}
     </div>
   );
+
+  if (isWorkspaceLayout) {
+    return (
+      <div className="pw-service-searchbox">
+        {cityPills}
+        {searchFields}
+      </div>
+    );
+  }
 
   if (isHeroLayout) {
     return (

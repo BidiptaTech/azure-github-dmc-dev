@@ -7,7 +7,6 @@ import MetaComponent from "@/components/common/MetaComponent";
 import CustomStepper from "@/components/common/sub_common/CustomStepper";
 import TourStatus from "@/components/common/sub_common/TourStatus";
 import TripWorkspaceShell from "@/components/workspace/TripWorkspaceShell";
-import "@/styles/hotelListHero.css";
 
 const metadata = {
   title: "Hotel List || Travclicks - Travel Technology Transformed",
@@ -39,15 +38,8 @@ const HotelListPage1 = () => {
         </div>
       </div>
 
-      <div className="hotel-list-top" aria-hidden>
-        <div className="container">
-          <div className="hotel-list-hero">
-            <MainFilterSearchBox layout="hero" />
-          </div>
-        </div>
-      </div>
-
       <TripWorkspaceShell
+        searchBox={<MainFilterSearchBox layout="workspace" />}
         filters={
           <>
             <h3>Find your client&apos;s stay</h3>

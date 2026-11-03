@@ -891,16 +891,13 @@ export default function HotelProperties() {
                       }}
                     >
                       <div
-                        className="d-flex flex-column align-items-center"
+                        className="d-flex flex-column align-items-center pw-card-action"
                         style={{
-                          minWidth: SHOW_PRICE_DETAILS ? "200px" : "180px",
+                          minWidth: 0,
                           width: "100%",
                           height: "100%",
                           justifyContent: "center",
-                          padding: SHOW_PRICE_DETAILS ? "0" : "12px 8px",
-                          borderLeft: SHOW_PRICE_DETAILS
-                            ? "none"
-                            : "1px solid #e5e7eb",
+                          padding: SHOW_PRICE_DETAILS ? "0" : "8px",
                         }}
                       >
                         {SHOW_PRICE_DETAILS &&
@@ -950,17 +947,15 @@ export default function HotelProperties() {
                                         borderRadius: "12px",
                                         p: 1,
                                         m: 1,
-                                        width: "180px",
-                                        minHeight: "180px",
+                                        width: "100%",
+                                        minWidth: 0,
+                                        minHeight: 0,
                                         height: "auto",
                                         bgcolor:
                                           selectedPriceModes[item.id] === "dmc"
                                             ? "#e6f2ff"
                                             : "#fff",
-                                        transform:
-                                          selectedPriceModes[item.id] === "dmc"
-                                            ? "scale(1.05)"
-                                            : "scale(1)",
+                                        transform: "none",
                                         cursor: "pointer",
                                         "&:hover": {
                                           bgcolor: "#f5f5f5",
@@ -970,6 +965,8 @@ export default function HotelProperties() {
                                         display: "flex",
                                         flexDirection: "column",
                                         alignItems: "flex-start",
+                                        boxSizing: "border-box",
+                                        overflow: "hidden",
                                       }}
                                     >
                                       <Box
@@ -1094,19 +1091,16 @@ export default function HotelProperties() {
                                           borderRadius: "12px",
                                           p: 1,
                                           m: 1,
-                                          width: "180px",
-                                          minHeight: "180px",
+                                          width: "100%",
+                                          minWidth: 0,
+                                          minHeight: 0,
                                           height: "auto",
                                           bgcolor:
                                             selectedPriceModes[item.id] ===
                                             "travclicks"
                                               ? "#e6f2ff"
                                               : "#fff",
-                                          transform:
-                                            selectedPriceModes[item.id] ===
-                                            "travclicks"
-                                              ? "scale(1.05)"
-                                              : "scale(1)",
+                                          transform: "none",
                                           cursor: "pointer",
                                           "&:hover": {
                                             bgcolor: "#f5f5f5",
@@ -1115,6 +1109,8 @@ export default function HotelProperties() {
                                           zIndex: 1,
                                           display: "flex",
                                           flexDirection: "column",
+                                          boxSizing: "border-box",
+                                          overflow: "hidden",
                                           alignItems: "flex-start",
                                         }}
                                       >
@@ -1214,19 +1210,16 @@ export default function HotelProperties() {
                           className="button -md -dark-1 bg-blue-1 text-white py-10 w-100"
                           sx={{
                             borderRadius: "8px",
-                            padding: "10px 18px",
+                            padding: "10px 12px",
                             textTransform: "none",
                             fontWeight: "600",
-                            boxShadow: "0 4px 10px rgba(53, 84, 209, 0.25)",
-                            "&:hover": {
-                              boxShadow: "0 6px 15px rgba(53, 84, 209, 0.35)",
-                              transform: "translateY(-2px)",
-                            },
+                            boxShadow: "none",
                             transition: "all 0.3s ease",
                             mt: SHOW_PRICE_DETAILS ? 1.5 : 0,
-                            fontSize: "14px",
-                            minWidth: "160px",
-                            whiteSpace: "nowrap",
+                            fontSize: "13px",
+                            minWidth: 0,
+                            width: "100%",
+                            whiteSpace: "normal",
                           }}
                         >
                           Select room →

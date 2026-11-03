@@ -10,30 +10,39 @@ const CityServiceChips = ({
   if (!items.length) return null;
 
   const isHero = variant === "hero";
+  const isWorkspace = variant === "workspace";
 
   return (
     <div
       className={
-        isHero
-          ? "hotel-list-hero__pills"
-          : "d-flex flex-wrap items-center gap-2 mt-20 mb-10"
+        isWorkspace
+          ? "pw-service-searchbox__pills"
+          : isHero
+            ? "hotel-list-hero__pills"
+            : "d-flex flex-wrap items-center gap-2 mt-20 mb-10"
       }
     >
-      {!isHero && <span className="text-14 text-light-1 mr-5">{label}</span>}
+      {!isHero && !isWorkspace && (
+        <span className="text-14 text-light-1 mr-5">{label}</span>
+      )}
       {items.map((entry) => (
         <button
           key={entry.city}
           type="button"
           onClick={() => onCitySelect(entry)}
           className={
-            isHero
-              ? `hotel-list-city-pill${entry.active ? " is-active" : ""}${
+            isWorkspace
+              ? `pw-city-pill${entry.active ? " is-active" : ""}${
                   entry.booked ? " is-booked" : ""
                 }`
-              : "d-inline-flex align-items-center border-0 rounded-100 px-15 py-8 cursor-pointer"
+              : isHero
+                ? `hotel-list-city-pill${entry.active ? " is-active" : ""}${
+                    entry.booked ? " is-booked" : ""
+                  }`
+                : "d-inline-flex align-items-center border-0 rounded-100 px-15 py-8 cursor-pointer"
           }
           style={
-            isHero
+            isHero || isWorkspace
               ? undefined
               : {
                   background: entry.active
@@ -63,15 +72,27 @@ const CityServiceChips = ({
             entry.booked && (
               <i
                 className="icon-check text-12 mr-5"
-                style={{ color: entry.active ? "#fff" : "#2e7d32" }}
+                style={{
+                  color: entry.active
+                    ? "#fff"
+                    : isWorkspace
+                      ? "currentColor"
+                      : "#2e7d32",
+                }}
               />
             )
           )}
           <span>{toCityOnly(entry.city)}</span>
           <span
-            className={isHero ? "hotel-list-city-pill__dates" : "ml-8"}
+            className={
+              isWorkspace
+                ? "pw-city-pill__dates"
+                : isHero
+                  ? "hotel-list-city-pill__dates"
+                  : "ml-8"
+            }
             style={
-              isHero
+              isHero || isWorkspace
                 ? undefined
                 : {
                     opacity: entry.active ? 0.9 : 0.65,

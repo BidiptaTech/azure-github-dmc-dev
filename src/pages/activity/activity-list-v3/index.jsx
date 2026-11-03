@@ -1519,10 +1519,10 @@ console.log("zone_on5", zone_on);
     <>
       <MetaComponent meta={metadata} />
       {/* End Page Title */}
-      <div className="header-margin">
+      {/* <div className="header-margin">
         <CustomStepper variant="lite" />
         <TourStatus variant="lite" />
-      </div>
+      </div> */}
 
       {showBookingTable && hasBookings ? (
         <section className="layout-pt-md layout-pb-md">
@@ -2383,6 +2383,11 @@ console.log("zone_on5", zone_on);
       ) : (
         <div className="pw-trip-workspace">
           <TripWorkspaceShell
+            searchBox={
+              <div className="pw-service-searchbox">
+                <MainFilterSearchBox Location={Location} />
+              </div>
+            }
             filters={
               <>
                 <h3>Find local transfers</h3>
@@ -2394,9 +2399,6 @@ console.log("zone_on5", zone_on);
               </>
             }
           >
-            <div className="pw-service-search mb-20">
-              <MainFilterSearchBox Location={Location} />
-            </div>
             <div className="pw-results-head">
               <h2>
                 {displayedVehicleCount > 0

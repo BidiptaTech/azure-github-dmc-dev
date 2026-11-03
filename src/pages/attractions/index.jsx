@@ -46,10 +46,10 @@ const BookingPage = () => {
       <MetaComponent meta={metadata} />
       {/* End Page Title */}
 
-      <div className="header-margin">
+      {/* <div className="header-margin">
         <CustomStepper variant="lite" />
         <TourStatus variant="lite" />
-      </div>
+      </div> */}
       {/* header top margin */}
 
       {/* Header provided by PartnerLayout */}

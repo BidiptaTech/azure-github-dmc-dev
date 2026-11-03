@@ -1,6 +1,4 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Swiper } from "swiper/react";
-import { Navigation, Pagination as SwiperPagination } from "swiper";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import moment from "moment";
@@ -890,19 +888,15 @@ const TourProperties = () => {
                     <div className="col-md-auto">
                       <div className="cardImage ratio ratio-1:1 w-250 md:w-1/1 rounded-4">
                         <div className="cardImage__content custom_inside-slider">
-                          <Swiper
-                            className="mySwiper"
-                            modules={[SwiperPagination, Navigation]}
-                            pagination={{ clickable: true }}
-                            navigation={true}
-                          >
-                            <img
-                              className="rounded-4 col-12 js-lazy"
-                              src={item?.image}
-                              alt={item?.restaurant_name}
-                              style={{ height: '200px', objectFit: 'cover' }}
-                            />
-                          </Swiper>
+                          <img
+                            className="rounded-4 js-lazy"
+                            src={item?.image || "/travclick.png"}
+                            alt={item?.restaurant_name || "restaurant"}
+                            onError={(e) => {
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.src = "/travclick.png";
+                            }}
+                          />
                         </div>
                       </div>
                     </div>
@@ -946,8 +940,9 @@ const TourProperties = () => {
                                       borderRadius: "12px",
                                       p: 1,
                                       m: 1,
-                                      width: "160px",
-                                      height: "165px", 
+                                      width: "100%",
+                                      minWidth: 0,
+                                      height: "auto", 
                                       bgcolor: currentMode === "dmc" ? "#e6f2ff" : "#fff",
                                       transform: currentMode === "dmc" ? "scale(1.05)" : "scale(1)",
                                       cursor: "pointer",
@@ -1111,8 +1106,9 @@ const TourProperties = () => {
                                         borderRadius: "12px",
                                         p: 1,
                                         m: 1,
-                                        width: "160px",
-                                        height: "165px", 
+                                        width: "100%",
+                                        minWidth: 0,
+                                        height: "auto", 
                                         bgcolor: currentMode === "dmc" ? "#e6f2ff" : "#fff",
                                         transform: currentMode === "dmc" ? "scale(1.05)" : "scale(1)",
                                         cursor: "pointer",
@@ -1274,10 +1270,12 @@ const TourProperties = () => {
                                         borderRadius: "12px",
                                         p: 1,
                                         m: 1,
-                                        width: "160px",
-                                        minHeight: "165px", // Reset to original height
+                                        width: "100%",
+                                        minWidth: 0,
+                                        minHeight: 0,
+                                        height: "auto",
                                         bgcolor: currentMode === "travclicks" ? "#e6f2ff" : "#fff",
-                                        transform: currentMode === "travclicks" ? "scale(1.05)" : "scale(1)",
+                                        transform: "none",
                                         cursor: "pointer",
                                         "&:hover": {
                                           bgcolor: "#f5f5f5"
