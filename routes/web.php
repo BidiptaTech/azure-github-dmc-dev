@@ -496,6 +496,7 @@ Route::get('/clear', function () {
                 Route::get('reports/sales-revenue', [FinanceReportController::class, 'salesRevenue'])->name('reports.sales-revenue');
                 Route::get('reports/ledger', [FinanceReportController::class, 'ledger'])->name('reports.ledger');
                 Route::get('reports/balance-sheet', [FinanceReportController::class, 'balanceSheet'])->name('reports.balance-sheet');
+                Route::get('reports/redeemed-restaurant-vouchers', [FinanceReportController::class, 'redeemedRestaurantVouchers'])->name('reports.redeemed-restaurant-vouchers');
                 
                 // AJAX routes for ledger functionality
                 Route::get('reports/transaction-details/{id}', [FinanceReportController::class, 'getTransactionDetails'])->name('reports.transaction-details');
