@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Helpers\CurrencyHelper;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -18,7 +19,53 @@ class Country extends Model
     protected $casts = [
         'remitance_charge' => 'array',
         'exchange_rate' => 'array',
+        'rate_updated_at' => 'datetime',
     ];
+
+    /**
+     * Stored SGD → $currency rate (1 SGD = X $currency), or null when missing/invalid.
+     */
+    public static function sgdRateFor(string $currency): ?float
+    {
+        $currency = strtoupper(trim($currency));
+        if ($currency === 'SGD') {
+            return 1.0;
+        }
+
+        $rate = (float) static::whereRaw('UPPER(currency) = ?', [$currency])
+            ->where('current_rate', '>', 0)
+            ->orderByDesc('rate_updated_at')
+            ->value('current_rate');
+
+        return $rate > 0 ? $rate : null;
+    }
+
+    /**
+     * Refresh current_rate for every country from the live rate (same CurrencyHelper stack
+     * as Wallet Management). One lookup per distinct currency; failures keep the old rate.
+     *
+     * @return array{updated: int, failed: array<int, string>}
+     */
+    public static function syncCurrentRates(): array
+    {
+        $updated = 0;
+        $failed = [];
+
+        $currencies = static::whereNotNull('currency')->where('currency', '!=', '')
+            ->pluck('currency')->map(fn ($c) => strtoupper(trim($c)))->unique();
+
+        foreach ($currencies as $currency) {
+            $rate = CurrencyHelper::getExchangeRate('SGD', $currency);
+            if ($rate === null || $rate <= 0) {
+                $failed[] = $currency;
+                continue;
+            }
+            $updated += static::whereRaw('UPPER(TRIM(currency)) = ?', [$currency])
+                ->update(['current_rate' => $rate, 'rate_updated_at' => now()]);
+        }
+
+        return ['updated' => $updated, 'failed' => $failed];
+    }
 
     protected $fillable = [
         'name',
@@ -33,6 +80,8 @@ class Country extends Model
         'commission_percentage',
         'remitance_charge',
         'exchange_rate',
+        'current_rate',
+        'rate_updated_at',
         'card_type',
         'card_length',
         'min_length',
@@ -40,6 +89,154 @@ class Country extends Model
         'header_pdf',
         'footer_pdf'
     ];
+
+    /**
+     * ISO 3166-1 alpha-2 codes keyed by countries.name.
+     * Dial codes are not unique, so name is the reliable key.
+     *
+     * @return array<string, string>
+     */
+    public static function shortCodeMap(): array
+    {
+        return [
+            'Afghanistan' => 'AF',
+            'Albania' => 'AL',
+            'Algeria' => 'DZ',
+            'Andorra' => 'AD',
+            'Angola' => 'AO',
+            'Argentina' => 'AR',
+            'Armenia' => 'AM',
+            'Australia' => 'AU',
+            'Austria' => 'AT',
+            'Azerbaijan' => 'AZ',
+            'Bahamas' => 'BS',
+            'Bahrain' => 'BH',
+            'Bangladesh' => 'BD',
+            'Barbados' => 'BB',
+            'Belarus' => 'BY',
+            'Belgium' => 'BE',
+            'Belize' => 'BZ',
+            'Benin' => 'BJ',
+            'Bhutan' => 'BT',
+            'Bolivia' => 'BO',
+            'Bosnia and Herzegovina' => 'BA',
+            'Botswana' => 'BW',
+            'Brazil' => 'BR',
+            'Brunei' => 'BN',
+            'Bulgaria' => 'BG',
+            'Burkina Faso' => 'BF',
+            'Burundi' => 'BI',
+            'Cambodia' => 'KH',
+            'Cameroon' => 'CM',
+            'Canada' => 'CA',
+            'Cape Verde' => 'CV',
+            'Central African Republic' => 'CF',
+            'Chad' => 'TD',
+            'Chile' => 'CL',
+            'China' => 'CN',
+            'Colombia' => 'CO',
+            'Costa Rica' => 'CR',
+            'Croatia' => 'HR',
+            'Cyprus' => 'CY',
+            'Czech Republic' => 'CZ',
+            'Denmark' => 'DK',
+            'Dominican Republic' => 'DO',
+            'Ecuador' => 'EC',
+            'Egypt' => 'EG',
+            'El Salvador' => 'SV',
+            'Estonia' => 'EE',
+            'Eswatini' => 'SZ',
+            'Ethiopia' => 'ET',
+            'Fiji' => 'FJ',
+            'Finland' => 'FI',
+            'France' => 'FR',
+            'Germany' => 'DE',
+            'Ghana' => 'GH',
+            'Greece' => 'GR',
+            'Guatemala' => 'GT',
+            'Haiti' => 'HT',
+            'Honduras' => 'HN',
+            'Hungary' => 'HU',
+            'Iceland' => 'IS',
+            'India' => 'IN',
+            'Indonesia' => 'ID',
+            'Iran' => 'IR',
+            'Iraq' => 'IQ',
+            'Ireland' => 'IE',
+            'Israel' => 'IL',
+            'Italy' => 'IT',
+            'Jamaica' => 'JM',
+            'Japan' => 'JP',
+            'Jordan' => 'JO',
+            'Kazakhstan' => 'KZ',
+            'Kenya' => 'KE',
+            'Kuwait' => 'KW',
+            'Kyrgyzstan' => 'KG',
+            'Laos' => 'LA',
+            'Latvia' => 'LV',
+            'Lebanon' => 'LB',
+            'Liberia' => 'LR',
+            'Libya' => 'LY',
+            'Lithuania' => 'LT',
+            'Luxembourg' => 'LU',
+            'Malaysia' => 'MY',
+            'Maldives' => 'MV',
+            'Malta' => 'MT',
+            'Mexico' => 'MX',
+            'Moldova' => 'MD',
+            'Monaco' => 'MC',
+            'Morocco' => 'MA',
+            'Nepal' => 'NP',
+            'Netherlands' => 'NL',
+            'New Zealand' => 'NZ',
+            'Nicaragua' => 'NI',
+            'Nigeria' => 'NG',
+            'Norway' => 'NO',
+            'Pakistan' => 'PK',
+            'Peru' => 'PE',
+            'Philippines' => 'PH',
+            'Poland' => 'PL',
+            'Portugal' => 'PT',
+            'Qatar' => 'QA',
+            'Romania' => 'RO',
+            'Russia' => 'RU',
+            'Saudi Arabia' => 'SA',
+            'Singapore' => 'SG',
+            'South Africa' => 'ZA',
+            'South Korea' => 'KR',
+            'Spain' => 'ES',
+            'Sri Lanka' => 'LK',
+            'Sweden' => 'SE',
+            'Switzerland' => 'CH',
+            'Taiwan' => 'TW',
+            'Thailand' => 'TH',
+            'Turkey' => 'TR',
+            'Ukraine' => 'UA',
+            'United Arab Emirates' => 'AE',
+            'United Kingdom' => 'GB',
+            'United States' => 'US',
+            'Uruguay' => 'UY',
+            'Venezuela' => 'VE',
+            'Vietnam' => 'VN',
+        ];
+    }
+
+    public static function resolveShortCode(?string $name, ?string $storedShortCode = null): ?string
+    {
+        $code = strtoupper(trim((string) $storedShortCode));
+        if (strlen($code) === 2) {
+            return $code;
+        }
+
+        $name = trim((string) $name);
+        if ($name === '') {
+            return null;
+        }
+
+        $mapped = self::shortCodeMap()[$name] ?? null;
+
+        return $mapped ? strtoupper($mapped) : null;
+    }
 
      // Relationship with City
      public function cities()

@@ -199,31 +199,281 @@ class WalletQueryService
     }
 
     /**
-     * Travclicks spend-to-DMC totals grouped by currency (allocation_debit only).
-     *
-     * @return array<int, array{currency: string, amount: float}>
+     * Entry types offered in the Travclicks DMC ledger filter.
      */
-    public function buildTravclicksDmcSpendByCurrency(): array
+    public const DMC_LEDGER_ENTRY_TYPES = [
+        'allocation_credit' => 'Funds received',
+        'allocation_debit' => 'Funds sent',
+        'topup' => 'Top-up',
+        'reserve' => 'Reserved',
+        'release' => 'Released',
+        'commit' => 'Committed',
+        'booking_debit' => 'Booking payment',
+        'booking_credit' => 'Booking proceeds',
+        'refund_credit' => 'Refund received',
+        'refund_debit' => 'Refund issued',
+        'adjustment' => 'Adjustment',
+    ];
+
+    public function ledgerEntryTypeLabel(string $type): string
+    {
+        return self::DMC_LEDGER_ENTRY_TYPES[$type] ?? ucwords(str_replace('_', ' ', $type));
+    }
+
+    /**
+     * One row per DMC wallet (DMC × currency) with funding / usage totals from the ledger.
+     *
+     * @return Collection<int, object>
+     */
+    public function listDmcWalletSummaries(?int $dmcId = null, ?string $currency = null): Collection
     {
         if (! Schema::hasTable('wallet') || ! Schema::hasTable('wallet_ledger')) {
-            return [];
+            return collect();
         }
 
-        $rows = DB::table('wallet_ledger as wl')
-            ->join('wallet as w', 'w.id', '=', 'wl.wallet_id')
+        $rows = DB::table('wallet as w')
+            ->leftJoin('wallet_ledger as wl', 'wl.wallet_id', '=', 'w.id')
+            ->where('w.wallet_owner_type', 'dmc')
             ->whereNull('w.deleted_at')
-            ->where('w.wallet_owner_type', 'travclicks')
-            ->where('w.wallet_owner_id', 1)
-            ->where('wl.ledger_entry_type', 'allocation_debit')
-            ->groupBy('w.wallet_currency_code')
+            ->when($dmcId, fn ($q) => $q->where('w.wallet_owner_id', $dmcId))
+            ->when($currency, fn ($q) => $q->where('w.wallet_currency_code', strtoupper($currency)))
+            ->groupBy('w.id', 'w.wallet_owner_id', 'w.wallet_currency_code', 'w.available_balance', 'w.reserved_balance')
+            ->orderBy('w.wallet_owner_id')
             ->orderBy('w.wallet_currency_code')
-            ->selectRaw('w.wallet_currency_code as currency, COALESCE(SUM(wl.debit_amount), 0) as amount')
+            ->selectRaw("
+                w.id,
+                w.wallet_owner_id,
+                w.wallet_currency_code,
+                w.available_balance,
+                w.reserved_balance,
+                COALESCE(SUM(CASE
+                    WHEN wl.ledger_entry_type = 'allocation_credit'
+                     AND COALESCE(wl.ledger_metadata->'transfer'->>'from_type', '') = 'travclicks'
+                    THEN wl.credit_amount ELSE 0 END), 0) AS funded_by_travclicks,
+                COALESCE(SUM(wl.credit_amount), 0) AS total_credit,
+                COALESCE(SUM(wl.debit_amount), 0) AS total_debit,
+                COUNT(wl.id) AS entry_count,
+                MAX(wl.created_at) AS last_activity_at
+            ")
             ->get();
 
-        return $rows->map(fn ($r) => [
-            'currency' => strtoupper((string) $r->currency),
-            'amount' => (float) $r->amount,
-        ])->values()->all();
+        $users = $rows->isNotEmpty()
+            ? User::whereIn('userId', $rows->pluck('wallet_owner_id')->unique()->values())
+                ->get(['userId', 'company_name', 'name'])
+                ->keyBy('userId')
+            : collect();
+
+        return $rows
+            ->map(function ($row) use ($users) {
+                $row->owner_name = $this->resolveOwnerName('dmc', (int) $row->wallet_owner_id, $users);
+                $row->wallet_currency_code = strtoupper((string) $row->wallet_currency_code);
+
+                return $row;
+            })
+            ->sortBy(fn ($row) => strtolower($row->owner_name).'|'.$row->wallet_currency_code)
+            ->values();
+    }
+
+    /**
+     * Every DMC (role 11) with its wallets, for the Travclicks drill-down.
+     *
+     * @return Collection<int, object>
+     */
+    protected function dmcCards(): Collection
+    {
+        $wallets = $this->listDmcWalletSummaries()->groupBy('wallet_owner_id');
+
+        return User::where('role_id', 11)->whereNull('deleted_at')
+            ->get(['userId', 'company_name', 'name', 'master_dmc_id'])
+            ->map(fn ($u) => (object) [
+                'id' => (int) $u->userId,
+                'name' => $u->company_name ?: $u->name ?: "DMC #{$u->userId}",
+                'master_id' => (int) ($u->master_dmc_id ?? 0),
+                'wallets' => $wallets->get($u->userId, collect()),
+            ])
+            ->sortBy(fn ($d) => strtolower($d->name))
+            ->values();
+    }
+
+    /**
+     * @return array<int, array{currency: string, received: float, available: float}>
+     */
+    protected function sumWalletsByCurrency(Collection $wallets): array
+    {
+        return $wallets->groupBy('wallet_currency_code')->map(fn ($rows, $code) => [
+            'currency' => $code,
+            'received' => (float) $rows->sum('funded_by_travclicks'),
+            'available' => (float) $rows->sum('available_balance'),
+        ])->sortKeys()->values()->all();
+    }
+
+    /**
+     * Master DMC cards (id 0 = DMCs with no Master DMC) with their DMCs' totals per currency.
+     *
+     * @return Collection<int, object>
+     */
+    public function listMasterDmcCards(): Collection
+    {
+        $dmcs = $this->dmcCards()->groupBy('master_id');
+
+        $masters = User::where('role_id', 10)->whereNull('deleted_at')
+            ->get(['userId', 'company_name', 'name'])
+            ->map(fn ($m) => (object) ['id' => (int) $m->userId, 'name' => $m->company_name ?: $m->name ?: "Master DMC #{$m->userId}"]);
+
+        if ($dmcs->has(0)) {
+            $masters->push((object) ['id' => 0, 'name' => 'Direct DMCs (no Master DMC)']);
+        }
+
+        return $masters->map(function ($m) use ($dmcs) {
+            $list = $dmcs->get($m->id, collect());
+            $m->dmc_count = $list->count();
+            $m->totals = $this->sumWalletsByCurrency($list->flatMap(fn ($d) => $d->wallets));
+
+            return $m;
+        })->sortBy(fn ($m) => strtolower($m->name))->values();
+    }
+
+    /**
+     * @return Collection<int, object>
+     */
+    public function listDmcCardsForMaster(int $masterId): Collection
+    {
+        return $this->dmcCards()->where('master_id', $masterId)->values();
+    }
+
+    /**
+     * Ledger entries for one DMC's wallets (all currencies) for Travclicks.
+     *
+     * @return array{
+     *     ledger: LengthAwarePaginator,
+     *     filters: array{dmc_id: ?int, currency: ?string, entry_type: ?string, date_from: ?string, date_to: ?string, per_page: int},
+     *     queryParams: array<string, mixed>,
+     *     totalsByCurrency: array<int, array{currency: string, credit: float, debit: float, count: int}>
+     * }
+     */
+    public function buildTravclicksDmcLedgerViewData(
+        Authenticatable $user,
+        ?int $dmcId = null,
+        ?string $currency = null,
+        ?string $entryType = null,
+        ?string $dateFrom = null,
+        ?string $dateTo = null,
+        ?int $perPage = null,
+        int $page = 1,
+    ): array {
+        $ownDmc = (int) ($user->role_id ?? 0) === 10 && $dmcId && $this->dmcBelongsToMaster($dmcId, (int) $user->userId);
+        if (! $ownDmc && ! $this->isAdminUser($user)) {
+            abort(403, 'You do not have access to this view.');
+        }
+
+        $dateFilters = $this->resolveLedgerFilters($dateFrom, $dateTo, $perPage);
+        $currency = $currency ? strtoupper($currency) : null;
+        $entryType = ($entryType && array_key_exists($entryType, self::DMC_LEDGER_ENTRY_TYPES)) ? $entryType : null;
+        $dmcId = $dmcId && $dmcId > 0 ? $dmcId : null;
+
+        $filters = [
+            'dmc_id' => $dmcId,
+            'currency' => $currency,
+            'entry_type' => $entryType,
+            'date_from' => $dateFilters['date_from'],
+            'date_to' => $dateFilters['date_to'],
+            'per_page' => $dateFilters['per_page'],
+        ];
+
+        $paginator = $this->dmcLedgerQuery($dmcId, $currency, $entryType, $filters['date_from'], $filters['date_to'])
+            ->paginate(
+                $filters['per_page'],
+                ['wl.*', 'w.wallet_owner_type', 'w.wallet_owner_id', 'w.wallet_currency_code'],
+                'dmc_ledger_page',
+                max($page, 1),
+            );
+
+        $dmcUsers = $paginator->getCollection()->isNotEmpty()
+            ? User::whereIn('userId', $paginator->getCollection()->pluck('wallet_owner_id')->unique()->values())
+                ->get(['userId', 'company_name', 'name'])
+                ->keyBy('userId')
+            : collect();
+
+        $paginator->setCollection(
+            $this->enrichLedgerEntries($paginator->getCollection())
+                ->map(function ($entry) use ($dmcUsers) {
+                    $entry->dmc_name = $this->resolveOwnerName('dmc', (int) $entry->wallet_owner_id, $dmcUsers);
+                    $entry->entry_type_label = $this->ledgerEntryTypeLabel((string) $entry->ledger_entry_type);
+
+                    return $entry;
+                })
+        );
+
+        $totalsByCurrency = $this->dmcLedgerQuery($dmcId, $currency, $entryType, $filters['date_from'], $filters['date_to'])
+            ->reorder()
+            ->groupBy('w.wallet_currency_code')
+            ->orderBy('w.wallet_currency_code')
+            ->selectRaw('w.wallet_currency_code as currency, COALESCE(SUM(wl.credit_amount), 0) as credit, COALESCE(SUM(wl.debit_amount), 0) as debit, COUNT(*) as entry_count')
+            ->get()
+            ->map(fn ($r) => [
+                'currency' => strtoupper((string) $r->currency),
+                'credit' => (float) $r->credit,
+                'debit' => (float) $r->debit,
+                'count' => (int) $r->entry_count,
+            ])
+            ->values()
+            ->all();
+
+        $queryParams = array_filter([
+            'dmc_id' => $filters['dmc_id'],
+            'dmc_currency' => $filters['currency'],
+            'dmc_entry_type' => $filters['entry_type'],
+            'dmc_date_from' => $filters['date_from'],
+            'dmc_date_to' => $filters['date_to'],
+            'dmc_per_page' => $filters['per_page'],
+        ], fn ($value) => $value !== null && $value !== '');
+
+        return [
+            'ledger' => $paginator,
+            'filters' => $filters,
+            'queryParams' => $queryParams,
+            'totalsByCurrency' => $totalsByCurrency,
+        ];
+    }
+
+    protected function dmcLedgerQuery(
+        ?int $dmcId = null,
+        ?string $currency = null,
+        ?string $entryType = null,
+        ?string $dateFrom = null,
+        ?string $dateTo = null,
+    ): Builder {
+        $query = DB::table('wallet_ledger as wl')
+            ->join('wallet as w', 'w.id', '=', 'wl.wallet_id')
+            ->where('w.wallet_owner_type', 'dmc')
+            ->whereNull('w.deleted_at');
+
+        if ($dmcId) {
+            $query->where('w.wallet_owner_id', $dmcId);
+        }
+
+        if ($currency) {
+            $query->where('w.wallet_currency_code', strtoupper($currency));
+        }
+
+        if ($entryType) {
+            $query->where('wl.ledger_entry_type', $entryType);
+        }
+
+        $from = $this->normalizeLedgerDate($dateFrom);
+        $to = $this->normalizeLedgerDate($dateTo);
+
+        if ($from) {
+            $query->whereRaw('wl.created_at >= ?::timestamptz', [$this->ledgerRangeStart($from)]);
+        }
+
+        if ($to) {
+            $query->whereRaw('wl.created_at < ?::timestamptz', [$this->ledgerRangeEndExclusive($to)]);
+        }
+
+        return $query
+            ->orderByDesc('wl.created_at')
+            ->orderByDesc('wl.id');
     }
 
     /**
@@ -398,6 +648,11 @@ class WalletQueryService
             'scope' => 'master_dmc_flow',
             'flowSummary' => $flowSummary,
         ];
+    }
+
+    public function dmcAgencyAllocationEnabled(): bool
+    {
+        return (bool) config('finance.wallet.dmc_agency_allocation_enabled', false);
     }
 
     public function isAdminUser(Authenticatable $user): bool
@@ -1275,9 +1530,47 @@ class WalletQueryService
 
         return $ledger->map(function ($entry) use ($users, $agents) {
             $entry->transfer_summary = $this->resolveLedgerTransferSummary($entry, $users, $agents);
+            $entry->fx_summary = $this->resolveFxSummary($entry);
+            $entry->reference_id = json_decode((string) ($entry->ledger_metadata ?? ''), true)['reference_id'] ?? null;
 
             return $entry;
         });
+    }
+
+    /**
+     * SGD equivalent of a Travclicks funding credit. Rows sent before SGD was recorded
+     * get an estimate at today's rate (estimated = true).
+     */
+    protected function resolveFxSummary(object $entry): ?array
+    {
+        if (($entry->ledger_entry_type ?? '') !== 'allocation_credit') {
+            return null;
+        }
+
+        $meta = json_decode((string) ($entry->ledger_metadata ?? ''), true) ?: [];
+        if (($meta['transfer']['from_type'] ?? '') !== 'travclicks') {
+            return null;
+        }
+
+        $fx = $meta['fx'] ?? [];
+        $from = strtoupper((string) ($fx['allocator_currency'] ?? ''));
+        $to = strtoupper((string) ($fx['recipient_currency'] ?? $from));
+
+        if ($from === 'SGD') {
+            return [
+                'sgd' => (float) ($fx['allocator_amount'] ?? $entry->credit_amount),
+                'estimated' => false,
+                'rate' => ($to !== 'SGD' && ! empty($fx['exchange_rate'])) ? (float) $fx['exchange_rate'] : null,
+                'to' => $to,
+            ];
+        }
+
+        static $rates = [];
+        $rates[$to] ??= CurrencyHelper::getExchangeRate($to, 'SGD');
+
+        return $rates[$to]
+            ? ['sgd' => (float) $entry->credit_amount * (float) $rates[$to], 'estimated' => true, 'rate' => null, 'to' => $to]
+            : null;
     }
 
     /**
@@ -1360,7 +1653,8 @@ class WalletQueryService
         $isDmcOwner = (int) $user->role_id === 11;
         $isAgent = (int) $user->role_id === 20 || ! empty($user->agent_id);
 
-        $canTopUp = $isAdmin || $isMasterDmc || $isDmcOwner;
+        $canTopUp = $isAdmin || $isMasterDmc
+            || ($isDmcOwner && $this->dmcAgencyAllocationEnabled());
         $canSwitchWallet = $isAdmin || $isMasterDmc || $isDmcOwner;
 
         if (! $ownerType || ! $ownerId) {

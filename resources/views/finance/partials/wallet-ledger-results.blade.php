@@ -6,6 +6,7 @@
                 @if($showReferenceColumn)
                     <th>Reference</th>
                 @endif
+                <th>Transaction ID</th>
                 <th>Type</th>
                 <th>Transfer</th>
                 <th class="text-end">Debit</th>
@@ -23,17 +24,27 @@
                     @if($showReferenceColumn)
                         <td class="small font-monospace">{{ $entry->finance_reference }}</td>
                     @endif
+                    <td class="small font-monospace">{{ $entry->reference_id ?: '—' }}</td>
                     <td>
                         <span class="badge bg-label-info">{{ str_replace('_', ' ', $entry->ledger_entry_type) }}</span>
                     </td>
-                    <td class="small fw-medium">{{ $entry->transfer_summary ?? ($entry->ledger_description ?? '—') }}</td>
+                    <td class="small fw-medium">
+                        {{ $entry->transfer_summary ?? ($entry->ledger_description ?? '—') }}
+                    </td>
                     <td class="text-end text-danger">{{ $entry->debit_amount > 0 ? number_format((float) $entry->debit_amount, 2) : '—' }}</td>
-                    <td class="text-end text-success">{{ $entry->credit_amount > 0 ? number_format((float) $entry->credit_amount, 2) : '—' }}</td>
+                    <td class="text-end text-success">
+                        {{ $entry->credit_amount > 0 ? number_format((float) $entry->credit_amount, 2) : '—' }}
+                        @if(!empty($entry->fx_summary))
+                            <span class="text-muted small ms-1" title="{{ $entry->fx_summary['estimated'] ? 'Estimated at current rate, original SGD not recorded' : ($entry->fx_summary['rate'] ? '1 SGD = '.number_format($entry->fx_summary['rate'], 2).' '.$entry->fx_summary['to'] : 'Sent by Travclicks') }}">
+                                {{ $entry->fx_summary['estimated'] ? '≈' : '=' }} SGD {{ number_format($entry->fx_summary['sgd'], 2) }}@if($entry->fx_summary['estimated']) (est.)@endif
+                            </span>
+                        @endif
+                    </td>
                     <td class="text-end fw-semibold">{{ number_format((float) ($entry->balance_after ?? $entry->running_balance ?? 0), 2) }}</td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="{{ $showReferenceColumn ? 7 : 6 }}" class="text-center text-muted py-5">
+                    <td colspan="{{ $showReferenceColumn ? 8 : 7 }}" class="text-center text-muted py-5">
                         <i class="ri-wallet-line ri-2x d-block mb-2"></i>
                         No ledger entries found for the selected filters.
                     </td>
