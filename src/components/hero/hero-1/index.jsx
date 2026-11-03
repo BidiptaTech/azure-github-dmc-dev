@@ -66,7 +66,17 @@ const ServiceChip = ({ icon, label, color, style = {}, float = false, delay = "0
   </div>
 );
 
-const index = () => {
+/**
+ * Shared Plan & book hero.
+ * Pass `searchSlot` to swap MainFilterSearchBox (e.g. Tour Packages SearchForm).
+ */
+const index = ({
+  title = "Plan & book tours for your clients",
+  subtitle = "Set destinations, dates and pax — then add hotels, transfers and experiences",
+  footerNote = "Build complete itineraries — hotels, attractions, transfers, guides & more",
+  searchSlot = null,
+  showServiceChips = true,
+} = {}) => {
   return (
     <section
       className="masthead -type-1 z-5"
@@ -114,7 +124,6 @@ const index = () => {
         }
       `}</style>
 
-      {/* Asymmetric layered wave — not the Goibibo oval bulge */}
       <div
         aria-hidden="true"
         className="hero-curve-band"
@@ -129,7 +138,6 @@ const index = () => {
           overflow: "hidden",
         }}
       >
-        {/* Solid wave fill */}
         <svg
           viewBox="0 0 1440 420"
           preserveAspectRatio="none"
@@ -148,12 +156,10 @@ const index = () => {
               <stop offset="100%" stopColor="#4c6fff" />
             </linearGradient>
           </defs>
-          {/* Main asymmetric shoreline curve */}
           <path
             fill="url(#heroWaveGrad)"
             d="M0,0 H1440 V280 C1280,348 1120,390 960,372 C780,348 640,280 480,264 C300,246 160,300 0,348 Z"
           />
-          {/* Soft secondary crest for depth */}
           <path
             fill="rgba(255,255,255,0.08)"
             d="M0,248 C180,200 320,186 480,224 C680,270 820,328 1020,312 C1180,300 1320,262 1440,226 V280 C1280,348 1120,390 960,372 C780,348 640,280 480,264 C300,246 160,300 0,348 Z"
@@ -173,7 +179,7 @@ const index = () => {
                 data-aos="fade-up"
                 style={{ color: "#ffffff", fontWeight: 700 }}
               >
-                Plan &amp; book tours for your clients
+                {title}
               </h1>
               <p
                 className="mt-10 md:mt-15"
@@ -181,7 +187,7 @@ const index = () => {
                 data-aos-delay="100"
                 style={{ color: "rgba(255,255,255,0.9)" }}
               >
-                Set destinations, dates and pax — then add hotels, transfers and experiences
+                {subtitle}
               </p>
             </div>
 
@@ -205,57 +211,61 @@ const index = () => {
                   margin: "0 auto",
                 }}
               >
-                {/* Side chips hug the search card */}
-                {sideServices.map((item) => (
-                  <ServiceChip
-                    key={`L-${item.label}`}
-                    {...item}
-                    float
-                    style={{ left: -132, top: item.top }}
-                  />
-                ))}
-                {sideServicesRight.map((item) => (
-                  <ServiceChip
-                    key={`R-${item.label}`}
-                    {...item}
-                    float
-                    style={{ right: -132, top: item.top }}
-                  />
-                ))}
+                {showServiceChips &&
+                  sideServices.map((item) => (
+                    <ServiceChip
+                      key={`L-${item.label}`}
+                      {...item}
+                      float
+                      style={{ left: -132, top: item.top }}
+                    />
+                  ))}
+                {showServiceChips &&
+                  sideServicesRight.map((item) => (
+                    <ServiceChip
+                      key={`R-${item.label}`}
+                      {...item}
+                      float
+                      style={{ right: -132, top: item.top }}
+                    />
+                  ))}
 
-                <MainFilterSearchBox />
+                {searchSlot || <MainFilterSearchBox />}
               </div>
 
-              {/* Bottom service strip — tight under the card */}
-              <div
-                className="d-flex flex-wrap justify-center"
-                style={{
-                  gap: 10,
-                  marginTop: 4,
-                  position: "relative",
-                  zIndex: 2,
-                }}
-                data-aos="fade-up"
-                data-aos-delay="300"
-              >
-                {bottomServices.map((item) => (
-                  <ServiceChip key={`B-${item.label}`} {...item} />
-                ))}
-              </div>
+              {showServiceChips && (
+                <div
+                  className="d-flex flex-wrap justify-center"
+                  style={{
+                    gap: 10,
+                    marginTop: 4,
+                    position: "relative",
+                    zIndex: 2,
+                  }}
+                  data-aos="fade-up"
+                  data-aos-delay="300"
+                >
+                  {bottomServices.map((item) => (
+                    <ServiceChip key={`B-${item.label}`} {...item} />
+                  ))}
+                </div>
+              )}
 
-              <p
-                className="text-center"
-                style={{
-                  marginTop: 6,
-                  marginBottom: 0,
-                  fontSize: 13,
-                  color: "#64748b",
-                  position: "relative",
-                  zIndex: 2,
-                }}
-              >
-                Build complete itineraries — hotels, attractions, transfers, guides &amp; more
-              </p>
+              {footerNote ? (
+                <p
+                  className="text-center"
+                  style={{
+                    marginTop: 6,
+                    marginBottom: 0,
+                    fontSize: 13,
+                    color: "#64748b",
+                    position: "relative",
+                    zIndex: 2,
+                  }}
+                >
+                  {footerNote}
+                </p>
+              ) : null}
             </div>
           </div>
         </div>

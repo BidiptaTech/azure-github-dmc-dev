@@ -1,9 +1,9 @@
 import TourPackages from "@/components/Tour-Packages";
 
-/** Tour Packages builder without Header11 (shell comes from PartnerLayout). */
+/** Tour Packages builder under PartnerLayout — same Plan & book hero search. */
 export default function TourPackagesEmbed() {
   return (
-    <div className="tour-packages-page">
+    <div className="partner-tour-packages-embed partner-plan-hero">
       <TourPackages />
     </div>
   );

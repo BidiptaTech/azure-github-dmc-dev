@@ -32,26 +32,8 @@ export default function PlanTrip() {
 
   if (startTrip) {
     return (
-      <div>
-        <div className="partner-hero-row" style={{ marginBottom: 8 }}>
-          <div>
-            <div className="partner-kicker">Plan a trip</div>
-            <h1 className="partner-title">
-              Build a better {searchCriteria?.destination || "trip"} journey.
-            </h1>
-            <p className="partner-lede">
-              All your services. One itinerary. Clear pricing from the start.
-            </p>
-          </div>
-          <button
-            type="button"
-            className="partner-btn partner-btn--secondary"
-            onClick={() => navigate(appPath("plan"), { replace: true, state: {} })}
-          >
-            Edit search
-          </button>
-        </div>
-        <TourPackages />
+      <div className="partner-plan-builder partner-plan-hero">
+        <TourPackages mode="plan" />
       </div>
     );
   }

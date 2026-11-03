@@ -1,0 +1,191 @@
+/* Tour packages — same Plan & book hero search flow */
+
+.partner-tour-packages-embed,
+.partner-tour-packages {
+  width: 100%;
+}
+
+.partner-tour-packages__hero {
+  position: relative;
+}
+
+.partner-tour-packages__back {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 5;
+}
+
+.partner-tour-packages__back .partner-btn {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+/* SearchForm inside Hero1 card — match MainFilterSearchBox look */
+.tp-hero-search {
+  width: 100%;
+}
+
+.tp-hero-search > .tp-plan-search,
+.tp-plan-search {
+  width: 100%;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.16);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  padding: 18px 18px 14px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.tp-plan-search__toolbar {
+  width: 100%;
+}
+
+.tp-plan-search__row {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: visible;
+  background: #fff;
+  margin: 0 !important;
+  width: 100% !important;
+}
+
+.tp-plan-search__cell {
+  padding: 0 !important;
+  border-right: 1px solid #e2e8f0;
+  margin: 0 !important;
+}
+
+.tp-plan-search__cell:last-child {
+  border-right: 0;
+}
+
+/* Destination uses hero-1 LocationSearch (own padding) — don't double-pad */
+.tp-plan-search__cell:first-child > .MuiBox-root {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  height: 100%;
+  min-height: 92px;
+}
+
+.tp-plan-search__cell > .MuiBox-root {
+  height: 100%;
+  min-height: 92px;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.tp-plan-search__cell > .MuiBox-root:hover {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.tp-plan-search .MuiTypography-caption {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+  color: #64748b !important;
+  margin-bottom: 4px !important;
+}
+
+.tp-plan-search .MuiTypography-caption .MuiSvgIcon-root {
+  display: none;
+}
+
+/* SEARCH CTA — pill like Plan & book */
+.tp-hero-search .partner-tour-packages__cta,
+.tp-plan-search .partner-tour-packages__cta,
+.tp-hero-search button[type="submit"],
+.tp-plan-search button[type="submit"],
+.tp-hero-search .MuiButton-contained,
+.tp-plan-search .MuiButton-contained {
+  display: block !important;
+  margin: 16px auto 4px !important;
+  min-width: 220px !important;
+  height: 52px !important;
+  border-radius: 28px !important;
+  border: none !important;
+  font-size: 18px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+  color: #fff !important;
+  background: #3554d1 !important;
+  box-shadow: 0 10px 24px rgba(53, 84, 209, 0.35) !important;
+}
+
+.tp-hero-search .partner-tour-packages__cta:hover,
+.tp-plan-search .partner-tour-packages__cta:hover,
+.tp-hero-search button[type="submit"]:hover,
+.tp-plan-search button[type="submit"]:hover,
+.tp-hero-search .MuiButton-contained:hover,
+.tp-plan-search .MuiButton-contained:hover {
+  background: #2c46b3 !important;
+  box-shadow: 0 10px 24px rgba(53, 84, 209, 0.4) !important;
+  transform: none !important;
+}
+
+.tp-hero-search .MuiButton-startIcon,
+.tp-plan-search .MuiButton-startIcon {
+  display: none !important;
+}
+
+/* Itinerary step */
+.partner-tour-packages__itinerary {
+  overflow: visible;
+}
+
+.partner-tour-packages__itinerary-body {
+  margin-top: 4px;
+}
+
+.partner-tour-packages__itinerary .MuiPaper-root {
+  box-shadow: none !important;
+  border: 1px solid #e4eaf3 !important;
+  border-radius: 13px !important;
+  background: #fff !important;
+}
+
+.partner-tour-packages__itinerary h6,
+.partner-tour-packages__itinerary .MuiTypography-h6 {
+  color: #14213d !important;
+  font-weight: 700 !important;
+}
+
+/* PlanTrip already has its own hero when startTrip — hide TourPackages hero chrome back btn overlap */
+.partner-plan-builder .partner-tour-packages__back {
+  display: none;
+}
+
+.partner-plan-builder .partner-tour-packages__hero {
+  margin: -36px -28px 0;
+}
+
+@media (max-width: 900px) {
+  .partner-tour-packages__back {
+    position: relative;
+    top: 0;
+    left: 0;
+    margin: 8px 12px 0;
+  }
+
+  .tp-plan-search__cell {
+    border-right: 0;
+    border-bottom: 1px solid #e2e8f0;
+    flex-basis: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .tp-plan-search__cell:last-child {
+    border-bottom: 0;
+  }
+}

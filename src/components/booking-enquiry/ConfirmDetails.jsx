@@ -74,51 +74,27 @@ import PricingSummaryComponent from "./PricingSummaryComponent";
 
 // Styled components
 const SectionPaper = styled(Paper)(({ theme }) => ({
-  padding: theme.spacing(3),
-  marginBottom: theme.spacing(3),
-  borderRadius: theme.spacing(2.5),
-  boxShadow: "0 4px 20px rgba(0, 0, 0, 0.08)",
-  transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+  padding: theme.spacing(2.5),
+  marginBottom: theme.spacing(2),
+  borderRadius: 13,
+  boxShadow: "none",
+  transition: "none",
   overflow: "hidden",
-  background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(249,250,251,1) 100%)',
-  border: '1px solid rgba(0,0,0,0.06)',
-  position: 'relative',
-  "&::before": {
-    content: '""',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '4px',
-    background: 'linear-gradient(90deg, #1976d2 0%, #42a5f5 50%, #1976d2 100%)',
-    backgroundSize: '200% 100%',
-    animation: 'gradient 3s ease infinite',
-    opacity: 0,
-    transition: 'opacity 0.3s ease'
-  },
-  "@keyframes gradient": {
-    "0%": { backgroundPosition: '0% 50%' },
-    "50%": { backgroundPosition: '100% 50%' },
-    "100%": { backgroundPosition: '0% 50%' }
-  },
+  background: "#fff",
+  border: "1px solid #e4eaf3",
+  position: "relative",
   "&:hover": {
-    boxShadow: "0 12px 40px rgba(0, 0, 0, 0.15)",
-    transform: "translateY(-5px)",
-    "&::before": {
-      opacity: 1
-    }
+    boxShadow: "none",
+    transform: "none",
   },
-  // Mobile and tablet responsive styling
-  [theme.breakpoints.down('md')]: {
+  [theme.breakpoints.down("md")]: {
     padding: theme.spacing(2),
-    marginBottom: theme.spacing(2),
-    borderRadius: theme.spacing(2),
-  },
-  [theme.breakpoints.down('sm')]: {
-    padding: theme.spacing(1.5),
     marginBottom: theme.spacing(1.5),
-    borderRadius: theme.spacing(1.5),
-  }
+  },
+  [theme.breakpoints.down("sm")]: {
+    padding: theme.spacing(1.5),
+    marginBottom: theme.spacing(1.25),
+  },
 }));
 
 const SectionHeader = styled(Box)(({ theme }) => ({
@@ -151,116 +127,73 @@ const DetailItem = styled(Box)(({ theme }) => ({
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
-  padding: theme.spacing(1.5),
-  borderRadius: theme.spacing(1.5),
+  padding: theme.spacing(1.25, 1.5),
+  borderRadius: 10,
   marginBottom: theme.spacing(1),
-  backgroundColor: 'rgba(255, 255, 255, 0.6)',
-  border: `1px solid ${theme.palette.divider}`,
-  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-  position: 'relative',
-  overflow: 'hidden',
-  "&::before": {
-    content: '""',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '3px',
-    height: '100%',
-    background: 'linear-gradient(180deg, #1976d2 0%, #42a5f5 100%)',
-    opacity: 0,
-    transition: 'opacity 0.3s ease'
-  },
+  backgroundColor: "#f7f9fc",
+  border: "1px solid #e4eaf3",
+  transition: "none",
+  position: "relative",
+  overflow: "hidden",
   "&:hover": {
-    backgroundColor: 'rgba(25, 118, 210, 0.08)',
-    transform: "translateX(8px)",
-    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-    borderColor: 'rgba(25, 118, 210, 0.3)',
-    "&::before": {
-      opacity: 1
-    }
+    backgroundColor: "#eef3ff",
+    transform: "none",
+    boxShadow: "none",
+    borderColor: "#c9d7ff",
   },
-  // Mobile responsive styling
-  [theme.breakpoints.down('sm')]: {
+  [theme.breakpoints.down("sm")]: {
     padding: theme.spacing(1),
     marginBottom: theme.spacing(0.5),
-    flexDirection: 'column',
-    alignItems: 'flex-start',
+    flexDirection: "column",
+    alignItems: "flex-start",
     gap: theme.spacing(0.5),
-    "&:hover": {
-      transform: "translateX(4px)"
-    }
-  }
+  },
 }));
 
 const ServiceCard = styled(Card)(({ theme, servicecolor }) => ({
-  marginBottom: theme.spacing(2),
-  transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
-  borderLeft: `5px solid ${servicecolor || theme.palette.primary.main}`,
-  borderRadius: theme.spacing(2),
-  background: 'linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,1) 100%)',
-  backdropFilter: 'blur(10px)',
-  position: 'relative',
-  "&::after": {
-    content: '""',
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: theme.spacing(2),
-    padding: '2px',
-    background: `linear-gradient(135deg, ${servicecolor}40 0%, transparent 100%)`,
-    WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-    WebkitMaskComposite: 'xor',
-    maskComposite: 'exclude',
-    opacity: 0,
-    transition: 'opacity 0.3s ease'
-  },
+  marginBottom: theme.spacing(1.5),
+  transition: "none",
+  borderLeft: `3px solid ${servicecolor || "#3554D1"}`,
+  borderRadius: 12,
+  background: "#fff",
+  border: "1px solid #e4eaf3",
+  boxShadow: "none",
+  position: "relative",
   "&:hover": {
-    boxShadow: `0 12px 28px ${servicecolor}25`,
-    transform: "translateY(-8px)",
-    "&::after": {
-      opacity: 1
-    }
+    boxShadow: "none",
+    transform: "none",
   },
-  // Mobile responsive styling
-  [theme.breakpoints.down('sm')]: {
+  [theme.breakpoints.down("sm")]: {
     marginBottom: theme.spacing(1),
-    borderLeft: `4px solid ${servicecolor || theme.palette.primary.main}`,
-    "&:hover": {
-      transform: "translateY(-4px)"
-    }
-  }
+  },
 }));
 
 const ActionButton = styled(Button)(({ theme }) => ({
-  padding: theme.spacing(1.5, 3),
-  borderRadius: theme.spacing(3),
-  boxShadow: "0 4px 14px rgba(0, 0, 0, 0.1)",
-  transition: "all 0.3s ease",
+  padding: theme.spacing(1.25, 2.5),
+  borderRadius: 10,
+  boxShadow: "none",
+  textTransform: "none",
+  fontWeight: 600,
+  transition: "filter 0.15s ease",
   "&:hover": {
-    transform: "translateY(-3px)",
-    boxShadow: "0 6px 20px rgba(0, 0, 0, 0.15)"
+    transform: "none",
+    boxShadow: "none",
+    filter: "brightness(0.97)",
   },
-  // Mobile responsive styling
-  [theme.breakpoints.down('sm')]: {
-    padding: theme.spacing(0.75, 1.5),
-    borderRadius: theme.spacing(2),
-    fontSize: '0.875rem',
-    "&:hover": {
-      transform: "translateY(-2px)"
-    }
-  }
+  [theme.breakpoints.down("sm")]: {
+    padding: theme.spacing(1, 1.5),
+    fontSize: "0.875rem",
+  },
 }));
 
-// Service colors (matching the ones from BookingEnquiries)
+// Service colors — partner palette
 const serviceColors = {
-  hotel: '#1976d2',
-  entryExitPort: '#2e7d32',
-  attraction: '#d32f2f',
-  localTour: '#7b1fa2',
-  tourGuide: '#ed6c02',
-  restaurant: '#0288d1'
+  hotel: "#3554D1",
+  entryExitPort: "#0d9488",
+  attraction: "#c2410c",
+  localTour: "#1d4ed8",
+  tourGuide: "#b45309",
+  restaurant: "#0369a1",
 };
 
 // Helper function to format service name
@@ -2124,231 +2057,125 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
   // Update the submitDirectly function to use the new attraction and restaurant specific fields when handling drop-off and pickup locations.
 
 
+  const adultsCount = parseInt(bookingDetails?.guests?.adults || 0, 10) || 0;
+  const childrenCount = parseInt(bookingDetails?.guests?.children || 0, 10) || 0;
+  const guestsWithoutInfants = adultsCount + childrenCount;
+  const avgPerPerson =
+    guestsWithoutInfants > 0 ? Math.round(totalPrice / guestsWithoutInfants) : 0;
+
   return (
-    <Box sx={{ 
-      maxWidth: "1400px", 
-      margin: "0 auto", 
-      px: { xs: 1, sm: 2, md: 3 },
-      py: { xs: 1, sm: 2, md: 3 }
-    }}>
-      <Typography 
-        variant="h4" 
-        component="h1" 
-        align="center" 
-        fontWeight={600} 
-        gutterBottom
-        sx={{
-          fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' },
-          color: { xs: '#ff6b6b', sm: '#ff6b6b', md: 'text.primary' },
-          background: { xs: 'linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%)', sm: 'linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%)', md: 'none' },
-          WebkitBackgroundClip: { xs: 'text', sm: 'text', md: 'unset' },
-          WebkitTextFillColor: { xs: 'transparent', sm: 'transparent', md: 'unset' },
-          backgroundClip: { xs: 'text', sm: 'text', md: 'unset' },
-          textShadow: { xs: '0 2px 4px rgba(255, 107, 107, 0.3)', sm: '0 2px 4px rgba(255, 107, 107, 0.3)', md: 'none' }
-        }}
-      >
-        Review Your Booking
-      </Typography>
-      <Typography 
-        variant="body1" 
-        align="center" 
-        color="text.secondary" 
-        sx={{ 
-          mb: { xs: 1, sm: 1.5, md: 4 },
-          fontSize: { xs: '0.875rem', sm: '1rem', md: '1rem' },
-          color: { xs: '#666', sm: '#666', md: 'text.secondary' }
-        }}
-      >
-        Please review all your selected services and confirm your booking details
-      </Typography>
-      
-      {/* Trip Details Section */}
-      <TripDetailsComponent mode="view" />
+    <Box className="enquiry-review" sx={{ width: "100%", margin: "0 auto" }}>
+      <div className="partner-hero">
+        <div>
+          <div className="partner-kicker">Quotations &amp; enquiries</div>
+          <h1 className="partner-title">Review your booking</h1>
+          <p className="partner-lede">
+            Please review all your selected services and confirm your booking
+            details.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="partner-btn partner-btn--secondary"
+          onClick={onBack}
+          disabled={submitting}
+        >
+          ← Back to services
+        </button>
+      </div>
+
+      <section className="partner-card enquiry-review__trip">
+        <h2 className="partner-card__title">Trip details</h2>
+        <p className="partner-card__sub">
+          Destination, dates and travellers for this enquiry.
+        </p>
+        <div className="enquiry-review__trip-body">
+          <TripDetailsComponent mode="view" />
+        </div>
+      </section>
       
       {/* Main Grid Layout */}
-      <Grid container spacing={{ xs: 2, sm: 3, md: 4 }}>
+      <Grid container spacing={{ xs: 2, sm: 2.5, md: 2.5 }} className="enquiry-review__grid">
         {/* Left Column - Selected DMCs Display */}
         <Grid item xs={12} md={4} lg={3}>
-          <DMCSelectionComponent 
-            mode="summary"
-            showLocationSection={false}
-          />
+          <section className="partner-card enquiry-review__dmc">
+            <h2 className="partner-card__title">DMC partners</h2>
+            <p className="partner-card__sub">Partners receiving this enquiry.</p>
+            <DMCSelectionComponent 
+              mode="summary"
+              showLocationSection={false}
+            />
+          </section>
         </Grid>
 
         {/* Right Column - Booking Details */}
         <Grid item xs={12} md={8} lg={9}>
             
       {/* Selected services section */}
-      <SectionPaper>
-        <SectionHeader>
-          <SectionIcon bgcolor="#2e7d32">
-            <CheckCircleIcon />
-          </SectionIcon>
-          <Typography variant="h6" component="h2" fontWeight={600}>
-            Selected Services
-          </Typography>
-        </SectionHeader>
+      <section className="partner-card enquiry-review__services">
+        <h2 className="partner-card__title">Selected services</h2>
+        <p className="partner-card__sub">
+          Expand a service to check inclusions and pricing.
+        </p>
         
         {/* Quick Stats Overview */}
         {selectedServices && selectedServices.length > 0 && (
-          <Box sx={{ mb: 2, mt: 2 }}>
-            <Grid container spacing={1.5}>
-              <Grid item xs={6} sm={3} md={3}>
-                <Paper 
-                  elevation={0}
-                  sx={{ 
-                    p: 1.5, 
-                    textAlign: 'center',
-                    background: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
-                    color: 'white',
-                    borderRadius: 1.5,
-                    transition: 'all 0.3s ease',
-                    minHeight: '80px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    '&:hover': {
-                      transform: 'scale(1.03)',
-                      boxShadow: '0 4px 12px rgba(25, 118, 210, 0.4)'
-                    }
-                  }}
-                >
-                  <Typography variant="h5" fontWeight={700} sx={{ fontSize: '1.5rem' }}>
-                    {selectedServices.length}
-                  </Typography>
-                  <Typography variant="caption" sx={{ opacity: 0.9, fontSize: '0.7rem' }}>
-                    Services Selected
-                  </Typography>
-                </Paper>
-              </Grid>
-              <Grid item xs={6} sm={3} md={3}>
-                <Paper 
-                  elevation={0}
-                  sx={{ 
-                    p: 1.5, 
-                    textAlign: 'center',
-                    background: 'linear-gradient(135deg, #2e7d32 0%, #66bb6a 100%)',
-                    color: 'white',
-                    borderRadius: 1.5,
-                    transition: 'all 0.3s ease',
-                    minHeight: '80px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    '&:hover': {
-                      transform: 'scale(1.03)',
-                      boxShadow: '0 4px 12px rgba(46, 125, 50, 0.4)'
-                    }
-                  }}
-                >
-                  <Typography variant="h5" fontWeight={700} sx={{ fontSize: '1rem' }}>
-                    SGD {Math.round(totalPrice).toLocaleString()}
-                  </Typography>
-                  <Typography variant="caption" sx={{ opacity: 0.9, fontSize: '0.7rem' }}>
-                    Total Estimate
-                  </Typography>
-                </Paper>
-              </Grid>
-              <Grid item xs={6} sm={3} md={3}>
-                <Paper 
-                  elevation={0}
-                  sx={{ 
-                    p: 1.5, 
-                    textAlign: 'center',
-                    background: 'linear-gradient(135deg, #ed6c02 0%, #ff9800 100%)',
-                    color: 'white',
-                    borderRadius: 1.5,
-                    transition: 'all 0.3s ease',
-                    minHeight: '80px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    '&:hover': {
-                      transform: 'scale(1.03)',
-                      boxShadow: '0 4px 12px rgba(237, 108, 2, 0.4)'
-                    }
-                  }}
-                >
-                  <Typography variant="h5" fontWeight={700} sx={{ fontSize: '1rem' }}>
-                  SGD {(() => {
-                      const adults = parseInt(bookingDetails?.guests?.adults || 0);
-                      const children = parseInt(bookingDetails?.guests?.children || 0);
-                      // Exclude infants from avg per person calculation
-                      const guestsWithoutInfants = adults + children;
-                      const avg = guestsWithoutInfants > 0 ? Math.round(totalPrice / guestsWithoutInfants) : 0;
-                      console.log('💰 ConfirmDetails Avg Per Person:', {
-                        totalPrice,
-                        adults,
-                        children,
-                        guestsWithoutInfants,
-                        avgPerPerson: avg
-                      });
-                      return avg.toLocaleString();
-                    })()}
-                  </Typography>
-                  <Typography variant="caption" sx={{ opacity: 0.9, fontSize: '0.7rem' }}>
-                    Avg. per Person
-                  </Typography>
-                </Paper>
-              </Grid>
-              <Grid item xs={6} sm={3} md={3}>
-                <Paper 
-                  elevation={0}
-                  sx={{ 
-                    p: 1.5, 
-                    textAlign: 'center',
-                    background: 'linear-gradient(135deg, #7b1fa2 0%, #ab47bc 100%)',
-                    color: 'white',
-                    borderRadius: 1.5,
-                    transition: 'all 0.3s ease',
-                    minHeight: '80px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    '&:hover': {
-                      transform: 'scale(1.03)',
-                      boxShadow: '0 4px 12px rgba(123, 31, 162, 0.4)'
-                    }
-                  }}
-                >
-                  <Typography variant="h5" fontWeight={700} sx={{ fontSize: '1.5rem' }}>
-                    {(() => {
-                      const checkinDate = bookingDetails?.checkIn;
-                      const checkoutDate = bookingDetails?.checkOut;
-                      if (checkinDate && checkoutDate) {
-                        // Parse DD/MM/YYYY format correctly
-                        const parseDate = (dateStr) => {
-                          if (!dateStr) return null;
-                          const parts = dateStr.split('/');
-                          if (parts.length === 3) {
-                            return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-                          }
-                          return new Date(dateStr);
-                        };
-                        
-                        const checkIn = parseDate(checkinDate);
-                        const checkOut = parseDate(checkoutDate);
-                        
-                        if (checkIn && checkOut && !isNaN(checkIn) && !isNaN(checkOut)) {
-                          return Math.max(1, Math.ceil((checkOut - checkIn) / (24 * 60 * 60 * 1000)));
+          <Box sx={{ mb: 2, mt: 1 }}>
+            <div className="partner-summary-grid enquiry-review__stats">
+              <div className="partner-stat" style={{ cursor: "default" }}>
+                <span className="partner-stat__label">Services selected</span>
+                <strong className="partner-stat__value">
+                  {selectedServices.length}
+                </strong>
+              </div>
+              <div className="partner-stat" style={{ cursor: "default" }}>
+                <span className="partner-stat__label">Total estimate</span>
+                <strong className="partner-stat__value" style={{ fontSize: 22 }}>
+                  SGD {Math.round(totalPrice).toLocaleString()}
+                </strong>
+              </div>
+              <div className="partner-stat" style={{ cursor: "default" }}>
+                <span className="partner-stat__label">Avg. per person</span>
+                <strong className="partner-stat__value" style={{ fontSize: 22 }}>
+                  SGD {avgPerPerson.toLocaleString()}
+                </strong>
+              </div>
+              <div className="partner-stat" style={{ cursor: "default" }}>
+                <span className="partner-stat__label">Nights</span>
+                <strong className="partner-stat__value">
+                  {(() => {
+                    const checkinDate = bookingDetails?.checkIn;
+                    const checkoutDate = bookingDetails?.checkOut;
+                    if (checkinDate && checkoutDate) {
+                      const parseDate = (dateStr) => {
+                        if (!dateStr) return null;
+                        const parts = dateStr.split("/");
+                        if (parts.length === 3) {
+                          return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
                         }
+                        return new Date(dateStr);
+                      };
+                      const checkIn = parseDate(checkinDate);
+                      const checkOut = parseDate(checkoutDate);
+                      if (checkIn && checkOut && !isNaN(checkIn) && !isNaN(checkOut)) {
+                        return Math.max(
+                          1,
+                          Math.ceil((checkOut - checkIn) / (24 * 60 * 60 * 1000))
+                        );
                       }
-                      return 1;
-                    })()}
-                  </Typography>
-                  <Typography variant="caption" sx={{ opacity: 0.9, fontSize: '0.7rem' }}>
-                    Days Duration
-                  </Typography>
-                </Paper>
-              </Grid>
-            </Grid>
+                    }
+                    return 1;
+                  })()}
+                </strong>
+              </div>
+            </div>
           </Box>
         )}
         
-        <Divider sx={{ mb: 3 }} />
+        <Divider sx={{ mb: 2.5, borderColor: "#e4eaf3" }} />
         
         {selectedServices && selectedServices.length > 0 ? (
-          <Grid container spacing={3}>
+          <Grid container spacing={2}>
             {selectedServices.map((service) => (
               <Grid item xs={12} md={6} key={service}>
                 <ServiceCard 
@@ -2357,10 +2184,6 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
                     position: 'relative',
                     overflow: 'visible',
                     cursor: 'pointer',
-                    '&:hover': {
-                      boxShadow: `0 8px 25px ${serviceColors[service]}30`,
-                      transform: 'translateY(-5px)',
-                    }
                   }}
                   onClick={() => setExpandedService(expandedService === service ? null : service)}
                 >
@@ -2368,47 +2191,42 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
                   <Box
                     sx={{
                       position: 'absolute',
-                      top: -12,
-                      right: 16,
+                      top: -10,
+                      right: 14,
                       bgcolor: serviceColors[service],
                       color: 'white',
-                      px: 2,
-                      py: 0.5,
-                      borderRadius: 2,
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                      px: 1.5,
+                      py: 0.4,
+                      borderRadius: '999px',
+                      boxShadow: 'none',
                       display: 'flex',
                       alignItems: 'center',
                       gap: 0.5,
                       zIndex: 1,
-                      animation: 'pulse 2s ease-in-out infinite',
-                      '@keyframes pulse': {
-                        '0%, 100%': { transform: 'scale(1)' },
-                        '50%': { transform: 'scale(1.05)' }
-                      }
                     }}
                   >
-                  
-                    <Typography variant="h6" fontWeight={700}>
+                    <Typography variant="body2" fontWeight={700}>
                       SGD {servicePrices[service]?.toLocaleString() || '0'}
                     </Typography>
                   </Box>
 
-                  <CardContent sx={{ pt: 3 }}>
-                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+                  <CardContent sx={{ pt: 2.5, pb: "16px !important" }}>
+                    <Box display="flex" alignItems="center" justifyContent="space-between" mb={1.5}>
                       <Box display="flex" alignItems="center">
                         <Avatar 
                           sx={{ 
-                            bgcolor: serviceColors[service], 
-                            mr: 2,
-                            width: 48,
-                            height: 48,
-                            boxShadow: `0 4px 12px ${serviceColors[service]}40`
+                            bgcolor: `${serviceColors[service]}18`,
+                            color: serviceColors[service],
+                            mr: 1.5,
+                            width: 40,
+                            height: 40,
+                            boxShadow: 'none',
                           }}
                         >
                           {getServiceIcon(service)}
                         </Avatar>
                         <Box>
-                          <Typography variant="h6" fontWeight={600}>
+                          <Typography variant="subtitle1" fontWeight={700} sx={{ color: "#14213d" }}>
                             {formatServiceName(service)}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
@@ -2420,10 +2238,10 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
                         label="Included"
                         size="small"
                         sx={{
-                          bgcolor: `${serviceColors[service]}20`,
+                          bgcolor: `${serviceColors[service]}14`,
                           color: serviceColors[service],
                           fontWeight: 600,
-                          border: `1px solid ${serviceColors[service]}40`
+                          border: `1px solid ${serviceColors[service]}33`
                         }}
                       />
                     </Box>
@@ -2550,105 +2368,60 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
             </Alert>
           </Box>
         )}
-      </SectionPaper>
-      
-      {/* Trust badges section */}
-     
-      
-      {/* Pricing Summary Section */}
-      {/* <PricingSummaryComponent /> */}
-      <Grid container spacing={2} sx={{ mb: 5 }}>
-        <Grid item xs={12} md={6}>
-          <Paper 
-            sx={{ 
-              p: 2, 
-              display: 'flex', 
-              alignItems: 'center',
-              backgroundColor: 'rgba(25, 118, 210, 0.08)',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                transform: 'translateY(-3px)'
-              }
-            }}
-          >
-            <Avatar sx={{ bgcolor: 'primary.main', mr: 2 }}>
-              <SecurityIcon />
-            </Avatar>
-            <Box>
-              <Typography variant="subtitle1" fontWeight={600}>Secure Booking</Typography>
-              <Typography variant="body2" color="text.secondary">Your personal data is protected</Typography>
-            </Box>
-          </Paper>
-        </Grid>
-        
-        <Grid item xs={12} md={6}>
-          <Paper 
-            sx={{ 
-              p: 2, 
-              display: 'flex', 
-              alignItems: 'center',
-              backgroundColor: 'rgba(245, 124, 0, 0.08)',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                transform: 'translateY(-3px)'
-              }
-            }}
-          >
-            <Avatar sx={{ bgcolor: 'warning.main', mr: 2 }}>
-              <SupportIcon />
-            </Avatar>
-            <Box>
-              <Typography variant="subtitle1" fontWeight={600}>24/7 Support</Typography>
-              <Typography variant="body2" color="text.secondary">Contact us anytime during your trip</Typography>
-            </Box>
-          </Paper>
-        </Grid>
-      </Grid>
-      {/* Action buttons */}
-      <Box 
+      </section>
+
+      <section className="partner-card enquiry-review__trust">
+        <div className="enquiry-review__trust-grid">
+          <div className="enquiry-review__trust-item">
+            <span className="enquiry-review__trust-icon" aria-hidden="true">
+              <SecurityIcon fontSize="small" />
+            </span>
+            <div>
+              <strong>Secure booking</strong>
+              <p>Your personal data is protected</p>
+            </div>
+          </div>
+          <div className="enquiry-review__trust-item">
+            <span className="enquiry-review__trust-icon enquiry-review__trust-icon--amber" aria-hidden="true">
+              <SupportIcon fontSize="small" />
+            </span>
+            <div>
+              <strong>24/7 support</strong>
+              <p>Contact us anytime during your trip</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div
         data-action-buttons
-        sx={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          mt: { xs: 2, sm: 2.5, md: 4 },
-          flexDirection: { xs: 'column', sm: 'row' },
-          gap: { xs: 1.5, sm: 0 }
-        }}
+        className="enquiry-review__actions"
       >
-        <ActionButton 
-          variant="outlined" 
-          color="primary" 
-          startIcon={<ArrowBackIcon />}
+        <button
+          type="button"
+          className="partner-btn partner-btn--secondary"
           onClick={onBack}
           disabled={submitting}
-          sx={{ width: { xs: '100%', sm: 'auto' } }}
         >
-          Back to Services
-        </ActionButton>
+          ← Back to services
+        </button>
         
-        <ActionButton 
-          variant="contained" 
-          color="primary"  
-          endIcon={submitting ? null : <SendIcon />}
+        <button
+          type="button"
+          className="partner-btn partner-btn--primary"
           onClick={handleSubmit}
           disabled={submitting || enquiryStatus === "submitted"}
-          sx={{ width: { xs: '100%', sm: 'auto' } }}
+          style={{ minWidth: 180 }}
         >
           {submitting ? (
-            <>
-              <CircularProgress size={20} sx={{ mr: 1, color: 'white' }} /> 
-              Submitting...
-            </>
+            "Submitting…"
           ) : enquiryStatus === "submitted" ? (
-            <>
-              <CheckCircleIcon sx={{ mr: 1 }} />
-              Booking Enquiry 
-            </>
+            "Enquiry submitted"
           ) : (
-            " Booking Enquiry"
+            "Submit booking enquiry →"
           )}
-        </ActionButton>
-      </Box>
+        </button>
+      </div>
       
       {/* Loading backdrop */}
       <Backdrop

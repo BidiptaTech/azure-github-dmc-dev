@@ -81,49 +81,49 @@ import DMCSelectionComponent from "./DMCSelectionComponent";
 import EnquirySearchSummaryBar from "./EnquirySearchSummaryBar";
 import PricingSummaryComponent from "./PricingSummaryComponent";
 
-// Service category colors
+// Service category colors — quieter partner palette
 const serviceColors = {
   hotel: {
-    main: "#1976d2",
-    light: "#42a5f5",
-    dark: "#0d47a1",
+    main: "#3554D1",
+    light: "#5b75e0",
+    dark: "#2740a8",
     contrastText: "#fff",
-    bg: "rgba(25, 118, 210, 0.08)",
+    bg: "rgba(53, 84, 209, 0.08)",
   },
   entryExitPort: {
-    main: "#2e7d32",
-    light: "#4caf50",
-    dark: "#1b5e20",
+    main: "#0d9488",
+    light: "#14b8a6",
+    dark: "#0f766e",
     contrastText: "#fff",
-    bg: "rgba(46, 125, 50, 0.08)",
+    bg: "rgba(13, 148, 136, 0.08)",
   },
   attraction: {
-    main: "#d32f2f",
-    light: "#ef5350",
-    dark: "#b71c1c",
+    main: "#c2410c",
+    light: "#ea580c",
+    dark: "#9a3412",
     contrastText: "#fff",
-    bg: "rgba(211, 47, 47, 0.08)",
+    bg: "rgba(194, 65, 12, 0.08)",
   },
   localTour: {
-    main: "#7b1fa2",
-    light: "#9c27b0",
-    dark: "#4a148c",
+    main: "#1d4ed8",
+    light: "#3b82f6",
+    dark: "#1e40af",
     contrastText: "#fff",
-    bg: "rgba(123, 31, 162, 0.08)",
+    bg: "rgba(29, 78, 216, 0.08)",
   },
   tourGuide: {
-    main: "#ed6c02",
-    light: "#ff9800",
-    dark: "#e65100",
+    main: "#b45309",
+    light: "#d97706",
+    dark: "#92400e",
     contrastText: "#fff",
-    bg: "rgba(237, 108, 2, 0.08)",
+    bg: "rgba(180, 83, 9, 0.08)",
   },
   restaurant: {
-    main: "#0288d1",
-    light: "#03a9f4",
-    dark: "#01579b",
+    main: "#0369a1",
+    light: "#0284c7",
+    dark: "#075985",
     contrastText: "#fff",
-    bg: "rgba(2, 136, 209, 0.08)",
+    bg: "rgba(3, 105, 161, 0.08)",
   },
 };
 
@@ -135,16 +135,18 @@ const StyledCard = styled(Card)(({ theme, selected, serviceType }) => {
     height: "100%",
     position: "relative",
     overflow: "hidden",
-    transform: "translateY(0)",
-    transition: "all 0.4s ease",
-    boxShadow: selected
-      ? `0 10px 25px ${colorScheme.main}33`
-      : "0 6px 15px rgba(0, 0, 0, 0.07)",
-    border: selected ? `1px solid ${colorScheme.main}` : "1px solid #e0e3e8",
-    borderRadius: theme.spacing(2),
+    transform: "none",
+    transition: "border-color 0.2s ease, background 0.2s ease",
+    boxShadow: "none",
+    border: selected
+      ? `1.5px solid ${colorScheme.main}`
+      : "1px solid #e4eaf3",
+    borderRadius: 13,
+    background: selected ? colorScheme.bg : "#fff",
     "&:hover": {
-      boxShadow: `0 15px 30px ${colorScheme.main}26`,
-      transform: "translateY(-5px)",
+      boxShadow: "none",
+      transform: "none",
+      borderColor: selected ? colorScheme.main : "#c9d7ff",
     },
     "&::before": selected
       ? {
@@ -153,27 +155,10 @@ const StyledCard = styled(Card)(({ theme, selected, serviceType }) => {
           top: 0,
           left: 0,
           right: 0,
-          height: "4px",
-          background: `linear-gradient(90deg, ${colorScheme.main}, ${colorScheme.light})`,
+          height: "3px",
+          background: colorScheme.main,
         }
       : {},
-    // Mobile-specific styling
-    [theme.breakpoints.down('sm')]: {
-      backgroundColor: selected
-        ? `${colorScheme.main}15`
-        : "rgba(255, 255, 255, 0.95)",
-      backdropFilter: "blur(10px)",
-      border: selected
-        ? `2px solid ${colorScheme.main}`
-        : "2px solid rgba(102, 126, 234, 0.3)",
-      boxShadow: selected
-        ? `0 6px 24px ${colorScheme.main}25`
-        : "0 4px 16px rgba(102, 126, 234, 0.2)",
-      "&:hover": {
-        boxShadow: `0 8px 28px ${colorScheme.main}30`,
-        transform: "translateY(-3px)",
-      },
-    },
   };
 });
 
@@ -186,26 +171,16 @@ const CategoryBadge = styled(Chip)(({ theme, serviceType }) => {
     right: 0,
     fontSize: "10px",
     textTransform: "uppercase",
-    backgroundColor: colorScheme.bg || "#edf2ff",
+    backgroundColor: colorScheme.bg || "#eef3ff",
     color: colorScheme.main,
     padding: "4px 8px",
-    borderRadius: "10px",
+    borderRadius: "999px",
     fontWeight: 600,
     letterSpacing: "0.5px",
-    transition: "all 0.3s ease",
+    transition: "none",
     "&:hover": {
-      backgroundColor: `${colorScheme.main}26`,
-      transform: "scale(1.05)",
-    },
-    // Mobile-specific styling
-    [theme.breakpoints.down('sm')]: {
-      backgroundColor: "rgba(102, 126, 234, 0.2)",
-      color: "#667eea",
-      fontSize: "9px",
-      padding: "3px 6px",
-      fontWeight: 700,
-      backdropFilter: "blur(5px)",
-      border: "1px solid rgba(102, 126, 234, 0.3)",
+      backgroundColor: colorScheme.bg || "#eef3ff",
+      transform: "none",
     },
   };
 });
@@ -239,19 +214,19 @@ const SummaryCard = styled(Box)(({ theme, serviceType }) => {
   return {
     display: "flex",
     alignItems: "center",
-    background: "white",
-    borderRadius: theme.spacing(1.5),
-    padding: theme.spacing(1, 2),
-    boxShadow: "0 4px 10px rgba(0, 0, 0, 0.06)",
+    background: "#fff",
+    borderRadius: 10,
+    padding: theme.spacing(1, 1.5),
+    boxShadow: "none",
     minWidth: "120px",
-    animation: "summaryCardAppear 0.5s ease",
+    border: `1px solid ${colorScheme.main}33`,
     borderLeft: `3px solid ${colorScheme.main}`,
     margin: theme.spacing(0.5),
-    transition: "all 0.3s ease",
-    cursor: "pointer",
+    transition: "none",
+    cursor: "default",
     "&:hover": {
-      transform: "translateY(-3px)",
-      boxShadow: `0 8px 15px ${colorScheme.main}26`,
+      transform: "none",
+      boxShadow: "none",
     },
   };
 });
@@ -260,31 +235,33 @@ const SummaryIcon = styled(Box)(({ theme, serviceType }) => {
   const colorScheme = serviceColors[serviceType] || serviceColors.hotel;
 
   return {
-    width: "36px",
-    height: "36px",
+    width: "32px",
+    height: "32px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    background: colorScheme.bg || "#edf2ff",
-    borderRadius: "50%",
-    marginRight: theme.spacing(1.5),
+    background: colorScheme.bg || "#eef3ff",
+    borderRadius: 8,
+    marginRight: theme.spacing(1.25),
     color: colorScheme.main,
     fontSize: "16px",
-    transition: "all 0.3s ease",
+    transition: "none",
     "&:hover": {
-      transform: "rotate(10deg)",
+      transform: "none",
     },
   };
 });
 
 const NoSelections = styled(Box)(({ theme }) => ({
-  background: "#fff9e7",
-  padding: theme.spacing(2),
-  borderRadius: theme.spacing(1.5),
+  background: "#fff8eb",
+  padding: theme.spacing(1.5, 2),
+  borderRadius: 10,
   width: "100%",
   display: "flex",
   alignItems: "center",
-  color: "#b78105",
+  color: "#a2751f",
+  border: "1px solid #f3e0b5",
+  fontSize: "0.875rem",
 }));
 
 const HelpIconButton = styled(HelpIcon)(({ theme, serviceType }) => {
@@ -1822,21 +1799,18 @@ const BookingEnquiries = ({
     );
   };
 
+  const needsDmc = selectedDmcsData.length === 0;
+  const needsService = !Object.values(bookingOptions).some((value) => value === true);
+
   return (
     <Box sx={{ width: "100%" }}>
       <EnquirySearchSummaryBar />
 
       <Box sx={{ width: "100%", pb: { xs: 1, sm: 1.5 } }}>
       {/* Main Grid Layout */}
-      <Grid container spacing={{ xs: 1.5, sm: 2, md: 2 }}>
+      <Grid container spacing={{ xs: 1.5, sm: 2, md: 2.5 }}>
         {/* Left Column - DMC Selection */}
         <Grid item xs={12} md={4} lg={3}>
-          {/* Required indicator for DMC selection */}
-          {selectedDmcsData.length === 0 && (
-            <Alert severity="info" sx={{ mb: 2 }}>
-              Please select at least one DMC partner
-            </Alert>
-          )}
           <DMCSelectionComponent 
             mode="full"
             activeLocation={activeLocation}
@@ -1846,29 +1820,44 @@ const BookingEnquiries = ({
 
         {/* Right Column - Booking Form */}
         <Grid item xs={12} md={8} lg={9}>
+          {(needsDmc || needsService) && (
+            <div className="enquiry-hints">
+              {needsDmc && (
+                <div className="enquiry-hint">
+                  Select at least one DMC partner from the left.
+                </div>
+              )}
+              {needsService && (
+                <div className="enquiry-hint">
+                  Toggle at least one service below to continue.
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Selected DMCs Summary */}
           {selectedDmcsData.length > 0 && (
             <Paper
-              elevation={2}
+              elevation={0}
               sx={{
                 mb: 1.5,
                 p: 1.5,
-                background: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
-                borderRadius: 2,
-                border: "1px solid rgba(14, 165, 233, 0.2)",
+                background: "#fff",
+                borderRadius: "13px",
+                border: "1px solid #e4eaf3",
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <CheckCircleIcon sx={{ fontSize: 18, color: '#0ea5e9', mr: 0.75 }} />
-                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#0c4a6e', fontSize: '0.95rem' }}>
+                  <CheckCircleIcon sx={{ fontSize: 18, color: '#3554D1', mr: 0.75 }} />
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, color: '#14213d', fontSize: '0.95rem' }}>
                     Selected DMC Partners ({selectedDmcsData.length})
                   </Typography>
                 </Box>
                 {enquiryListLoading && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <CircularProgress size={16} sx={{ color: '#0ea5e9' }} />
-                    <Typography variant="caption" sx={{ color: '#0ea5e9', fontSize: '0.75rem' }}>
+                    <CircularProgress size={16} sx={{ color: '#3554D1' }} />
+                    <Typography variant="caption" sx={{ color: '#3554D1', fontSize: '0.75rem' }}>
                       Refreshing data...
                     </Typography>
                   </Box>
@@ -1882,26 +1871,23 @@ const BookingEnquiries = ({
                       dmc.logo ? (
                         <Avatar src={dmc.logo} alt={dmc.name} />
                       ) : (
-                        <Avatar sx={{ bgcolor: '#0ea5e9' }}>
+                        <Avatar sx={{ bgcolor: '#3554D1' }}>
                           <BusinessIcon fontSize="small" />
                         </Avatar>
                       )
                     }
                     label={`${dmc.name} (${dmc.location})`}
-                    color="info"
                     variant="outlined"
-                    sx={{ fontWeight: 500 }}
+                    sx={{
+                      fontWeight: 500,
+                      borderColor: "#c9d7ff",
+                      color: "#3554D1",
+                      background: "#eef3ff",
+                    }}
                   />
                 ))}
               </Box>
             </Paper>
-          )}
-
-          {/* Required indicator for service selection */}
-          {!Object.values(bookingOptions).some(value => value === true) && (
-            <Alert severity="info" sx={{ mb: 3 }}>
-              Please select at least one service below
-            </Alert>
           )}
 
           <Grid container spacing={{ xs: 1, sm: 1.5, md: 1.5 }} alignItems="flex-start">
@@ -2854,24 +2840,10 @@ const BookingEnquiries = ({
             ))}
           </Grid>
 
-          <Paper
-            elevation={2}
-            sx={{
-              mt: 2,
-              p: 2,
-              background: "linear-gradient(135deg, #f5f8fe, #edf2ff)",
-              borderRadius: 2,
-              transition: "all 0.3s ease",
-              "&:hover": {
-                boxShadow: "0 12px 24px rgba(0, 0, 0, 0.1)",
-              },
-            }}
-          >
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-              Your Selections
-            </Typography>
+          <div className="enquiry-selections-panel">
+            <h3>Your selections</h3>
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-              {Object.entries(bookingOptions).some(([key, value]) => value) ? (
+              {Object.entries(bookingOptions).some(([, value]) => value) ? (
                 Object.entries(bookingOptions).map(
                   ([key, value]) =>
                     value && (
@@ -2895,39 +2867,26 @@ const BookingEnquiries = ({
                 )
               ) : (
                 <NoSelections>
-                  <InfoIcon sx={{ mr: 1 }} />
-                  <Typography>
+                  <InfoIcon sx={{ mr: 1, fontSize: 18 }} />
+                  <Typography sx={{ fontSize: "0.875rem" }}>
                     No services selected yet. Toggle the switches above to include
                     services.
                   </Typography>
                 </NoSelections>
               )}
             </Box>
-          </Paper>
+          </div>
 
-          {/* Add submit button at the bottom of the form */}
-          <Box sx={{ display: "flex", justifyContent: "center", mt: 5, mb: 5 }}>
-            <Button
-              variant="contained"
-              color="primary"
-              size="large"
-              startIcon={<CheckCircleIcon />}
+          <div className="enquiry-continue-wrap">
+            <button
+              type="button"
+              className="partner-btn partner-btn--primary"
               onClick={handleSubmitForm}
-              sx={{
-                minWidth: "200px",
-                py: 1.5,
-                borderRadius: 2,
-                boxShadow: "0 8px 16px rgba(0, 0, 0, 0.1)",
-                transition: "all 0.3s ease",
-                "&:hover": {
-                  transform: "translateY(-3px)",
-                  boxShadow: "0 12px 20px rgba(0, 0, 0, 0.15)",
-                },
-              }}
+              style={{ minWidth: 200, padding: "12px 22px" }}
             >
-              Continue to Review
-            </Button>
-          </Box>
+              Continue to review →
+            </button>
+          </div>
         </Grid>
       </Grid>
       
