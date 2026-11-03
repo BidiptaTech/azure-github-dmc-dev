@@ -303,6 +303,15 @@ const ActivityListPage2 = () => {
       </div>
 
       <TripWorkspaceShell
+        searchBox={
+          <div className="pw-service-searchbox">
+            {zone_on === 1 ? (
+              <MainFilterSearchBox2 Location={Location} />
+            ) : (
+              <MainFilterSearchBox Location={Location} />
+            )}
+          </div>
+        }
         filters={
           <>
             <h3>Find transfers</h3>
@@ -314,14 +323,6 @@ const ActivityListPage2 = () => {
           </>
         }
       >
-        <div className="pw-service-search mb-20">
-          {zone_on === 1 ? (
-            <MainFilterSearchBox2 Location={Location} />
-          ) : (
-            <MainFilterSearchBox Location={Location} />
-          )}
-        </div>
-
         <div className="pw-results-head">
           <h2>
             {displayedVehicleCount > 0

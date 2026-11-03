@@ -28,7 +28,6 @@ import MetaComponent from "@/components/common/MetaComponent";
 import CustomStepper from "@/components/common/sub_common/CustomStepper";
 import TourStatus from "@/components/common/sub_common/TourStatus";
 import TripWorkspaceShell from "@/components/workspace/TripWorkspaceShell";
-import "@/styles/hotelListHero.css";
 import { FaAngleUp, FaAngleDown } from "react-icons/fa";
 import { toCityOnly } from "@/utils/locationFormat";
 
@@ -313,15 +312,10 @@ const ActivityListPage1 = () => {
         </div>
       </div>
 
-      <div className="hotel-list-top" aria-hidden>
-        <div className="container">
-          <div className="hotel-list-hero">
-            <MainFilterSearchBox layout="hero" Location={Location} />
-          </div>
-        </div>
-      </div>
-
       <TripWorkspaceShell
+        searchBox={
+          <MainFilterSearchBox layout="workspace" Location={Location} />
+        }
         filters={
           <>
             <h3>Find guides</h3>

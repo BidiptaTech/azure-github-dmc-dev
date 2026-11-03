@@ -303,8 +303,8 @@ const ActivityProperties = ({
                                 borderRadius: "12px",
                                 m: 1,
                                 //width: "160px",
-                                minWidth: "180px",
-                                maxWidth: "10px",
+                                minWidth: 0,
+                                maxWidth: "100%",
                                 height: "auto",
                                 bgcolor:
                                   currentMode === "dmc" ? "#e6f2ff" : "#fff",
@@ -384,8 +384,8 @@ const ActivityProperties = ({
                                       borderRadius: "12px",
                                       m: 1,
                                       //width: "160px",
-                                      minWidth: "180px",
-                                      maxWidth: "10px",
+                                      minWidth: 0,
+                                      maxWidth: "100%",
                                       height: "auto",
                                       bgcolor:
                                         currentMode === "dmc"
@@ -468,8 +468,8 @@ const ActivityProperties = ({
                                       borderRadius: "12px",
                                       m: 1,
                                       //width: "160px",
-                                      minWidth: "180px",
-                                      maxWidth: "10px",
+                                      minWidth: 0,
+                                      maxWidth: "100%",
                                       height: "auto",
                                       bgcolor:
                                         currentMode === "travclicks"

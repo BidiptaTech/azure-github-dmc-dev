@@ -21,6 +21,7 @@ import {
 
 const MainFilterSearchBox = ({ layout = "default" }) => {
   const isHeroLayout = layout === "hero";
+  const isWorkspaceLayout = layout === "workspace";
   const dispatch = useDispatch();
 
   const tourdetails = useSelector((state) => state.hotels.tourdetails);
@@ -179,12 +180,42 @@ const MainFilterSearchBox = ({ layout = "default" }) => {
       <CityServiceChips
         items={cityChipItems}
         onCitySelect={handleCityChipClick}
-        variant={isHeroLayout ? "hero" : "default"}
+        variant={
+          isWorkspaceLayout ? "workspace" : isHeroLayout ? "hero" : "default"
+        }
       />
     ) : null;
 
+  const dateLockedHint =
+    hasCityWiseDates && pickUpLocation ? (
+      <div
+        className={
+          isWorkspaceLayout
+            ? "pw-service-searchbox__hint"
+            : isHeroLayout
+              ? "hotel-list-dates-locked"
+              : "text-12 text-light-1 mt-5"
+        }
+      >
+        {isHeroLayout ? (
+          <>
+            <i className="icon-info-circle text-12" aria-hidden="true" />
+            <span>Dates locked to {toCityOnly(pickUpLocation)}</span>
+          </>
+        ) : (
+          <>Dates locked to {toCityOnly(pickUpLocation)}</>
+        )}
+      </div>
+    ) : null;
+
   const searchFields = (
-    <div className="button-grid items-center">
+    <div
+      className={
+        isWorkspaceLayout
+          ? "pw-service-searchbox__fields pw-service-searchbox__fields--cols-3"
+          : "button-grid items-center"
+      }
+    >
       <LocationSearch
         pickUpLocation={pickUpLocation}
         setPickUpLocation={setPickUpLocation}
@@ -194,15 +225,27 @@ const MainFilterSearchBox = ({ layout = "default" }) => {
         setError={setLocationError}
       />
 
-      <div className="searchMenu-date px-30 lg:py-20 lg:px-0 js-form-dd js-calendar">
+      <div
+        className={
+          isWorkspaceLayout
+            ? "searchMenu-date js-form-dd js-calendar"
+            : "searchMenu-date px-30 lg:py-20 lg:px-0 js-form-dd js-calendar"
+        }
+      >
         <div>
           <div className="d-flex">
-            <i
-              className={`${
-                isHeroLayout ? "icon-calendar mr-10" : "icon-calendar-2"
-              } text-20 text-light-1 mt-5`}
-            />
-            <div className={isHeroLayout ? "flex-grow-1" : "ml-10"}>
+            {!isWorkspaceLayout && (
+              <i
+                className={`${
+                  isHeroLayout ? "icon-calendar mr-10" : "icon-calendar-2"
+                } text-20 text-light-1 mt-5`}
+              />
+            )}
+            <div
+              className={
+                isHeroLayout || isWorkspaceLayout ? "flex-grow-1" : "ml-10"
+              }
+            >
               <h4 className="text-15 fw-500 ls-2 lh-16">Selected Date</h4>
               <DateSearch
                 selectedDate={selectedDate}
@@ -211,41 +254,34 @@ const MainFilterSearchBox = ({ layout = "default" }) => {
                 maxDate={dateBounds.maxDate}
                 value={selectedDate}
               />
-              {hasCityWiseDates && pickUpLocation && (
-                <div
-                  className={
-                    isHeroLayout
-                      ? "hotel-list-dates-locked"
-                      : "text-12 text-light-1 mt-5"
-                  }
-                >
-                  {isHeroLayout ? (
-                    <>
-                      <i className="icon-info-circle text-12" aria-hidden="true" />
-                      <span>Dates locked to {toCityOnly(pickUpLocation)}</span>
-                    </>
-                  ) : (
-                    <>Dates locked to {toCityOnly(pickUpLocation)}</>
-                  )}
-                </div>
-              )}
+              {dateLockedHint}
             </div>
           </div>
         </div>
       </div>
 
-      <div className="button-item h-full">
+      {isWorkspaceLayout ? (
         <button
-          className={`button -dark-1 py-15 px-40 h-full col-12 bg-blue-1 text-white ${
-            isHeroLayout ? "" : "rounded-0"
-          }`}
-          style={isHeroLayout ? { borderRadius: 14 } : undefined}
+          type="button"
           onClick={buttonsearch}
+          className="partner-btn partner-btn--primary pw-service-searchbox__submit"
         >
-          <i className="icon-search text-20 mr-10" />
-          {isHeroLayout ? "Search Guides" : "Search"}
+          Search guides
         </button>
-      </div>
+      ) : (
+        <div className="button-item h-full">
+          <button
+            className={`button -dark-1 py-15 px-40 h-full col-12 bg-blue-1 text-white ${
+              isHeroLayout ? "" : "rounded-0"
+            }`}
+            style={isHeroLayout ? { borderRadius: 14 } : undefined}
+            onClick={buttonsearch}
+          >
+            <i className="icon-search text-20 mr-10" />
+            {isHeroLayout ? "Search Guides" : "Search"}
+          </button>
+        </div>
+      )}
     </div>
   );
 
@@ -260,6 +296,15 @@ const MainFilterSearchBox = ({ layout = "default" }) => {
       {searchFields}
     </div>
   );
+
+  if (isWorkspaceLayout) {
+    return (
+      <div className="pw-service-searchbox">
+        {cityPills}
+        {searchFields}
+      </div>
+    );
+  }
 
   if (isHeroLayout) {
     return (

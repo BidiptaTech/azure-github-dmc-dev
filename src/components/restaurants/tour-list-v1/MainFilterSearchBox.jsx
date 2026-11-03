@@ -20,6 +20,7 @@ import {
 
 const MainFilterSearchBox = ({ layout = "default" }) => {
   const isHeroLayout = layout === "hero";
+  const isWorkspaceLayout = layout === "workspace";
   const dispatch = useDispatch();
 
   const tourdetails = useSelector((state) => state.hotels.tourdetails);
@@ -217,12 +218,42 @@ console.log("country", country);
       <CityServiceChips
         items={cityChipItems}
         onCitySelect={handleCityChipClick}
-        variant={isHeroLayout ? "hero" : "default"}
+        variant={
+          isWorkspaceLayout ? "workspace" : isHeroLayout ? "hero" : "default"
+        }
       />
     ) : null;
 
+  const dateLockedHint =
+    hasCityWiseDates && selectedLocation ? (
+      <div
+        className={
+          isWorkspaceLayout
+            ? "pw-service-searchbox__hint"
+            : isHeroLayout
+              ? "hotel-list-dates-locked"
+              : "text-12 text-light-1 mt-5"
+        }
+      >
+        {isHeroLayout ? (
+          <>
+            <i className="icon-info-circle text-12" aria-hidden="true" />
+            <span>Dates locked to {toCityOnly(selectedLocation)}</span>
+          </>
+        ) : (
+          <>Dates locked to {toCityOnly(selectedLocation)}</>
+        )}
+      </div>
+    ) : null;
+
   const searchFields = (
-    <div className="button-grid items-center">
+    <div
+      className={
+        isWorkspaceLayout
+          ? "pw-service-searchbox__fields"
+          : "button-grid items-center"
+      }
+    >
       <LocationSearch
         onLocationSelect={handleLocationSelect}
         hasError={locationError}
@@ -230,43 +261,40 @@ console.log("country", country);
         controlledCity={selectedLocation}
       />
 
-      <div className="searchMenu-date px-30 lg:py-20 sm:px-20 js-form-dd js-calendar">
+      <div
+        className={
+          isWorkspaceLayout
+            ? "searchMenu-date js-form-dd js-calendar"
+            : "searchMenu-date px-30 lg:py-20 sm:px-20 js-form-dd js-calendar"
+        }
+      >
         <div>
           <div className="d-flex">
-            <i
-              className={`${
-                isHeroLayout ? "icon-calendar mr-10" : "icon-calendar-2"
-              } text-20 text-light-1 mt-5`}
-            />
-            <div className={isHeroLayout ? "flex-grow-1" : "ml-10"}>
+            {!isWorkspaceLayout && (
+              <i
+                className={`${
+                  isHeroLayout ? "icon-calendar mr-10" : "icon-calendar-2"
+                } text-20 text-light-1 mt-5`}
+              />
+            )}
+            <div
+              className={
+                isHeroLayout || isWorkspaceLayout ? "flex-grow-1" : "ml-10"
+              }
+            >
               <h4 className="text-15 fw-500 ls-2 lh-16">Selected Date</h4>
               <DateSearch
                 onDateSelect={handleDateSelect}
                 minDate={dateBounds.minDate}
                 maxDate={dateBounds.maxDate}
                 value={selectedDate}
-                displayFormat={isHeroLayout ? "MMM DD, YYYY" : "DD/MM/YYYY"}
+                displayFormat={
+                  isHeroLayout || isWorkspaceLayout
+                    ? "MMM DD, YYYY"
+                    : "DD/MM/YYYY"
+                }
               />
-              {hasCityWiseDates && selectedLocation && (
-                <div
-                  className={
-                    isHeroLayout
-                      ? "hotel-list-dates-locked"
-                      : "text-12 text-light-1 mt-5"
-                  }
-                >
-                  {isHeroLayout ? (
-                    <>
-                      <i className="icon-info-circle text-12" aria-hidden="true" />
-                      <span>
-                        Dates locked to {toCityOnly(selectedLocation)}
-                      </span>
-                    </>
-                  ) : (
-                    <>Dates locked to {toCityOnly(selectedLocation)}</>
-                  )}
-                </div>
-              )}
+              {dateLockedHint}
             </div>
           </div>
         </div>
@@ -275,21 +303,31 @@ console.log("country", country);
       <GuestSearch
         guestCounts={guestCounts}
         setGuestCounts={setGuestCounts}
-        heroStyle={isHeroLayout}
+        heroStyle={isHeroLayout || isWorkspaceLayout}
       />
 
-      <div className="button-item h-full">
+      {isWorkspaceLayout ? (
         <button
-          className={`button -dark-1 py-15 px-40 h-full col-12 bg-blue-1 text-white ${
-            isHeroLayout ? "" : "rounded-0"
-          }`}
-          style={isHeroLayout ? { borderRadius: 14 } : undefined}
+          type="button"
           onClick={handleSearch}
+          className="partner-btn partner-btn--primary pw-service-searchbox__submit"
         >
-          <i className="icon-search text-20 mr-10" />
-          {isHeroLayout ? "Search Restaurants" : "Search"}
+          Search restaurants
         </button>
-      </div>
+      ) : (
+        <div className="button-item h-full">
+          <button
+            className={`button -dark-1 py-15 px-40 h-full col-12 bg-blue-1 text-white ${
+              isHeroLayout ? "" : "rounded-0"
+            }`}
+            style={isHeroLayout ? { borderRadius: 14 } : undefined}
+            onClick={handleSearch}
+          >
+            <i className="icon-search text-20 mr-10" />
+            {isHeroLayout ? "Search Restaurants" : "Search"}
+          </button>
+        </div>
+      )}
     </div>
   );
 
@@ -304,6 +342,15 @@ console.log("country", country);
       {searchFields}
     </div>
   );
+
+  if (isWorkspaceLayout) {
+    return (
+      <div className="pw-service-searchbox">
+        {cityPills}
+        {searchFields}
+      </div>
+    );
+  }
 
   if (isHeroLayout) {
     return (

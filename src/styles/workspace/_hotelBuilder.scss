@@ -45,16 +45,29 @@
 }
 
 .pw-partner-row {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
   background: #fff;
   border: 1px solid var(--pw-line, #e5eaf3);
   border-radius: 13px;
   padding: 18px 22px;
   margin-bottom: 14px;
+  overflow: visible;
+  position: relative;
+  z-index: 8;
+}
+
+.pw-partner-row__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.pw-partner-row--with-search {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
 }
 
 .pw-partner-row label {
@@ -67,13 +80,253 @@
   margin-bottom: 8px;
 }
 
-.pw-partner-row select {
+.pw-partner-row__head select {
   min-width: 260px;
   border: 1px solid var(--pw-line, #e5eaf3);
   border-radius: 7px;
   padding: 10px 12px;
   background: #fff;
   font-size: 13px;
+}
+
+.pw-partner-row select {
+  border: 1px solid var(--pw-line, #e5eaf3);
+  border-radius: 7px;
+  padding: 10px 12px;
+  background: #fff;
+  font-size: 13px;
+}
+
+.pw-service-searchbox {
+  padding-top: 16px;
+  border-top: 1px solid var(--pw-line, #e5eaf3);
+  overflow: visible;
+}
+
+.pw-service-searchbox__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.pw-city-pill {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--pw-line, #e5eaf3);
+  background: #fff;
+  color: var(--pw-ink, #192944);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pw-city-pill:hover {
+  border-color: #cfd8ea;
+}
+
+.pw-city-pill.is-active {
+  background: var(--pw-blue, #234adc);
+  border-color: var(--pw-blue, #234adc);
+  color: #fff;
+}
+
+.pw-city-pill.is-booked:not(.is-active) {
+  background: var(--pw-green-bg, #e7f5ef);
+  border-color: #b7e0cf;
+  color: var(--pw-green-ink, #20815f);
+}
+
+.pw-city-pill__dates {
+  font-weight: 500;
+  opacity: 0.72;
+}
+
+.pw-city-pill.is-active .pw-city-pill__dates {
+  opacity: 0.9;
+}
+
+.pw-service-searchbox__fields {
+  display: grid;
+  grid-template-columns: 1.4fr 1.2fr 1fr auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.pw-service-searchbox__fields--cols-3 {
+  grid-template-columns: 1.4fr 1.2fr auto;
+}
+
+.pw-service-searchbox .searchMenu-loc,
+.pw-service-searchbox .searchMenu-date,
+.pw-service-searchbox .searchMenu-guests {
+  padding: 0 !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+  position: relative;
+  overflow: visible;
+}
+
+.pw-service-searchbox .searchMenu-loc > div > .d-flex,
+.pw-service-searchbox .searchMenu-date .d-flex,
+.pw-service-searchbox .searchMenu-guests > div > .d-flex {
+  display: block !important;
+}
+
+.pw-service-searchbox .searchMenu-loc .icon-location-2,
+.pw-service-searchbox .searchMenu-date .icon-calendar,
+.pw-service-searchbox .searchMenu-date .icon-calendar-2,
+.pw-service-searchbox .searchMenu-guests .icon-user-2,
+.pw-service-searchbox .searchMenu-guests .icon-compass {
+  display: none !important;
+}
+
+.pw-service-searchbox .searchMenu-loc .ml-10,
+.pw-service-searchbox .searchMenu-guests .ml-10 {
+  margin-left: 0 !important;
+}
+
+.pw-service-searchbox .searchMenu-loc h4,
+.pw-service-searchbox .searchMenu-date h4,
+.pw-service-searchbox .searchMenu-guests h4 {
+  display: block;
+  font-size: 10px !important;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: #7987a1;
+  font-weight: 700;
+  margin: 0 0 8px;
+  line-height: 1.3;
+}
+
+.pw-service-searchbox .searchMenu-loc input,
+.pw-service-searchbox .custom_input-picker,
+.pw-service-searchbox .custom_dual_datepicker input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--pw-line, #e5eaf3) !important;
+  border-radius: 7px !important;
+  padding: 10px 12px !important;
+  background: #fff !important;
+  color: var(--pw-ink, #192944);
+  font-size: 13px !important;
+  font-weight: 500;
+  box-shadow: none !important;
+}
+
+.pw-service-searchbox .searchMenu-guests .cursor-pointer {
+  cursor: pointer;
+}
+
+.pw-service-searchbox .searchMenu-guests .text-15.text-light-1 {
+  min-height: 42px;
+  border: 1px solid var(--pw-line, #e5eaf3);
+  border-radius: 7px;
+  padding: 10px 12px;
+  background: #fff;
+  color: var(--pw-ink, #192944);
+  font-size: 13px !important;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+}
+
+.pw-service-searchbox__hint {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--pw-muted, #748097);
+}
+
+.pw-service-searchbox__submit {
+  align-self: start;
+  margin-top: 26px;
+  white-space: nowrap;
+  min-height: 42px;
+  justify-content: center;
+}
+
+.pw-service-searchbox .searchMenu-loc input::placeholder {
+  color: var(--pw-muted, #748097);
+}
+
+.pw-service-searchbox .searchMenu-guests .dropdown-menu {
+  right: 0;
+  left: auto;
+}
+
+.pw-service-searchbox .dropdown-menu,
+.pw-service-searchbox .rmdp-wrapper,
+.pw-service-searchbox .custom_container-picker {
+  z-index: 30 !important;
+}
+
+.pw-service-searchbox .mainSearch {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+}
+
+.pw-service-searchbox .form-control,
+.pw-service-searchbox select,
+.pw-service-searchbox input[type="text"],
+.pw-service-searchbox input[type="search"],
+.pw-service-searchbox input[type="date"],
+.pw-service-searchbox input[type="time"] {
+  min-height: 42px;
+  border: 1px solid var(--pw-line, #e5eaf3) !important;
+  border-radius: 7px !important;
+  padding: 10px 12px !important;
+  background: #fff !important;
+  color: var(--pw-ink, #192944);
+  font-size: 13px !important;
+  box-shadow: none !important;
+}
+
+.pw-service-searchbox label,
+.pw-service-searchbox .port-selection-wrapper label,
+.pw-service-searchbox .search-item h4,
+.pw-service-searchbox .date-selection-wrapper h4,
+.pw-service-searchbox .MuiTypography-root {
+  display: block !important;
+  font-size: 10px !important;
+  letter-spacing: 0.8px !important;
+  text-transform: uppercase !important;
+  color: #7987a1 !important;
+  font-weight: 700 !important;
+  margin: 0 0 8px !important;
+  line-height: 1.3 !important;
+}
+
+.pw-service-searchbox .mainSearch__submit,
+.pw-service-searchbox .search-button button,
+.pw-service-searchbox .search-button-wrapper button {
+  background: var(--pw-blue, #234adc) !important;
+  border: 0 !important;
+  border-radius: 9px !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  min-height: 42px;
+  box-shadow: none !important;
+}
+
+.pw-service-searchbox .button-grid-v2,
+.pw-service-searchbox .single-row-container {
+  width: 100%;
+  max-width: none;
+  gap: 12px;
+}
+
+.pw-service-searchbox .MuiInputBase-root {
+  min-height: 42px;
+  border-radius: 7px !important;
+  font-size: 13px !important;
 }
 
 .pw-service-tabs {
@@ -104,15 +357,21 @@
 
 .pw-builder {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 330px;
-  gap: 22px;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 18px;
   align-items: start;
+  min-width: 0;
 }
 
 .pw-hotel-layout {
   display: grid;
-  grid-template-columns: 200px minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 14px;
+  min-width: 0;
+}
+
+.pw-hotel-layout > .pw-results {
+  min-width: 0;
 }
 
 .pw-filters {
@@ -144,7 +403,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
 .pw-results-head h2 {
@@ -221,83 +480,312 @@
   margin-top: 8px;
 }
 
-/* Restyle existing hotel cards inside workspace */
+/* Compact listing cards to the workspace results column */
 .pw-trip-workspace .hotel-list-results,
 .pw-trip-workspace .header-margin,
 .pw-trip-workspace .hotel-list-top {
   display: none !important;
 }
 
-.pw-results .border-top-light {
-  border: 1px solid var(--pw-line, #e5eaf3) !important;
-  border-radius: 13px;
+.pw-results {
+  min-width: 0;
   overflow: hidden;
-  background: #fff;
-  margin: 14px 0;
-  padding: 0 !important;
 }
 
-.pw-results .border-top-light > .row {
+.pw-results > .row.y-gap-30,
+.pw-results > .row.y-gap-15 {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.pw-results > .row.y-gap-30 > [class*="col-"],
+.pw-results > .row.y-gap-15 > [class*="col-"] {
+  padding-top: 4px !important;
+  padding-bottom: 4px !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Keep sort / count header clear of the first card */
+.pw-results-toolbar,
+.pw-results > .row.y-gap-10,
+.pw-results > .row.items-center.justify-between,
+.pw-results .row.y-gap-10.items-center.justify-between {
+  margin: 0 0 16px !important;
+  align-items: center !important;
+  position: relative;
+  z-index: 2;
+}
+
+.pw-results > .row.y-gap-10 .button,
+.pw-results > .row.items-center.justify-between .button,
+.pw-results .row.y-gap-10 .button.-blue-1 {
+  height: 36px !important;
+  padding: 0 14px !important;
+  font-size: 12px !important;
+  white-space: nowrap;
+  position: relative;
+  z-index: 2;
+}
+
+.pw-results .border-top-light {
+  border: 1px solid var(--pw-line, #e5eaf3) !important;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+  margin: 0 0 10px;
+  padding: 0 !important;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.pw-results .border-top-light > .row.x-gap-20,
+.pw-results .border-top-light > .row.x-gap-15 {
   display: grid !important;
-  grid-template-columns: 125px minmax(0, 1fr) 155px;
+  grid-template-columns: 108px minmax(0, 1fr) minmax(150px, 170px);
   gap: 0 !important;
   margin: 0 !important;
   align-items: stretch !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: hidden;
 }
 
 .pw-results .border-top-light > .row > [class*="col-"] {
   width: auto !important;
-  max-width: none !important;
+  max-width: 100% !important;
   flex: none !important;
+  padding: 0 !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* Image column — kill Bootstrap ratio padding so media always fills */
+.pw-results .cardImage,
+.pw-results .cardImage.ratio,
+.pw-results .cardImage.ratio-1\:1,
+.pw-results .w-250,
+.pw-results .w-200 {
+  position: relative !important;
+  width: 108px !important;
+  min-width: 108px !important;
+  max-width: 108px !important;
+  min-height: 0 !important;
+  height: 100% !important;
+  min-height: 124px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  overflow: hidden;
+  background: #eef1f7;
+}
+
+.pw-results .cardImage.ratio::before,
+.pw-results .ratio::before {
+  display: none !important;
+  content: none !important;
   padding: 0 !important;
 }
 
-.pw-results .cardImage,
-.pw-results .cardImage.ratio {
-  width: 125px !important;
-  min-height: 200px;
-  height: 100%;
-  border-radius: 0 !important;
+.pw-results .cardImage.ratio > *,
+.pw-results .ratio > * {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.pw-results .cardImage__content,
+.pw-results .cardImage-slider,
+.pw-results .swiper,
+.pw-results .mySwiper,
+.pw-results .swiper-wrapper,
+.pw-results .swiper-slide {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 124px !important;
+  margin: 0 !important;
+  background: #eef1f7 !important;
 }
 
 .pw-results .cardImage img,
-.pw-results .js-lazy {
+.pw-results .js-lazy,
+.pw-results .cardImage__content img,
+.pw-results .swiper-slide img,
+.pw-results .cardImage__content > img {
+  display: block !important;
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
   height: 100% !important;
-  min-height: 200px !important;
+  min-height: 124px !important;
+  max-height: none !important;
   object-fit: cover !important;
+  object-position: center !important;
   border-radius: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  max-width: none !important;
 }
 
-.pw-results .cardImage__wishlist {
+.pw-results .cardImage__wishlist,
+.pw-results .swiper-button-next,
+.pw-results .swiper-button-prev,
+.pw-results .swiper-pagination,
+.pw-results .border-light.rounded-100,
+.pw-results .MuiChip-root,
+.pw-results .pt-15.gap-2,
+.pw-results .mt-15.gap-2 {
   display: none !important;
 }
 
 .pw-results .border-top-light > .row > [class*="col-md"]:not(.col-md-auto) {
-  padding: 20px 15px !important;
+  padding: 12px 12px !important;
+  min-width: 0;
+  overflow: hidden;
 }
 
-.pw-results .border-top-light h3 {
-  font-size: 18px !important;
+.pw-results .border-top-light h3,
+.pw-results .border-top-light h3.text-18 {
+  font-size: 14px !important;
+  line-height: 1.3 !important;
+  margin: 0 0 4px !important;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.pw-results .border-top-light p,
+.pw-results .border-top-light .text-14,
+.pw-results .border-top-light .text-12 {
+  font-size: 12px !important;
   line-height: 1.35 !important;
+  margin: 0 0 2px !important;
+  word-break: break-word;
 }
 
+/* Action / price column — must never spill outside the card */
 .pw-results .border-top-light > .row > .col-md-auto:last-child {
   border-left: 1px solid var(--pw-line, #e5eaf3);
-  padding: 16px 12px !important;
+  padding: 10px 8px !important;
   display: flex !important;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   justify-content: center;
+  gap: 8px;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden;
+  box-sizing: border-box !important;
 }
 
+.pw-results .border-top-light > .row > .col-md-auto:last-child > div,
+.pw-results .border-top-light > .row > .col-md-auto:last-child .p-15,
+.pw-results .border-top-light > .row > .col-md-auto:last-child .mt-20,
+.pw-results .border-top-light > .row > .col-md-auto:last-child .mt-1,
+.pw-results .border-top-light > .row > .col-md-auto:last-child .d-flex.flex-column {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.pw-results .MuiBox-root {
+  margin-top: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.pw-results .MuiFormControl-root,
+.pw-results .MuiRadioGroup-root {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+.pw-results .MuiRadioGroup-root {
+  flex-direction: column !important;
+  flex-wrap: nowrap !important;
+  gap: 6px !important;
+  margin: 0 !important;
+}
+
+.pw-results .MuiRadioGroup-root > .MuiBox-root,
+.pw-results .col-md-auto:last-child .MuiRadioGroup-root > .MuiBox-root,
+.pw-results .col-md-auto:last-child .MuiBox-root[class*="MuiBox"] {
+  min-width: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: 0 !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 6px 8px !important;
+  transform: none !important;
+  border-width: 1px !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+/* Kill scale/hover transforms that spill past the card edge */
+.pw-results .border-top-light .MuiBox-root {
+  transform: none !important;
+}
+
+.pw-results .MuiFormControlLabel-root {
+  margin: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.pw-results .MuiFormControlLabel-label,
+.pw-results .col-md-auto:last-child .MuiTypography-root {
+  font-size: 11px !important;
+  line-height: 1.3 !important;
+  max-width: 100% !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pw-results .MuiRadio-root {
+  padding: 2px !important;
+}
+
+.pw-results .MuiAvatar-root {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+/* CTA buttons — fill the action column, never overflow */
 .pw-results .button,
-.pw-results button.button {
+.pw-results button.button,
+.pw-results .MuiButton-root,
+.pw-results .col-md-auto:last-child .button,
+.pw-results .col-md-auto:last-child button {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
   background: var(--pw-blue, #234adc) !important;
   color: #fff !important;
-  border-radius: 9px !important;
+  border-radius: 8px !important;
   font-size: 12px !important;
   font-weight: 700 !important;
-  padding: 12px 14px !important;
+  line-height: 1.2 !important;
+  padding: 10px 8px !important;
   border: 0 !important;
+  white-space: normal !important;
+  box-sizing: border-box !important;
+  box-shadow: none !important;
+  transform: none !important;
+  text-align: center;
+  margin: 0 !important;
 }
 
 .pw-service-search {
@@ -324,6 +812,16 @@
   .pw-filters {
     position: static;
   }
+
+  .pw-service-searchbox__fields,
+  .pw-service-searchbox__fields--cols-3 {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .pw-service-searchbox__submit {
+    grid-column: 1 / -1;
+    margin-top: 4px;
+  }
 }
 
 @media (max-width: 900px) {
@@ -335,14 +833,39 @@
     position: static;
   }
 
-  .pw-results .border-top-light > .row {
-    grid-template-columns: 95px minmax(0, 1fr);
+  .pw-results .border-top-light > .row.x-gap-20,
+  .pw-results .border-top-light > .row.x-gap-15 {
+    grid-template-columns: 88px minmax(0, 1fr);
+  }
+
+  .pw-results .cardImage,
+  .pw-results .cardImage.ratio,
+  .pw-results .w-250,
+  .pw-results .w-200 {
+    width: 88px !important;
+    min-width: 88px !important;
+    max-width: 88px !important;
+    min-height: 110px !important;
+  }
+
+  .pw-results .cardImage img,
+  .pw-results .js-lazy,
+  .pw-results .cardImage__content img,
+  .pw-results .swiper-slide img,
+  .pw-results .cardImage__content,
+  .pw-results .swiper,
+  .pw-results .mySwiper,
+  .pw-results .swiper-wrapper,
+  .pw-results .swiper-slide {
+    min-height: 110px !important;
   }
 
   .pw-results .border-top-light > .row > .col-md-auto:last-child {
     grid-column: 1 / -1;
     border-left: 0;
     border-top: 1px solid var(--pw-line, #e5eaf3);
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .pw-tripbar {
@@ -351,5 +874,23 @@
 
   .pw-tripbar__meta {
     flex-basis: 100%;
+  }
+
+  .pw-service-searchbox__fields,
+  .pw-service-searchbox__fields--cols-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .pw-partner-row__head select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .pw-partner-row__head {
+    align-items: stretch;
+  }
+
+  .pw-partner-row__head > div {
+    width: 100%;
   }
 }

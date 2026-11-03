@@ -125,19 +125,19 @@ const GuestSearch = ({
             <div className="text-15 text-light-1 ls-2 lh-16">
               {heroStyle ? (
                 <>
-                  <span className="js-count-adult">{guests.adults}</span> adults
-                  {" · "}
-                  <span className="js-count-child">{guests.children}</span>{" "}
-                  children
-                  {" · "}
-                  <span className="js-count-infant">{guests.infant}</span> infant
+                  <span className="js-count-adult">{guests.adults}</span> <span className="text-dark-2" style={{ marginLeft: '2px' }}>Adults</span>{" "}
+                  {" - "}
+                  <span className="js-count-child">{guests.children}</span> {" "}
+                  <span className="text-dark-2" style={{ marginLeft: '2px' }}>Children</span>{" "}
+                  {" -"}
+                  <span className="js-count-infant">{guests.infant}</span> <span className="text-dark-2" style={{ marginLeft: '2px' }}>Infant</span>{" "}
                 </>
               ) : (
                 <>
-                  <span className="js-count-adult">{guests.adults}</span> adults
-                  - <span className="js-count-child">{guests.children}</span>{" "}
-                  children -{" "}
-                  <span className="js-count-infant">{guests.infant}</span> infant
+                  <span className="js-count-adult">{guests.adults}</span> {"  "} Adults
+                  {" · "}<span className="js-count-child">{guests.children}</span>{"  "}
+                  Children {" · "}
+                  <span className="js-count-infant">{guests.infant}</span> {"  "}Infant
                 </>
               )}
             </div>

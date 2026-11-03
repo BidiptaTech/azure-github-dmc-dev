@@ -109,8 +109,8 @@ const TourSingleV1Dynamic = () => {
 
       {/* Header provided by PartnerLayout */}
 
-      <CustomStepper variant="lite" />
-      <TourStatus variant="lite" />
+      {/* <CustomStepper variant="lite" />
+      <TourStatus variant="lite" /> */}
 
       <section className="pt-40">
         <div className="container">

@@ -1,6 +1,4 @@
 import React, { useEffect, useState, useRef } from "react";
-import { Swiper } from "swiper/react";
-import { Navigation, Pagination as SwiperPagination } from "swiper";
 import moment from "moment";
 import { debounce } from "lodash";
 import { useSelector, useDispatch } from "react-redux";
@@ -130,8 +128,9 @@ const AttractionSkeleton = () => (
               borderRadius: "12px",
               padding: "16px",
               margin: "8px",
-              width: "180px",
-              minHeight: "180px",
+width: "100%",
+                                      minWidth: 0,
+                                      minHeight: 0,
               height: "auto",
               background: "linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%)",
               boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
@@ -936,19 +935,15 @@ const TourProperties = () => {
                       <div className="col-md-auto">
                         <div className="cardImage ratio ratio-1:1 w-250 md:w-1/1 rounded-4">
                           <div className="cardImage__content custom_inside-slider">
-                            <Swiper
-                              className="mySwiper"
-                              modules={[SwiperPagination, Navigation]}
-                              pagination={{ clickable: true }}
-                              navigation={true}
-                            >
-                              <img
-                                className="rounded-4 col-12 js-lazy"
-                                src={item?.image}
-                                alt={item?.attraction_name}
-                                style={{ height: "200px", objectFit: "cover" }}
-                              />
-                            </Swiper>
+                            <img
+                              className="rounded-4 js-lazy"
+                              src={item?.image || "/travclick.png"}
+                              alt={item?.attraction_name || "attraction"}
+                              onError={(e) => {
+                                e.currentTarget.onerror = null;
+                                e.currentTarget.src = "/travclick.png";
+                              }}
+                            />
                           </div>
                         </div>
                       </div>
@@ -989,17 +984,15 @@ const TourProperties = () => {
                                       borderRadius: "12px",
                                       p: 1,
                                       m: 1,
-                                      width: "180px",
-                                      minHeight: "180px",
+                                      width: "100%",
+                                      minWidth: 0,
+                                      minHeight: 0,
                                       height: "auto",
                                       bgcolor:
                                         currentMode === "dmc"
                                           ? "#e6f2ff"
                                           : "#fff",
-                                      transform:
-                                        currentMode === "dmc"
-                                          ? "scale(1.05)"
-                                          : "scale(1)",
+                                      transform: "none",
                                       cursor: "pointer",
                                       "&:hover": {
                                         bgcolor: "#f5f5f5",
@@ -1009,6 +1002,8 @@ const TourProperties = () => {
                                       display: "flex",
                                       flexDirection: "column",
                                       alignItems: "flex-start",
+                                      boxSizing: "border-box",
+                                      overflow: "hidden",
                                     }}
                                   >
                                     <Box
@@ -1039,8 +1034,9 @@ const TourProperties = () => {
                                           display: "flex",
                                           alignItems: "center",
                                           fontSize: "0.8rem",
-                                          maxWidth: "120px",
+                                          maxWidth: "100%",
                                           overflow: "hidden",
+                                          minWidth: 0,
                                         }}
                                       >
                                                                                   {dmcLogo && (
@@ -1250,8 +1246,9 @@ const TourProperties = () => {
                                         borderRadius: "12px",
                                         p: 1,
                                         m: 1,
-                                        width: "180px",
-                                        minHeight: "180px",
+width: "100%",
+                                      minWidth: 0,
+                                      minHeight: 0,
                                         height: "auto",
                                         bgcolor:
                                           currentMode === "dmc"
@@ -1535,8 +1532,9 @@ const TourProperties = () => {
                                           borderRadius: "12px",
                                           p: 1,
                                           m: 1,
-                                          width: "180px",
-                                          minHeight: "180px",
+width: "100%",
+                                      minWidth: 0,
+                                      minHeight: 0,
                                           height: "auto",
                                           bgcolor:
                                             currentMode === "travclicks"

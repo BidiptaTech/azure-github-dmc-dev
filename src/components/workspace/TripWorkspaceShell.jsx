@@ -20,12 +20,14 @@ function formatTripDates(checkIn, checkOut) {
 /**
  * Shared chrome for Hotels / Ports / Attractions / Guides / Dining / Transfers.
  * Pass the service content (filters + results) as children.
+ * Pass a service search box via `searchBox` to render it under the DMC partner row.
  */
 export default function TripWorkspaceShell({
   children,
   filters = null,
   hideSummary = false,
   resultsClassName = "",
+  searchBox = null,
 }) {
   const navigate = useNavigate();
   const tourdetails = useSelector((state) => state.hotels?.tourdetails);
@@ -102,16 +104,23 @@ export default function TripWorkspaceShell({
         </div>
       </div>
 
-      <div className="pw-partner-row">
-        <div>
-          <label htmlFor="pw-dmc-partner">Destination management partner</label>
-          <select id="pw-dmc-partner" defaultValue="selected">
-            <option value="selected">
-              {dmcCompanyName || "Travclicks Demo DMC · Credit enabled"}
-            </option>
-          </select>
-        </div>
-        <span className="partner-badge">Live inventory</span>
+      <div
+        className={`pw-partner-row${searchBox ? " pw-partner-row--with-search" : ""}`}
+      >
+        {/* <div className="pw-partner-row__head">
+          <div>
+            <label htmlFor="pw-dmc-partner">
+              Destination management partner
+            </label>
+            <select id="pw-dmc-partner" defaultValue="selected">
+              <option value="selected">
+                {dmcCompanyName || "Travclicks Demo DMC · Credit enabled"}
+              </option>
+            </select>
+          </div>
+          <span className="partner-badge">Live inventory</span>
+        </div> */}
+        {searchBox}
       </div>
 
       <ServiceTabs />

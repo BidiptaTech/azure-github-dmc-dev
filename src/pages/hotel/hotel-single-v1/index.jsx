@@ -137,10 +137,10 @@ const HotelSingleV1Dynamic = () => {
     <>
       <MetaComponent meta={metadata} />
 
-      <div className="header-margin">
+      {/* <div className="header-margin">
         <CustomStepper variant="lite" />
         <TourStatus variant="lite" />
-      </div>
+      </div> */}
 
       {/* Header provided by PartnerLayout */}
 

@@ -346,8 +346,8 @@ console.log("vehicles123", vehicles);
                                 border: "2px solid #ccc",
                                 borderRadius: "12px",
                                 m: 1,
-                                minWidth: "180px",
-                                maxWidth: "10px",
+                                minWidth: 0,
+                                maxWidth: "100%",
                                 height: "auto",
                                 bgcolor:
                                   currentMode === "dmc" ? "#e6f2ff" : "#fff",
@@ -438,8 +438,8 @@ console.log("vehicles123", vehicles);
                                       border: "2px solid #ccc",
                                       borderRadius: "12px",
                                       m: 1,
-                                      minWidth: "180px",
-                                      maxWidth: "10px",
+                                      minWidth: 0,
+                                      maxWidth: "100%",
                                       height: "auto",
                                       bgcolor:
                                         currentMode === "dmc"
@@ -535,8 +535,8 @@ console.log("vehicles123", vehicles);
                                       border: "2px solid #ccc",
                                       borderRadius: "12px",
                                       m: 1,
-                                      minWidth: "180px",
-                                      maxWidth: "10px",
+                                      minWidth: 0,
+                                      maxWidth: "100%",
                                       height: "auto",
                                       bgcolor:
                                         currentMode === "travclicks"
