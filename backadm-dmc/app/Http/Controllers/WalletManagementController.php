@@ -874,6 +874,14 @@ class WalletManagementController extends Controller
                 ->back()
                 ->withInput()
                 ->with('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            // allocate() runs in a DB transaction, so nothing was saved; keep SQL details out of the UI.
+            \Log::error('wallet_topup_failed', ['error' => $e->getMessage()]);
+
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', 'Unable to complete the transfer. Nothing was deducted. Please try again.');
         }
     }
 }
