@@ -9,7 +9,7 @@ import {
 import RenderRoomCards from "./RenderRoomCards";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { Button, Switch, Typography, Stack, Paper, Divider, Card, CardContent } from "@mui/material";
+import { Button, Switch, Typography, Stack, Paper, Divider, Card, CardContent, Tabs, Tab } from "@mui/material";
 import { addHotelBookingToCart } from "@/utils/addHotelToCart";
 import { FaBed, FaPlus, FaTimes } from "react-icons/fa";
 import { IoPersonSharp } from "react-icons/io5";
@@ -32,7 +32,14 @@ import HotelIcon from '@mui/icons-material/Hotel';
 import GroupIcon from '@mui/icons-material/Group';
 import CribIcon from '@mui/icons-material/Crib';
 
-const AvailableRooms = ({ hotel }) => {
+const AvailableRooms = ({
+  hotel,
+  priceMode: priceModeProp = null,
+  priceModeId: _priceModeId = null,
+  inModal = false,
+  hideCartActions = false,
+  onAddedToCart = null,
+}) => {
   const dispatch = useDispatch();
   const totalPrice = useSelector((state) => state.hoteldetails.totalPrice);
   // console.log("totalPrice",totalPrice);
@@ -55,6 +62,7 @@ const usdPrice = Math.ceil(totalPrice * usdExchangeRate);
    
    const categoryPriceMode = useSelector((state) => state.category.priceMode);
    const priceMode =
+     priceModeProp ||
      location.state?.priceMode ||
      (typeof categoryPriceMode === "string"
        ? categoryPriceMode
@@ -90,6 +98,8 @@ const usdPrice = Math.ceil(totalPrice * usdExchangeRate);
   //const [priceMode,setPriceMode] =useState({mode})
   const [hotelType,setHotelType] =useState([])
   const [babyCotSelected, setBabyCotSelected] = useState(false);
+  // Active bed tab index per room type (modal only)
+  const [modalBedTabByRoom, setModalBedTabByRoom] = useState({});
 
   const PriceHide = useSelector((state) => state.auth.PriceHide);
   
@@ -288,12 +298,18 @@ const handleBabyCot = (e) => {
       return;
     }
     toast.success("Added to cart successfully.");
+    if (inModal) {
+      onAddedToCart?.();
+      return;
+    }
     navigate("/app/cart");
   }, [
     bookingArray,
     dispatch,
     hotelDetails,
+    inModal,
     navigate,
+    onAddedToCart,
     priceMode,
     searchState,
     totalPrice,
@@ -316,10 +332,61 @@ const handleBabyCot = (e) => {
   
   return (
     <>
-      <div className="border-light rounded-4 px-30 py-30 sm:px-20 sm:py-20">
-        <div className="row y-gap-20">
+      <div
+        className={
+          inModal
+            ? "px-10 py-10 sm:px-0 sm:py-0"
+            : "border-light rounded-4 px-30 py-30 sm:px-20 sm:py-20"
+        }
+      >
+        <div className={inModal ? "row y-gap-10" : "row y-gap-20"}>
         {roomDatas?.room_data?.map((data, index1) => (
-          <div className="col-12">
+          <div className="col-12" key={data?.room_id || data?.id || index1}>
+            {inModal ? (
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1.25,
+                  mb: 1,
+                  px: 1.25,
+                  py: 1,
+                  borderRadius: 2,
+                  bgcolor: "#fff",
+                  border: "1px solid",
+                  borderColor: "divider",
+                }}
+              >
+                {roomDatas?.image && (
+                  <Box
+                    sx={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 1.5,
+                      overflow: "hidden",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <img
+                      src={roomDatas.image}
+                      alt={data.room_type || "room"}
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
+                  </Box>
+                )}
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ fontWeight: 700, lineHeight: 1.3, color: "#1a2b6b" }}
+                  >
+                    {data.room_type}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Choose bed & occupancy below
+                  </Typography>
+                </Box>
+              </Box>
+            ) : (
             <Box sx={{ 
               display: 'flex',
               alignItems: 'center',
@@ -341,11 +408,11 @@ const handleBabyCot = (e) => {
                 }} 
               />
               <Typography 
-                variant="h5" 
+                variant="h5"
                 sx={{ 
                   fontWeight: 600, 
                   color: '#3554D1',
-                  textShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                  textShadow: '0 2px 4px rgba(0,0,0,0.2)',
                 }}
               >
                 {data.room_type}
@@ -361,7 +428,9 @@ const handleBabyCot = (e) => {
                 <KingBedOutlinedIcon sx={{ fontSize: 100 }} />
               </Box>
             </Box>
-            <div className="roomGrid">
+            )}
+            <div className={inModal ? "roomGrid roomGrid--modal" : "roomGrid"}>
+              {!inModal && (
               <div className="roomGrid__header" style={{
                 gridTemplateColumns:'180px 1fr 60px 170px 239px'
                // grid-template-columns: 180px 1fr 60px 170px 239px;
@@ -376,9 +445,23 @@ const handleBabyCot = (e) => {
 
                 <div />
               </div>
+              )}
               {/* End .roomGrid__header */}
 
-              <div className="roomGrid__grid" style={{gridTemplateColumns: "180px auto 210px"}}>
+              <div
+                className="roomGrid__grid"
+                style={
+                  inModal
+                    ? {
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 16,
+                        gridTemplateColumns: "unset",
+                      }
+                    : { gridTemplateColumns: "180px auto 210px" }
+                }
+              >
+                {!inModal && (
                 <div >
                   <div className="ratio ratio-1:1">
                     <img
@@ -388,99 +471,73 @@ const handleBabyCot = (e) => {
                     />
                   </div>
                   {/* End image */}
-                  {/* <div className="y-gap-5 mt-20">
-                    <div className="d-flex items-center">
-                      <i className="icon-no-smoke text-20 mr-10" />
-                      <div className="text-15">Non-smoking rooms</div>
-                    </div>
-                    <div className="d-flex items-center">
-                      <i className="icon-wifi text-20 mr-10" />
-                      <div className="text-15">Free WiFi</div>
-                    </div>
-                    <div className="d-flex items-center">
-                      <i className="icon-parking text-20 mr-10" />
-                      <div className="text-15">Parking</div>
-                    </div>
-                    <div className="d-flex items-center">
-                      <i className="icon-kitchen text-20 mr-10" />
-                      <div className="text-15">Kitchen</div>
-                    </div>
-                  </div> */}
-                  {/* End room features */}
-                  {/* <a
-                    href="#"
-                    className="d-block text-15 fw-500 underline text-blue-1 mt-15"
-                  >
-                    Show Room Information
-                  </a>
-                  <div>
-                      <div className="text-15 fw-500 mb-10">
-                        Your price includes:
-                      </div>
-                      <div className="y-gap-8">
-                        <div className="d-flex items-center text-green-2">
-                          <i className="icon-check text-12 mr-10" />
-                          <div className="text-15">Pay at the hotel</div>
-                        </div>
-                        <div className="d-flex items-center text-green-2">
-                          <i className="icon-check text-12 mr-10" />
-                          <div className="text-15">
-                            Pay nothing until March 30, 2022
-                          </div>
-                        </div>
-                        <div className="d-flex items-center text-green-2">
-                          <i className="icon-check text-12 mr-10" />
-                          <div className="text-15">
-                            Free cancellation before April 1, 2022
-                          </div>
-                        </div>
-                      </div>
-                    </div> */}
                 </div>
+                )}
                 
                 {/* End roomgrid inner */}
 
-                <div className="y-gap-30">
-                  {/* <div className="roomGrid__content">
-                   
-
-                    <div>
-                      <div className="d-flex items-center text-light-1">
-
-              
-                        <div className="icon-man text-24" />
-                       
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="text-18 lh-15 fw-500">
-                        US${hotel?.price}
-                      </div>
-                      <div className="text-14 lh-18 text-light-1">
-                        Includes taxes and charges
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="dropdown js-dropdown js-price-1-active">
-                        <select className="form-select dropdown__button d-flex items-center rounded-4 border-light px-15 h-50 text-14">
-                          <option value="1" defaultValue>
-                            1 (US$ 3,120)
-                          </option>
-                          <option value="2">2 (US$ 3,120)</option>
-                          <option value="3"> 3 (US$ 3,120)</option>
-                          <option value="4"> 4 (US$ 3,120)</option>
-                          <option value="5"> 5 (US$ 3,120)</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div> */}
-                  {/* End romm Grid horizontal content */}
+                <div className="y-gap-30" style={inModal ? { width: "100%", gap: 12 } : undefined}>
 
 {/*.............start from here Bed Type ..............*/}
 {data.bed_details && data.bed_details.length > 0 ? (
-  data.bed_details.map((bed, index2) => {
+  <>
+  {inModal && data.bed_details.length > 1 && (
+    <Tabs
+      value={Math.min(
+        modalBedTabByRoom[index1] ?? 0,
+        data.bed_details.length - 1
+      )}
+      onChange={(_, next) =>
+        setModalBedTabByRoom((prev) => ({ ...prev, [index1]: next }))
+      }
+      variant="scrollable"
+      scrollButtons="auto"
+      allowScrollButtonsMobile
+      sx={{
+        mb: 1,
+        minHeight: 40,
+        bgcolor: "#fff",
+        borderRadius: 2,
+        border: "1px solid #e6eaf2",
+        px: 0.5,
+        "& .MuiTab-root": {
+          minHeight: 40,
+          textTransform: "none",
+          fontWeight: 600,
+          fontSize: 13,
+          px: 1.5,
+        },
+        "& .Mui-selected": { color: "#3554D1" },
+        "& .MuiTabs-indicator": { backgroundColor: "#3554D1", height: 3, borderRadius: 2 },
+      }}
+    >
+      {data.bed_details.map((bedTab, bedTabIndex) => {
+        const label =
+          (bedTab?.bed_type?.charAt(0).toUpperCase() || "") +
+          (bedTab?.bed_type?.slice(1).replace(/_/g, " ") || `Bed ${bedTabIndex + 1}`);
+        return (
+          <Tab
+            key={bedTab?.bed_id || bedTabIndex}
+            label={`${label}${bedTab?.max_occupancy ? ` · ${bedTab.max_occupancy}` : ""}`}
+          />
+        );
+      })}
+    </Tabs>
+  )}
+  {(inModal
+    ? [
+        {
+          bed: data.bed_details[
+            Math.min(modalBedTabByRoom[index1] ?? 0, data.bed_details.length - 1)
+          ],
+          index2: Math.min(
+            modalBedTabByRoom[index1] ?? 0,
+            data.bed_details.length - 1
+          ),
+        },
+      ]
+    : data.bed_details.map((bed, index2) => ({ bed, index2 }))
+  ).map(({ bed, index2 }) => {
     const bedIndex = index2;
     const maxOccupancy = bed?.max_occupancy;
     const bedId = bed?.bed_id;
@@ -497,15 +554,81 @@ const handleBabyCot = (e) => {
     };
 
     // Determine the icon to use based on the bed type
-  const normalizedBedType = bed?.bed_type.split(' ')[0].toLowerCase();
+  const normalizedBedType = bed?.bed_type?.split(' ')[0]?.toLowerCase() || "";
    // console.log(`Normalized Bed Type: ${normalizedBedType}`);
 
     const bedTypeIcon = bedTypeIcons[normalizedBedType] || <FaBed size={20} />;
+    const bedTypeLabel =
+      (bed?.bed_type?.charAt(0).toUpperCase() || "") +
+      (bed?.bed_type?.slice(1).replace(/_/g, " ") || "");
+    const guestTotal = roomDatas?.tour_adult || 0;
 
     return (
-      <div className="roomGrid__content" style={{ gridTemplateColumns: "1fr 350px" }}>
+      <div
+        key={bedId || `${index1}-${index2}`}
+        className="roomGrid__content"
+        style={{
+          gridTemplateColumns: inModal ? "1fr" : "1fr 350px",
+          gap: inModal ? 12 : undefined,
+          border: inModal ? "1px solid #e6eaf2" : undefined,
+          borderRadius: inModal ? 12 : undefined,
+          background: inModal ? "#fff" : undefined,
+          padding: inModal ? 12 : undefined,
+          marginBottom: inModal ? 8 : undefined,
+        }}
+      >
         <div>
-          {/* Bed Type, Max Occupancy and Actual Occupancy - Redesigned */}
+          {inModal ? (
+            <Box sx={{ mb: 1.25 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 1,
+                  flexWrap: "wrap",
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
+                  <Avatar
+                    sx={{
+                      width: 28,
+                      height: 28,
+                      bgcolor: "rgba(53,84,209,0.1)",
+                      color: "#3554D1",
+                    }}
+                  >
+                    {bedTypeIcon}
+                  </Avatar>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                      {bedTypeLabel}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Up to {maxOccupancy} · {guestTotal} guest{guestTotal === 1 ? "" : "s"}
+                    </Typography>
+                  </Box>
+                </Box>
+                {bed.baby_cot && (
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Baby cot
+                    </Typography>
+                    <Switch
+                      size="small"
+                      checked={!!babyCotStatus[bed.bed_id]}
+                      onChange={handleBabyCot}
+                      color="primary"
+                      disabled={bookingArray.length === 0}
+                      name={String(bed.bed_id)}
+                      inputProps={{ "aria-label": "baby cot" }}
+                    />
+                  </Box>
+                )}
+              </Box>
+            </Box>
+          ) : (
+          <>
           <Box sx={{ 
             display: 'flex', 
             flexDirection: 'column', 
@@ -1025,6 +1148,8 @@ const handleBabyCot = (e) => {
               </Card>
             )}
           </Box>
+          </>
+          )}
         </div>
 
         <div className="text-14 lh-18 text-light-1">
@@ -1057,11 +1182,13 @@ const handleBabyCot = (e) => {
             setTotalPersonCount={setTotalPersonCount}
             acctualOccupency={pax}
             bookingArray={bookingArray}
+            compact={inModal}
           />
         </div>
       </div>
     );
-  })
+  })}
+  </>
 ) : (
   // Show message when no bed details are available
   <div className="roomGrid__content" style={{ gridTemplateColumns: "1fr" }}>
@@ -1208,6 +1335,7 @@ const handleBabyCot = (e) => {
                 </div>
                 {/* End price features */}
 
+                {!hideCartActions && (
                 <div>
                   {/* <div className="text-14 lh-1">{occupancyCount} rooms for</div> */}
                   <div className="text-22 fw-500 lh-17 mt-5">
@@ -1215,13 +1343,13 @@ const handleBabyCot = (e) => {
                     (
                       <div className="text-22 text-dark-1 fw-500">
                       <Box sx={{ textAlign: 'right' }}>
-                        <Typography variant="h6" color="primary">
+                        <Typography variant="h6" color="primary" sx={{ fontWeight: 600 }}>
                           {currencyCode} {convertedPrice}
                         </Typography>
-                        <Typography variant="body1" color="text.secondary">
+                        <Typography variant="body2" color="text.secondary">
                           SGD {totalPrice}
                         </Typography>
-                        <Typography variant="body1" color="text.secondary">
+                        <Typography variant="body2" color="text.secondary">
                           {usdCurrencyCode} {usdPrice}
                         </Typography>
                       </Box>
@@ -1267,6 +1395,7 @@ const handleBabyCot = (e) => {
                     <li className="text-14">No booking or credit card fees!</li>
                   </ul> */}
                 </div>
+                )}
                 {/* End right price info */}
               </div>
             </div>

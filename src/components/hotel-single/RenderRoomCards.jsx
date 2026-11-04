@@ -37,6 +37,7 @@ const RenderRoomCards = ({
   setPaxCount,
   paxCount,
   isLoading = false,
+  compact = false,
  //personCount,
   //setPersonCount
  
@@ -363,26 +364,26 @@ const RenderRoomCards = ({
         const personCount = personIndex + 1;
 
         return (
-       <>
+       <Box key={`occ-${personCount}`}>
             {/* Person Count Header */}
             <Box
               display="flex"
               alignItems="center"
               gap={1}
-              mt={2}
-              mb={1}
+              mt={compact ? 1 : 2}
+              mb={compact ? 0.75 : 1}
               sx={{
                 backgroundColor: '#e6f2ff',
-                padding: '5px 5px',
+                padding: compact ? '3px 6px' : '5px 5px',
                 borderRadius: '8px',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                boxShadow: compact ? 'none' : '0 2px 4px rgba(0,0,0,0.05)'
               }}
             >
               <Box display="flex" alignItems="center">
                 {Array.from({ length: personCount }).map((_, iconIndex) => (
                   <IoPersonSharp 
                     key={iconIndex}
-                    size={20}
+                    size={compact ? 14 : 20}
                     style={{ 
                       color: '#3554D1',
                       marginRight: '2px'
@@ -390,21 +391,17 @@ const RenderRoomCards = ({
                   />
                 ))}
               </Box>
-              {/* <Typography 
-                variant="subtitle1" 
-                sx={{ 
-                  fontWeight: 500,
-                  color: '#333'
-                }}
-              >
-                {`For ${personCount} Person(s)`}
-              </Typography> */}
+              {compact && (
+                <Typography variant="caption" sx={{ color: '#3554D1', fontWeight: 600 }}>
+                  {personCount} guest{personCount === 1 ? "" : "s"}
+                </Typography>
+              )}
             </Box>
 
             {/* Room Cards Grid */}
             <Box
               display="grid"
-              gap={2}
+              gap={compact ? 1 : 2}
             >
               {/* Render options based on person count */}
               {personCount === 1 ? (
@@ -440,7 +437,7 @@ const RenderRoomCards = ({
                           totalPersonCount={totalPersonCount}
                           setTotalPersonCount={setTotalPersonCount}
                           acctualOccupency={acctualOccupency}
-                     
+                          compact={compact}
                           title={title}
                           price={totalPrice}
                           data={data}
@@ -483,7 +480,7 @@ const RenderRoomCards = ({
                          roomTypeIndex={roomTypeIndex}
                          totalPersonCount={totalPersonCount}
                          acctualOccupency={acctualOccupency}
-                      
+                          compact={compact}
                           title={title}
                           price={calculatedPrice}
                           data={data}
@@ -493,7 +490,7 @@ const RenderRoomCards = ({
                   })
               )}
             </Box>
-          </>
+          </Box>
         );
       })}
     </Box>

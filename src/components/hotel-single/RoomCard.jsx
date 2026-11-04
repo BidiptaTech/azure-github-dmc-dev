@@ -55,7 +55,8 @@ const RoomCard = ({
   setPaxCount,
   paxCount,
 
-  babyCot
+  babyCot,
+  compact = false,
 }) => {
   const [globalCount, setGlobalCount] = useState(0);
   const [error, setError] = useState(false);
@@ -506,6 +507,125 @@ const handleDecrement = (event) => {
 
 
   
+
+  if (compact) {
+    return (
+      <Paper
+        elevation={0}
+        sx={{
+          width: "100%",
+          borderRadius: 2,
+          border: "1px solid #e6eaf2",
+          overflow: "hidden",
+          bgcolor: "#fff",
+        }}
+      >
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 1,
+            px: 1.25,
+            py: 1,
+          }}
+        >
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Typography
+              variant="body2"
+              sx={{ fontWeight: 600, lineHeight: 1.25, color: "#1a2b6b" }}
+            >
+              {title}
+            </Typography>
+            {PriceHide === "0" ? (
+              <Typography variant="subtitle2" color="primary" sx={{ fontWeight: 700, mt: 0.25 }}>
+                {currencyCode} {convertedPrice.toFixed(2)}
+                <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
+                  /night
+                </Typography>
+              </Typography>
+            ) : (
+              <Typography variant="caption" color="text.secondary">
+                Price on request
+              </Typography>
+            )}
+          </Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
+            {globalCount === 0 ? (
+              <Button
+                variant="contained"
+                size="small"
+                onClick={handleAddRoom}
+                startIcon={<AddIcon sx={{ fontSize: 16 }} />}
+                data-price-id={data?.bed_details[bedIndex]?.room_id || []}
+                data-price={price}
+                data-bed-id={data?.bed_details[bedIndex]?.bed_id || []}
+                data-bed-type={data?.bed_details[bedIndex]?.bed_type || []}
+                data-room-type={data?.room_type || []}
+                data-meal-type={title}
+                data-room-id={data?.room_id || []}
+                data-head={personCount}
+                sx={{
+                  textTransform: "none",
+                  fontWeight: 600,
+                  borderRadius: 1.5,
+                  bgcolor: "#3554D1",
+                  minWidth: 0,
+                  px: 1.25,
+                  py: 0.5,
+                  fontSize: 12,
+                  "&:hover": { bgcolor: "#2a43a8" },
+                }}
+              >
+                Add
+              </Button>
+            ) : (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
+                <IconButton
+                  size="small"
+                  onClick={handleDecrement}
+                  data-price-id={data?.bed_details[bedIndex]?.room_id || []}
+                  data-price={price}
+                  data-bed-id={data?.bed_details[bedIndex]?.bed_id || []}
+                  data-bed-type={data?.bed_details[bedIndex]?.bed_type || []}
+                  data-room-type={data?.room_type || []}
+                  data-meal-type={title}
+                  data-room-id={data?.room_id || []}
+                  data-head={personCount}
+                  sx={{ border: "1px solid #e6eaf2", borderRadius: 1 }}
+                >
+                  <RemoveIcon fontSize="small" />
+                </IconButton>
+                <Typography variant="body2" sx={{ minWidth: 18, textAlign: "center", fontWeight: 700 }}>
+                  {globalCount}
+                </Typography>
+                <IconButton
+                  size="small"
+                  onClick={handleIncrement}
+                  data-price-id={data?.bed_details[bedIndex]?.room_id || []}
+                  data-price={price}
+                  data-bed-id={data?.bed_details[bedIndex]?.bed_id || []}
+                  data-bed-type={data?.bed_details[bedIndex]?.bed_type || []}
+                  data-room-type={data?.room_type || []}
+                  data-meal-type={title}
+                  data-room-id={data?.room_id || []}
+                  data-head={personCount}
+                  sx={{ border: "1px solid #e6eaf2", borderRadius: 1 }}
+                >
+                  <AddIcon fontSize="small" />
+                </IconButton>
+              </Box>
+            )}
+          </Box>
+        </Box>
+        {showError && errorMessage && (
+          <Alert severity="error" sx={{ borderRadius: 0, py: 0 }}>
+            <Typography variant="caption">{errorMessage}</Typography>
+          </Alert>
+        )}
+      </Paper>
+    );
+  }
 
   return (
     <Paper
