@@ -55,9 +55,12 @@ const Index2 = () => {
   );
   const entryytime = useSelector((state) => state.pickupDrop.exittime);
 
+  const checkoutVehicle = useSelector(
+    (state) => state.pickupDrop.checkoutVehicle
+  );
   const dispatch = useDispatch();
   const location = useLocation();
-  const { vehicles } = location.state;
+  const vehicles = location.state?.vehicles || checkoutVehicle || null;
   console.log("Vehiclesexit:", vehicles);
   const id = useSelector((state) => state.hotels.id);
   // const dayprice = vehicles.prices.dmcDayPrice || vehicles.prices.travClicksDay;
@@ -67,7 +70,7 @@ const Index2 = () => {
   // const nightEndTime = vehicles.night_end_time;
   const statemode = useSelector((state) => state.pickupDrop.mode);
   const navigate = useNavigate();
-  const seatingCapacity = vehicles.seating_capacity;
+  const seatingCapacity = vehicles?.seating_capacity || 0;
   const [isBookNowEnabled, setIsBookNowEnabled] = useState(false);
   const [isNight, setIsNight] = useState(false);
   // Get default values for guests from Redux store
@@ -103,7 +106,10 @@ const Index2 = () => {
   //const [hour, sethours] = useState("");
   //const [hourlyPrice, setHourlyPrice] = useState(0); // Stores selected hourly price
   //const [entryytime, setentryytime] = useState("");
-  const mode = statemode[vehicles.id]?.mode || "default_mode"; // Set a default mode if not found
+  const mode =
+    vehicles?.id && statemode?.[vehicles.id]?.mode
+      ? statemode[vehicles.id].mode
+      : "default_mode"; // Set a default mode if not found
   // Function to update hour and price from HourPackage
   // const handleHourChange = (selectedHour, price) => {
   //   sethours(selectedHour);
@@ -116,7 +122,7 @@ const Index2 = () => {
 
   useEffect(() => {
     setIsBookNowEnabled(totalGuests <= seatingCapacity); // Update the button state
-    if (entryytime && vehicles.night_start_time && vehicles.night_end_time) {
+    if (entryytime && vehicles?.night_start_time && vehicles?.night_end_time) {
       console.log("Time check - Entry time:", entryytime);
       console.log("Night start time:", vehicles.night_start_time);
       console.log("Night end time:", vehicles.night_end_time);
@@ -161,8 +167,8 @@ const Index2 = () => {
     children,
     seatingCapacity,
     entryytime,
-    vehicles.night_start_time,
-    vehicles.night_end_time,
+    vehicles?.night_start_time,
+    vehicles?.night_end_time,
   ]);
 
   const handleGuestChange = (updatedAdults, updatedChildren) => {

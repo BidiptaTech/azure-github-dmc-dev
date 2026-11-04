@@ -26,10 +26,10 @@ import CloseIcon from "@mui/icons-material/Close";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import { useSelector } from "react-redux";
 
-const Overview = () => {
+const Overview = ({ guide: guideProp, compact = false }) => {
   const location = useLocation();
   const checkoutGuide = useSelector((state) => state.tourguide.checkoutGuide);
-  const guide = location.state?.guide || checkoutGuide;
+  const guide = guideProp || location.state?.guide || checkoutGuide;
   const [isLoading, setIsLoading] = useState(true); // For skeleton loader
   const [openImageDialog, setOpenImageDialog] = useState(false);
   const [selectedImage, setSelectedImage] = useState("");
@@ -38,11 +38,15 @@ const Overview = () => {
     // Simulate a loading delay
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 2000); // Adjust timeout as needed
+    }, compact ? 400 : 2000); // Adjust timeout as needed
     return () => clearTimeout(timer);
-  }, []);
+  }, [compact, guide?.guide?.id]);
 
-  const LanguageOptions = guide.guide.languages.map((lang) => ({
+  if (!guide?.guide) {
+    return null;
+  }
+
+  const LanguageOptions = (guide.guide.languages || []).map((lang) => ({
     language: lang.language,
     proficiency: lang.proficiency,
   }));
@@ -51,7 +55,9 @@ const Overview = () => {
     <>
       <div className="row x-gap-40 y-gap-40">
         <div className="col-12">
-          <h3 className="text-22 fw-500">Overview</h3>
+          <h3 className={compact ? "text-18 fw-500" : "text-22 fw-500"}>
+            Overview
+          </h3>
 
           <div className="text-dark-1 text-15 mt-10">
             <div
@@ -63,8 +69,9 @@ const Overview = () => {
           <Card
             elevation={1}
             sx={{
-              mt: 2.5,
-              p: 2,
+              mt: compact ? 1.5 : 2.5,
+              mb: compact ? 0 : undefined,
+              p: compact ? 1.5 : 2,
               borderRadius: 2,
               bgcolor: "rgba(255, 255, 255, 0.9)",
               border: "1px solid rgba(0, 0, 0, 0.1)",
@@ -113,21 +120,27 @@ const Overview = () => {
 
         {/* License Details and Languages Section */}
         <div className="col-12">
-          <Grid container spacing={3} sx={{ mt: 1, px: 2 }}>
+          <Grid
+            container
+            spacing={compact ? 2 : 3}
+            sx={{ mt: compact ? 0.5 : 1, px: compact ? 0 : 2 }}
+          >
             {/* License Details Section */}
-            <Grid item xs={12} md={5}>
+            <Grid item xs={12} md={compact ? 6 : 5}>
               <Card
-                elevation={2}
+                elevation={compact ? 1 : 2}
                 sx={{
                   height: "100%",
                   borderRadius: 2,
                   overflow: "hidden",
-                  transition: "transform 0.2s ease",
-                  "&:hover": {
-                    transform: "translateY(-4px)",
-                    boxShadow: "0 6px 16px rgba(0,0,0,0.1)",
-                  },
-                  maxWidth: "500px",
+                  transition: compact ? "none" : "transform 0.2s ease",
+                  "&:hover": compact
+                    ? undefined
+                    : {
+                        transform: "translateY(-4px)",
+                        boxShadow: "0 6px 16px rgba(0,0,0,0.1)",
+                      },
+                  maxWidth: compact ? "100%" : "500px",
                   mx: "auto",
                 }}
               >
@@ -218,19 +231,21 @@ const Overview = () => {
             </Grid>
 
             {/* Languages Section */}
-            <Grid item xs={12} md={5}>
+            <Grid item xs={12} md={compact ? 6 : 5}>
               <Card
-                elevation={2}
+                elevation={compact ? 1 : 2}
                 sx={{
                   height: "100%",
                   borderRadius: 2,
                   overflow: "hidden",
-                  transition: "transform 0.2s ease",
-                  "&:hover": {
-                    transform: "translateY(-4px)",
-                    boxShadow: "0 6px 16px rgba(0,0,0,0.1)",
-                  },
-                  maxWidth: "500px",
+                  transition: compact ? "none" : "transform 0.2s ease",
+                  "&:hover": compact
+                    ? undefined
+                    : {
+                        transform: "translateY(-4px)",
+                        boxShadow: "0 6px 16px rgba(0,0,0,0.1)",
+                      },
+                  maxWidth: compact ? "100%" : "500px",
                   mx: "auto",
                 }}
               >

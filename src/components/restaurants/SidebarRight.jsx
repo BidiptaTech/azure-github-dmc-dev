@@ -1,11 +1,11 @@
 import FilterBox from "../../components/restaurants/filter-box/index";
 // import FilterBox from "../../components/tour-single/filter-box/index";
 
-const SidebarRight = ({ tour }) => {
+const SidebarRight = ({ tour, compact = false }) => {
   return (
     <div className="d-flex justify-end js-pin-content">
-      <div className="w-360 lg:w-full d-flex flex-column items-center">
-        <div className="px-30 py-30 rounded-4 border-light bg-white shadow-4">
+      <div className={`${compact ? "w-full" : "w-360"} lg:w-full d-flex flex-column items-center`}>
+        <div className={`${compact ? "px-20 py-20" : "px-30 py-30"} rounded-4 border-light bg-white shadow-4`}>
           {/* <div className="text-14 text-light-1">
             From{" "}
             <span className="text-20 fw-500 text-dark-1 ml-5">
@@ -14,7 +14,7 @@ const SidebarRight = ({ tour }) => {
           </div> */}
           {/* End div */}
 
-          <div className="row y-gap-20 pt-30">
+          <div className={`row y-gap-20 ${compact ? "pt-10" : "pt-30"}`}>
             <FilterBox />
           </div>
           {/* End div */}

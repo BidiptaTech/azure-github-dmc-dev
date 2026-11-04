@@ -43,14 +43,22 @@ const Section = ({ title, icon: Icon, content, color }) => {
   );
 };
 
-const Overview = () => {
+const Overview = ({ compact = false }) => {
   const attractionDetails = useSelector(
     (state) => state.attractions.attractionDetails
   );
 
   return (
-    <div className="bg-white shadow-md rounded-2xl p-6">
-      <h3 className="text-2xl font-semibold mb-6 border-b pb-3">Overview</h3>
+    <div
+      className={`bg-white shadow-md rounded-2xl ${compact ? "p-4" : "p-6"}`}
+    >
+      <h3
+        className={`${
+          compact ? "text-xl mb-4" : "text-2xl mb-6"
+        } font-semibold border-b pb-3`}
+      >
+        Overview
+      </h3>
 
       <Section
         title="Description"
