@@ -125,12 +125,14 @@ const PortLocation = ({
   }, []);
 
   return (
-    <div className={`searchMenu-loc pr-10 pl-10 lg:py-20 lg:px-0 relative ${disabled ? "disabled-input" : ""}`}>
-      <div className="d-flex justify-between">
-        <div className="flex-1 mr-10">
-          <div className="d-flex relative">
-            <i className={`icon-location-2 text-20 ${disabled ? "text-gray-400" : "text-light-1"}`}></i>
-            <div className="ml-5 flex-grow-1 w-full" style={{ minWidth: "160px" }}>
+    <div
+      className={`searchMenu-loc relative ${disabled ? "disabled-input" : ""}`}
+      style={{ width: "100%", minWidth: 0 }}
+    >
+      <div className="d-flex justify-between" style={{ width: "100%", minWidth: 0 }}>
+        <div className="flex-1" style={{ minWidth: 0, width: "100%" }}>
+          <div className="d-flex relative" style={{ width: "100%", minWidth: 0 }}>
+            <div className="flex-grow-1 w-full" style={{ minWidth: 0, width: "100%" }}>
               <input
               id="pick-up-input1"
               autoComplete="off"
@@ -152,7 +154,7 @@ const PortLocation = ({
                   }
                 }}
                 className={`js-search js-dd-focus w-full text-15 ${disabled ? "bg-gray-100 border-gray-200 text-gray-400" : "border-gray-300"} rounded `}
-                style={{ minWidth: "160px" }}
+                style={{ width: "100%", minWidth: 0, maxWidth: "100%" }}
                 disabled={disabled}
               />
               {showDropdown && !disabled && (

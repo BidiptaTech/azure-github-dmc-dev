@@ -446,8 +446,8 @@ const MainFilterSearchBox2 = ({ Location }) => {
       <div className="mainSearch -col-2 bg-white px-10 py-10 lg:px-20 lg:pt-5 lg:pb-20 rounded-4 mt-10">
         <div className="single-row-container">
           {/* Port Selection */}
-          <div className="search-item port-selection mb-10">
-            <label className="text-15 fw-500 ls-2 lh-16 mb-10">
+          <div className="search-item port-selection">
+            <label className="text-15 fw-500 ls-2 lh-16">
               Select Port Type:
             </label>
             <select
@@ -485,9 +485,9 @@ const MainFilterSearchBox2 = ({ Location }) => {
           </div>
 
           {/* City Selection Section */}
-          <div className="search-item location-search pickup-location">
+          <div className="search-item city-selection">
             <h4
-              className={`text-15 fw-500 ls-2 lh-16 mb-20 ml-10 ${
+              className={`text-15 fw-500 ls-2 lh-16 ${
                 !isCityEnabled ? "text-gray-400" : ""
               }`}
             >
@@ -505,7 +505,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
           {/* Pick Up Location */}
           <div className="search-item location-search pickup-location">
             <h4
-              className={`text-15 fw-500 ls-2 lh-16 mb-20 ml-10 ${
+              className={`text-15 fw-500 ls-2 lh-16 ${
                 !isPickupLocationEnabled ? "text-gray-400" : ""
               }`}
             >
@@ -560,7 +560,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
           {/* Drop Off Location */}
           <div className="search-item location-search dropoff-location">
             <h4
-              className={`text-15 fw-500 ls-2 lh-16 mb-20 ml-10 ${
+              className={`text-15 fw-500 ls-2 lh-16 ${
                 !isDropoffLocationEnabled ? "text-gray-400" : ""
               }`}
             >
@@ -614,12 +614,12 @@ const MainFilterSearchBox2 = ({ Location }) => {
           </div>
 
           {/* Time Selection */}
-          <div className="search-item time-selection mb-10">
+          <div className="search-item time-selection">
             {selectedPort === "Entry Port" ? (
               <>
-              <Typography variant="subtitle2" fontWeight={100} sx={{ mb: 1, color: '#000' }}>
-        Pick Up Time
-      </Typography>
+              <Typography variant="subtitle2" component="h4">
+                Pick Up Time
+              </Typography>
               <Pickuptime
                 entryytime={entryytime}
                 setentryytime={setentryytime}
@@ -629,9 +629,9 @@ const MainFilterSearchBox2 = ({ Location }) => {
               </>
             ) : (
               <>
-              <Typography variant="subtitle2" fontWeight={100} sx={{ mb: 1, color: '#000' }}>
-        Exit Time
-      </Typography>
+              <Typography variant="subtitle2" component="h4">
+                Exit Time
+              </Typography>
               <Pickuptime1
                 entryytime={entryytime1}
                 setentryytime={setentryytime1}
@@ -643,9 +643,9 @@ const MainFilterSearchBox2 = ({ Location }) => {
           </div>
 
           {/* Date Selection */}
-          <div className="search-item date-selection mb-10">
+          <div className="search-item date-selection">
             <h4
-              className={`text-15 fw-500 ls-2 lh-16 mt-15 ${
+              className={`text-15 fw-500 ls-2 lh-16 ${
                 !isDropoffLocationEnabled ? "text-gray-400" : ""
               }`}
             >
@@ -669,9 +669,9 @@ const MainFilterSearchBox2 = ({ Location }) => {
           </div>
 
           {/* Search Button */}
-          <div className="search-item search-button mb-15">
+          <div className="search-item search-button">
             <button
-              className={`mainSearch__submit button -dark-1 py-15 px-35 rounded-4 ${
+              className={`mainSearch__submit button -dark-1 px-35 rounded-4 ${
                 isSearchButtonEnabled
                   ? "bg-blue-1 text-white"
                   : "bg-blue-1/50 text-white/80"
@@ -689,122 +689,103 @@ const MainFilterSearchBox2 = ({ Location }) => {
       <style jsx>{`
         .single-row-container {
           display: grid;
-          grid-template-columns: 140px 160px 2fr 2fr 2fr 1fr 140px;
-          flex-wrap: nowrap;
+          grid-template-columns:
+            minmax(120px, 140px)
+            minmax(120px, 1fr)
+            minmax(150px, 1.4fr)
+            minmax(150px, 1.4fr)
+            minmax(130px, 160px)
+            minmax(130px, 150px)
+            minmax(110px, 130px);
           width: 100%;
-          gap: 5px;
-          align-items: flex-end;
+          gap: 12px;
+          align-items: end;
         }
 
         .search-item {
-          flex-shrink: 1;
+          min-width: 0;
+          width: 100%;
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-end;
+          overflow: visible;
         }
 
-        .port-selection {
-          width: 140px;
-        }
-
-        .city-selection {
-          width: 100px;
-        }
-
-        .location-search {
-          width: 200px;
-          flex-grow: 1;
-          margin-bottom: 15px;
-        }
-
+        .city-selection,
         .pickup-location,
         .dropoff-location {
-          min-width: 200px;
+          min-width: 0;
         }
 
-        .time-selection {
-          width: 140px;
+        .city-selection :global(.searchMenu-loc),
+        .pickup-location :global(.searchMenu-loc),
+        .dropoff-location :global(.searchMenu-loc) {
+          width: 100%;
+          min-width: 0;
+          padding: 0 !important;
+          margin: 0 !important;
         }
 
-        .date-selection {
-          width: 160px;
-        }
-
-        .search-button {
-          width: 140px;
-          display: flex;
-          align-items: flex-end;
+        .city-selection :global(input),
+        .pickup-location :global(input),
+        .dropoff-location :global(input) {
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
         }
 
         .search-button button {
           width: 100%;
-          height: 50px;
+          height: 42px;
+        }
+
+        .time-selection :global(.MuiFormControl-root),
+        .date-selection :global(.MuiFormControl-root),
+        .date-selection :global(.MuiTextField-root) {
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+        }
+
+        .time-selection :global(.MuiInputBase-root),
+        .date-selection :global(.MuiInputBase-root) {
+          width: 100% !important;
+          height: 42px !important;
+          min-height: 42px !important;
+          max-height: 42px !important;
         }
 
         /* Responsive styles */
         @media (max-width: 1400px) {
           .single-row-container {
-            grid-template-columns: 120px 1fr 1.5fr 1.5fr 1.5fr 1fr 120px;
-            gap: 8px;
-          }
-
-          .port-selection {
-            width: 120px;
-          }
-
-          .time-selection {
-            width: 120px;
-          }
-
-          .date-selection {
-            width: 140px;
-          }
-
-          .search-button {
-            width: 120px;
+            grid-template-columns:
+              minmax(110px, 120px)
+              minmax(110px, 1fr)
+              minmax(130px, 1.2fr)
+              minmax(130px, 1.2fr)
+              minmax(120px, 140px)
+              minmax(120px, 140px)
+              minmax(100px, 120px);
+            gap: 10px;
           }
         }
 
         @media (max-width: 1200px) {
           .single-row-container {
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            gap: 16px;
             align-items: stretch;
-          }
-
-          .port-selection {
-            width: 100%;
-            grid-column: span 1;
-          }
-
-          .city-selection {
-            width: 100%;
-            grid-column: span 1;
-          }
-
-          .location-search {
-            width: 100%;
-            grid-column: span 2;
-            min-width: 100%;
           }
 
           .pickup-location,
           .dropoff-location {
-            min-width: 100%;
-          }
-
-          .time-selection {
-            width: 100%;
-            grid-column: span 1;
-          }
-
-          .date-selection {
-            width: 100%;
-            grid-column: span 1;
+            grid-column: span 2;
           }
 
           .search-button {
-            width: 100%;
             grid-column: span 2;
-            margin-top: 15px;
-            justify-content: center;
+            margin-top: 8px;
+            align-items: center;
           }
 
           .search-button button {
@@ -815,45 +796,18 @@ const MainFilterSearchBox2 = ({ Location }) => {
         @media (max-width: 900px) {
           .single-row-container {
             grid-template-columns: 1fr;
-            gap: 15px;
+            gap: 14px;
           }
 
-          .port-selection,
           .city-selection,
-          .location-search,
-          .time-selection,
-          .date-selection,
+          .pickup-location,
+          .dropoff-location,
           .search-button {
             grid-column: span 1;
-            width: 100%;
-          }
-
-          .location-search {
-            margin-bottom: 10px;
-          }
-
-          .search-button {
-            margin-top: 10px;
-          }
-        }
-
-        @media (max-width: 767px) {
-          .single-row-container {
-            gap: 15px;
-          }
-
-          .search-item {
-            margin-bottom: 10px;
-          }
-
-          .location-search {
-            margin-bottom: 8px;
           }
 
           .search-button button {
             max-width: 100%;
-            height: 45px;
-            font-size: 14px;
           }
         }
 
@@ -864,40 +818,6 @@ const MainFilterSearchBox2 = ({ Location }) => {
 
           .single-row-container {
             gap: 10px;
-          }
-
-          .text-15 {
-            font-size: 14px;
-          }
-
-          .search-button button {
-            height: 40px;
-            font-size: 13px;
-            padding: 8px 20px;
-          }
-
-          .port-selection select,
-          .location-search input,
-          .time-selection input,
-          .date-selection input {
-            font-size: 14px;
-            padding: 8px 12px;
-          }
-        }
-
-        @media (max-width: 360px) {
-          .mainSearch {
-            padding: 8px !important;
-          }
-
-          .single-row-container {
-            gap: 8px;
-          }
-
-          .search-button button {
-            height: 38px;
-            font-size: 12px;
-            padding: 6px 16px;
           }
         }
       `}</style>

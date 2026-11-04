@@ -216,7 +216,7 @@ const MainFilterSearchBox = ({ Location }) => {
   return (
     <>
       <div className="mainSearch -col-2 bg-white px-10 py-10 lg:px-20 lg:pt-5 lg:pb-20 rounded-4 mt-30">
-        <div className="button-grid-v2 items-center">
+        <div className="button-grid-v2">
           {/* First Section - Port Selection */}
           <div className="port-selection-wrapper">
             <label className="text-15 fw-500 ls-2 lh-16">
@@ -362,8 +362,12 @@ const MainFilterSearchBox = ({ Location }) => {
 
           {/* Fourth Section - Date Selection */}
           <div className="date-selection-wrapper">
-            <h4 className="text-15 fw-500 ls-2 lh-16 mt-15">
-              {selectedPort === "Point To Point" ? "Pick Up Date" : "Exit Date"}
+            <h4 className="text-15 fw-500 ls-2 lh-16">
+              {selectedPort === "Point To Point"
+                ? "Pick Up Date"
+                : selectedPort === "Hourly"
+                  ? "Pick Up Date"
+                  : "Exit Date"}
             </h4>
             {selectedPort === "Point To Point" ? (
               <DateSearch1
@@ -389,7 +393,7 @@ const MainFilterSearchBox = ({ Location }) => {
           {/* Fifth Section - Search Button */}
           <div className="search-button-wrapper">
             <button
-              className="mainSearch__submit button -dark-1 py-15 px-35 rounded-4 bg-blue-1 text-white"
+              className="mainSearch__submit button -dark-1 px-35 rounded-4 bg-blue-1 text-white"
               onClick={buttonsearch}
             >
               <i className="icon-search text-20 mr-10" />
@@ -404,42 +408,17 @@ const MainFilterSearchBox = ({ Location }) => {
           display: grid;
           grid-template-columns: ${
             selectedPort === "Hourly"
-              ? "160px minmax(140px, 180px) minmax(220px, 2.2fr) minmax(170px, 1.1fr) minmax(150px, 1fr) minmax(120px, 1fr)"
-              : "160px minmax(280px, 3fr) minmax(180px, 1.2fr) minmax(150px, 1fr) minmax(130px, 1fr)"
+              ? "minmax(140px, 160px) minmax(130px, 170px) minmax(180px, 1.8fr) minmax(140px, 160px) minmax(130px, 150px) minmax(110px, 130px)"
+              : "minmax(140px, 160px) minmax(220px, 2.4fr) minmax(140px, 160px) minmax(130px, 150px) minmax(110px, 130px)"
           };
           gap: 12px;
-          align-items: center;
+          align-items: end;
           width: 100%;
           max-width: 1730px;
         }
 
-        .port-selection-wrapper {
-          width: 100%;
-          max-width: 160px;
-        }
-
-        .port-selection-wrapper select {
-          width: 100%;
-          padding: 8px;
-        }
-
-        .hourly-city-wrapper {
-          width: 100%;
-          min-width: 0;
-          position: relative;
-          align-self: center;
-        }
-
-        .hourly-city-wrapper :global(.searchMenu-loc) {
-          padding-left: 10px !important;
-          padding-right: 10px !important;
-        }
-
-        .hourly-city-wrapper :global(input.js-search) {
-          width: 100%;
-          max-width: 100%;
-        }
-
+        .port-selection-wrapper,
+        .hourly-city-wrapper,
         .location-search-wrapper,
         .time-selection-wrapper,
         .date-selection-wrapper,
@@ -447,66 +426,98 @@ const MainFilterSearchBox = ({ Location }) => {
           width: 100%;
           min-width: 0;
           box-sizing: border-box;
+          overflow: visible;
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-end;
         }
 
-        .time-selection-wrapper,
-        .date-selection-wrapper {
-          overflow: hidden;
-          padding-right: 4px;
+        .port-selection-wrapper select {
+          width: 100%;
+          height: 42px;
+        }
+
+        .hourly-city-wrapper,
+        .location-search-wrapper {
+          position: relative;
+        }
+
+        .hourly-city-wrapper :global(.searchMenu-loc),
+        .location-search-wrapper :global(.searchMenu-loc) {
+          padding: 0 !important;
+          margin: 0 !important;
+          width: 100%;
+          min-width: 0;
+        }
+
+        .hourly-city-wrapper :global(input.js-search),
+        .location-search-wrapper :global(input.js-search) {
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+          height: 42px;
+          min-height: 42px;
+        }
+
+        .port-selection-wrapper > label,
+        .hourly-city-wrapper :global(h4),
+        .location-search-wrapper :global(h4),
+        .time-selection-wrapper :global(label),
+        .time-selection-wrapper :global(h4),
+        .date-selection-wrapper > h4 {
+          min-height: 14px;
+          margin: 0 0 8px !important;
         }
 
         .time-selection-wrapper :global(.MuiFormControl-root),
-        .time-selection-wrapper :global(.MuiInputBase-root) {
+        .time-selection-wrapper :global(.MuiInputBase-root),
+        .date-selection-wrapper :global(.MuiFormControl-root),
+        .date-selection-wrapper :global(.MuiTextField-root),
+        .date-selection-wrapper :global(.MuiInputBase-root) {
           width: 100% !important;
           min-width: 0 !important;
           max-width: 100% !important;
         }
 
+        .time-selection-wrapper :global(.MuiInputBase-root),
+        .date-selection-wrapper :global(.MuiInputBase-root) {
+          height: 42px !important;
+          min-height: 42px !important;
+          max-height: 42px !important;
+        }
+
         .search-button-wrapper button {
           width: 100%;
-          max-width: 250px;
+          height: 42px;
         }
 
         @media (max-width: 1199px) {
           .button-grid-v2 {
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
-          }
-
-          .port-selection-wrapper {
-            max-width: 100%;
-          }
-
-          .hourly-city-wrapper {
-            grid-column: span 1;
-          }
-
-          .location-search-wrapper {
-            grid-column: span 1;
+            gap: 16px;
+            align-items: stretch;
           }
 
           .search-button-wrapper {
             grid-column: span 2;
-            text-align: center;
+            align-items: center;
+          }
+
+          .search-button-wrapper button {
+            max-width: 300px;
           }
         }
 
         @media (max-width: 767px) {
           .button-grid-v2 {
             grid-template-columns: 1fr;
-            gap: 15px;
+            gap: 14px;
           }
 
           .hourly-city-wrapper,
           .location-search-wrapper,
           .search-button-wrapper {
             grid-column: span 1;
-          }
-
-          .port-selection-wrapper,
-          .time-selection-wrapper,
-          .date-selection-wrapper {
-            margin-bottom: 10px;
           }
 
           .search-button-wrapper button {
@@ -521,10 +532,6 @@ const MainFilterSearchBox = ({ Location }) => {
 
           .button-grid-v2 {
             gap: 10px;
-          }
-
-          .text-15 {
-            font-size: 14px;
           }
         }
       `}</style>

@@ -45,11 +45,16 @@ const StyledMenuItem = styled(MenuItem)(({ theme, isNight }) => ({
 
 // Custom Select component with styling
 const StyledSelect = styled(Select)(({ theme }) => ({
+  height: '42px',
+  width: '100%',
+  fontSize: '13px',
   '& .MuiSelect-select': {
-    padding: '12px 14px',
+    padding: '0 14px',
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
+    minHeight: '42px !important',
+    boxSizing: 'border-box',
   },
   '& .MuiOutlinedInput-notchedOutline': {
     borderColor: '#e2e8f0',
@@ -109,8 +114,8 @@ const Pickuptimezone = ({
   };
 
   return (
-    <Box>
-      <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1, color: 'text.primary' }}>
+    <Box sx={{ width: "100%", minWidth: 0, maxWidth: "100%" }}>
+      <Typography variant="subtitle2" component="h4">
         Pick Up Time
       </Typography>
       <StyledFormControl fullWidth>

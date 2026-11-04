@@ -193,15 +193,19 @@ console.log(transformedCityData, "transformedCityData");
   }, []);
 
   return (
-    <div className="searchMenu-loc px-10 lg:py-20 lg:px-0 js-form-dd js-liverSearch position-relative">
+    <div
+      className="searchMenu-loc js-form-dd js-liverSearch position-relative"
+      style={{ width: "100%", minWidth: 0 }}
+    >
       <div>
-        <h4 className="text-15 fw-500 ls-2 lh-16 mb-15">{label}</h4>
+        <h4 className="text-15 fw-500 ls-2 lh-16">{label}</h4>
         <div className="text-15 text-light-1 ls-2 lh-20">
           <input
             autoComplete="off"
             type="search"
             placeholder="Select city"
             className={`js-search js-dd-focus w-100 ${hasError ? "border-red-500" : ""}`}
+            style={{ width: "100%", minWidth: 0, maxWidth: "100%" }}
             value={searchValue}
             onChange={handleInputChange}
             onClick={() => setIsDropdownOpen(true)}

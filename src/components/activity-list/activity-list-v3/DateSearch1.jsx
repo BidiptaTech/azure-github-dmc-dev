@@ -62,13 +62,17 @@ const DateSearch1 = ({ selectedDate, setSelectedDate }) => {
         InputLabelProps={{ shrink: true }}
         onClick={(e) => e.target.showPicker()}
         sx={{
-          backgroundColor: "none",
-          border: "none",
+          width: "100%",
+          minWidth: 0,
           "& .MuiInputBase-root": {
-            borderRadius: "4px",
+            height: "42px",
+            minHeight: "42px",
+            borderRadius: "7px",
+            boxSizing: "border-box",
           },
-          "& .MuiOutlinedInput-notchedOutline": {
-            border: "none",
+          "& .MuiOutlinedInput-input": {
+            padding: "10px 12px",
+            fontSize: "13px",
           },
         }}
       />

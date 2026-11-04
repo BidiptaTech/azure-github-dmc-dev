@@ -2,86 +2,96 @@ import React, { useEffect } from "react";
 import { useSelector } from "react-redux";
 import { TextField } from "@mui/material";
 
-const DateSearch2 = ({ selectedDate1, setSelectedDate1, disabled = false, cityDate = "" }) => {
-  // const checkIn = useSelector(
-  //   (state) =>
-  //     state.hotels.tourdetails.check_in_time ||
-  //     state.hotels.tourdetails.CheckInTime
-  // );
+const toYmd = (value) => {
+  if (value == null || value === "") return "";
+
+  const dateString = String(value).trim();
+  if (!dateString) return "";
+
+  // ISO datetime (e.g. 2025-09-15T00:00:00.000000Z)
+  if (dateString.includes("T")) {
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return "";
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  // Already YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    return dateString;
+  }
+
+  // DD-MM-YYYY or DD/MM/YYYY
+  const slashOrDash = dateString.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (slashOrDash) {
+    const [, day, month, year] = slashOrDash;
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+
+  return "";
+};
+
+const DateSearch2 = ({
+  selectedDate1,
+  setSelectedDate1,
+  disabled = false,
+  cityDate = "",
+}) => {
   const checkOut = useSelector(
     (state) =>
       state.hotels?.tourdetails?.check_out_time ||
       state.hotels?.tourdetails?.CheckOutTime ||
-      state.hotels?.tourdetails?.data?.CheckOutTime
+      state.hotels?.tourdetails?.data?.CheckOutTime ||
+      ""
   );
-  console.log("checkOut (original):", checkOut);
 
-  const formatDateToDDMMYYYY = (dateString) => {
-    if (!dateString) return null;
-    
-    // Handle ISO datetime format (e.g., 2025-09-15T00:00:00.000000Z)
-    if (dateString.includes("T") && dateString.includes("Z")) {
-      const date = new Date(dateString);
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    }
-    
-    // Check if the date is already in YYYY-MM-DD format
-    if (dateString.includes("-") && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      return dateString; // Already in correct format
-    }
-    
-    // Handle DD/MM/YYYY format (previous format)
-    if (dateString.includes("/")) {
-      const [day, month, year] = dateString.split("/");
-      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-    }
-    
-    // If neither format matches, return as is
-    return dateString;
-  };
-
-  // const formattedCheckIn = formatDateToDDMMYYYY(checkIn);
-  const formattedCheckOut = formatDateToDDMMYYYY(checkOut);
-  console.log("checkOut (formatted):", formattedCheckOut);
+  const formattedCheckOut = toYmd(checkOut);
+  const inputValue =
+    toYmd(selectedDate1) || toYmd(cityDate) || formattedCheckOut;
 
   // Prefer city-wise check-out; fall back to tour check-out
   useEffect(() => {
-    if (cityDate) {
-      setSelectedDate1(cityDate);
-      return;
-    }
-    if (formattedCheckOut) {
-      setSelectedDate1(formattedCheckOut);
-    }
-  }, [cityDate, formattedCheckOut, setSelectedDate1]);
+    const next = toYmd(cityDate) || formattedCheckOut;
+    if (!next) return;
+    if (toYmd(selectedDate1) === next) return;
+    setSelectedDate1(next);
+  }, [cityDate, formattedCheckOut, selectedDate1, setSelectedDate1]);
 
   return (
-    <div className={`text-15 text-light-1 ls-2 lh-16 custom_dual_datepicker ${disabled ? 'opacity-70' : ''}`}>
+    <div
+      className={`text-15 text-light-1 ls-2 lh-16 custom_dual_datepicker ${
+        disabled ? "opacity-70" : ""
+      }`}
+    >
       <TextField
         fullWidth
         type="date"
         variant="outlined"
-        value={selectedDate1} // Use selectedDate1 state
-        InputProps={{ 
+        value={inputValue}
+        InputProps={{
           readOnly: true,
-          style: { 
-            color: disabled ? '#999' : 'inherit',
-            backgroundColor: disabled ? '#f0f0f0' : 'white' 
-          }
+          style: {
+            color: disabled ? "#999" : "inherit",
+            backgroundColor: disabled ? "#f0f0f0" : "white",
+          },
         }}
         InputLabelProps={{ shrink: true }}
         sx={{
           backgroundColor: disabled ? "#f0f0f0" : "none",
           opacity: disabled ? 0.8 : 1,
-          border: "none",
+          width: "100%",
+          minWidth: 0,
           "& .MuiInputBase-root": {
-            borderRadius: "4px",
+            height: "42px",
+            minHeight: "42px",
+            borderRadius: "7px",
+            boxSizing: "border-box",
           },
-          "& .MuiOutlinedInput-notchedOutline": {
-            border: "none",
+          "& .MuiOutlinedInput-input": {
+            padding: "10px 12px",
+            fontSize: "13px",
           },
         }}
         disabled={true}

@@ -204,8 +204,7 @@
 }
 
 .pw-service-searchbox .searchMenu-loc input,
-.pw-service-searchbox .custom_input-picker,
-.pw-service-searchbox .custom_dual_datepicker input {
+.pw-service-searchbox .custom_input-picker {
   width: 100%;
   min-height: 42px;
   border: 1px solid var(--pw-line, #e5eaf3) !important;
@@ -216,6 +215,23 @@
   font-size: 13px !important;
   font-weight: 500;
   box-shadow: none !important;
+}
+
+/* Date fields: single border via MUI outline only (avoid double border) */
+.pw-service-searchbox .custom_dual_datepicker input,
+.pw-service-searchbox .custom_dual_datepicker .MuiOutlinedInput-input,
+.pw-service-searchbox .custom_dual_datepicker input[type="date"] {
+  width: 100%;
+  min-height: 0 !important;
+  height: 100% !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 10px 12px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-size: 13px !important;
+  font-weight: 500;
+  color: var(--pw-ink, #192944);
 }
 
 .pw-service-searchbox .searchMenu-guests .cursor-pointer {
@@ -277,7 +293,6 @@
 .pw-service-searchbox select,
 .pw-service-searchbox input[type="text"],
 .pw-service-searchbox input[type="search"],
-.pw-service-searchbox input[type="date"],
 .pw-service-searchbox input[type="time"] {
   min-height: 42px;
   border: 1px solid var(--pw-line, #e5eaf3) !important;
@@ -293,7 +308,12 @@
 .pw-service-searchbox .port-selection-wrapper label,
 .pw-service-searchbox .search-item h4,
 .pw-service-searchbox .date-selection-wrapper h4,
-.pw-service-searchbox .MuiTypography-root {
+.pw-service-searchbox .time-selection-wrapper h4,
+.pw-service-searchbox .time-selection-wrapper > .MuiTypography-root,
+.pw-service-searchbox .time-selection-wrapper > * > .MuiTypography-root,
+.pw-service-searchbox .search-item.time-selection > .MuiTypography-root,
+.pw-service-searchbox .MuiFormControl-root > label,
+.pw-service-searchbox .MuiFormControl-root > .MuiTypography-root {
   display: block !important;
   font-size: 10px !important;
   letter-spacing: 0.8px !important;
@@ -302,6 +322,20 @@
   font-weight: 700 !important;
   margin: 0 0 8px !important;
   line-height: 1.3 !important;
+  overflow: visible !important;
+}
+
+/* Keep select value text normal — do not treat as field labels */
+.pw-service-searchbox .MuiInputBase-root .MuiTypography-root,
+.pw-service-searchbox .MuiSelect-select .MuiTypography-root {
+  display: inline !important;
+  font-size: 13px !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+  color: inherit !important;
+  font-weight: 600 !important;
+  margin: 0 !important;
+  line-height: 1.2 !important;
 }
 
 .pw-service-searchbox .mainSearch__submit,
@@ -312,8 +346,15 @@
   border-radius: 9px !important;
   color: #fff !important;
   font-weight: 700 !important;
-  min-height: 42px;
+  height: 42px !important;
+  min-height: 42px !important;
+  max-height: 42px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
   box-shadow: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .pw-service-searchbox .button-grid-v2,
@@ -321,12 +362,88 @@
   width: 100%;
   max-width: none;
   gap: 12px;
+  align-items: end !important;
+}
+
+.pw-service-searchbox .port-selection-wrapper,
+.pw-service-searchbox .location-search-wrapper,
+.pw-service-searchbox .hourly-city-wrapper,
+.pw-service-searchbox .time-selection-wrapper,
+.pw-service-searchbox .date-selection-wrapper,
+.pw-service-searchbox .search-button-wrapper,
+.pw-service-searchbox .search-item {
+  min-width: 0;
+  overflow: visible !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
 }
 
 .pw-service-searchbox .MuiInputBase-root {
-  min-height: 42px;
+  height: 42px !important;
+  min-height: 42px !important;
+  max-height: 42px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
   border-radius: 7px !important;
   font-size: 13px !important;
+  background: #fff !important;
+}
+
+.pw-service-searchbox .MuiOutlinedInput-notchedOutline {
+  border: 1px solid var(--pw-line, #e5eaf3) !important;
+}
+
+.pw-service-searchbox .MuiFormControl-root {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+.pw-service-searchbox .MuiSelect-select {
+  display: flex !important;
+  align-items: center !important;
+  box-sizing: border-box !important;
+  min-height: 42px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.pw-service-searchbox .custom_dual_datepicker,
+.pw-service-searchbox .custom_dual_datepicker .MuiFormControl-root,
+.pw-service-searchbox .custom_dual_datepicker .MuiTextField-root {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+
+.pw-service-searchbox .custom_dual_datepicker .MuiInputBase-root {
+  border: 0 !important;
+  background: #fff !important;
+}
+
+.pw-service-searchbox .custom_dual_datepicker .MuiOutlinedInput-notchedOutline {
+  border: 1px solid var(--pw-line, #e5eaf3) !important;
+}
+
+/* Keep field labels on one baseline across the search row */
+.pw-service-searchbox .button-grid-v2 > *,
+.pw-service-searchbox .single-row-container > .search-item {
+  min-height: 0;
+}
+
+.pw-service-searchbox .port-selection-wrapper > label,
+.pw-service-searchbox .hourly-city-wrapper .searchMenu-loc > div > h4,
+.pw-service-searchbox .location-search-wrapper .searchMenu-loc > div > h4,
+.pw-service-searchbox .search-item > h4,
+.pw-service-searchbox .search-item > label,
+.pw-service-searchbox .date-selection-wrapper > h4,
+.pw-service-searchbox .time-selection-wrapper h4,
+.pw-service-searchbox .time-selection-wrapper > * > h4,
+.pw-service-searchbox .MuiFormControl-root > label {
+  min-height: 14px;
+  margin: 0 0 8px !important;
 }
 
 .pw-service-tabs {
