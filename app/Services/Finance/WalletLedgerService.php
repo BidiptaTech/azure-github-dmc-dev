@@ -3,6 +3,7 @@
 namespace App\Services\Finance;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -18,9 +19,11 @@ class WalletLedgerService
         $seq = null;
         try {
             if (DB::getDriverName() === 'pgsql') {
-                $seq = DB::selectOne("SELECT nextval('finance_reference_seq') AS n");
+                // Nested transaction = savepoint: a missing sequence must not abort the caller's transaction.
+                $seq = DB::transaction(fn () => DB::selectOne("SELECT nextval('finance_reference_seq') AS n"));
             }
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            Log::warning('finance_reference_seq unavailable, using time-based reference', ['error' => $e->getMessage()]);
             $seq = null;
         }
 
