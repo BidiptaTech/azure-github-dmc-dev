@@ -907,6 +907,34 @@ $_displays: none, inline-block, block, flex;
 .roomGrid {
   width: 100%;
 
+  &--modal {
+    .roomGrid__grid {
+      display: flex !important;
+      flex-direction: column;
+      gap: 16px;
+      grid-template-columns: unset !important;
+
+      > * {
+        padding-top: 0;
+        width: 100%;
+      }
+
+      > *:nth-child(1),
+      > *:nth-child(2),
+      > *:nth-child(3) {
+        display: block;
+        grid-column: auto;
+        background-color: transparent;
+        padding: 0;
+      }
+    }
+
+    .roomGrid__content {
+      grid-template-columns: 1fr !important;
+      gap: 16px;
+    }
+  }
+
   &__header {
     display: grid;
     grid-template-columns: 180px 1fr 60px 170px 140px 270px;
