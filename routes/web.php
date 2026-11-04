@@ -228,6 +228,41 @@ Route::get('/clear', function () {
                 Route::put('/{id}', [App\Http\Controllers\Admin\MiscellaneousItemController::class, 'update'])->name('miscellaneous.update');
                 Route::delete('/{id}', [App\Http\Controllers\Admin\MiscellaneousItemController::class, 'destroy'])->name('miscellaneous.destroy');
             });
+
+            // Super Admin Quotation Template Studio (draft + publish)
+            Route::middleware(['super.admin'])->prefix('quotation-templates')->group(function () {
+                Route::get('/', [App\Http\Controllers\Admin\QuotationTemplateStudioController::class, 'index'])
+                    ->name('quotation-templates.index');
+                // Local file drafts (no DB) — must be before {dmcId} routes
+                Route::get('/drafts/{name}/preview', [App\Http\Controllers\Admin\QuotationTemplateStudioController::class, 'previewLocalDraft'])
+                    ->where('name', '[A-Za-z0-9_\-]+')
+                    ->name('quotation-templates.drafts.preview');
+                Route::get('/drafts/{name}/pdf', [App\Http\Controllers\Admin\QuotationTemplateStudioController::class, 'previewLocalDraftPdf'])
+                    ->where('name', '[A-Za-z0-9_\-]+')
+                    ->name('quotation-templates.drafts.pdf');
+                Route::get('/{dmcId}/{type}', [App\Http\Controllers\Admin\QuotationTemplateStudioController::class, 'show'])
+                    ->whereNumber('dmcId')
+                    ->name('quotation-templates.show');
+                Route::post('/{dmcId}/{type}', [App\Http\Controllers\Admin\QuotationTemplateStudioController::class, 'store'])
+                    ->whereNumber('dmcId')
+                    ->name('quotation-templates.store');
+                Route::put('/{dmcId}/{type}/draft', [App\Http\Controllers\Admin\QuotationTemplateStudioController::class, 'updateDraft'])
+                    ->whereNumber('dmcId')
+                    ->name('quotation-templates.draft.update');
+                Route::post('/{dmcId}/{type}/publish', [App\Http\Controllers\Admin\QuotationTemplateStudioController::class, 'publishDraft'])
+                    ->whereNumber('dmcId')
+                    ->name('quotation-templates.publish');
+                Route::post('/{dmcId}/{type}/deactivate', [App\Http\Controllers\Admin\QuotationTemplateStudioController::class, 'deactivate'])
+                    ->whereNumber('dmcId')
+                    ->name('quotation-templates.deactivate');
+                Route::post('/{dmcId}/{type}/activate', [App\Http\Controllers\Admin\QuotationTemplateStudioController::class, 'activate'])
+                    ->whereNumber('dmcId')
+                    ->name('quotation-templates.activate');
+                Route::get('/{dmcId}/{type}/versions/{version}', [App\Http\Controllers\Admin\QuotationTemplateStudioController::class, 'showVersion'])
+                    ->whereNumber('dmcId')
+                    ->whereNumber('version')
+                    ->name('quotation-templates.versions.show');
+            });
             
             // Miscellaneous Selection & Pricing - DMC Routes (like restaurant selection)
             Route::get('/services/miscellaneous', [App\Http\Controllers\Admin\MiscellaneousItemController::class, 'dmcMiscellaneousSelection'])->name('services.miscellaneous');
