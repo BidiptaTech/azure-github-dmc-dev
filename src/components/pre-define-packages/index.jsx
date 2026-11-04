@@ -16,8 +16,10 @@ import MuiAlert from "@mui/material/Alert";
 import LocationSearch from '../hero/hero-2/LocationSearch';
 import CitySearch from '../hero/hero-2/CitySearch';
 import GuestSearch from '../hero/hero-3/GuestSearch';
+import HeroGuestSearch from '../hero/hero-1/GuestSearch';
 import SelectAgent from '../hero/hero-3/SelectAgent';
 import DateSelect from './common/DateSelect';
+import Hero1 from '@/components/hero/hero-1';
 import { fetchPackages, setSearchParams, clearPackages } from '../../slice/tour-packages/prePackagesSlice';
 import ListingCards from './common/ListingCards';
 import {
@@ -28,8 +30,6 @@ import {
   selectDMCLoading,
   selectDMCError,
 } from '../../slice/dmc/dmcSlice';
-// import LuggageIcon from '@mui/icons-material/Luggage';
-// import LuggageIcon from '@mui/icons-material/Luggage';
 import ExploreIcon from '@mui/icons-material/Explore';
 
 // Create a reusable alert component
@@ -85,7 +85,8 @@ const IconContainer = styled(Box)(({ theme }) => ({
 
 
 
-const PreDefinePackages = () => {
+const PreDefinePackages = ({ variant = "default" } = {}) => {
+  const isHero = variant === "hero";
   const dispatch = useDispatch();
   const { searchParams } = useSelector(state => state.prePackages);
   const { isAuthenticated, userRole } = useSelector(state => state.auth);
@@ -489,39 +490,294 @@ const PreDefinePackages = () => {
   };
 
 
-  return (
-    <StyledContainer maxWidth="lg">
-      <Box sx={{ position: 'relative', zIndex: 1 }}>
-        <TitleSection>
-          <IconContainer>
-            <Typography 
-              variant={isMobile ? "h4" : "h3"}
-              component="h1" 
-              sx={{ 
-                fontWeight: 700, 
-                color: 'white',
-                mt: isMobile ? 2 : 3,
-                letterSpacing: '0.5px',
-                display: 'flex',
-                alignItems: 'center',
-                flexDirection: isMobile ? 'column' : 'row',
-                textAlign: isMobile ? 'center' : 'left',
-                gap: isMobile ? 1 : 0
+  const listingProps = {
+    hasSearched,
+    selectedDmcId,
+    selectedDmcData,
+    locationData,
+    dmcOptions,
+    filteredDMCs,
+    dmcLoading,
+    dmcError,
+    filterText,
+    handleFilterChange,
+    handleDMCCardClick,
+    isDMCSelected,
+  };
+
+  const snackbar = (
+    <Snackbar
+      open={openSnackbar}
+      autoHideDuration={6000}
+      onClose={handleCloseSnackbar}
+      anchorOrigin={{ vertical: "top", horizontal: "center" }}
+    >
+      <Alert onClose={handleCloseSnackbar} severity={snackbarSeverity}>
+        {snackbarMessage}
+      </Alert>
+    </Snackbar>
+  );
+
+  const dropdownFixStyles = (
+    <style jsx global>{`
+      .dropdown-menu {
+        z-index: 1050 !important;
+        position: relative !important;
+      }
+      .rmdp-container,
+      .rmdp-calendar {
+        z-index: 1050 !important;
+      }
+      .rmdp-wrapper {
+        z-index: 1050 !important;
+        position: absolute !important;
+      }
+      body .dropdown-menu.show {
+        display: block !important;
+        position: absolute !important;
+        transform: none !important;
+        top: 100% !important;
+      }
+    `}</style>
+  );
+
+  const cellLabel = {
+    fontSize: 11,
+    fontWeight: 600,
+    letterSpacing: "0.04em",
+    textTransform: "uppercase",
+    color: "#64748b",
+    marginBottom: 4,
+  };
+
+  if (isHero) {
+    const heroSearch = (
+      <div className="pp-hero-search">
+        <div
+          className="pp-hero-search__card"
+          style={{
+            position: "relative",
+            zIndex: 50,
+            borderRadius: 16,
+            boxShadow: "0 12px 40px rgba(15, 23, 42, 0.16)",
+            border: "1px solid rgba(15, 23, 42, 0.06)",
+            background: "#fff",
+            padding: "18px 18px 14px",
+            maxWidth: 1100,
+            margin: "0 auto",
+          }}
+        >
+          <div
+            className="d-flex items-center justify-between flex-wrap"
+            style={{ gap: 12, marginBottom: 14 }}
+          >
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
+              Package search
+            </div>
+            <div style={{ fontSize: 13, color: "#64748b", fontWeight: 500 }}>
+              Find fixed itineraries for your clients
+            </div>
+          </div>
+
+          <div
+            className="pp-hero-search__row d-flex flex-wrap"
+            style={{
+              border: "1px solid #e2e8f0",
+              borderRadius: 12,
+              overflow: "visible",
+              background: "#fff",
+            }}
+          >
+            <div
+              className="pp-hero-search__cell"
+              style={{
+                flex: "1.2 1 180px",
+                minWidth: 160,
+                borderRight: "1px solid #e2e8f0",
+                padding: "16px 18px",
               }}
             >
-              {isMobile ? 'Fixed Itinerary' : 'Fixed Itinerary Packages'}
-              <ExploreIcon sx={{ ml: isMobile ? 0 : 1, fontSize: isMobile ? 24 : 28 }} />
+              <div style={cellLabel}>Location</div>
+              <LocationSearch
+                onLocationSelect={handleLocationSelect}
+                onCountrySelect={handleCountrySelect}
+              />
+            </div>
+
+            <div
+              className="pp-hero-search__cell"
+              style={{
+                flex: "1.3 1 200px",
+                minWidth: 180,
+                borderRight: "1px solid #e2e8f0",
+              }}
+            >
+              <CitySearch
+                selectedCountry={selectedCountry}
+                onCitySelect={handleCitySelect}
+              />
+            </div>
+
+            {showAgentSelector ? (
+              <div
+                className="pp-hero-search__cell"
+                style={{
+                  flex: "1 1 160px",
+                  minWidth: 140,
+                  borderRight: "1px solid #e2e8f0",
+                  padding: "16px 18px",
+                }}
+              >
+                <div style={cellLabel}>Agent</div>
+                <SelectAgent
+                  onAgentSelect={handleAgentSelect}
+                  initialValue={selectedAgent}
+                />
+              </div>
+            ) : null}
+
+            <div
+              className="pp-hero-search__cell"
+              style={{
+                flex: "1.1 1 170px",
+                minWidth: 150,
+                borderRight: "1px solid #e2e8f0",
+                padding: "16px 18px",
+              }}
+            >
+              <div style={cellLabel}>Travel date</div>
+              <DateSelect onChange={handleDateChange} value={selectedDate} />
+            </div>
+
+            <div
+              className="pp-hero-search__cell"
+              style={{
+                flex: "1 1 160px",
+                minWidth: 140,
+              }}
+            >
+              <HeroGuestSearch
+                onGuestChange={handleGuestChange}
+                guestCounts={guestCounts}
+              />
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              marginTop: 16,
+              marginBottom: 4,
+            }}
+          >
+            <Button
+              type="button"
+              variant="contained"
+              onClick={handleSubmit}
+              className="pp-hero-search__cta"
+              sx={{
+                minWidth: 220,
+                height: 52,
+                borderRadius: "28px",
+                border: "none",
+                fontSize: 18,
+                fontWeight: 800,
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+                color: "#fff",
+                background: "#3554d1",
+                boxShadow: "0 10px 24px rgba(53, 84, 209, 0.35)",
+                "&:hover": {
+                  background: "#2c46b3",
+                  boxShadow: "0 10px 24px rgba(53, 84, 209, 0.4)",
+                },
+              }}
+            >
+              SEARCH
+            </Button>
+          </div>
+          <Typography
+            variant="caption"
+            sx={{
+              display: "block",
+              textAlign: "center",
+              color: "#7788ad",
+              fontSize: "0.8rem",
+              mt: 0.5,
+            }}
+          >
+            Search ready-made packages by location, city, date and travellers
+          </Typography>
+        </div>
+      </div>
+    );
+
+    return (
+      <div className="partner-package-search">
+        <Hero1
+          title="Search for a package"
+          subtitle="Set location, city, date and travellers — then browse fixed itineraries to customise"
+          footerNote="Ready-made packages — hotels, attractions, transfers & more in one itinerary"
+          searchSlot={heroSearch}
+          showServiceChips={false}
+        />
+
+        {hasSearched ? (
+          <section className="partner-card partner-packages__results">
+            <h2 className="partner-card__title">Matching packages</h2>
+            <p className="partner-card__sub">
+              Open a package to review the itinerary and continue booking.
+            </p>
+            <div className="partner-packages__embed">
+              <ListingCards {...listingProps} />
+            </div>
+          </section>
+        ) : null}
+
+        {snackbar}
+        {dropdownFixStyles}
+      </div>
+    );
+  }
+
+  return (
+    <StyledContainer maxWidth="lg">
+      <Box sx={{ position: "relative", zIndex: 1 }}>
+        <TitleSection>
+          <IconContainer>
+            <Typography
+              variant={isMobile ? "h4" : "h3"}
+              component="h1"
+              sx={{
+                fontWeight: 700,
+                color: "white",
+                mt: isMobile ? 2 : 3,
+                letterSpacing: "0.5px",
+                display: "flex",
+                alignItems: "center",
+                flexDirection: isMobile ? "column" : "row",
+                textAlign: isMobile ? "center" : "left",
+                gap: isMobile ? 1 : 0,
+              }}
+            >
+              {isMobile ? "Fixed Itinerary" : "Fixed Itinerary Packages"}
+              <ExploreIcon
+                sx={{ ml: isMobile ? 0 : 1, fontSize: isMobile ? 24 : 28 }}
+              />
             </Typography>
           </IconContainer>
-          <Divider sx={{ 
-            width: isMobile ? '60px' : '100px', 
-            height: '4px', 
-            backgroundColor: 'secondary.main', 
-            mb: isMobile ? 2 : 3 
-          }} />
-          <Typography 
-            variant={isMobile ? "body1" : "subtitle1"} 
-            color="#ece9f1" 
+          <Divider
+            sx={{
+              width: isMobile ? "60px" : "100px",
+              height: "4px",
+              backgroundColor: "secondary.main",
+              mb: isMobile ? 2 : 3,
+            }}
+          />
+          <Typography
+            variant={isMobile ? "body1" : "subtitle1"}
+            color="#ece9f1"
             textAlign="center"
             sx={{ px: isMobile ? 2 : 0 }}
           >
@@ -529,211 +785,186 @@ const PreDefinePackages = () => {
           </Typography>
         </TitleSection>
 
-        <Paper 
-          elevation={3} 
-          sx={{ 
-            borderRadius: isMobile ? '16px' : '50px',
-            overflow: 'visible', 
+        <Paper
+          elevation={3}
+          sx={{
+            borderRadius: isMobile ? "16px" : "50px",
+            overflow: "visible",
             mb: 4,
-            background: 'white',
-            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.15)'
+            background: "white",
+            boxShadow: "0 10px 40px rgba(0, 0, 0, 0.15)",
           }}
         >
-          <Box sx={{ 
-            display: 'flex', 
-            flexWrap: isMobile ? 'wrap' : 'nowrap',
-            alignItems: 'stretch',
-            p: isMobile ? 2 : 1,
-            gap: isMobile ? 2 : 0
-          }}>
-            {/* Country Search */}
-            {/* <Box sx={{ 
-              flex: isMobile ? '1 1 100%' : '1',
-              minWidth: 0,
-              borderRight: isMobile ? 'none' : '1px solid #e0e0e0',
-              px: isMobile ? 0 : 2,
-              py: isMobile ? 0 : 1.5,
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'flex-start',
-              height: '100%'
-            }}>
-              <h4 className="text-15 fw-500 ls-2 lh-16" style={{ marginBottom: '8px', marginTop: '0' }}>Country</h4>
-              <LocationSearch 
-                onLocationSelect={handleLocationSelect} 
+          <Box
+            sx={{
+              display: "flex",
+              flexWrap: isMobile ? "wrap" : "nowrap",
+              alignItems: "stretch",
+              p: isMobile ? 2 : 1,
+              gap: isMobile ? 2 : 0,
+            }}
+          >
+            <Box
+              sx={{
+                flex: isMobile ? "1 1 100%" : "1",
+                minWidth: 0,
+                borderRight: isMobile ? "none" : "1px solid #e0e0e0",
+                px: isMobile ? 0 : 2,
+                py: isMobile ? 0 : 1.5,
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "flex-start",
+                height: "100%",
+              }}
+            >
+              <h4
+                className="text-15 fw-500 ls-2 lh-16"
+                style={{ marginBottom: "8px", marginTop: "0" }}
+              >
+                Location
+              </h4>
+              <LocationSearch
+                onLocationSelect={handleLocationSelect}
                 onCountrySelect={handleCountrySelect}
               />
-            </Box> */}
+            </Box>
 
-            {/* City Search */}
-            <Box sx={{ 
-              flex: isMobile ? '1 1 100%' : '1',
-              minWidth: 0,
-              borderRight: isMobile ? 'none' : '1px solid #e0e0e0',
-              px: isMobile ? 0 : 2,
-              py: isMobile ? 0 : 1.5,
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'flex-start',
-              height: '100%'
-            }}>
-              <h4 className="text-15 fw-500 ls-2 lh-16" style={{ marginBottom: '8px', marginTop: '0' }}>City</h4>
-              <CitySearch 
+            <Box
+              sx={{
+                flex: isMobile ? "1 1 100%" : "1",
+                minWidth: 0,
+                borderRight: isMobile ? "none" : "1px solid #e0e0e0",
+                px: isMobile ? 0 : 2,
+                py: isMobile ? 0 : 1.5,
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "flex-start",
+                height: "100%",
+              }}
+            >
+              <h4
+                className="text-15 fw-500 ls-2 lh-16"
+                style={{ marginBottom: "8px", marginTop: "0" }}
+              >
+                City
+              </h4>
+              <CitySearch
                 selectedCountry={selectedCountry}
                 onCitySelect={handleCitySelect}
               />
             </Box>
 
-            {/* Agent Selector (if visible) */}
             {showAgentSelector && (
-              <Box sx={{ 
-                flex: isMobile ? '1 1 100%' : '1',
-                minWidth: 0,
-                borderRight: isMobile ? 'none' : '1px solid #e0e0e0',
-                px: isMobile ? 0 : 2,
-                py: isMobile ? 0 : 1.5,
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center'
-              }}>
-                <SelectAgent onAgentSelect={handleAgentSelect} initialValue={selectedAgent} />
+              <Box
+                sx={{
+                  flex: isMobile ? "1 1 100%" : "1",
+                  minWidth: 0,
+                  borderRight: isMobile ? "none" : "1px solid #e0e0e0",
+                  px: isMobile ? 0 : 2,
+                  py: isMobile ? 0 : 1.5,
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                }}
+              >
+                <SelectAgent
+                  onAgentSelect={handleAgentSelect}
+                  initialValue={selectedAgent}
+                />
               </Box>
             )}
 
-            {/* Date Selection */}
-            <Box sx={{ 
-              flex: isMobile ? '1 1 100%' : '1.2',
-              minWidth: 0,
-              borderRight: isMobile ? 'none' : '1px solid #e0e0e0',
-              px: isMobile ? 0 : 2,
-              py: isMobile ? 0 : 1.5,
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'flex-start',
-              height: '100%'
-            }}>
-              <h4 className="text-15 fw-500 ls-2 lh-16" style={{ marginBottom: '8px', marginTop: '0' }}>Select Date</h4>
+            <Box
+              sx={{
+                flex: isMobile ? "1 1 100%" : "1.2",
+                minWidth: 0,
+                borderRight: isMobile ? "none" : "1px solid #e0e0e0",
+                px: isMobile ? 0 : 2,
+                py: isMobile ? 0 : 1.5,
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "flex-start",
+                height: "100%",
+              }}
+            >
+              <h4
+                className="text-15 fw-500 ls-2 lh-16"
+                style={{ marginBottom: "8px", marginTop: "0" }}
+              >
+                Select Date
+              </h4>
               <DateSelect onChange={handleDateChange} value={selectedDate} />
             </Box>
 
-            {/* Guest Selection */}
-            <Box sx={{ 
-              flex: isMobile ? '1 1 100%' : '1',
-              minWidth: 0,
-              borderRight: isMobile ? 'none' : '1px solid #e0e0e0',
-              px: isMobile ? 0 : 2,
-              py: isMobile ? 0 : 1.5,
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'flex-start',
-              height: '100%'
-            }}>
-              <h4 className="text-15 fw-500 ls-2 lh-16" style={{ marginBottom: '8px', marginTop: '0' }}>Guests</h4>
-              <GuestSearch onGuestChange={handleGuestChange} guestCounts={guestCounts} />
+            <Box
+              sx={{
+                flex: isMobile ? "1 1 100%" : "1",
+                minWidth: 0,
+                borderRight: isMobile ? "none" : "1px solid #e0e0e0",
+                px: isMobile ? 0 : 2,
+                py: isMobile ? 0 : 1.5,
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "flex-start",
+                height: "100%",
+              }}
+            >
+              <h4
+                className="text-15 fw-500 ls-2 lh-16"
+                style={{ marginBottom: "8px", marginTop: "0" }}
+              >
+                Guests
+              </h4>
+              <GuestSearch
+                onGuestChange={handleGuestChange}
+                guestCounts={guestCounts}
+              />
             </Box>
 
-            {/* Search Button */}
-            <Box sx={{ 
-              flex: isMobile ? '1 1 100%' : '0 0 auto',
-              display: 'flex',
-              alignItems: 'flex-end',
-              justifyContent: 'center',
-              px: isMobile ? 0 : 2,
-              py: isMobile ? 0 : 1,
-              height: '100%'
-            }}>
+            <Box
+              sx={{
+                flex: isMobile ? "1 1 100%" : "0 0 auto",
+                display: "flex",
+                alignItems: "flex-end",
+                justifyContent: "center",
+                px: isMobile ? 0 : 2,
+                py: isMobile ? 0 : 1,
+                height: "100%",
+              }}
+            >
               <Button
                 variant="contained"
                 onClick={handleSubmit}
                 startIcon={<i className="icon-search" />}
                 sx={{
-                  bgcolor: '#1976d2',
-                  color: 'white',
+                  bgcolor: "#1976d2",
+                  color: "white",
                   px: isMobile ? 4 : 4,
                   py: isMobile ? 1.5 : 1.75,
-                  borderRadius: isMobile ? '12px' : '40px',
-                  fontSize: '0.9rem',
+                  borderRadius: isMobile ? "12px" : "40px",
+                  fontSize: "0.9rem",
                   fontWeight: 600,
-                  textTransform: 'none',
-                  boxShadow: 'none',
-                  whiteSpace: 'nowrap',
-                  width: isMobile ? '100%' : 'auto',
-                  '&:hover': {
-                    bgcolor: '#1565c0',
-                    boxShadow: '0 4px 12px rgba(25, 118, 210, 0.3)'
-                  }
+                  textTransform: "none",
+                  boxShadow: "none",
+                  whiteSpace: "nowrap",
+                  width: isMobile ? "100%" : "auto",
+                  "&:hover": {
+                    bgcolor: "#1565c0",
+                    boxShadow: "0 4px 12px rgba(25, 118, 210, 0.3)",
+                  },
                 }}
               >
-                {isMobile ? 'Search' : 'Search Packages'}
+                {isMobile ? "Search" : "Search Packages"}
               </Button>
             </Box>
           </Box>
         </Paper>
-        
-        <ListingCards 
-          hasSearched={hasSearched} 
-          selectedDmcId={selectedDmcId}
-          selectedDmcData={selectedDmcData}
-          locationData={locationData}
-          dmcOptions={dmcOptions}
-          filteredDMCs={filteredDMCs}
-          dmcLoading={dmcLoading}
-          dmcError={dmcError}
-          filterText={filterText}
-          handleFilterChange={handleFilterChange}
-          handleDMCCardClick={handleDMCCardClick}
-          isDMCSelected={isDMCSelected}
-        />
-        
+
+        <ListingCards {...listingProps} />
       </Box>
-      
-      <Snackbar
-        open={openSnackbar}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
-      >
-        <Alert onClose={handleCloseSnackbar} severity={snackbarSeverity}>
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
 
-      <style jsx global>{`
-        /* Additional global CSS fixes for dropdowns */
-        .dropdown-menu {
-          z-index: 1050 !important;
-          position: relative !important;
-        }
-        
-        .rmdp-container {
-          z-index: 1050 !important;
-        }
-        
-        .rmdp-calendar {
-          z-index: 1050 !important;
-        }
-        
-        .rmdp-wrapper {
-          z-index: 1050 !important;
-          position: absolute !important;
-        }
-
-        /* Fix global dropdown issues */
-        body .dropdown-menu.show {
-          display: block !important;
-          position: absolute !important;
-          transform: none !important;
-          top: 100% !important;
-        }
-
-        /* Responsive adjustments */
-        @media (max-width: 480px) {
-          .MuiContainer-root {
-            padding-left: 8px !important;
-            padding-right: 8px !important;
-          }
-        }
-      `}</style>
+      {snackbar}
+      {dropdownFixStyles}
     </StyledContainer>
   );
 };

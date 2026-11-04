@@ -1,40 +1,46 @@
 import React, { useState, useEffect } from "react";
 import DatePicker, { DateObject } from "react-multi-date-picker";
+import { useTheme, useMediaQuery } from "@mui/material";
 
-const DateSelect = ({ onChange, value }) => {
-  // State to store the selected date
+const DateSelect = ({ onChange, value, portal = true }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [date, setDate] = useState(
-    value ? new DateObject({ date: value, format: "YYYY-MM-DD" }) : new DateObject()
+    value
+      ? new DateObject({ date: value, format: "YYYY-MM-DD" })
+      : new DateObject()
   );
 
   useEffect(() => {
-    if (date) {
-      // Format date to YYYY-MM-DD and pass to parent
-      // This will be used as the arrival date for package calculations
-      const formattedDate = date instanceof DateObject ? 
-        date.format("YYYY-MM-DD") : date;
-      onChange(formattedDate);
-    }
-  }, [date, onChange]);
+    if (!date || !onChange) return;
+    const formattedDate =
+      date instanceof DateObject ? date.format("YYYY-MM-DD") : date;
+    onChange(formattedDate);
+    // Intentionally omit onChange — parent often passes inline setters
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date]);
 
   return (
-    <div className="text-15 text-light-1 ls-2 lh-16 custom_dual_datepicker">
+    <div className="text-15 text-light-1 ls-2 lh-16 custom_dual_datepicker pp-date-select">
       <DatePicker
         inputClass="custom_input-picker"
-        containerClassName="custom_container-picker"
+        containerClassName="custom_container-picker pp-date-select__calendar"
         value={date}
         onChange={(newDate) => {
           setDate(newDate);
         }}
-        numberOfMonths={2}
+        numberOfMonths={isMobile ? 1 : 2}
         offsetY={10}
-        format="DD/MM/YYYY" // Display format
-        minDate={new DateObject()} 
+        format="DD/MM/YYYY"
+        minDate={new DateObject()}
         editable={false}
         placeholder="Select arrival date"
+        portal={portal}
+        zIndex={30000}
+        calendarPosition="bottom-center"
       />
     </div>
   );
 };
 
-export default DateSelect; 
+export default DateSelect;

@@ -750,12 +750,18 @@
 }
 
 /* Packages section — match Bookings / Quotes chrome */
-.partner-packages__search {
+.partner-packages__search,
+.partner-packages__bookings {
   overflow: visible;
 }
 
-.partner-packages__embed {
+.partner-packages__embed,
+.partner-packages__bookings-embed {
   margin-top: 8px;
+}
+
+.partner-package-bookings .partner-seg {
+  margin-top: 4px;
 }
 
 .partner-packages__embed .MuiContainer-root {
