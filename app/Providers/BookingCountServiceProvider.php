@@ -78,6 +78,20 @@ class BookingCountServiceProvider extends ServiceProvider
 
         $this->applySidebarDmcAccess($query, $dmc_id, $user, 'dmc_id', 'destination');
 
+        // Definite / Actual: hide tours with no live booking services (do not cancel them).
+        $needsActiveService = is_array($status)
+            ? count(array_intersect($status, ['Definite', 'Actual', 'Complete'])) > 0
+            : in_array($status, ['Definite', 'Actual', 'Complete'], true);
+        if ($needsActiveService) {
+            $query->whereExists(function ($q) {
+                $q->selectRaw('1')
+                    ->from('orders')
+                    ->whereColumn('orders.tour_id', 'tours.tour_id')
+                    ->where('orders.bookingType', 'booking')
+                    ->whereNull('orders.deleted_at');
+            });
+        }
+
         return $query->count();
     }
 
@@ -116,6 +130,29 @@ class BookingCountServiceProvider extends ServiceProvider
                             ->whereBetween('orders.updated_at', [$startDate, $endDate]);
                   });
             });
+
+        // TravClicks (roles 1–4): badge counts only cancelled ONLINE services.
+        // DMC: offline cancels + online cancels only after TravClicks refunded to DMC.
+        $roleId = (int) ($user->role_id ?? 0);
+        if (in_array($roleId, [1, 2, 3, 4], true)) {
+            if (Schema::hasColumn('orders', 'order_type')) {
+                $query->whereRaw("LOWER(TRIM(COALESCE(orders.order_type, ''))) = ?", ['online']);
+            } else {
+                return 0;
+            }
+        } elseif (Schema::hasColumn('orders', 'order_type')) {
+            $query->where(function ($q) {
+                $q->whereRaw("LOWER(TRIM(COALESCE(orders.order_type, ''))) <> ?", ['online'])
+                    ->orWhere(function ($online) {
+                        $online->whereRaw("LOWER(TRIM(COALESCE(orders.order_type, ''))) = ?", ['online']);
+                        if (Schema::hasColumn('orders', 'travclicks_refunded')) {
+                            $online->where('orders.travclicks_refunded', true);
+                        } else {
+                            $online->whereRaw('1 = 0');
+                        }
+                    });
+            });
+        }
 
         $this->applySidebarDmcAccess($query, $dmc_id, $user, 'tours.dmc_id', 'tours.destination');
 

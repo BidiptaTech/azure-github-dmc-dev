@@ -669,6 +669,12 @@
         collectKeptServiceBookingIds().forEach(function (id) {
             fd.append('kept_service_booking_ids[]', String(id));
         });
+        var zeroRefundIds = (window.StpLiteTransportShared && typeof window.StpLiteTransportShared.cancelWithoutRefundBookingIds === 'function')
+            ? window.StpLiteTransportShared.cancelWithoutRefundBookingIds()
+            : [];
+        zeroRefundIds.forEach(function (id) {
+            fd.append('without_refund_booking_ids[]', String(id));
+        });
         return postJsonForm(url, fd);
     }
 

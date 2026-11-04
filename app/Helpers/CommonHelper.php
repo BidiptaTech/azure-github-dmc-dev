@@ -11054,9 +11054,213 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $status = Tour::where('tour_id', $tourId)->value('tour_status');
         if (in_array($status ?? '', ['Definite', 'Actual'], true)) {
             $updateData['is_refund'] = 1;
+            if (request()->boolean('without_refund')) {
+                $updateData['refund_amount'] = 0;
+                $updateData['is_verify'] = 1;
+                $updateData['refunded'] = true;
+            }
         }
 
         return $updateData;
+    }
+
+    /**
+     * Apply hotels.cancellation_data rules to a hotel order.
+     * Duration is hours before check-in. The tightest matching window wins
+     * (e.g. within 48h uses the 48 rule, within 72h but outside 48 uses 72).
+     *
+     * @param  \App\Models\Order|object|array<string, mixed>  $order
+     * @return array{
+     *     applicable: bool,
+     *     free: bool,
+     *     hotel_price: float,
+     *     cancellation_charge: float,
+     *     suggested_refund: float,
+     *     currency: string,
+     *     hours_until_check_in: float|null,
+     *     matched_rule: array<string, mixed>|null,
+     *     rules: list<array<string, mixed>>,
+     *     summary: string
+     * }
+     */
+    public static function calculateHotelCancellationCharge($order, ?float $hotelPriceOverride = null): array
+    {
+        $empty = [
+            'applicable' => false,
+            'free' => true,
+            'hotel_price' => 0.0,
+            'cancellation_charge' => 0.0,
+            'suggested_refund' => 0.0,
+            'currency' => '',
+            'hours_until_check_in' => null,
+            'matched_rule' => null,
+            'rules' => [],
+            'summary' => 'No hotel cancellation policy found.',
+        ];
+
+        if (! $order) {
+            return $empty;
+        }
+
+        $currency = strtoupper(trim((string) (is_object($order) ? ($order->currency ?? '') : ($order['currency'] ?? ''))));
+        $data = is_object($order) ? ($order->data ?? null) : ($order['data'] ?? null);
+        if (is_string($data)) {
+            $data = json_decode($data, true);
+        }
+        $item = [];
+        if (is_array($data)) {
+            $item = (isset($data[0]) && is_array($data[0])) ? $data[0] : $data;
+        }
+        if (! is_array($item)) {
+            $item = [];
+        }
+
+        $hotelDetails = is_array($item['hotelDetails'] ?? null) ? $item['hotelDetails'] : [];
+        $hotelPrice = $hotelPriceOverride !== null
+            ? max(0.0, $hotelPriceOverride)
+            : (float) ($item['totalPrice'] ?? $item['price'] ?? $item['grand_total'] ?? 0);
+        if ($currency === '') {
+            $currency = strtoupper(trim((string) ($item['currency'] ?? $hotelDetails['currency'] ?? '')));
+        }
+
+        $hotelId = trim((string) (
+            $item['hotel_unique_id']
+            ?? $hotelDetails['hotel_unique_id']
+            ?? $hotelDetails['hotel_id']
+            ?? $item['hotel_id']
+            ?? ''
+        ));
+        $hotel = $hotelId !== ''
+            ? Hotel::where('hotel_unique_id', $hotelId)->first(['hotel_unique_id', 'cancellation_type', 'cancellation_data'])
+            : null;
+
+        $rawRules = $hotel->cancellation_data ?? null;
+        if (is_string($rawRules)) {
+            $rawRules = json_decode($rawRules, true);
+        }
+        $rules = [];
+        if (is_array($rawRules)) {
+            foreach ($rawRules as $rule) {
+                if (! is_array($rule)) {
+                    continue;
+                }
+                $rules[] = [
+                    'duration' => (float) ($rule['duration'] ?? 0),
+                    'price' => (float) ($rule['price'] ?? 0),
+                    'type' => strtolower(trim((string) ($rule['type'] ?? 'flat'))),
+                ];
+            }
+        }
+
+        $isChargeable = $hotel && in_array($hotel->cancellation_type, [1, '1', true, 'true'], true);
+        $bookingDates = $item['bookingDate'] ?? $item['booking_date'] ?? null;
+        $stayStart = null;
+        if (is_array($bookingDates) && ! empty($bookingDates[0])) {
+            $stayStart = (string) $bookingDates[0];
+        } elseif (is_string($bookingDates) && $bookingDates !== '') {
+            $stayStart = $bookingDates;
+        }
+        $checkInRaw = $item['stay_start']
+            ?? $item['check_in']
+            ?? $item['checkIn']
+            ?? $stayStart
+            ?? $hotelDetails['check_in']
+            ?? null;
+        $checkInTime = trim((string) ($hotelDetails['checkInTime'] ?? $hotelDetails['check_in_time'] ?? ''));
+        $hoursUntil = null;
+        if (! empty($checkInRaw)) {
+            try {
+                $checkInString = (string) $checkInRaw;
+                // bookingDate is often YYYY-MM-DD; append hotel check-in time when present.
+                if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $checkInString) && $checkInTime !== '') {
+                    $checkInString .= ' ' . $checkInTime;
+                }
+                $hoursUntil = round((Carbon::parse($checkInString)->getTimestamp() - now()->getTimestamp()) / 3600, 2);
+            } catch (\Throwable $e) {
+                $hoursUntil = null;
+            }
+        }
+
+        $base = [
+            'applicable' => true,
+            'free' => true,
+            'hotel_price' => round(max(0, $hotelPrice), 2),
+            'cancellation_charge' => 0.0,
+            'suggested_refund' => round(max(0, $hotelPrice), 2),
+            'currency' => $currency,
+            'hours_until_check_in' => $hoursUntil,
+            'matched_rule' => null,
+            'rules' => $rules,
+            'summary' => 'Free cancellation applies.',
+        ];
+
+        if (! $hotel) {
+            $base['applicable'] = false;
+            $base['summary'] = 'Hotel policy could not be loaded.';
+
+            return $base;
+        }
+
+        if (! $isChargeable || $rules === []) {
+            $base['summary'] = 'Cancellation type is Free — no cancellation charge.';
+
+            return $base;
+        }
+
+        if ($hoursUntil === null) {
+            $base['summary'] = 'Check-in date missing — cancellation charge could not be calculated.';
+
+            return $base;
+        }
+
+        // Tightest window first: cancel within 48h beats within 72h.
+        usort($rules, static fn ($a, $b) => $a['duration'] <=> $b['duration']);
+        $matched = null;
+        foreach ($rules as $rule) {
+            if ($hoursUntil <= (float) $rule['duration']) {
+                $matched = $rule;
+                break;
+            }
+        }
+
+        if ($matched === null) {
+            $base['summary'] = sprintf(
+                'Outside all charge windows (%.0f hours before check-in) — free cancellation.',
+                $hoursUntil
+            );
+
+            return $base;
+        }
+
+        $charge = str_starts_with((string) $matched['type'], 'percent')
+            ? round(max(0, $hotelPrice) * ((float) $matched['price'] / 100), 2)
+            : round(max(0, (float) $matched['price']), 2);
+        $suggested = round(max(0, $hotelPrice - $charge), 2);
+        $typeLabel = str_starts_with((string) $matched['type'], 'percent') ? 'Percentage' : 'Flat';
+
+        return [
+            'applicable' => true,
+            'free' => false,
+            'hotel_price' => round(max(0, $hotelPrice), 2),
+            'cancellation_charge' => $charge,
+            'suggested_refund' => $suggested,
+            'currency' => $currency,
+            'hours_until_check_in' => $hoursUntil,
+            'matched_rule' => $matched,
+            'rules' => $rules,
+            'summary' => sprintf(
+                'Within %.0f hours of check-in: %s %s charge. Hotel %s %s − charge %s %s = refund %s %s.',
+                (float) $matched['duration'],
+                $typeLabel,
+                number_format((float) $matched['price'], 2),
+                $currency,
+                number_format(max(0, $hotelPrice), 2),
+                $currency,
+                number_format($charge, 2),
+                $currency,
+                number_format($suggested, 2)
+            ),
+        ];
     }
 
     /**
