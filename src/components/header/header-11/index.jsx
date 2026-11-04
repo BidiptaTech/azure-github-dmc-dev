@@ -127,7 +127,7 @@ const Header1 = ({ onViewProfile }) => {
 
   const handlePackagesSearchSubmit = (searchData) => {
     const packagesPath = userRole === "Agent" 
-      ? "/app/pre-define-packages" 
+      ? "/app/packages/pre-define-packages" 
       : "/app/tour-packages";
       
     if (searchData.skipDMCModal && searchData.selectedDMC) {
@@ -146,7 +146,7 @@ const Header1 = ({ onViewProfile }) => {
 
   const handlePackagesDMCSelect = (selectedDMC) => {
     const packagesPath = userRole === "Agent" 
-      ? "/app/pre-define-packages" 
+      ? "/app/packages/pre-define-packages" 
       : "/app/tour-packages";
       
     dispatch(resetPackages());

@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import PartnerPackageBookings from "@/components/workspace/PartnerPackageBookings";
-import { appPath } from "@/utils/appPaths";
+import { PACKAGES_SEARCH_PATH } from "@/utils/appPaths";
 
 /** Packages — booking list in the same partner chrome as Quotes & enquiries. */
 export default function PackagesPage() {
@@ -20,7 +20,7 @@ export default function PackagesPage() {
         <button
           type="button"
           className="partner-btn partner-btn--primary"
-          onClick={() => navigate(appPath("pre-define-packages"))}
+          onClick={() => navigate(PACKAGES_SEARCH_PATH)}
         >
           Search for a package
         </button>

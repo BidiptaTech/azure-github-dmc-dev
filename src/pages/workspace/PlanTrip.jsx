@@ -4,7 +4,7 @@ import { useDispatch } from "react-redux";
 import Hero1 from "@/components/hero/hero-1";
 import TourPackages from "@/components/Tour-Packages";
 import { setSearchCriteria } from "@/slice/tour-packages/tourPackageSlice";
-import { appPath } from "@/utils/appPaths";
+import { appPath, QUOTES_ENQUIRY_PATH } from "@/utils/appPaths";
 
 export default function PlanTrip() {
   const navigate = useNavigate();
@@ -52,7 +52,7 @@ export default function PlanTrip() {
         <button
           type="button"
           className="partner-btn"
-          onClick={() => navigate(appPath("booking-enquiry"))}
+          onClick={() => navigate(QUOTES_ENQUIRY_PATH)}
         >
           Request a custom quote →
         </button>

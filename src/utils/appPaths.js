@@ -7,6 +7,16 @@ export function appPath(suffix = "") {
   return `${APP_BASE}${s}`;
 }
 
+/** New enquiry lives under Quotes & requests. */
+export const QUOTES_ENQUIRY_PATH = appPath("quotes/booking-enquiry");
+
+/** Package flows live under Packages. */
+export const PACKAGES_SEARCH_PATH = appPath("packages/pre-define-packages");
+export const PACKAGES_BUILDER_PATH = appPath("packages/tour-packages-page");
+export function packageDetailsPath(id) {
+  return appPath(`packages/package-details/${id}`);
+}
+
 /** Section / home paths where leaving a booking module should clear flow state. */
 export const APP_HOME_PATHS = [APP_BASE, `${APP_BASE}/`, appPath("bookings")];
 

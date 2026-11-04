@@ -399,81 +399,101 @@ const DmcFilter = ({ showMode = false }) => {
   }
 
   return (
-    <Box sx={{ mb: 3 }}>
-      <Paper elevation={0} sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-          <BusinessIcon sx={{ mr: 1, color: 'primary.main', fontSize: 20 }} />
-          <Typography variant="subtitle2" fontWeight={600}>
+    <Box className="pw-dmc-filter" sx={{ mb: 3 }}>
+      <Paper
+        elevation={0}
+        className="pw-dmc-filter__paper"
+        sx={{ p: 2, bgcolor: "background.paper", borderRadius: 2 }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", mb: 1.5 }}>
+          <BusinessIcon sx={{ mr: 1, color: "primary.main", fontSize: 18 }} />
+          <Typography variant="subtitle2" fontWeight={600} sx={{ fontSize: 13 }}>
             Filter by DMC
           </Typography>
         </Box>
-        
-        <FormControl component="fieldset" fullWidth>
+
+        <FormControl component="fieldset" fullWidth sx={{ minWidth: 0 }}>
           <RadioGroup
             value={localSelectedDmc}
             onChange={handleDmcChange}
             disabled={lockDmcSelection}
+            sx={{ width: "100%" }}
           >
-            {/* "All DMCs" option */}
-            {/* <FormControlLabel
-              value=""
-              control={
-                <Radio 
-                  size="small"
-                  sx={{
-                    '&.Mui-checked': {
-                      color: '#3554D1',
-                    },
-                  }}
-                />
-              }
-              label={
-                <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
-                  All DMCs
-                </Typography>
-              }
-              onClick={handleClearSelection}
-            /> */}
-            
-            {/* Individual DMC options */}
             {displayDmcList.map((dmc) => (
               <FormControlLabel
                 key={dmc.userId}
+                className="pw-dmc-filter__option"
                 value={dmc.userId}
+                sx={{
+                  alignItems: "flex-start",
+                  m: 0,
+                  mb: 1,
+                  width: "100%",
+                  "& .MuiFormControlLabel-label": {
+                    flex: 1,
+                    minWidth: 0,
+                  },
+                }}
                 control={
-                  <Radio 
+                  <Radio
                     size="small"
                     sx={{
-                      '&.Mui-checked': {
-                        color: '#3554D1',
+                      mt: 0.25,
+                      p: 0.5,
+                      "&.Mui-checked": {
+                        color: "#3554D1",
                       },
                     }}
                   />
                 }
                 label={
-                  <Box sx={{ display: 'flex', alignItems: 'center', py: 0.5 }}>
-                    {dmc.logo && (
-                      <Avatar 
-                        src={dmc.logo} 
-                        alt={`${dmc.company_name} Logo`} 
-                        sx={{ 
-                          width: 24, 
-                          height: 24, 
-                          marginRight: 1.5,
-                          border: '1px solid',
-                          borderColor: 'divider'
+                  <Box className="pw-dmc-filter__label">
+                    {dmc.logo ? (
+                      <Avatar
+                        src={dmc.logo}
+                        alt=""
+                        sx={{
+                          width: 28,
+                          height: 28,
+                          flexShrink: 0,
+                          border: "1px solid",
+                          borderColor: "divider",
                         }}
                       />
+                    ) : (
+                      <Avatar
+                        sx={{
+                          width: 28,
+                          height: 28,
+                          flexShrink: 0,
+                          bgcolor: "#e8eefc",
+                          color: "#3554D1",
+                          fontSize: 12,
+                          fontWeight: 700,
+                        }}
+                      >
+                        {(dmc.company_name || dmc.name || "D")
+                          .charAt(0)
+                          .toUpperCase()}
+                      </Avatar>
                     )}
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="body2" sx={{ fontSize: '0.875rem', fontWeight: 500 }}>
+                    <Box className="pw-dmc-filter__text">
+                      <Typography
+                        component="span"
+                        className="pw-dmc-filter__name"
+                        variant="body2"
+                      >
                         {dmc.company_name || dmc.name || `DMC ${dmc.userId}`}
                       </Typography>
-                      {dmc.country && (
-                        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                      {dmc.country ? (
+                        <Typography
+                          component="span"
+                          className="pw-dmc-filter__country"
+                          variant="caption"
+                        >
                           {dmc.country}
                         </Typography>
-                      )}
+                      ) : null}
                     </Box>
                   </Box>
                 }

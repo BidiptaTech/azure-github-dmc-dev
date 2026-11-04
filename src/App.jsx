@@ -71,7 +71,7 @@ const AUTO_LOGOUT_TIME = 7 * 24 * 60 * 60 * 1000;
 
 function PackageDetailsRedirect() {
   const { id } = useParams();
-  return <Navigate to={`/app/package-details/${id}`} replace />;
+  return <Navigate to={`/app/packages/package-details/${id}`} replace />;
 }
 
 function App() {
@@ -121,7 +121,11 @@ function App() {
           />
           <Route
             path="/booking-enquiry"
-            element={<Navigate to="/app/booking-enquiry" replace />}
+            element={<Navigate to="/app/quotes/booking-enquiry" replace />}
+          />
+          <Route
+            path="/app/booking-enquiry"
+            element={<Navigate to="/app/quotes/booking-enquiry" replace />}
           />
           <Route
             path="/dashboard/db-dashboard"
@@ -133,11 +137,31 @@ function App() {
           />
           <Route
             path="/dashboard/tour-packages"
-            element={<Navigate to="/app/tour-packages-page" replace />}
+            element={
+              <Navigate to="/app/packages/tour-packages-page" replace />
+            }
           />
           <Route
             path="/dashboard/pre-define-packages"
-            element={<Navigate to="/app/pre-define-packages" replace />}
+            element={
+              <Navigate to="/app/packages/pre-define-packages" replace />
+            }
+          />
+          <Route
+            path="/app/tour-packages-page"
+            element={
+              <Navigate to="/app/packages/tour-packages-page" replace />
+            }
+          />
+          <Route
+            path="/app/pre-define-packages"
+            element={
+              <Navigate to="/app/packages/pre-define-packages" replace />
+            }
+          />
+          <Route
+            path="/app/package-details/:id"
+            element={<PackageDetailsRedirect />}
           />
 
           <Route
@@ -148,19 +172,28 @@ function App() {
             <Route path="plan" element={<PlanTrip />} />
             <Route path="bookings" element={<Bookings />} />
             <Route path="quotes" element={<Quotes />} />
+            <Route
+              path="quotes/booking-enquiry"
+              element={<BookingEnquiryEmbed />}
+            />
             <Route path="wallet" element={<Wallet />} />
             <Route path="packages" element={<PackagesPage />} />
-            <Route path="booking-enquiry" element={<BookingEnquiryEmbed />} />
-
-            <Route path="tour-packages" element={<PackagesPage />} />
-            <Route path="tour-packages-page" element={<TourPackagesEmbed />} />
             <Route
-              path="pre-define-packages"
+              path="packages/pre-define-packages"
               element={<PreDefinePackagesEmbed />}
             />
             <Route
-              path="package-details/:id"
+              path="packages/tour-packages-page"
+              element={<TourPackagesEmbed />}
+            />
+            <Route
+              path="packages/package-details/:id"
               element={<PackageDetailsEmbed />}
+            />
+
+            <Route
+              path="tour-packages"
+              element={<Navigate to="/app/packages" replace />}
             />
             <Route path="home_1" element={withAuth(<Home_1 />)} />
             <Route path="home_2" element={withAuth(<Home_2 />)} />

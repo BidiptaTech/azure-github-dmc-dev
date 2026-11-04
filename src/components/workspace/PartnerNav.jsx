@@ -8,13 +8,13 @@ const NAV_ITEMS = [
   {
     label: "Quotes & requests",
     to: appPath("quotes"),
-    match: ["quotes", "booking-enquiry"],
+    match: ["quotes"],
   },
   { label: "Wallet & payments", to: appPath("wallet"), match: ["wallet"] },
   {
     label: "Packages",
     to: appPath("packages"),
-    match: ["packages", "tour-packages-page", "pre-define-packages", "package-details"],
+    match: ["packages"],
   },
 ];
 

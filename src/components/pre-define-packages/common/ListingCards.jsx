@@ -144,7 +144,7 @@ const PackageCard = ({ packageData }) => {
       dispatch(fetchPackageDetails(packageData.package_id))
         .unwrap()
         .then(() => {
-          navigate(`/app/package-details/${packageData.package_id}`);
+          navigate(`/app/packages/package-details/${packageData.package_id}`);
         })
         .catch((error) => {
           console.error('Failed to fetch package details:', error);
