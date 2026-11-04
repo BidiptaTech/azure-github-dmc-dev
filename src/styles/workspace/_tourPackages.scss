@@ -170,6 +170,56 @@
   margin: -36px -28px 0;
 }
 
+/* Package search — Plan / Quick Enquiry hero parity */
+.partner-package-search {
+  width: 100%;
+}
+
+.partner-package-search .pp-hero-search {
+  width: 100%;
+  position: relative;
+  z-index: 40;
+  overflow: visible;
+}
+
+.partner-package-search .pp-hero-search__card {
+  overflow: visible !important;
+  position: relative;
+  z-index: 40;
+}
+
+.partner-package-search .pp-hero-search__row,
+.partner-package-search .pp-hero-search__cell {
+  overflow: visible !important;
+}
+
+/* Portal calendar must sit above hero footer / chips / SEARCH CTA */
+.rmdp-container.pp-date-select__calendar,
+.pp-date-select__calendar.rmdp-wrapper,
+.pp-date-select__calendar .rmdp-calendar,
+.pp-date-select__calendar .rmdp-day-picker {
+  z-index: 30000 !important;
+}
+
+.pp-date-select .custom_input-picker {
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  width: 100%;
+}
+
+.partner-packages__results {
+  margin-top: 20px;
+  overflow: visible;
+}
+
+.partner-packages__results .partner-packages__embed {
+  margin-top: 12px;
+}
+
 @media (max-width: 900px) {
   .partner-tour-packages__back {
     position: relative;
@@ -186,6 +236,17 @@
   }
 
   .tp-plan-search__cell:last-child {
+    border-bottom: 0;
+  }
+
+  .pp-hero-search__cell {
+    border-right: 0 !important;
+    border-bottom: 1px solid #e2e8f0;
+    flex-basis: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .pp-hero-search__cell:last-child {
     border-bottom: 0;
   }
 }
