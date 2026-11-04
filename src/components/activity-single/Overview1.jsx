@@ -8,10 +8,15 @@ import {
 } from "@mui/icons-material";
 import PropTypes from "prop-types";
 import { useLocation } from "react-router-dom";
+import { useSelector } from "react-redux";
 
-const Overview1 = () => {
+const Overview1 = ({ vehicles: vehiclesProp, compact = false }) => {
   const location = useLocation();
-  const { vehicles } = location.state;
+  const checkoutVehicle = useSelector(
+    (state) => state.pickupDrop.checkoutVehicle
+  );
+  const vehicles =
+    vehiclesProp || location.state?.vehicles || checkoutVehicle || null;
   if (!vehicles) {
     return null;
   }
@@ -45,9 +50,9 @@ const Overview1 = () => {
           <Card
             elevation={1}
             sx={{
-              mt: 2.5,
-              mb: 10,
-              p: 2,
+              mt: compact ? 1.5 : 2.5,
+              mb: compact ? 0 : 10,
+              p: compact ? 1.5 : 2,
               borderRadius: 2,
               bgcolor: "rgba(255, 255, 255, 0.9)",
               border: "1px solid rgba(0, 0, 0, 0.1)",
@@ -122,10 +127,12 @@ Overview1.propTypes = {
     model_year: PropTypes.number,
     seating_capacity: PropTypes.number,
   }),
+  compact: PropTypes.bool,
 };
 
 Overview1.defaultProps = {
   vehicles: null,
+  compact: false,
 };
 
 export default Overview1;

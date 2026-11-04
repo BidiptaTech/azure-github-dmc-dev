@@ -83,8 +83,8 @@ const RestaurantsDetails = () => {
       {/* header top margin */}
 
       {/* Header provided by PartnerLayout */}
-      <CustomStepper variant="lite" />
-      <TourStatus variant="lite" />
+      {/* <CustomStepper variant="lite" />
+      <TourStatus variant="lite" /> */}
       {/* <TopBreadCrumb /> */}
       {/* End top breadcrumb */}
 

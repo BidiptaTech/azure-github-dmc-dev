@@ -8,6 +8,7 @@ import MapPropertyFinder from "@/components/activity-list/common/MapPropertyFind
 import Pagination from "@/components/activity-list/common/Pagination";
 import Sidebar from "@/components/activity-list/activity-list-v3/Sidebar";
 import ActivityProperties1 from "@/components/activity-list/activity-list-v3/ActivityProperties";
+import VehicleDetailModal from "@/components/activity-list/activity-list-v3/VehicleDetailModal";
 import { useState, useEffect, useMemo } from "react";
 import React from "react";
 
@@ -230,6 +231,9 @@ console.log("zone_on5", zone_on);
   const [sortOrder, setSortOrder] = useState("asc");
   // const [selectedModes, setSelectedModes] = useState({});
   const [isFilterVisible, setIsFilterVisible] = useState(false);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailVehicle, setDetailVehicle] = useState(null);
   const selectedPort = useSelector((state) => state.localtour.selectedPort);
   const viewDetails = useSelector((state) => state.viewDetails.bookings);
   const cart = useSelector(selectCart);
@@ -1368,11 +1372,16 @@ console.log("zone_on5", zone_on);
     setCurrentPage(page);
   };
 
-  // Function to handle guide selection
-  const handleVehicleClick = (vehicles, navigate) => {
-    const vehicleMode = mode[vehicles.id]?.mode || "dmc"; // ✅ Get correct mode
-    const dmcId = mode[vehicles.id]?.dmcId || vehicles.dmc_id; // ✅ Get correct dmcId
-    dispatch(setSelectedVehicle({ id: vehicles.id, mode: vehicleMode, dmcId })); // ✅ Store only selected vehicle's ID & mode
+  // Function to handle vehicle detail modal
+  const handleVehicleClick = (vehicles) => {
+    const vehicleMode = mode[vehicles.id]?.mode || "dmc";
+    const dmcId = mode[vehicles.id]?.dmcId || vehicles.dmc_id;
+    dispatch(setSelectedVehicle({ id: vehicles.id, mode: vehicleMode, dmcId }));
+
+    setDetailVehicle(null);
+    setDetailLoading(true);
+    setDetailModalOpen(true);
+
     dispatch(
       fetchVehicleDetails({
         city: vehicles.city,
@@ -1380,13 +1389,22 @@ console.log("zone_on5", zone_on);
         type: zoneType,
       })
     )
-      .unwrap() // Unwrap the promise to handle the payload directly
+      .unwrap()
       .then((data) => {
         dispatch(setCheckoutVehicle(data));
-        navigate(`/app/activity-single-2`, {
-          state: { vehicles: data },
-        });
+        setDetailVehicle(data);
+      })
+      .catch(() => {
+        setDetailModalOpen(false);
+      })
+      .finally(() => {
+        setDetailLoading(false);
       });
+  };
+
+  const handleDetailModalClose = () => {
+    setDetailModalOpen(false);
+    setDetailLoading(false);
   };
 
   // Function to handle mode change and update Redux
@@ -2466,6 +2484,13 @@ console.log("zone_on5", zone_on);
           </TripWorkspaceShell>
         </div>
       )}
+
+      <VehicleDetailModal
+        open={detailModalOpen}
+        onClose={handleDetailModalClose}
+        vehicles={detailVehicle}
+        loading={detailLoading}
+      />
 
       <style jsx>{`
         .filter-mobile-section {

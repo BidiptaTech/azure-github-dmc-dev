@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import moment from "moment";
 import { debounce } from "lodash";
 import { useSelector, useDispatch } from "react-redux";
-import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import {
   fetchAttractions,
   selectFilteredAttractions,
@@ -12,6 +12,7 @@ import {
   setSelectedAttraction,
 } from "../../../slice/attractions/attractionSlice";
 import TopHeaderFilter from "@/components/tour-list/tour-list-v1/TopHeaderFilter";
+import AttractionDetailModal from "@/components/tour-list/tour-list-v1/AttractionDetailModal";
 import {
   Box,
   Button,
@@ -454,7 +455,6 @@ const skeletonStyles = `
 `;
 
 const TourProperties = () => {
-  const navigate = useNavigate();
   const dispatch = useDispatch();
   // Get DMC logo and company name from DMC slice instead of auth slice
   const dmcLogo = useSelector(selectSelectedDmcLogo);
@@ -501,6 +501,9 @@ const TourProperties = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [detailAttraction, setDetailAttraction] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   // Add these selectors at the top with other useSelector calls
   const currencySymbol = useSelector((state) => state.auth.currencySymbol);
@@ -752,10 +755,10 @@ const TourProperties = () => {
 
   const handleAttractionClick = (event, item) => {
     event.preventDefault();
-    
+
     // Get the current mode from selectedModes with proper fallback logic
     let currentMode = selectedModes[item.id]?.mode;
-    
+
     // If no mode is set, determine based on available prices
     if (!currentMode) {
       if (bookingType === "enquiry") {
@@ -766,30 +769,33 @@ const TourProperties = () => {
         currentMode = item.dmc_adult_price > 0 ? "dmc" : "travclicks";
       }
     }
-    
+
     // Ensure the booking mode is updated in Redux
     dispatch(setBookingMode(currentMode));
+    dispatch(setSelectedAttraction(item));
 
-    // The slice will automatically use the selected DMC ID from Redux
-    // console.log('Selected mode for attraction:', currentMode);
+    setDetailAttraction(item);
+    setDetailLoading(true);
+    setDetailModalOpen(true);
 
     dispatch(
       fetchAttractionDetails({
         attractionId: item.id,
-        price_mode: currentMode
-        // dmc_id will be automatically handled by the slice using Redux state
+        price_mode: currentMode,
       })
-    );
+    )
+      .unwrap()
+      .catch(() => {
+        setDetailModalOpen(false);
+      })
+      .finally(() => {
+        setDetailLoading(false);
+      });
+  };
 
-    dispatch(setSelectedAttraction(item));
-
-    navigate(`/app/tour-single/${item.id}`, {
-      state: {
-        attraction: item,
-        mode: currentMode,
-        // dmc_id will be handled by the slice using Redux state
-      },
-    });
+  const handleDetailModalClose = () => {
+    setDetailModalOpen(false);
+    setDetailLoading(false);
   };
 
   const handleSort = (sortOrder) => {
@@ -1864,6 +1870,13 @@ width: "100%",
           </Typography>
         </div>
       )}
+
+      <AttractionDetailModal
+        open={detailModalOpen}
+        onClose={handleDetailModalClose}
+        attraction={detailAttraction}
+        loading={detailLoading}
+      />
     </>
   );
 };

@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { useNavigate } from "react-router-dom";
 import moment from "moment";
 import { debounce } from "lodash";
 import {
@@ -15,6 +14,7 @@ import {
 import { selectBookingType, setBookingMode } from "../../../slice/common/commonSlice";
 import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 import TopHeaderFilter from "@/components/restaurants/tour-list-v1/TopHeaderFilter";
+import RestaurantDetailsModal from "@/components/restaurants/common/RestaurantDetailsModal";
 import {
   Box,
   Button,
@@ -333,7 +333,6 @@ const skeletonStyles = `
 `;
 
 const TourProperties = () => {
-  const navigate = useNavigate();
   const dispatch = useDispatch();
   const filters = useSelector(selectFilters);
   const restaurants = useSelector(selectRestaurants);
@@ -343,6 +342,8 @@ const TourProperties = () => {
   const [sortedRestaurants, setSortedRestaurants] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSearching, setIsSearching] = useState(false);
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [selectedRestaurantItem, setSelectedRestaurantItem] = useState(null);
   
   // Infinite scroll states
   const [currentPage, setCurrentPage] = useState(1);
@@ -782,10 +783,13 @@ const TourProperties = () => {
     );
 
     dispatch(setListRestaurant(item));
-    
-    navigate(`/app/restaurants-details/${item.id}`, {
-      state: { restaurants: item },
-    });
+    setSelectedRestaurantItem(item);
+    setDetailsModalOpen(true);
+  };
+
+  const handleCloseDetailsModal = () => {
+    setDetailsModalOpen(false);
+    setSelectedRestaurantItem(null);
   };
 
   // Add effect to handle automatic mode switching when DMC checkbox is clicked
@@ -1468,6 +1472,12 @@ const TourProperties = () => {
           </div>
         </div>
       )}
+
+      <RestaurantDetailsModal
+        open={detailsModalOpen}
+        onClose={handleCloseDetailsModal}
+        tour={selectedRestaurantItem}
+      />
     </>
   );
 };
