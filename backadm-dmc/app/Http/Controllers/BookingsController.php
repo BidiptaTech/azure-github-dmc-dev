@@ -1137,8 +1137,11 @@ class BookingsController extends Controller
             $isTourCancel = in_array($tour->tour_status ?? '', ['Refund - Pending', 'Refunded'], true);
             $tourOrders = $ordersByTour->get($tour->tour_id, collect());
             if (! $isTourCancel) {
+                // Keep live services + soft-deleted refund cancels. Otherwise the last
+                // online cancel on a Definite tour collapses Tour total to 0.
                 $tourOrders = $tourOrders->filter(function ($order) {
-                    return $order->deleted_at === null;
+                    return $order->deleted_at === null
+                        || (int) ($order->is_refund ?? 0) === 1;
                 });
             }
 
@@ -1160,25 +1163,50 @@ class BookingsController extends Controller
             $latest = $enquiryRows->first();
             $pricing = $confirmed ?: $latest;
 
-            $totals = $this->paymentModalTotals($tour, $pricing, round($sell), $orderCurrency);
-
             $payments = is_string($tour->payment_details)
                 ? json_decode($tour->payment_details, true)
                 : $tour->payment_details;
             $paid = 0.0;
+            $paymentCurrency = '';
             if (is_array($payments)) {
                 foreach ($payments as $payment) {
-                    if (is_array($payment) && (int) ($payment['status'] ?? 0) === 1) {
-                        $paid += (float) ($payment['amount'] ?? 0);
+                    if (! is_array($payment) || (int) ($payment['status'] ?? 0) !== 1) {
+                        continue;
+                    }
+                    $paid += (float) ($payment['amount'] ?? 0);
+                    if ($paymentCurrency === '') {
+                        $paymentCurrency = strtoupper(trim((string) ($payment['currency'] ?? '')));
                     }
                 }
             }
             $paid = round($paid, 2);
 
-            $tour->setAttribute('money_total', $totals['total']);
+            if ($orderCurrency === '' && $paymentCurrency !== '') {
+                $orderCurrency = $paymentCurrency;
+            }
+
+            // Online-only wallet tours usually have no enquiry negotiation. Use service
+            // sell directly so cancel/refund rows don't show 0 (or tax-inflated) totals.
+            if ($pricing) {
+                $totals = $this->paymentModalTotals($tour, $pricing, round($sell), $orderCurrency);
+                $moneyTotal = (float) ($totals['total'] ?? 0);
+                $moneyCurrency = (string) ($totals['currency'] ?? $orderCurrency);
+            } else {
+                $moneyTotal = round($sell, 2);
+                $moneyCurrency = $orderCurrency;
+            }
+
+            if ($moneyTotal <= 0 && $paid > 0) {
+                $moneyTotal = $paid;
+            }
+            if ($moneyCurrency === '' && $paymentCurrency !== '') {
+                $moneyCurrency = $paymentCurrency;
+            }
+
+            $tour->setAttribute('money_total', $moneyTotal);
             $tour->setAttribute('money_paid', $paid);
-            $tour->setAttribute('money_due', max(0, round($totals['total'] - $paid, 2)));
-            $tour->setAttribute('money_currency', $totals['currency']);
+            $tour->setAttribute('money_due', max(0, round($moneyTotal - $paid, 2)));
+            $tour->setAttribute('money_currency', $moneyCurrency);
         }
     }
 
