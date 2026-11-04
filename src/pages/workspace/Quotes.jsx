@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import PartnerEnquiryList from "@/components/workspace/PartnerEnquiryList";
-import { appPath } from "@/utils/appPaths";
+import { QUOTES_ENQUIRY_PATH } from "@/utils/appPaths";
 
 /** Quotes & requests — Quick Enquiries in partner workspace chrome. */
 export default function Quotes() {
@@ -19,7 +19,7 @@ export default function Quotes() {
         <button
           type="button"
           className="partner-btn partner-btn--primary"
-          onClick={() => navigate(appPath("booking-enquiry"))}
+          onClick={() => navigate(QUOTES_ENQUIRY_PATH)}
         >
           + New enquiry
         </button>

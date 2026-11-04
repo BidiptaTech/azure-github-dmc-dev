@@ -75,7 +75,7 @@ export default function TripWorkspaceShell({
         <button
           type="button"
           className="partner-btn partner-btn--secondary"
-          onClick={() => navigate(appPath("booking-enquiry"))}
+          onClick={() => navigate(appPath("quotes/booking-enquiry"))}
         >
           Ask DMC to plan it
         </button>

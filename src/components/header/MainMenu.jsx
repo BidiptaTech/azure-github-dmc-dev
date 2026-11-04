@@ -126,7 +126,7 @@ const MainMenu = ({ style = "", onDark = false }) => {
     userRole === "DMC Assistant Operational Manager";
   // Determine packages path based on user role
   const packagesPath = userRole === "Agent" 
-    ? "/app/pre-define-packages" 
+    ? "/app/packages/pre-define-packages" 
     : "/app/tour-packages";
 
   // Common style for menu items

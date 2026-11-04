@@ -210,7 +210,7 @@ export default function PartnerEnquiryList() {
         })
       ).unwrap();
       dispatch(resetPackages());
-      navigate("/app/tour-packages-page");
+      navigate("/app/packages/tour-packages-page");
     } catch (err) {
       console.error("Conversion failed:", err);
     } finally {

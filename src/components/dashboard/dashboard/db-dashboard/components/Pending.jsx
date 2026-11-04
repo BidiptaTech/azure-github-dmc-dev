@@ -968,7 +968,7 @@ export default function Pending({ filters = {} }) {
       .then((response) => {
         dispatch(setSelectedDmcId({ dmcId: response.dmc_id , dmcData: {originalData: {price_hide: response.price_hide, zone_on: response.zone_on}}}));
         dispatch(resetPackages());
-        navigate("/app/tour-packages-page");
+        navigate("/app/packages/tour-packages-page");
         //console.log("Full Response Data:", response);
         
       })

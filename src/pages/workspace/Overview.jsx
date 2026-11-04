@@ -139,7 +139,7 @@ export default function Overview() {
         title: "Need a hand?",
         detail: "Send your requirements to a DMC.",
         action: "Request a quote →",
-        to: appPath("booking-enquiry"),
+        to: appPath("quotes"),
       },
     ];
   }, [enquiries, pendingCount, pendingTours]);
@@ -163,7 +163,7 @@ export default function Overview() {
         <button
           type="button"
           className="partner-btn partner-btn--secondary"
-          onClick={() => navigate(appPath("booking-enquiry"))}
+          onClick={() => navigate(appPath("quotes"))}
         >
           Request a custom quote ↗
         </button>

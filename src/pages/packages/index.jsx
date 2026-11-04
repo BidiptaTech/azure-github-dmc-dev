@@ -61,12 +61,12 @@ const Packages = () => {
         dispatch(clearPackages());
         dispatch(resetPackages());
         dispatch(resetConvertState());
-        navigate('/app/tour-packages-page');
+        navigate('/app/packages/tour-packages-page');
     };
     
     const handlePreDefinePackagesClick = () => {
         dispatch(resetPackages());
-        navigate('/app/pre-define-packages');
+        navigate('/app/packages/pre-define-packages');
     };
     
     return (
