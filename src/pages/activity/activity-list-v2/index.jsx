@@ -3,6 +3,7 @@ import TopHeaderFilter from "@/components/activity-list/activity-list-v2/TopHead
 import ActivityProperties from "@/components/activity-list/activity-list-v2/ActivityProperties";
 import Pagination from "@/components/activity-list/common/Pagination";
 import Sidebar from "@/components/activity-list/activity-list-v2/Sidebar";
+import VehicleDetailModal from "@/components/activity-list/activity-list-v2/VehicleDetailModal";
 import { useState, useEffect, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { FaAngleDown, FaAngleUp } from "react-icons/fa";
@@ -63,6 +64,9 @@ const ActivityListPage2 = () => {
   const [priceRange, setPriceRange] = useState({ min: 0, max: 500 });
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailVehicle, setDetailVehicle] = useState(null);
   const mode = useSelector((state) => state.pickupDrop.mode);
   const priceMode = useSelector((state) => state.pickupDrop.pricemode);
   const exchangeRate = useSelector((state) => state.auth.exchangeRate);
@@ -161,26 +165,43 @@ const ActivityListPage2 = () => {
     setCurrentPage(page);
   };
 
-  // Function to handle guide selection
-  const handleVehicleClick = (vehicles, navigate) => {
-    const vehicleMode = mode[vehicles.id]?.mode || "dmc"; // ✅ Get correct mode
-    const dmcId = mode[vehicles.id]?.dmcId || vehicles.dmc_id; // ✅ Get correct dmcId
-    if(selectionType === "Entry Port"){
-    dispatch(setSelectedVehicle({ id: vehicles.id, mode: vehicleMode, dmcId })); // ✅ Store only selected vehicle's ID & mode
+  // Function to handle vehicle detail modal
+  const handleVehicleClick = (vehicles) => {
+    const vehicleMode = mode[vehicles.id]?.mode || "dmc";
+    const dmcId = mode[vehicles.id]?.dmcId || vehicles.dmc_id;
+    if (selectionType === "Entry Port") {
+      dispatch(setSelectedVehicle({ id: vehicles.id, mode: vehicleMode, dmcId }));
+    } else {
+      dispatch(setSelectedVehicle1({ id: vehicles.id, mode: vehicleMode, dmcId }));
     }
-    else{
-      dispatch(setSelectedVehicle1({ id: vehicles.id, mode: vehicleMode, dmcId })); // ✅ Store only selected vehicle's ID & mode
-    }
+
+    setDetailVehicle(null);
+    setDetailLoading(true);
+    setDetailModalOpen(true);
+
     dispatch(
-      fetchVehicleDetails({ city: vehicles.city, country: vehicles.country,type:portZoneType })
+      fetchVehicleDetails({
+        city: vehicles.city,
+        country: vehicles.country,
+        type: portZoneType,
+      })
     )
-      .unwrap() // Unwrap the promise to handle the payload directly
+      .unwrap()
       .then((data) => {
         dispatch(setCheckoutVehicle(data));
-        navigate(`/app/activity-single-1`, {
-          state: { vehicles: data }, // ✅ Pass correct mode
-        });
+        setDetailVehicle(data);
+      })
+      .catch(() => {
+        setDetailModalOpen(false);
+      })
+      .finally(() => {
+        setDetailLoading(false);
       });
+  };
+
+  const handleDetailModalClose = () => {
+    setDetailModalOpen(false);
+    setDetailLoading(false);
   };
 
   // Function to handle mode change and update Redux
@@ -385,6 +406,13 @@ const ActivityListPage2 = () => {
           />
         </div>
       </TripWorkspaceShell>
+
+      <VehicleDetailModal
+        open={detailModalOpen}
+        onClose={handleDetailModalClose}
+        vehicles={detailVehicle}
+        loading={detailLoading}
+      />
 
       <style jsx>{`
         .filter-mobile-section {

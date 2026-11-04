@@ -291,7 +291,7 @@ const cartSlice = createSlice({
           bookings: [booking],
         });
       }
-
+      console.log("state.cart after addToCart", state.cart);
       persistCart(state);
     },
     /**

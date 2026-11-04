@@ -28,6 +28,7 @@ import MetaComponent from "@/components/common/MetaComponent";
 import CustomStepper from "@/components/common/sub_common/CustomStepper";
 import TourStatus from "@/components/common/sub_common/TourStatus";
 import TripWorkspaceShell from "@/components/workspace/TripWorkspaceShell";
+import GuideDetailModal from "@/components/activity-list/activity-list-v1/GuideDetailModal";
 import { FaAngleUp, FaAngleDown } from "react-icons/fa";
 import { toCityOnly } from "@/utils/locationFormat";
 
@@ -64,6 +65,9 @@ const ActivityListPage1 = () => {
   const [sortOrder, setSortOrder] = useState("asc");
   const [sortedGuides, setSortedGuides] = useState([]);
   const [isFilterVisible, setIsFilterVisible] = useState(false);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [detailGuide, setDetailGuide] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const mode = useSelector((state) => state.tourguide.mode);
   const priceMode = useSelector((state) => state.tourguide.pricemode);
   const pickupdate = useSelector((state) => state.tourguide.pickupdate);
@@ -149,8 +153,8 @@ const ActivityListPage1 = () => {
     setCurrentPage(page);
   };
 
-  // Function to handle guide selection
-  const handleGuideClick = (guides, navigate) => {
+  // Function to handle guide selection — open detail modal (same data as activity-single)
+  const handleGuideClick = (guides) => {
     const guideMode = mode[guides.id]?.mode || "dmc"; // ✅ Get correct mode
     const dmcId = mode[guides.id]?.dmcId || guides.dmc_id; // ✅ Get correct dmcId
     dispatch(setSelectedGuide({ id: guides.id, mode: guideMode, dmcId }));
@@ -195,6 +199,10 @@ const ActivityListPage1 = () => {
       date: pickupdate || new Date().toISOString().split("T")[0],
     };
 
+    setDetailGuide(null);
+    setDetailLoading(true);
+    setDetailModalOpen(true);
+
     dispatch(fetchGuideDetails(searchParams))
       .unwrap()
       .then((guide) => {
@@ -202,13 +210,20 @@ const ActivityListPage1 = () => {
         dispatch(setentrypickup(city));
         dispatch(setpickupdate(searchParams.date));
         dispatch(setCheckoutGuide(guide));
-        navigate(`/app/activity-single`, {
-          state: { guide: guide },
-        });
+        setDetailGuide(guide);
       })
       .catch((error) => {
         console.error("Error fetching guide details:", error);
+        setDetailModalOpen(false);
+      })
+      .finally(() => {
+        setDetailLoading(false);
       });
+  };
+
+  const handleDetailModalClose = () => {
+    setDetailModalOpen(false);
+    setDetailLoading(false);
   };
 
   const handleModeChange = (id, newMode, dmcId) => {
@@ -394,6 +409,13 @@ const ActivityListPage1 = () => {
           />
         </div>
       </TripWorkspaceShell>
+
+      <GuideDetailModal
+        open={detailModalOpen}
+        onClose={handleDetailModalClose}
+        guide={detailGuide}
+        loading={detailLoading}
+      />
 
       <style jsx>{`
         .filter-mobile-section {

@@ -49,11 +49,14 @@ const Index1 = () => {
   const DropoffPlaceid = useSelector(
     (state) => state.pickupDrop.DropoffPlaceid
   );
+  const checkoutVehicle = useSelector(
+    (state) => state.pickupDrop.checkoutVehicle
+  );
   const dispatch = useDispatch();
   const location = useLocation();
-  const { vehicles } = location.state;
+  const vehicles = location.state?.vehicles || checkoutVehicle || null;
  
-  const seatingCapacity = vehicles.seating_capacity;
+  const seatingCapacity = vehicles?.seating_capacity || 0;
  
   const navigate = useNavigate();
 
@@ -97,7 +100,10 @@ const Index1 = () => {
   // const [hour, sethours] = useState("");
   // const [hourlyPrice, setHourlyPrice] = useState(0); // Stores selected hourly price
   //const [entryytime, setentryytime] = useState("");
-  const mode = statemode[vehicles.id]?.mode || "default_mode"; // Set a default mode if not found
+  const mode =
+    vehicles?.id && statemode?.[vehicles.id]?.mode
+      ? statemode[vehicles.id].mode
+      : "default_mode"; // Set a default mode if not found
  
   const totalGuests = adults + children; // Calculate total guests
   // Function to update hour and price from HourPackage
@@ -115,9 +121,7 @@ const Index1 = () => {
     setIsBookNowEnabled(totalGuests <= seatingCapacity); // Update the button state
 
     // Check if entrytime exists and night times are available
-    if (entrytime && vehicles.night_start_time && vehicles.night_end_time) {
-     
-
+    if (entrytime && vehicles?.night_start_time && vehicles?.night_end_time) {
       // Parse the time strings
       const [hourStr, period] = entrytime.split(" ");
       let entryHour = parseInt(hourStr);
@@ -130,19 +134,15 @@ const Index1 = () => {
       const nightStartHour = parseInt(vehicles.night_start_time.split(":")[0]);
       const nightEndHour = parseInt(vehicles.night_end_time.split(":")[0]);
 
-     
-
       // Handle cases where night period crosses midnight
       if (nightStartHour > nightEndHour) {
         // Night period crosses midnight (e.g., 20:00 to 05:00)
         // Time is in night hours if it's after start time OR before end time
         setIsNight(entryHour >= nightStartHour || entryHour <= nightEndHour);
-        
       } else {
         // Night period is within same day (e.g., 18:00 to 23:00)
         // Time is in night hours if it's between start and end time
         setIsNight(entryHour >= nightStartHour && entryHour <= nightEndHour);
-       
       }
     }
   }, [
@@ -150,8 +150,8 @@ const Index1 = () => {
     children,
     seatingCapacity,
     entrytime,
-    vehicles.night_start_time,
-    vehicles.night_end_time,
+    vehicles?.night_start_time,
+    vehicles?.night_end_time,
   ]);
 
   // Update handleGuestChange to check seating capacity
