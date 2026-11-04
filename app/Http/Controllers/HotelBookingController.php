@@ -3309,6 +3309,64 @@ class HotelBookingController extends Controller
      * @param Request $request
      * @return JsonResponse
      */
+    /**
+     * Preview hotel cancellation-policy charge for cancel / refund UI.
+     */
+    public function hotelCancellationCharge(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'tour_id' => 'required|integer',
+            'hotel_order_index' => 'nullable|integer|min:0',
+            'order_id' => 'nullable|integer',
+            'booking_id' => 'nullable|integer',
+        ]);
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => $validator->errors()->first(),
+            ], 422);
+        }
+
+        $tourId = (int) $request->tour_id;
+        $orderQuery = \App\Models\Order::withTrashed()
+            ->where('tour_id', $tourId)
+            ->where('type', 'hotel');
+        $order = null;
+        if ($request->filled('order_id')) {
+            $order = (clone $orderQuery)->where('id', (int) $request->order_id)->first();
+        } elseif ($request->filled('booking_id')) {
+            $order = (clone $orderQuery)->where('booking_id', (int) $request->booking_id)->first();
+        } elseif ($request->filled('hotel_order_index')) {
+            $order = (clone $orderQuery)
+                ->whereNull('deleted_at')
+                ->skip((int) $request->hotel_order_index)
+                ->first();
+        }
+
+        if (! $order) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Hotel order not found.',
+            ], 404);
+        }
+
+        $tour = Tour::where('tour_id', $tourId)->first();
+        $hotelPriceBase = null;
+        if ($tour) {
+            $capped = app(BookingsController::class)->resolveOrderRefundMaxForHotel($tour, $order);
+            $hotelPriceBase = (float) ($capped['amount'] ?? 0);
+        }
+        $calc = CommonHelper::calculateHotelCancellationCharge(
+            $order,
+            $hotelPriceBase !== null && $hotelPriceBase > 0 ? $hotelPriceBase : null
+        );
+
+        return response()->json([
+            'success' => true,
+            'data' => $calc,
+        ]);
+    }
+
     public function rejectHotelBooking(Request $request): JsonResponse
     {
         try {

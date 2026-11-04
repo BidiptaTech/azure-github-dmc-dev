@@ -42,8 +42,12 @@
             @endif
             @if($canReject)
             <button type="button" class="btn btn-sm svc-btn svc-btn-reject"
-                    onclick="window.rejectIndividualAttraction ? window.rejectIndividualAttraction({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}) : rejectIndividualAttraction({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})">
-                <i class="ri-close-line me-1"></i>Reject
+                    onclick="window.__cancelWithoutRefund=false; (window.rejectIndividualAttraction ? window.rejectIndividualAttraction({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}) : rejectIndividualAttraction({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}))">
+                <i class="ri-close-line me-1"></i>Cancel with refund
+            </button>
+            <button type="button" class="btn btn-sm svc-btn svc-btn-cancel-zero"
+                    onclick="window.__cancelWithoutRefund=true; (window.rejectIndividualAttraction ? window.rejectIndividualAttraction({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}) : rejectIndividualAttraction({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}))">
+                <i class="ri-close-circle-line me-1"></i>Cancel without refund
             </button>
             @endif
         @else

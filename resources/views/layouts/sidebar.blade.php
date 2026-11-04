@@ -703,6 +703,16 @@
                             </a>
                         </li>
                         @endif
+                        @if((int) Auth::user()->user_type === 1 && (int) Auth::user()->role_id === 1)
+                        <li class="menu-item @if(Request::is('quotation-templates') || Request::is('quotation-templates/*')) active @endif">
+                            <a href="{{ route('quotation-templates.index') }}" class="menu-link" title="Quotation Template Studio">
+                                <div data-i18n="Quotation Templates" class="menu-tooltip">
+                                    <span class="menu-text-with-tooltip">Quotation Templates</span>
+                                    <span class="tooltip-text">Quotation Template Studio</span>
+                                </div>
+                            </a>
+                        </li>
+                        @endif
                         @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 2)
                         <!-- Show Port -->
                         <li class="menu-item @if(Request::is('ports')) active @endif">
@@ -826,7 +836,7 @@
                 <!-- End Products Section -->
             @endif
 
-            @if(in_array(auth()->user()->role_id, [1,2,3,4,10,11,20]))
+            @if(in_array(auth()->user()->role_id, [1,2,3,4,10,11,20,138]))
               <!-- Finance & Wallet -->
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Finance">Finance</span>
@@ -859,11 +869,15 @@
                     </a>
                 </li>
                 @endif
+            @endif
+
+            {{-- View Reports: same tabs for admin/finance roles + multi-role 138 (sales+finance+operation+product) --}}
+            @if(in_array(auth()->user()->role_id, [1,2,3,4,10,11,20,33,37,38,128,129,130,134,135,136,138]))
               <!-- Reports -->
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="View Reports">View Reports</span>
                 </li>
-                <li class="menu-item @if(Request::is('reports/sales-revenue*') || Request::is('reports/ledger') || Request::is('reports/balance-sheet*') || Request::is('booking-list/daily-arrival')) open active @endif">
+                <li class="menu-item @if(Request::is('reports/sales-revenue*') || Request::is('reports/ledger') || Request::is('reports/balance-sheet*') || Request::is('reports/redeemed-restaurant-vouchers*') || Request::is('booking-list/daily-arrival')) open active @endif">
                     <a href="#" class="menu-link menu-toggle">
                         <i class="menu-icon tf-icons ri-bar-chart-box-line"></i>
                         <div data-i18n="Reports & Analytics">Reports & Analytics</div>
@@ -881,13 +895,18 @@
                                     <div data-i18n="Ledger Report">Ledger Report</div>
                                 </a>
                             </li>
+                            <li class="menu-item @if(Request::is('reports/redeemed-restaurant-vouchers*')) active @endif">
+                                <a href="{{ route('reports.redeemed-restaurant-vouchers') }}" class="menu-link">
+                                    <div data-i18n="Redeemed Voucher (Restaurant)">Redeemed Voucher (Restaurant)</div>
+                                </a>
+                            </li>
                         @endif
                         {{-- <li class="menu-item @if(Request::is('reports/balance-sheet')) active @endif">
                             <a href="{{ route('reports.balance-sheet') }}" class="menu-link">
                                 <div data-i18n="Balance Sheet & P&L">Balance Sheet & P&L</div>
                             </a>
                         </li> --}}
-                        @if(in_array(auth()->user()->role_id, [11, 36, 126,127]))
+                        @if(in_array(auth()->user()->role_id, [11, 36, 126, 127, 138]))
                             <li class="menu-item @if(Request::is('booking-list/daily-arrival')) active @endif">
                                 <a href="{{ route('booking-list.daily-arrival') }}" class="menu-link">
                                     <div data-i18n="Daily Arrival">Daily Arrival</div>
@@ -2631,28 +2650,109 @@
 </script> 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Open modal when Create Single Tour Pro is clicked
-        const createTourBtn = document.getElementById('createSingleTourProBtn');
-        if (createTourBtn) {
-            createTourBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                const modalEl = document.getElementById('createTourProModal');
-                const modal = new bootstrap.Modal(modalEl);
-                modal.show();
-                loadDestinations();
-                if (modalEl) {
-                    modalEl.addEventListener('shown.bs.modal', function onCtpShown() {
-                        modalEl.removeEventListener('shown.bs.modal', onCtpShown);
-                        ctpBindAgencyAgentHandlers();
-                        loadAgenciesForDmc();
-                        ctpInitTourProSelect2();
-                        if (typeof window.ctpApplyTourStartFloor === 'function') window.ctpApplyTourStartFloor();
-                        if (typeof ctpUpdateSubmitButtonState === 'function') ctpUpdateSubmitButtonState();
-                        if (typeof ctpBindLeadGuestAccordion === 'function') ctpBindLeadGuestAccordion();
-                    });
+        // Always use layout Bootstrap 5 snapshot (window.__ctpBootstrap / window.ctpBootstrap).
+        // Many templates load Bootstrap 4 later and replace window.bootstrap — that must not break CTP.
+        function ctpBs() {
+            if (typeof window.ctpBootstrap === 'function') return window.ctpBootstrap();
+            return window.__ctpBootstrap || window.bootstrap || null;
+        }
+        function ctpGetOrCreateModal(el, opts) {
+            if (typeof window.ctpGetOrCreateModal === 'function'
+                && window.ctpGetOrCreateModal !== ctpGetOrCreateModal) {
+                return window.ctpGetOrCreateModal(el, opts);
+            }
+            const bs = ctpBs();
+            if (!el || !bs || !bs.Modal) return null;
+            if (typeof bs.Modal.getOrCreateInstance === 'function') {
+                return bs.Modal.getOrCreateInstance(el, opts || {});
+            }
+            if (typeof bs.Modal.getInstance === 'function') {
+                const existing = bs.Modal.getInstance(el);
+                if (existing) return existing;
+            }
+            try {
+                return new bs.Modal(el, opts || {});
+            } catch (err) {
+                console.warn('Create Tour Pro: could not create Modal', err);
+                return null;
+            }
+        }
+        function ctpGetModalInstance(el) {
+            if (typeof window.ctpGetModalInstance === 'function'
+                && window.ctpGetModalInstance !== ctpGetModalInstance) {
+                return window.ctpGetModalInstance(el);
+            }
+            const bs = ctpBs();
+            if (!el || !bs || !bs.Modal) return null;
+            if (typeof bs.Modal.getInstance === 'function') return bs.Modal.getInstance(el);
+            return null;
+        }
+        function ctpCollapseShow(el) {
+            const bs = ctpBs();
+            if (!el) return;
+            if (bs && bs.Collapse) {
+                if (typeof bs.Collapse.getOrCreateInstance === 'function') {
+                    bs.Collapse.getOrCreateInstance(el, { toggle: false }).show();
+                    return;
                 }
+                if (typeof bs.Collapse.getInstance === 'function') {
+                    const existing = bs.Collapse.getInstance(el);
+                    if (existing) { existing.show(); return; }
+                }
+                try { new bs.Collapse(el, { toggle: false }).show(); return; } catch (e) { /* fall through */ }
+            }
+            el.classList.add('show');
+            document.getElementById('ctpLeadGuestToggle')?.classList.remove('collapsed');
+        }
+        function ctpInitTooltips(root) {
+            const bs = ctpBs();
+            if (!bs || !bs.Tooltip || !root) return;
+            root.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(t) {
+                try {
+                    if (typeof bs.Tooltip.getOrCreateInstance === 'function') {
+                        bs.Tooltip.getOrCreateInstance(t);
+                    } else {
+                        new bs.Tooltip(t);
+                    }
+                } catch (e3) { /* ignore */ }
             });
         }
+
+        function ctpOpenCreateTourProModal() {
+            const modalEl = document.getElementById('createTourProModal');
+            if (!modalEl) return;
+            if (modalEl.parentElement !== document.body) {
+                document.body.appendChild(modalEl);
+            }
+            const guestEl = document.getElementById('tourProGuestModal');
+            if (guestEl && guestEl.parentElement !== document.body) {
+                document.body.appendChild(guestEl);
+            }
+            const modal = (typeof window.ctpGetOrCreateModal === 'function')
+                ? window.ctpGetOrCreateModal(modalEl)
+                : ctpGetOrCreateModal(modalEl);
+            if (modal) modal.show();
+            if (typeof loadDestinations === 'function') loadDestinations();
+            modalEl.addEventListener('shown.bs.modal', function onCtpShown() {
+                modalEl.removeEventListener('shown.bs.modal', onCtpShown);
+                if (typeof ctpBindAgencyAgentHandlers === 'function') ctpBindAgencyAgentHandlers();
+                if (typeof loadAgenciesForDmc === 'function') loadAgenciesForDmc();
+                if (typeof ctpInitTourProSelect2 === 'function') ctpInitTourProSelect2();
+                if (typeof window.ctpApplyTourStartFloor === 'function') window.ctpApplyTourStartFloor();
+                if (typeof ctpUpdateSubmitButtonState === 'function') ctpUpdateSubmitButtonState();
+                if (typeof ctpBindLeadGuestAccordion === 'function') ctpBindLeadGuestAccordion();
+            });
+        }
+        window.ctpOpenCreateTourProModal = ctpOpenCreateTourProModal;
+
+        // Open modal when Create Single Tour Pro is clicked (delegation = works on every template)
+        document.addEventListener('click', function(e) {
+            const btn = e.target && e.target.closest ? e.target.closest('#createSingleTourProBtn') : null;
+            if (!btn) return;
+            e.preventDefault();
+            e.stopPropagation();
+            ctpOpenCreateTourProModal();
+        }, true);
 
         // Create Tour Pro — FIT pax vs Group (FOC + guest modal, Create Lite parity)
         // Auto FIT/GROUP from DMC group_pax (same rule as Lite: adults + children >= threshold → GROUP)
@@ -2777,12 +2877,7 @@
         function ctpExpandLeadGuestAccordion() {
             const body = document.getElementById('ctpLeadGuestBody');
             if (!body) return;
-            if (typeof bootstrap !== 'undefined' && bootstrap.Collapse) {
-                bootstrap.Collapse.getOrCreateInstance(body, { toggle: false }).show();
-            } else {
-                body.classList.add('show');
-                document.getElementById('ctpLeadGuestToggle')?.classList.remove('collapsed');
-            }
+            ctpCollapseShow(body);
         }
         function ctpBindLeadGuestAccordion() {
             const body = document.getElementById('ctpLeadGuestBody');
@@ -3379,15 +3474,20 @@
             ctpSyncTourTypeFromPax();
             if (focSec) focSec.classList.toggle('d-none', !ctpIsGroup());
             const el = document.getElementById('tourProGuestModal');
-            if (!el || !window.bootstrap) return;
-            const bm = bootstrap.Modal.getOrCreateInstance(el);
+            if (!el) return;
+            if (el.parentElement !== document.body) {
+                document.body.appendChild(el);
+            }
+            const bm = (typeof window.ctpGetOrCreateModal === 'function')
+                ? window.ctpGetOrCreateModal(el)
+                : ctpGetOrCreateModal(el);
+            if (!bm) {
+                console.error('Create Tour Pro: guest modal unavailable (Bootstrap Modal missing)');
+                return;
+            }
             el.addEventListener('shown.bs.modal', function onShown() {
                 el.removeEventListener('shown.bs.modal', onShown);
-                try {
-                    document.querySelectorAll('#tourProGuestModal [data-bs-toggle="tooltip"]').forEach(function(t) {
-                        bootstrap.Tooltip.getOrCreateInstance(t);
-                    });
-                } catch (e3) { /* ignore */ }
+                ctpInitTooltips(el);
                 ctpSyncTourTypeFromPax();
             }, { once: true });
             bm.show();
@@ -3455,7 +3555,7 @@
                 ctpSyncTourTypeFromPax();
                 ctpRenderGuestSummary();
                 const gmod = document.getElementById('tourProGuestModal');
-                const inst = gmod && window.bootstrap ? bootstrap.Modal.getInstance(gmod) : null;
+                const inst = ctpGetModalInstance(gmod);
                 if (inst) inst.hide();
             });
         }

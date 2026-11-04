@@ -290,7 +290,7 @@
             +           '<option value="P"' + pSel + '>Private</option>'
             +         '</select></div>'
             +       '<div class="attraction-mv-field attraction-mv-field--way"><label>Way</label>'
-            +         '<select class="form-select form-select-sm arr-dep-vehicle-way">'
+            +         '<select class="form-select form-select-sm arr-dep-vehicle-way" data-last-way="' + defaultWay + '">'
             +           '<option value="one-way"' + oneSel + '>1-Way</option>'
             +           '<option value="both-way"' + bothSel + '>2-Way</option>'
             +         '</select></div>'
@@ -377,6 +377,9 @@
                 var wayEl = row.querySelector('.arr-dep-vehicle-way');
                 if (wayEl && paxOpts && paxOpts.way) {
                     wayEl.value = paxOpts.way;
+                    wayEl.dataset.lastWay = paxOpts.way;
+                } else if (wayEl && !wayEl.dataset.lastWay) {
+                    wayEl.dataset.lastWay = wayEl.value || 'one-way';
                 }
                 window._arrDepVehicleForceCity = String(document.getElementById('mealDestination')?.value || '').trim();
                 if (typeof applyArrDepVehicleFilterToSelect === 'function') {
@@ -539,12 +542,7 @@
         var name = getRestaurantName();
         var opts = getRestaurantVehicleOptionsHtml();
         var existing = host.querySelector('.attraction-mv-panel');
-        var existingVehicles = null;
-        if (existing && typeof collectArrDepVehiclesPayload === 'function') {
-            try {
-                existingVehicles = collectArrDepVehiclesPayload(REST_MV_SIDE);
-            } catch (e) { existingVehicles = null; }
-        }
+        var hasExplicitSeed = Array.isArray(vehicles) && vehicles.length > 0;
         if (!existing || !host.querySelector('#restaurantVehicleRows')) {
             host.innerHTML = buildRestaurantTransferPanelHtml(name, opts);
         } else {
@@ -556,9 +554,18 @@
         window._arrDepVehicleForceCity = String(document.getElementById('mealDestination')?.value || '').trim();
         var container = document.getElementById('restaurantVehicleRows');
         var hasRows = !!(container && container.querySelector('.arr-dep-vehicle-row'));
-        var seed = Array.isArray(vehicles) && vehicles.length
-            ? vehicles
-            : (existingVehicles && existingVehicles.length ? existingVehicles : null);
+
+        // Attraction parity: Save calls ensure() with no seed — keep live rows so manual
+        // Cost/Sell + dataset.userEdited survive, then refreshRestaurantMvPrices can read them.
+        if (!hasExplicitSeed && hasRows) {
+            syncLegacyRestaurantTransferSelects();
+            if (typeof updateArrDepVehicleCoverage === 'function') {
+                updateArrDepVehicleCoverage(REST_MV_SIDE);
+            }
+            return host.querySelector('.attraction-mv-panel');
+        }
+
+        var seed = hasExplicitSeed ? vehicles : null;
         // Use window.addArrDepVehicleRow (patched accordion builder) — not the local table-row helper
         if (seed || !hasRows) {
             if (container) container.innerHTML = '';
@@ -594,11 +601,31 @@
                     );
                 }
             });
+            // Restore saved/manual units onto rebuilt rows (edit open / hydrate)
+            if (hasExplicitSeed) {
+                if (typeof fillArrDepRowUnitPrices === 'function') {
+                    fillArrDepRowUnitPrices(REST_MV_SIDE, list);
+                }
+                var hasManualUnits = list.some(function (v) {
+                    var c = parseFloat(v.unitCost != null ? v.unitCost : v.unit_cost);
+                    var s = parseFloat(v.unitSell != null ? v.unitSell : v.unit_sell);
+                    return (Number.isFinite(c) && c > 0) || (Number.isFinite(s) && s > 0)
+                        || v.userEdited === true || v.userEditedCost || v.userEditedSell;
+                });
+                if (hasManualUnits && typeof window.enquiryProMarkArrDepUnitsUserEdited === 'function') {
+                    window.enquiryProMarkArrDepUnitsUserEdited(REST_MV_SIDE);
+                }
+            }
         }
         if (typeof updateArrDepVehicleCoverage === 'function') {
             updateArrDepVehicleCoverage(REST_MV_SIDE);
         }
-        scheduleRestaurantMvPriceRefresh();
+        // Only zone-refresh when hydrating empty/new rows — not when restoring manual units
+        if (!hasExplicitSeed) {
+            scheduleRestaurantMvPriceRefresh();
+        } else {
+            syncLegacyRestaurantTransferSelects();
+        }
         return host.querySelector('.attraction-mv-panel');
     };
 
@@ -696,15 +723,29 @@
             var domRow = domRows[i];
             var ucEl = domRow?.querySelector('.arr-dep-unit-cost');
             var usEl = domRow?.querySelector('.arr-dep-unit-sell');
-            if (ucEl && ucEl.dataset.userEdited === '1') {
-                unitCost = parseFloat(ucEl.value) || unitCost;
-            } else if (ucEl) {
-                ucEl.value = unitCost.toFixed(2);
-            }
-            if (usEl && usEl.dataset.userEdited === '1') {
-                unitSell = parseFloat(usEl.value) || unitSell;
-            } else if (usEl) {
-                usEl.value = unitSell.toFixed(2);
+            var wayEl = domRow?.querySelector('.arr-dep-vehicle-way');
+            var costEdited = !!(ucEl && ucEl.dataset.userEdited === '1');
+            var sellEdited = !!(usEl && usEl.dataset.userEdited === '1');
+            // Manual Cost/Sell: keep typed units, but rescale 1-way ↔ both-way like zone pricing
+            if (costEdited || sellEdited) {
+                if (typeof window.enquiryProApplyManualUnitWayRescale === 'function') {
+                    var scaled = window.enquiryProApplyManualUnitWayRescale(domRow, way, {
+                        ucEl: ucEl, usEl: usEl, wayEl: wayEl
+                    });
+                    if (costEdited) unitCost = parseFloat(scaled.unitCost) || unitCost;
+                    if (sellEdited) unitSell = parseFloat(scaled.unitSell) || unitSell;
+                } else {
+                    if (costEdited) unitCost = parseFloat(ucEl.value) || unitCost;
+                    if (sellEdited) unitSell = parseFloat(usEl.value) || unitSell;
+                }
+            } else {
+                if (ucEl) ucEl.value = unitCost.toFixed(2);
+                if (usEl) usEl.value = unitSell.toFixed(2);
+                if (typeof window.enquiryProSeedTransferUnitLastWay === 'function') {
+                    window.enquiryProSeedTransferUnitLastWay(domRow, way);
+                } else if (wayEl) {
+                    wayEl.dataset.lastWay = way;
+                }
             }
             var lineCost = rowShared ? unitCost * billPax : unitCost * qty;
             var lineSell = rowShared ? unitSell * billPax : unitSell * qty;
