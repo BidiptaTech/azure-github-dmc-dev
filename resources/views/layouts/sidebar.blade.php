@@ -703,6 +703,16 @@
                             </a>
                         </li>
                         @endif
+                        @if((int) Auth::user()->user_type === 1 && (int) Auth::user()->role_id === 1)
+                        <li class="menu-item @if(Request::is('quotation-templates') || Request::is('quotation-templates/*')) active @endif">
+                            <a href="{{ route('quotation-templates.index') }}" class="menu-link" title="Quotation Template Studio">
+                                <div data-i18n="Quotation Templates" class="menu-tooltip">
+                                    <span class="menu-text-with-tooltip">Quotation Templates</span>
+                                    <span class="tooltip-text">Quotation Template Studio</span>
+                                </div>
+                            </a>
+                        </li>
+                        @endif
                         @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 2)
                         <!-- Show Port -->
                         <li class="menu-item @if(Request::is('ports')) active @endif">
