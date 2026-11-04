@@ -85,6 +85,7 @@ const Index1Zone = () => {
   const [children, setChildren] = useState(childrenMax);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isBookNowEnabled, setIsBookNowEnabled] = useState(false);
+  const [addedToCart, setAddedToCart] = useState(false);
 
   
 
@@ -226,8 +227,9 @@ const Index1Zone = () => {
       return;
     }
     lockCartDmc(dispatch, details);
+    setAddedToCart(true);
     toast.success("Added to cart successfully.");
-    navigate(`/app/cart`);
+    // navigate(`/app/cart`);
   };
 
  
@@ -281,11 +283,20 @@ const Index1Zone = () => {
         <button
           onClick={handlesubmit0}
           className={`button -dark-1 py-15 px-35 h-60 col-12 rounded-4 ${
-            isBookNowEnabled ? "bg-blue-1 text-white" : "bg-gray-1 text-gray-3"
+            addedToCart
+              ? "text-white"
+              : isBookNowEnabled
+                ? "bg-blue-1 text-white"
+                : "bg-gray-1 text-gray-3"
           }`}
+          style={
+            addedToCart
+              ? { backgroundColor: "#22c55e", borderColor: "#22c55e" }
+              : undefined
+          }
           disabled={!isBookNowEnabled}
         >
-          Add to Cart
+          {addedToCart ? "Added to Cart" : "Add to Cart"}
         </button>
 
         {/* Night charges warning message */}

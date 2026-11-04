@@ -68,6 +68,7 @@ const Index5 = () => {
   // const nightEndTime = vehicles.night_end_time;
   const seatingCapacity = vehicles?.seating_capacity;
   const [isBookNowEnabled, setIsBookNowEnabled] = useState(false);
+  const [addedToCart, setAddedToCart] = useState(false);
   //const [isNight, setIsNight] = useState(false);
   const entryytime = useSelector((state) => state.localtour.entrytime);
 
@@ -328,8 +329,9 @@ const Index5 = () => {
       return;
     }
     lockCartDmc(dispatch, details);
+    setAddedToCart(true);
     toast.success("Added to cart successfully.");
-    navigate(`/app/cart`);
+    // navigate(`/app/cart`);
 
     // const data = {
     //   pickUpLocation,
@@ -490,11 +492,20 @@ const Index5 = () => {
         <button
           onClick={handlesubmit0}
           className={`button -dark-1 py-15 px-35 h-60 col-12 rounded-4 ${
-            isBookNowEnabled ? "bg-blue-1 text-white" : "bg-gray-1 text-gray-3"
+            addedToCart
+              ? "text-white"
+              : isBookNowEnabled
+                ? "bg-blue-1 text-white"
+                : "bg-gray-1 text-gray-3"
           }`}
+          style={
+            addedToCart
+              ? { backgroundColor: "#22c55e", borderColor: "#22c55e" }
+              : undefined
+          }
           disabled={!isBookNowEnabled} // Disable button if not enabled
         >
-          Add to Cart
+          {addedToCart ? "Added to Cart" : "Add to Cart"}
         </button>
         {/* {isNight && (
           <div className="text-14 mt-10" style={{ color: "#E53935" }}>
