@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Link, useNavigate } from "react-router-dom";
 import {
   FormControl,
   FormControlLabel,
@@ -20,6 +19,7 @@ import {
   settourid,
 } from "@/slice/hotel/HotelAvailabilitySlice";
 import HotelCardImages from "./HotelCardImages";
+import HotelRoomSelectModal from "./HotelRoomSelectModal";
 import {
   Card,
   CardContent,
@@ -39,6 +39,7 @@ import SortBy from "./sortBy";
 import { fetchHotels } from "@/slice/hotel/hotelSlice";
 import InfiniteScroll from "react-infinite-scroll-component";
 import { debounce } from "lodash";
+import moment from "moment";
 //import state from "sweetalert/typings/modules/state";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, Pagination } from "swiper";
@@ -54,7 +55,12 @@ export default function HotelProperties() {
 
   // const { state } = useLocation();
   const dispatch = useDispatch();
-  const navigate = useNavigate();
+
+  const [roomModalOpen, setRoomModalOpen] = useState(false);
+  const [selectedHotel, setSelectedHotel] = useState(null);
+  const [roomModalLoading, setRoomModalLoading] = useState(false);
+  const [roomModalPriceMode, setRoomModalPriceMode] = useState(null);
+  const [roomModalPriceModeId, setRoomModalPriceModeId] = useState(null);
 
   // Get currency information from Redux store
   const currencySymbol = useSelector((state) => state.auth.currencySymbol);
@@ -82,10 +88,21 @@ export default function HotelProperties() {
   const sortOption = useSelector((state) => state.category.sortOption);
   const filters = useSelector((state) => state.category) || {};
   const tour_id = useSelector((state) => state.hotels.id);
+  const tourdetails = useSelector((state) => state.hotels?.tourdetails);
+  const searchState = useSelector((state) => state.hotels?.searchState);
   const priceMode = useSelector((state) => state.category.priceMode);
   const globalPriceMode = useSelector((state) => state.category.priceMode);
   const bookingType = useSelector((state) => state.common.bookingType);
   const dataMode = useSelector((state) => state.dmc?.dataMode || "online");
+
+  const tripNights = (() => {
+    const checkIn = tourdetails?.CheckInTime || searchState?.ucheckIn;
+    const checkOut = tourdetails?.CheckOutTime || searchState?.ucheckOut;
+    const a = moment(checkIn, ["DD/MM/YYYY", "YYYY-MM-DD"]);
+    const b = moment(checkOut, ["DD/MM/YYYY", "YYYY-MM-DD"]);
+    if (!a.isValid() || !b.isValid()) return 1;
+    return Math.max(1, b.diff(a, "days"));
+  })();
 
   const [loading, setLoading] = useState(false);
   const { hotels, hasMore, status, start } = useSelector(
@@ -542,10 +559,15 @@ export default function HotelProperties() {
   //   currentPage * itemsPerPage
   // );
 
-  const handleViewDetails = (id) => {
-    const selectedHotel = hotels.find((hotel) => hotel.id === id);
+  const handleRoomModalClose = () => {
+    setRoomModalOpen(false);
+    setRoomModalLoading(false);
+  };
 
-    if (selectedHotel) {
+  const handleViewDetails = (id) => {
+    const hotel = hotels.find((h) => h.id === id);
+
+    if (hotel) {
       let selectedMode = "dmc"; // Default mode
       let priceModeId = null;
 
@@ -556,41 +578,31 @@ export default function HotelProperties() {
 
         // Set the appropriate price mode ID based on the selected mode
         if (selectedMode === "dmc") {
-          priceModeId = selectedHotel.dmc_id;
+          priceModeId = hotel.dmc_id;
         } else {
-          priceModeId = selectedHotel.travclicks_id;
+          priceModeId = hotel.travclicks_id;
         }
       }
       // If no explicit selection, use DMC if available, otherwise travclicks
       else {
-        if (selectedHotel.dmc_price > 0) {
+        if (hotel.dmc_price > 0) {
           selectedMode = "dmc";
-        } else if (selectedHotel.travclicks_price > 0) {
+        } else if (hotel.travclicks_price > 0) {
           selectedMode = "travclick"; // Changed from "marketplace" to "travclick"
-          priceModeId = selectedHotel.travclicks_id;
+          priceModeId = hotel.travclicks_id;
         }
       }
 
       // Ensure we have a valid price mode ID
       if (!priceModeId) {
-        console.error("No valid price mode ID found for hotel:", selectedHotel);
+        console.error("No valid price mode ID found for hotel:", hotel);
         // Fallback to any available ID
-        priceModeId = selectedHotel.dmc_id || selectedHotel.travclicks_id;
+        priceModeId = hotel.dmc_id || hotel.travclicks_id;
       }
 
-      // Log the selected hotel data before dispatching
-      // console.log("Selected hotel for details:", {
-      //   id: selectedHotel.id,
-      //   hotel_id: selectedHotel.hotel_id,
-      //   hotel_name: selectedHotel.hotel_name,
-      //   selectedMode: selectedMode,
-      //   priceModeId: priceModeId,
-      //   full_hotel: selectedHotel
-      // });
-
-      dispatch(setHotelDetails(selectedHotel));
-      dispatch(setCheckoutHotel(selectedHotel));
-      dispatch(setHotelImages(selectedHotel.images));
+      dispatch(setHotelDetails(hotel));
+      dispatch(setCheckoutHotel(hotel));
+      dispatch(setHotelImages(hotel.images));
       dispatch(setId(id));
       dispatch(settourid(tour_id));
 
@@ -598,25 +610,30 @@ export default function HotelProperties() {
       dispatch(setPriceMode(selectedMode));
       dispatch(setPriceModeId(priceModeId));
 
+      setSelectedHotel(hotel);
+      setRoomModalPriceMode(selectedMode);
+      setRoomModalPriceModeId(priceModeId);
+      setRoomModalLoading(true);
+      setRoomModalOpen(true);
+
       dispatch(
         fetchRoomData({
           id,
-          hotel_id: selectedHotel.hotel_id || id,
+          hotel_id: hotel.hotel_id || id,
           tour_id,
           priceMode: selectedMode, // Keep this as string for API compatibility
           priceModeId: priceModeId,
-          dmc_id: selectedHotel.dmc_id,
-          online: selectedHotel.data_mode === "online",
+          dmc_id: hotel.dmc_id,
+          online: hotel.data_mode === "online",
         })
-      );
-
-      navigate("/app/hotel-details", {
-        state: {
-          hotel: selectedHotel,
-          priceMode: selectedMode, // Keep this as string for hotel details page compatibility
-          priceModeId: priceModeId,
-        },
-      });
+      )
+        .unwrap()
+        .catch(() => {
+          // Keep modal open so HotelRoomSelectModal can show the failed state
+        })
+        .finally(() => {
+          setRoomModalLoading(false);
+        });
     }
   };
 
@@ -715,15 +732,40 @@ export default function HotelProperties() {
             const displayUsdTravClicksPrice = usdtravClicksPrice;
             const starRating =
               parseFloat((item?.category || "").replace(/[^\d.]/g, "")) || 0;
+            const hotelImages = (
+              item?.site_image?.length
+                ? item.site_image
+                : item?.images?.length
+                  ? item.images
+                  : item?.room_image?.length
+                    ? item.room_image
+                    : []
+            ).filter(Boolean);
+            const fromNightPrice = isDmcAvailable
+              ? dmcPrice
+              : isTravclicksAvailable
+                ? travClicksPrice
+                : 0;
+            const tripTotalPrice = fromNightPrice * tripNights;
+            const amenityLine = [
+              typeof item?.meal_plan === "string" && item.meal_plan
+                ? item.meal_plan
+                : item?.breakfast === 1 || item?.breakfast === true
+                  ? "Breakfast included"
+                  : "Room options available",
+              item?.refundable ? "Refundable option available" : null,
+            ]
+              .filter(Boolean)
+              .join(" · ");
 
             return (
               <div className="col-12" key={item.id}>
-                <div className="border-top-light pt-30">
+                <article className="border-top-light pw-hotel-card">
                   <div
                     className="row x-gap-20 y-gap-20"
                     style={{ alignItems: "stretch" }}
                   >
-                    <div className="col-md-auto">
+                    <div className="col-md-auto pw-hotel-card__media">
                       <div className="cardImage ratio ratio-1:1 w-250 md:w-1/1 rounded-4">
                         <div className="cardImage__content">
                           <div className="cardImage-slider rounded-4 custom_inside-slider">
@@ -733,18 +775,13 @@ export default function HotelProperties() {
                               pagination={{ clickable: true }}
                               navigation={true}
                             >
-                              {item?.room_image?.length > 0 ? (
-                                item.site_image.map((slide, i) => (
+                              {hotelImages.length > 0 ? (
+                                hotelImages.map((slide, i) => (
                                   <SwiperSlide key={i}>
                                     <img
                                       className="rounded-4 col-12 js-lazy"
-                                      src={slide}
+                                      src={typeof slide === "string" ? slide : slide?.url || slide?.image}
                                       alt={item?.hotel_name || "hotel"}
-                                      style={{
-                                        objectFit: "cover",
-                                        height: "220px",
-                                        width: "100%",
-                                      }}
                                     />
                                   </SwiperSlide>
                                 ))
@@ -757,149 +794,46 @@ export default function HotelProperties() {
                                       e.target.src = "travclick.png";
                                     }}
                                     alt={item?.hotel_name || "hotel"}
-                                    style={{
-                                      objectFit: "cover",
-                                      height: "220px",
-                                      width: "100%",
-                                    }}
                                   />
                                 </SwiperSlide>
                               )}
                             </Swiper>
                           </div>
                         </div>
-                        <div className="cardImage__wishlist">
-                          <button className="button -blue-1 bg-white size-30 rounded-full shadow-2">
-                            <i className="icon-heart text-12"></i>
-                          </button>
-                        </div>
                       </div>
                     </div>
 
-                    <div
-                      className="col-md"
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        justifyContent: "center",
-                        minWidth: 0,
-                      }}
-                    >
-                      <div className="d-flex flex-wrap items-center gap-2 mb-5">
-                        <h3
-                          className="text-18 lh-16 fw-500 mb-0"
-                          style={{ marginRight: "8px" }}
-                        >
-                          {item?.hotel_name}
-                        </h3>
-                        {starRating > 0 && (
-                          <div className="d-flex items-center">
-                            <Rating
-                              value={starRating}
-                              readOnly
-                              precision={0.5}
-                              size="small"
-                            />
-                            <span
-                              className="text-12 text-light-1 ml-5"
-                              style={{ whiteSpace: "nowrap" }}
-                            >
-                              {starRating}-Star
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      {item?.location && (
-                        <div
-                          className="d-flex items-start pt-5"
-                          style={{ maxWidth: "100%" }}
-                        >
-                          <i
-                            className="icon-location-2 text-14 text-blue-1 mr-5"
-                            style={{ marginTop: "3px", flexShrink: 0 }}
-                          ></i>
-                          <p
-                            className="text-14 text-light-1 mb-0"
-                            style={{
-                              display: "-webkit-box",
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: "vertical",
-                              overflow: "hidden",
-                              lineHeight: 1.45,
-                            }}
-                            title={item.location}
-                          >
-                            {item.location}
-                          </p>
+                    <div className="col-md pw-hotel-card__body">
+                      {starRating > 0 && (
+                        <div className="pw-hotel-card__stars">
+                          <Rating
+                            value={starRating}
+                            readOnly
+                            precision={0.5}
+                            size="small"
+                          />
+                          <span>{starRating}-star</span>
                         </div>
                       )}
-
-                      <div className="d-flex items-center flex-wrap gap-2 pt-15">
-                        <div className="border-light rounded-100 py-3 px-10 text-12 lh-14">
-                          <i className="icon-wifi text-blue-1 mr-5"></i>
-                          WiFi
-                        </div>
-                        <div className="border-light rounded-100 py-3 px-10 text-12 lh-14">
-                          <i className="icon-coffee text-blue-1 mr-5"></i>
-                          Breakfast
-                        </div>
-                        <div className="border-light rounded-100 py-3 px-10 text-12 lh-14">
-                          <i className="icon-parking text-blue-1 mr-5"></i>
-                          Parking
-                        </div>
-                        <div className="border-light rounded-100 py-3 px-10 text-12 lh-14">
-                          <i className="icon-pool text-blue-1 mr-5"></i>
-                          Pool
-                        </div>
-                      </div>
-
-                      <div className="d-flex flex-wrap gap-2 mt-15">
-                        <Chip
-                          label="Family Friendly"
-                          size="small"
-                          color="primary"
-                          variant="outlined"
-                          icon={<CheckIcon fontSize="small" />}
-                          sx={{
-                            height: "24px",
-                            "& .MuiChip-label": { fontSize: "11px", px: 1 },
-                            "& .MuiChip-icon": { fontSize: "14px" },
-                          }}
-                        />
-                        <Chip
-                          label="Business"
-                          size="small"
-                          color="primary"
-                          variant="outlined"
-                          icon={<CheckIcon fontSize="small" />}
-                          sx={{
-                            height: "24px",
-                            "& .MuiChip-label": { fontSize: "11px", px: 1 },
-                            "& .MuiChip-icon": { fontSize: "14px" },
-                          }}
-                        />
-                      </div>
+                      <h3 className="pw-hotel-card__title">{item?.hotel_name}</h3>
+                      {item?.location && (
+                        <p className="pw-hotel-card__location" title={item.location}>
+                          <i className="icon-location-2" />
+                          <span>{item.location}</span>
+                        </p>
+                      )}
+                      {amenityLine && (
+                        <p className="pw-hotel-card__meta">{amenityLine}</p>
+                      )}
+                      {(item?.rating || item?.guest_rating) && (
+                        <span className="pw-hotel-card__rating">
+                          {Number(item.rating || item.guest_rating).toFixed(1)} Guest rating
+                        </span>
+                      )}
                     </div>
 
-                    <div
-                      className="col-md-auto"
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <div
-                        className="d-flex flex-column align-items-center pw-card-action"
-                        style={{
-                          minWidth: 0,
-                          width: "100%",
-                          height: "100%",
-                          justifyContent: "center",
-                          padding: SHOW_PRICE_DETAILS ? "0" : "8px",
-                        }}
-                      >
+                    <div className="col-md-auto pw-hotel-card__action">
+                      <div className="pw-card-action">
                         {SHOW_PRICE_DETAILS &&
                           (isDmcAvailable || isTravclicksAvailable) && (
                           <Box sx={{ mt: 1, fontSize: "14px", width: "100%" }}>
@@ -1203,11 +1137,30 @@ export default function HotelProperties() {
                           </Typography>
                         )}
 
+                        {!SHOW_PRICE_DETAILS &&
+                          PriceHide === "0" &&
+                          fromNightPrice > 0 && (
+                          <div className="pw-hotel-card__price">
+                            <span className="pw-hotel-card__price-label">
+                              From / room / night
+                            </span>
+                            <strong className="pw-hotel-card__price-night">
+                              {currencyCode} {fromNightPrice.toFixed(2)}
+                            </strong>
+                            <span className="pw-hotel-card__price-total">
+                              {currencyCode} {tripTotalPrice.toFixed(2)} trip total
+                            </span>
+                            <span className="pw-hotel-card__price-note">
+                              Includes taxes where available
+                            </span>
+                          </div>
+                        )}
+
                         <Button
                           variant="contained"
                           color="primary"
                           onClick={() => handleViewDetails(item.id)}
-                          className="button -md -dark-1 bg-blue-1 text-white py-10 w-100"
+                          className="button -md -dark-1 bg-blue-1 text-white py-10 w-100 pw-hotel-card__cta"
                           sx={{
                             borderRadius: "8px",
                             padding: "10px 12px",
@@ -1227,7 +1180,7 @@ export default function HotelProperties() {
                       </div>
                     </div>
                   </div>
-                </div>
+                </article>
               </div>
             );
           })
@@ -1323,6 +1276,15 @@ export default function HotelProperties() {
           ))}
         {!hasMore && <p>No more hotels available.</p>}
       </InfiniteScroll>
+
+      <HotelRoomSelectModal
+        open={roomModalOpen}
+        onClose={handleRoomModalClose}
+        hotel={selectedHotel}
+        loading={roomModalLoading}
+        priceMode={roomModalPriceMode}
+        priceModeId={roomModalPriceModeId}
+      />
     </>
   );
 }
