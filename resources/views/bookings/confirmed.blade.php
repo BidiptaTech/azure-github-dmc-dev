@@ -2821,9 +2821,15 @@
                                                      @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                      <button type="button" 
                                                             class="btn btn-outline-danger btn-sm px-2 py-1" 
-                                                             onclick="rejectIndividualRestaurant({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}, '{{ $actualCancelDateStr }}')"
+                                                             onclick="window.__cancelWithoutRefund=false; rejectIndividualRestaurant({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}, '{{ $actualCancelDateStr }}')"
                                                             style="border-radius: 6px; font-size: 0.75rem;">
-                                                        <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Cancel
+                                                        <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Cancel with refund
+                                                     </button>
+                                                     <button type="button" 
+                                                            class="btn btn-outline-secondary btn-sm px-2 py-1 svc-btn-cancel-zero" 
+                                                             onclick="window.__cancelWithoutRefund=true; rejectIndividualRestaurant({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}, '{{ $actualCancelDateStr }}')"
+                                                            style="border-radius: 6px; font-size: 0.75rem;">
+                                                        <i class="ri-close-circle-line me-1" style="font-size: 0.7rem;"></i>Cancel without refund
                                                      </button>
                                                      @endif
                                                  </div>
@@ -3086,9 +3092,15 @@
                                                      @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
                                                      <button type="button" 
                                                             class="btn btn-outline-danger btn-sm px-2 py-1" 
-                                                             onclick="rejectIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
+                                                             onclick="window.__cancelWithoutRefund=false; rejectIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
                                                             style="border-radius: 6px; font-size: 0.75rem;">
-                                                        <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Cancel
+                                                        <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Cancel with refund
+                                                     </button>
+                                                     <button type="button" 
+                                                            class="btn btn-outline-secondary btn-sm px-2 py-1 svc-btn-cancel-zero" 
+                                                             onclick="window.__cancelWithoutRefund=true; rejectIndividualGuide({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
+                                                            style="border-radius: 6px; font-size: 0.75rem;">
+                                                        <i class="ri-close-circle-line me-1" style="font-size: 0.7rem;"></i>Cancel without refund
                                                      </button>
                                                      @endif
                                                  </div>
@@ -4991,9 +5003,15 @@ function generateIndividualGuideContent(guideBooking, modalId, tourId, guideOrde
                     buttonsHTML += `
                         <button type="button" 
                                 class="btn btn-outline-danger btn-sm px-2 py-1" 
-                                onclick="rejectIndividualGuide(${tourId}, ${guideOrderIndex}, ${bookingIndex})"
+                                onclick="window.__cancelWithoutRefund=false; rejectIndividualGuide(${tourId}, ${guideOrderIndex}, ${bookingIndex})"
                                 style="border-radius: 6px; font-size: 0.75rem;">
-                            <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Cancel
+                            <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Cancel with refund
+                        </button>
+                        <button type="button" 
+                                class="btn btn-outline-secondary btn-sm px-2 py-1 svc-btn-cancel-zero" 
+                                onclick="window.__cancelWithoutRefund=true; rejectIndividualGuide(${tourId}, ${guideOrderIndex}, ${bookingIndex})"
+                                style="border-radius: 6px; font-size: 0.75rem;">
+                            <i class="ri-close-circle-line me-1" style="font-size: 0.7rem;"></i>Cancel without refund
                         </button>
                     `;
                 }
@@ -8858,8 +8876,12 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                 if (canReject) {
                     buttonsHTML += `
                         <button type="button" class="btn btn-sm svc-btn svc-btn-reject"
-                                onclick="window.rejectIndividualAttraction ? window.rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}') : rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')">
-                            <i class="ri-close-line me-1"></i>Cancel
+                                onclick="window.__cancelWithoutRefund=false; window.rejectIndividualAttraction ? window.rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}') : rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')">
+                            <i class="ri-close-line me-1"></i>Cancel with refund
+                        </button>
+                        <button type="button" class="btn btn-sm svc-btn svc-btn-cancel-zero"
+                                onclick="window.__cancelWithoutRefund=true; window.rejectIndividualAttraction ? window.rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}') : rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')">
+                            <i class="ri-close-circle-line me-1"></i>Cancel without refund
                         </button>
                     `;
                 }
@@ -9425,9 +9447,15 @@ function loadIndividualRestaurantContent(tourId, restaurantOrderIndex, bookingIn
                         buttonsHTML += `
                             <button type="button" 
                                     class="btn btn-outline-danger btn-sm px-2 py-1" 
-                                    onclick="rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')"
+                                    onclick="window.__cancelWithoutRefund=false; rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')"
                                     style="border-radius: 6px; font-size: 0.75rem;">
-                                <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Cancel
+                                <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Cancel with refund
+                            </button>
+                            <button type="button" 
+                                    class="btn btn-outline-secondary btn-sm px-2 py-1 svc-btn-cancel-zero" 
+                                    onclick="window.__cancelWithoutRefund=true; rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')"
+                                    style="border-radius: 6px; font-size: 0.75rem;">
+                                <i class="ri-close-circle-line me-1" style="font-size: 0.7rem;"></i>Cancel without refund
                             </button>
                         `;
                     }
@@ -9618,8 +9646,13 @@ function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, 
             ${[11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRole) ? `
                 <button type="button" 
                         class="btn btn-sm svc-btn svc-btn-reject" 
-                        onclick="rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${autoCancelDate}')">
-                    <i class="ri-close-line me-1"></i>Cancel
+                        onclick="window.__cancelWithoutRefund=false; rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${autoCancelDate}')">
+                    <i class="ri-close-line me-1"></i>Cancel with refund
+                </button>
+                <button type="button" 
+                        class="btn btn-sm svc-btn svc-btn-cancel-zero" 
+                        onclick="window.__cancelWithoutRefund=true; rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${autoCancelDate}')">
+                    <i class="ri-close-circle-line me-1"></i>Cancel without refund
                 </button>
             ` : ''}
             <button type="button" 

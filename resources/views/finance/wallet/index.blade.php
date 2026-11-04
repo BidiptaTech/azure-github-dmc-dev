@@ -19,55 +19,31 @@
             </div>
         @endif
 
-        @php $isTravclicks = ($roleGroup ?? '') === 'travclicks_owner'; @endphp
+        @php
+            $isTravclicks = ($roleGroup ?? '') === 'travclicks_owner';
+            $canAllocate = (bool) ($canAllocate ?? false);
+        @endphp
 
         <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
             <div>
                 <h4 class="mb-1">Wallet Management</h4>
                 <p class="text-muted mb-0">
                     @if($isTravclicks)
-                        Travclicks → DMC funding · spend record only (no Travclicks balance)
+                        Travclicks → DMC funding · DMC wallet balances and ledger
                     @else
                         {{ $ownerDisplayName ?? 'Wallet' }} · {{ $currency ?? 'SGD' }} wallet
                     @endif
                 </p>
             </div>
             @unless($isTravclicks)
-            <a href="{{ route('finance.wallet.transactions', !empty($isAdmin) ? ['scope' => 'master_dmc_flow'] : array_filter(['owner_type' => $ownerType ?? null, 'owner_id' => $ownerId ?? null, 'currency' => $currency ?? null])) }}"
+            <a href="{{ route('finance.wallet.transactions', array_filter(['owner_type' => $ownerType ?? null, 'owner_id' => $ownerId ?? null, 'currency' => $currency ?? null])) }}"
                class="btn btn-primary btn-sm">
-                <i class="ri-pulse-line me-1"></i> Master DMC Fund Flow
+                <i class="ri-pulse-line me-1"></i> Wallet Transactions
             </a>
             @endunless
         </div>
 
-        @if($isTravclicks)
-            {{-- Travclicks: only spend-to-DMC totals by currency --}}
-            <div class="row mb-4">
-                @forelse(($travclicksSpendByCurrency ?? []) as $spend)
-                    <div class="col-md-3 mb-3">
-                        <div class="card h-100 border-0 shadow-sm">
-                            <div class="card-body d-flex align-items-center gap-3">
-                                <div class="bg-danger text-white rounded-circle d-flex align-items-center justify-content-center" style="width:48px;height:48px">
-                                    <i class="ri-send-plane-line ri-xl"></i>
-                                </div>
-                                <div>
-                                    <div class="text-muted small">Spent to DMC ({{ $spend['currency'] }})</div>
-                                    <div class="fs-4 fw-bold">{{ $spend['currency'] }} {{ number_format((float) $spend['amount'], 2) }}</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                @empty
-                    <div class="col-12 mb-3">
-                        <div class="card border-0 shadow-sm">
-                            <div class="card-body">
-                                <div class="text-muted">No spend to DMC yet. Send funds below — amount uses the DMC’s currency.</div>
-                            </div>
-                        </div>
-                    </div>
-                @endforelse
-            </div>
-        @else
+        @unless($isTravclicks)
             {{-- Balance cards (Master DMC / DMC / others) --}}
             <div class="row mb-4">
                 <div class="col-md-3 mb-3">
@@ -123,10 +99,10 @@
                     </div>
                 </div>
             </div>
-        @endif
+        @endunless
 
         <div class="row">
-            @if(in_array($roleGroup, ['travclicks_owner', 'master_dmc', 'dmc'], true))
+            @if($canAllocate)
                 <div class="col-lg-4 mb-4">
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-header bg-transparent">
@@ -152,7 +128,12 @@
                                     </p>
                                     <div class="mb-3">
                                         <label class="form-label">DMC</label>
-                                        <select id="travclicks_dmc_select" class="form-select" required></select>
+                                        <div class="position-relative">
+                                            <input type="text" id="travclicks_dmc_search" class="form-control pe-5" placeholder="Select DMC" autocomplete="off">
+                                            <i class="ri-arrow-down-s-line position-absolute top-50 end-0 translate-middle-y me-2 text-muted" style="pointer-events:none"></i>
+                                            <div id="travclicks_dmc_list" class="position-absolute w-100 d-none" style="z-index:1050;max-height:240px;overflow-y:auto;background:#fff;border:1px solid #d9dee3;border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,.15);margin-top:2px;"></div>
+                                        </div>
+                                        <select id="travclicks_dmc_select" class="d-none"></select>
                                         <div id="travclicks_dmcs_loading" class="text-muted small mt-1" style="display:none;">
                                             Loading DMCs...
                                         </div>
@@ -194,15 +175,23 @@
                                     </div>
                                 </div>
 
+                                @if($roleGroup === 'travclicks_owner')
+                                <div class="mb-3">
+                                    <label class="form-label">Amount <span class="text-muted fw-normal">(SGD)</span></label>
+                                    <input type="number" name="sgd_amount" id="sgd_amount" class="form-control" step="0.01" min="0.01" required placeholder="0.00" value="{{ old('sgd_amount') }}">
+                                    <div class="form-text small" id="sgd_rate_note"></div>
+                                </div>
+                                @endif
+
                                 <div class="mb-3">
                                     <label class="form-label">
                                         Amount
                                         <span class="text-muted fw-normal" id="allocator_currency_label"></span>
                                     </label>
-                                    <input type="number" name="topup_amount" id="topup_amount" class="form-control" step="0.01" min="0.01" required placeholder="0.00" value="{{ old('topup_amount') }}">
+                                    <input type="number" name="topup_amount" id="topup_amount" class="form-control" step="0.01" min="0.01" placeholder="0.00" value="{{ old('topup_amount') }}" @if($roleGroup === 'travclicks_owner') readonly @else required @endif>
                                     <div class="form-text small" id="amount_help_text">
                                         @if($roleGroup === 'travclicks_owner')
-                                            Credited to the DMC in the currency selected above
+                                            Auto-calculated from the SGD amount; credited to the DMC in the currency selected above
                                         @else
                                             Debited from your wallet in <strong id="allocator_currency_text">{{ $allocatorCurrency ?? 'SGD' }}</strong>
                                         @endif
@@ -227,6 +216,11 @@
                                     <input type="text" name="ledger_description" class="form-control" placeholder="e.g. Wallet funding" maxlength="255">
                                 </div>
 
+                                <div class="mb-3">
+                                    <label class="form-label">Reference ID or Transaction ID <span class="text-danger">*</span></label>
+                                    <input type="text" name="reference_id" class="form-control" placeholder="Enter your Reference ID or Transaction ID" maxlength="100" value="{{ old('reference_id') }}" required>
+                                </div>
+
                                 <button type="submit" class="btn btn-primary w-100">
                                     <i class="ri-wallet-3-line me-1"></i>
                                     {{ $roleGroup === 'travclicks_owner' ? 'Send to DMC' : 'Allocate Wallet' }}
@@ -237,7 +231,12 @@
                 </div>
             @endif
 
-            <div class="{{ in_array($roleGroup, ['travclicks_owner','master_dmc','dmc'], true) ? 'col-lg-8' : 'col-12' }} mb-4">
+            @if(!empty($dmcDrill))
+            <div class="{{ $canAllocate ? 'col-lg-8' : 'col-12' }} mb-4">
+                @include('finance.partials.dmc-ledger', ['dmcDrill' => $dmcDrill])
+            </div>
+            @else
+            <div class="col-12 mb-4">
                 @include('finance.partials.wallet-ledger', [
                     'ledger' => $ledger,
                     'ledgerFilters' => $ledgerFilters ?? null,
@@ -253,7 +252,14 @@
                     'showReferenceColumn' => true,
                 ])
             </div>
+            @endif
         </div>
+
+        @if(!empty($dmcDrill))
+            <div class="mb-4">
+                @include('finance.partials.dmc-ledger-detail')
+            </div>
+        @endif
 
     </div>
 </div>
@@ -262,28 +268,43 @@
 @section('scripts')
 <script>
     const roleGroup = {!! json_encode($roleGroup) !!};
+    const canAllocate = {!! json_encode($canAllocate) !!};
     const topUpTargets = {!! json_encode($topUpTargets ?? []) !!};
     const currenciesUrl = {!! json_encode(route('finance.wallet.dropdowns.currencies')) !!};
     const convertPreviewUrl = {!! json_encode(route('finance.wallet.convert-preview')) !!};
+    const sgdPreviewUrl = {!! json_encode(route('finance.wallet.sgd-preview')) !!};
     const allocatorCurrency = {!! json_encode($allocatorCurrency ?? 'SGD') !!};
 
     let fxPreviewTimer = null;
+
+    // The layout reloads jQuery after the head loads Select2, so load the plugin on demand.
+    let select2Loading = null;
+    function loadSelect2() {
+        if (typeof $.fn.select2 === 'function') return Promise.resolve();
+        select2Loading = select2Loading || new Promise((resolve, reject) => {
+            const tag = document.createElement('script');
+            tag.src = 'https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-beta.1/js/select2.min.js';
+            tag.onload = resolve;
+            tag.onerror = reject;
+            document.head.appendChild(tag);
+        });
+        return select2Loading;
+    }
 
     function ensureSelect2(selector) {
         const el = $(selector);
         if (!el.length) return null;
 
-        if (typeof el.select2 !== 'function') {
-            return el;
-        }
-
-        if (el.data('select2')) {
-            el.select2('destroy');
-        }
-        el.select2({
-            width: '100%',
-            allowClear: true,
-            placeholder: 'Select...'
+        loadSelect2().then(() => {
+            if (el.data('select2')) {
+                el.select2('destroy');
+            }
+            el.select2({
+                width: '100%',
+                minimumResultsForSearch: 0,
+                allowClear: true,
+                placeholder: 'Select...'
+            });
         });
         return el;
     }
@@ -495,6 +516,10 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
+        if (!canAllocate) {
+            return;
+        }
+
         const amountInput = document.getElementById('topup_amount');
         const targetCurrency = document.getElementById('wallet_currency_code');
 
@@ -507,7 +532,61 @@
             const dmcsUrl = {!! json_encode(route('finance.wallet.dropdowns.travclicks-dmcs')) !!};
             const currencyLabel = document.getElementById('allocator_currency_label');
 
-            ensureSelect2('#travclicks_dmc_select');
+            // Search-selection dropdown: one control, click to open, type to filter.
+            const dmcSearch = document.getElementById('travclicks_dmc_search');
+            const dmcList = document.getElementById('travclicks_dmc_list');
+            let dmcItems = [];
+
+            function selectDmc(item) {
+                dmcSelect.empty();
+                dmcSelect[0].appendChild(new Option(item.label, item.id, true, true));
+                dmcSearch.value = item.label;
+                dmcList.classList.add('d-none');
+                dmcSelect.trigger('change');
+            }
+
+            function showDmcList(filter) {
+                const q = (filter || '').trim().toLowerCase();
+                const matches = dmcItems.filter(i => i.label.toLowerCase().includes(q));
+                dmcList.innerHTML = '';
+                if (!matches.length) {
+                    const none = document.createElement('div');
+                    none.className = 'px-3 py-2 text-muted small';
+                    none.textContent = 'No matching DMC';
+                    dmcList.appendChild(none);
+                }
+                matches.forEach(i => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    const active = String(i.id) === String(dmcSelect.val());
+                    btn.className = 'd-block w-100 text-start border-0 px-3 py-2';
+                    btn.style.cssText = 'background:' + (active ? '#e7e7ff' : '#fff') + ';color:#333;';
+                    btn.onmouseenter = () => { btn.style.background = '#f1f1f6'; };
+                    btn.onmouseleave = () => { btn.style.background = active ? '#e7e7ff' : '#fff'; };
+                    btn.textContent = i.label;
+                    btn.addEventListener('mousedown', ev => { ev.preventDefault(); selectDmc(i); });
+                    dmcList.appendChild(btn);
+                });
+                dmcList.classList.remove('d-none');
+            }
+
+            dmcSearch.addEventListener('focus', () => { dmcSearch.select(); showDmcList(''); });
+            dmcSearch.addEventListener('input', () => showDmcList(dmcSearch.value));
+            dmcSearch.addEventListener('blur', () => {
+                dmcList.classList.add('d-none');
+                const current = dmcItems.find(i => String(i.id) === String(dmcSelect.val()));
+                dmcSearch.value = current ? current.label : '';
+            });
+            dmcSearch.addEventListener('keydown', e => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const first = dmcItems.find(i => i.label.toLowerCase().includes(dmcSearch.value.trim().toLowerCase()));
+                    if (first) selectDmc(first);
+                    dmcSearch.blur();
+                } else if (e.key === 'Escape') {
+                    dmcSearch.blur();
+                }
+            });
 
             function syncAmountCurrencyLabel() {
                 const toSelect = document.getElementById('wallet_currency_code');
@@ -517,9 +596,40 @@
                 }
             }
 
+            const sgdInput = document.getElementById('sgd_amount');
+            const sgdNote = document.getElementById('sgd_rate_note');
+            let sgdTimer = null;
+
+            async function convertSgd() {
+                const amountEl = document.getElementById('topup_amount');
+                const to = (document.getElementById('wallet_currency_code').value || '').toUpperCase();
+                const sgd = parseFloat(sgdInput.value);
+                amountEl.value = '';
+                sgdNote.textContent = '';
+                if (!sgd || sgd <= 0 || !to) return;
+
+                const res = await fetch(sgdPreviewUrl + '?amount=' + sgd + '&to=' + to + '&_=' + Date.now(), {
+                    credentials: 'same-origin',
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                const json = await res.json();
+                if (!json.success) {
+                    sgdNote.textContent = json.message || 'Exchange rate unavailable.';
+                    return;
+                }
+                amountEl.value = Number(json.converted_amount).toFixed(2);
+                sgdNote.textContent = 'Rate: 1 SGD = ' + json.exchange_rate + ' ' + to;
+            }
+
+            sgdInput.addEventListener('input', () => {
+                clearTimeout(sgdTimer);
+                sgdTimer = setTimeout(convertSgd, 300);
+            });
+
             const currencySelectEl = document.getElementById('wallet_currency_code');
             if (currencySelectEl) {
                 currencySelectEl.addEventListener('change', syncAmountCurrencyLabel);
+                currencySelectEl.addEventListener('change', convertSgd);
             }
 
             async function loadDmcs() {
@@ -536,9 +646,8 @@
                         return;
                     }
 
-                    items.forEach(i => dmcSelect.append('<option value="' + i.id + '">' + i.label + '</option>'));
-                    dmcSelect.val(items[0].id);
-                    dmcSelect.trigger('change');
+                    dmcItems = items;
+                    selectDmc(items[0]);
                 } finally {
                     loadingDmcs.style.display = 'none';
                 }
@@ -549,6 +658,7 @@
                 setAllocRecipientHidden('dmc', dmcId);
                 await refreshCurrencyOptions('dmc', dmcId);
                 syncAmountCurrencyLabel();
+                convertSgd();
             });
 
             loadDmcs();

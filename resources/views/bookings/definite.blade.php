@@ -1341,6 +1341,27 @@
                                     } elseif ($latestEnquiryRow && (float) ($latestEnquiryRow->amount ?? 0) > 0) {
                                         $lastNegotiatedAmount = (float) $latestEnquiryRow->amount;
                                     }
+                                    // Services added after settlement live on negotiation_details (booking_id set).
+                                    // Their converted amount is part of the balance, so Add Payment stays available.
+                                    if ($lastNegotiatedAmount > 0) {
+                                        $addedServiceDetails = [];
+                                        if (is_array($confirmedEnquiry?->negotiation_details ?? null) && $confirmedEnquiry->negotiation_details !== []) {
+                                            $addedServiceDetails = $confirmedEnquiry->negotiation_details;
+                                        } elseif (is_array($latestEnquiryRow?->negotiation_details ?? null)) {
+                                            $addedServiceDetails = $latestEnquiryRow->negotiation_details;
+                                        }
+                                        foreach ($addedServiceDetails as $detailRow) {
+                                            if (!is_array($detailRow) || empty($detailRow['booking_id'])) {
+                                                continue;
+                                            }
+                                            if (isset($detailRow['converted_amount'])) {
+                                                $lastNegotiatedAmount += (float) $detailRow['converted_amount'];
+                                            } else {
+                                                $addedRate = (float) ($detailRow['conversion_rate'] ?? 1);
+                                                $lastNegotiatedAmount += (float) ($detailRow['amount'] ?? 0) * ($addedRate > 0 ? $addedRate : 1);
+                                            }
+                                        }
+                                    }
                                     $grossTourAmount = round($tourTotalPrice);
 
                                     // Markup stored on the tour (increases payable amount).
@@ -2799,9 +2820,15 @@
                                                     </button>
                                                     <button type="button" 
                                                             class="btn btn-outline-danger btn-sm px-3 py-2" 
-                                                            onclick="rejectIndividualRestaurant({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
+                                                            onclick="window.__cancelWithoutRefund=false; rejectIndividualRestaurant({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
                                                             style="border-radius: 25px;">
-                                                        <i class="ri-close-line me-1"></i>Cancel
+                                                        <i class="ri-close-line me-1"></i>Cancel with refund
+                                                    </button>
+                                                    <button type="button" 
+                                                            class="btn btn-outline-secondary btn-sm px-3 py-2 svc-btn-cancel-zero" 
+                                                            onclick="window.__cancelWithoutRefund=true; rejectIndividualRestaurant({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})"
+                                                            style="border-radius: 25px;">
+                                                        <i class="ri-close-circle-line me-1"></i>Cancel without refund
                                                     </button>
                                                 </div>
                                             </div>
@@ -4967,9 +4994,15 @@ function generateIndividualGuideContent(guideBooking, modalId, tourId, guideOrde
                     buttonsHTML += `
                         <button type="button" 
                                 class="btn btn-outline-danger btn-sm px-2 py-1" 
-                                onclick="rejectIndividualGuide(${tourId}, ${guideOrderIndex}, ${bookingIndex})"
+                                onclick="window.__cancelWithoutRefund=false; rejectIndividualGuide(${tourId}, ${guideOrderIndex}, ${bookingIndex})"
                                 style="border-radius: 6px; font-size: 0.75rem;">
-                            <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Cancel
+                            <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Cancel with refund
+                        </button>
+                        <button type="button" 
+                                class="btn btn-outline-secondary btn-sm px-2 py-1 svc-btn-cancel-zero" 
+                                onclick="window.__cancelWithoutRefund=true; rejectIndividualGuide(${tourId}, ${guideOrderIndex}, ${bookingIndex})"
+                                style="border-radius: 6px; font-size: 0.75rem;">
+                            <i class="ri-close-circle-line me-1" style="font-size: 0.7rem;"></i>Cancel without refund
                         </button>
                     `;
                 }
@@ -5041,9 +5074,15 @@ function generateGuideActionButtons(booking, tourId, guideOrderIndex, bookingInd
             ${[11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRole) ? `
                     <button type="button" 
                             class="btn btn-outline-danger btn-sm px-3 py-2" 
-                            onclick="rejectIndividualGuide(${tourId}, ${guideOrderIndex}, ${bookingIndex})"
+                            onclick="window.__cancelWithoutRefund=false; rejectIndividualGuide(${tourId}, ${guideOrderIndex}, ${bookingIndex})"
                             style="border-radius: 25px;">
-                        <i class="ri-close-line me-1"></i>Cancel
+                        <i class="ri-close-line me-1"></i>Cancel with refund
+                    </button>
+                    <button type="button" 
+                            class="btn btn-outline-secondary btn-sm px-3 py-2 svc-btn-cancel-zero" 
+                            onclick="window.__cancelWithoutRefund=true; rejectIndividualGuide(${tourId}, ${guideOrderIndex}, ${bookingIndex})"
+                            style="border-radius: 25px;">
+                        <i class="ri-close-circle-line me-1"></i>Cancel without refund
                     </button>
             ` : ''}
         </div>
@@ -8926,8 +8965,12 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
                 if (canReject) {
                     buttonsHTML += `
                         <button type="button" class="btn btn-sm svc-btn svc-btn-reject"
-                                onclick="window.rejectIndividualAttraction ? window.rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}') : rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')">
-                            <i class="ri-close-line me-1"></i>Cancel
+                                onclick="window.__cancelWithoutRefund=false; window.rejectIndividualAttraction ? window.rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}') : rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')">
+                            <i class="ri-close-line me-1"></i>Cancel with refund
+                    </button>
+                        <button type="button" class="btn btn-sm svc-btn svc-btn-cancel-zero"
+                                onclick="window.__cancelWithoutRefund=true; window.rejectIndividualAttraction ? window.rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}') : rejectIndividualAttraction(${tourId}, ${attractionOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')">
+                            <i class="ri-close-circle-line me-1"></i>Cancel without refund
                     </button>
                     `;
                 }
@@ -9446,9 +9489,15 @@ function loadIndividualRestaurantContent(tourId, restaurantOrderIndex, bookingIn
                     </button>
                     <button type="button" 
                             class="btn btn-outline-danger btn-sm px-2 py-1" 
-                            onclick="rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr || ''}')"
+                            onclick="window.__cancelWithoutRefund=false; rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr || ''}')"
                             style="border-radius: 6px; font-size: 0.75rem;">
-                        <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Cancel
+                        <i class="ri-close-line me-1" style="font-size: 0.7rem;"></i>Cancel with refund
+                    </button>
+                    <button type="button" 
+                            class="btn btn-outline-secondary btn-sm px-2 py-1 svc-btn-cancel-zero" 
+                            onclick="window.__cancelWithoutRefund=true; rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex}, '${actualCancelDateStr || ''}')"
+                            style="border-radius: 6px; font-size: 0.75rem;">
+                        <i class="ri-close-circle-line me-1" style="font-size: 0.7rem;"></i>Cancel without refund
                     </button>
                 `;
                 
@@ -9627,9 +9676,15 @@ function generateRestaurantActionButtons(booking, tourId, restaurantOrderIndex, 
             </button>
             <button type="button" 
                     class="btn btn-outline-danger btn-sm px-3 py-2" 
-                    onclick="rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
+                    onclick="window.__cancelWithoutRefund=false; rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
                     style="border-radius: 25px;">
-                <i class="ri-close-line me-1"></i>Cancel
+                <i class="ri-close-line me-1"></i>Cancel with refund
+            </button>
+            <button type="button" 
+                    class="btn btn-outline-secondary btn-sm px-3 py-2 svc-btn-cancel-zero" 
+                    onclick="window.__cancelWithoutRefund=true; rejectIndividualRestaurant(${tourId}, ${restaurantOrderIndex}, ${bookingIndex})"
+                    style="border-radius: 25px;">
+                <i class="ri-close-circle-line me-1"></i>Cancel without refund
             </button>
         </div>
     `;
@@ -29009,11 +29064,12 @@ input[type="file"].form-control:hover {
         window[name] = function (tourId, orderIndex, bookingIndex) {
             var withoutRefund = window.__cancelWithoutRefund === true;
             window.__cancelWithoutRefund = false;
+            var extra = serviceType === 'hotel' ? { hotelOrderIndex: orderIndex } : {};
             showRejectServiceAlert(serviceType, function () {
                 var fields = { tour_id: tourId, booking_index: bookingIndex };
                 fields[indexKey] = orderIndex;
                 postRefundReject(url, fields, withoutRefund);
-            }, tourId, withoutRefund);
+            }, tourId, withoutRefund, extra);
         };
     }
 

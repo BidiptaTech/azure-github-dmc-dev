@@ -124,7 +124,7 @@
 }
 </style>
 <script>
-function showRejectServiceAlert(serviceType, callback, tourId, withoutRefund) {
+function showRejectServiceAlert(serviceType, callback, tourId, withoutRefund, extra) {
     const labels = {
         'hotel': 'Hotel', 'restaurant': 'Restaurant', 'attraction': 'Attraction', 'guide': 'Guide',
         'arrival': 'Arrival Transfer', 'departure': 'Departure Transfer', 'hourly': 'Hourly Transport',
@@ -134,62 +134,104 @@ function showRejectServiceAlert(serviceType, callback, tourId, withoutRefund) {
     const pageTourStatus = (window.rejectServicePageTourStatus || '').trim();
     const isDefiniteOrActualPage = pageTourStatus === 'Definite' || pageTourStatus === 'Actual';
     const hasNegotiation = tourId && (window.tourNegotiationHistory || {})[tourId] === true;
+    extra = extra || {};
 
-    const iconHtml = `<div class="reject-modal-icon"><i class="ri-error-warning-line"></i></div>`;
-    const titleHtml = `<h2 class="reject-modal-title">Reject ${serviceLabel}?</h2>`;
-    const titleRefundsHtml = `<h2 class="reject-modal-title">Partial cancellation &amp; Refund?</h2>`;
-    const msgWithNegotiation = `${iconHtml}${titleHtml}
-        <p class="mb-0">Permanently reject this <strong>${serviceLabel}</strong> service?</p>
-        <div class="reject-info-note"><i class="ri-information-line"></i><span>Tour status may revert to <strong>New Enquiry</strong> and payment details will be cleared. <strong>Cannot be undone.</strong></span></div>`;
-    const msgNoNegotiation = `${iconHtml}${titleHtml}
-        <p class="mb-0">Permanently reject this <strong>${serviceLabel}</strong> service? <strong>This cannot be undone.</strong></p>`;
-    const msgRefundsStyle = `${iconHtml}${titleRefundsHtml}
-        <p class="mb-0">Partial cancellation &amp; refund for this <strong>${serviceLabel}</strong> service?</p>
-        <div class="reject-info-note reject-info-note--refunds"><i class="ri-shield-check-line"></i><span><strong>Tour status</strong> and <strong>payment details</strong> stay unchanged. Only this service is included in partial cancellation &amp; refund. <strong>This cannot be undone.</strong></span></div>`;
-    const titleZeroHtml = `<h2 class="reject-modal-title">Cancel without refund?</h2>`;
-    const msgZeroRefund = `${iconHtml}${titleZeroHtml}
-        <p class="mb-0">Remove this <strong>${serviceLabel}</strong> service and complete the refund at <strong>0</strong>?</p>
-        <div class="reject-info-note reject-info-note--refunds"><i class="ri-shield-check-line"></i><span><strong>Tour status</strong> and <strong>payment details</strong> stay unchanged. The refund is completed with <strong>0</strong> payment. <strong>This cannot be undone.</strong></span></div>`;
-
-    let html;
-    if (isDefiniteOrActualPage && withoutRefund) {
-        html = msgZeroRefund;
-    } else if (isDefiniteOrActualPage) {
-        html = msgRefundsStyle;
-    } else if (hasNegotiation) {
-        html = msgWithNegotiation;
-    } else {
-        html = msgNoNegotiation;
+    function policyBlock(calc) {
+        if (!calc || !calc.applicable) return '';
+        const cur = calc.currency || '';
+        const hours = calc.hours_until_check_in;
+        const hoursLabel = (hours === null || hours === undefined) ? '—' : (Number(hours).toFixed(0) + 'h');
+        return `<div class="reject-info-note reject-info-note--refunds" style="margin-top:0.75rem;">
+            <i class="ri-calculator-line"></i>
+            <span>
+                <strong>Cancellation policy</strong><br>
+                Hours to check-in: <strong>${hoursLabel}</strong><br>
+                Hotel price: <strong>${cur} ${Number(calc.hotel_price || 0).toFixed(2)}</strong><br>
+                Cancellation charge: <strong>${cur} ${Number(calc.cancellation_charge || 0).toFixed(2)}</strong><br>
+                Suggested refund: <strong>${cur} ${Number(calc.suggested_refund || 0).toFixed(2)}</strong><br>
+                <span style="opacity:.9">${calc.summary || ''}</span>
+            </span>
+        </div>`;
     }
 
-    Swal.fire({
-        title: '',
-        html: html,
-        icon: null,
-        showCancelButton: true,
-        confirmButtonColor: '#dc2626',
-        cancelButtonColor: '#64748b',
-        confirmButtonText: isDefiniteOrActualPage ? 'Cancel' : 'Yes, Reject',
-        cancelButtonText: isDefiniteOrActualPage ? 'Close' : 'Cancel',
-        width: '400px',
-        padding: '0',
-        customClass: {
-            popup: 'swal2-reject-modal',
-            title: 'swal2-reject-title',
-            htmlContainer: 'swal2-reject-html',
-            actions: 'swal2-reject-actions',
-            confirmButton: 'swal2-reject-confirm',
-            cancelButton: 'swal2-reject-cancel'
-        },
-        backdrop: 'rgba(15, 23, 42, 0.45)',
-        didOpen: () => document.querySelector('.swal2-container')?.classList.add('reject-modal-backdrop'),
-        didClose: () => document.querySelector('.swal2-container')?.classList.remove('reject-modal-backdrop')
-    }).then((result) => {
-        if (!result.isConfirmed) {
-            window.__cancelWithoutRefund = false;
+    function openAlert(calcHtml) {
+        const iconHtml = `<div class="reject-modal-icon"><i class="ri-error-warning-line"></i></div>`;
+        const titleHtml = `<h2 class="reject-modal-title">Reject ${serviceLabel}?</h2>`;
+        const titleRefundsHtml = `<h2 class="reject-modal-title">Partial cancellation &amp; Refund?</h2>`;
+        const msgWithNegotiation = `${iconHtml}${titleHtml}
+            <p class="mb-0">Permanently reject this <strong>${serviceLabel}</strong> service?</p>
+            <div class="reject-info-note"><i class="ri-information-line"></i><span>Tour status may revert to <strong>New Enquiry</strong> and payment details will be cleared. <strong>Cannot be undone.</strong></span></div>${calcHtml}`;
+        const msgNoNegotiation = `${iconHtml}${titleHtml}
+            <p class="mb-0">Permanently reject this <strong>${serviceLabel}</strong> service? <strong>This cannot be undone.</strong></p>${calcHtml}`;
+        const msgRefundsStyle = `${iconHtml}${titleRefundsHtml}
+            <p class="mb-0">Partial cancellation &amp; refund for this <strong>${serviceLabel}</strong> service?</p>
+            <div class="reject-info-note reject-info-note--refunds"><i class="ri-shield-check-line"></i><span><strong>Tour status</strong> and <strong>payment details</strong> stay unchanged. Only this service is included in partial cancellation &amp; refund. <strong>This cannot be undone.</strong></span></div>${calcHtml}`;
+        const titleZeroHtml = `<h2 class="reject-modal-title">Cancel without refund?</h2>`;
+        const msgZeroRefund = `${iconHtml}${titleZeroHtml}
+            <p class="mb-0">Remove this <strong>${serviceLabel}</strong> service and complete the refund at <strong>0</strong>?</p>
+            <div class="reject-info-note reject-info-note--refunds"><i class="ri-shield-check-line"></i><span><strong>Tour status</strong> and <strong>payment details</strong> stay unchanged. The refund is completed with <strong>0</strong> payment. <strong>This cannot be undone.</strong></span></div>${calcHtml}`;
+
+        let html;
+        if (isDefiniteOrActualPage && withoutRefund) {
+            html = msgZeroRefund;
+        } else if (isDefiniteOrActualPage) {
+            html = msgRefundsStyle;
+        } else if (hasNegotiation) {
+            html = msgWithNegotiation;
+        } else {
+            html = msgNoNegotiation;
         }
-        if (result.isConfirmed && typeof callback === 'function') callback();
-    });
+
+        Swal.fire({
+            title: '',
+            html: html,
+            icon: null,
+            showCancelButton: true,
+            confirmButtonColor: '#dc2626',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: isDefiniteOrActualPage ? 'Cancel' : 'Yes, Reject',
+            cancelButtonText: isDefiniteOrActualPage ? 'Close' : 'Cancel',
+            width: calcHtml ? '460px' : '400px',
+            padding: '0',
+            customClass: {
+                popup: 'swal2-reject-modal',
+                title: 'swal2-reject-title',
+                htmlContainer: 'swal2-reject-html',
+                actions: 'swal2-reject-actions',
+                confirmButton: 'swal2-reject-confirm',
+                cancelButton: 'swal2-reject-cancel'
+            },
+            backdrop: 'rgba(15, 23, 42, 0.45)',
+            didOpen: () => document.querySelector('.swal2-container')?.classList.add('reject-modal-backdrop'),
+            didClose: () => document.querySelector('.swal2-container')?.classList.remove('reject-modal-backdrop')
+        }).then((result) => {
+            if (!result.isConfirmed) {
+                window.__cancelWithoutRefund = false;
+            }
+            if (result.isConfirmed && typeof callback === 'function') callback();
+        });
+    }
+
+    if (serviceType === 'hotel' && tourId) {
+        const token = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+        const body = { tour_id: tourId };
+        if (extra.hotelOrderIndex != null) body.hotel_order_index = extra.hotelOrderIndex;
+        if (extra.orderId != null) body.order_id = extra.orderId;
+        fetch(@json(url('/booking/hotel-cancellation-charge')), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': token
+            },
+            body: JSON.stringify(body)
+        }).then(function (r) { return r.json().catch(function () { return {}; }); })
+          .then(function (res) { openAlert(policyBlock(res && res.data ? res.data : null)); })
+          .catch(function () { openAlert(''); });
+        return;
+    }
+
+    openAlert('');
 }
 
 (function () {
@@ -241,7 +283,8 @@ function showRejectServiceAlert(serviceType, callback, tourId, withoutRefund) {
             }
             if (!/reject(Individual|Travel|Arrival|Departure)/.test(onclick)) return;
             var label = labelOf(btn);
-            if (label !== 'Cancel') return;
+            // Dynamic modals often keep a plain "Cancel" label; only split that once.
+            if (!/^Cancel$/i.test(label)) return;
             btn.dataset.refundSplit = 'with';
             setLabel(btn, 'Cancel with refund');
             btn.setAttribute('onclick', 'window.__cancelWithoutRefund=false;' + onclick);

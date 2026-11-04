@@ -3653,10 +3653,15 @@ class HotelController extends Controller
         // Get hotel policy data
         $hotelPolicy = HotelPolicy::where('hotel_id', $id)->first();
         
-        // Get cancellation policy data
-        $cancellation_data = [];
-        if ($hotel->cancellation_json) {
-            $cancellation_data = json_decode($hotel->cancellation_json, true) ?? [];
+        // Rules are saved on hotels.cancellation_data (updatecancellationPolicy).
+        // cancellation_json is not a column — reading it always left the tab empty.
+        $rawCancellation = $hotel->cancellation_data ?? null;
+        if (is_string($rawCancellation)) {
+            $cancellation_data = json_decode($rawCancellation, true) ?? [];
+        } elseif (is_array($rawCancellation)) {
+            $cancellation_data = $rawCancellation;
+        } else {
+            $cancellation_data = [];
         }
         
         return view('hotel.policy', compact('hotel', 'hotelPolicy', 'cancellation_data'));
