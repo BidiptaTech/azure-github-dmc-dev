@@ -32,9 +32,10 @@ const StyledMenuItem = styled(MenuItem)(({ theme, isNight }) => ({
 
 // Custom Select component with styling
 const StyledSelect = styled(Select)(({ theme, disabled }) => ({
-  height: "48px",
+  height: "42px",
+  width: "100%",
   borderRadius: "8px",
-  fontSize: "16px",
+  fontSize: "13px",
   padding: "0 10px",
   backgroundColor: disabled ? "#f0f0f0" : "#f5f7fb",
   opacity: disabled ? 0.8 : 1,
@@ -95,7 +96,7 @@ const Pickuptime = ({
   };
 
   return (
-    <FormControl>
+    <FormControl fullWidth sx={{ minWidth: 0, maxWidth: "100%" }}>
       {/* <label
         htmlFor="pickup-time-select"
         className={`text-15 fw-500 ls-2 lh-16 mt-5 mb-10 ${disabled ? "text-gray-400" : ""}`}

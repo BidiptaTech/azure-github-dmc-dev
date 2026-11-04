@@ -67,13 +67,17 @@ const DateSearch2 = ({ selectedDate1, setSelectedDate1 }) => {
         InputLabelProps={{ shrink: true }}
         onClick={(e) => e.target.showPicker()} // Open the calendar on click
         sx={{
-          backgroundColor: "none",
-          border: "none", // Remove the border
+          width: "100%",
+          minWidth: 0,
           "& .MuiInputBase-root": {
-            borderRadius: "4px", // Optional: set border-radius if you want rounded edges
+            height: "42px",
+            minHeight: "42px",
+            borderRadius: "7px",
+            boxSizing: "border-box",
           },
-          "& .MuiOutlinedInput-notchedOutline": {
-            border: "none", // Remove the outline border
+          "& .MuiOutlinedInput-input": {
+            padding: "10px 12px",
+            fontSize: "13px",
           },
         }}
       />

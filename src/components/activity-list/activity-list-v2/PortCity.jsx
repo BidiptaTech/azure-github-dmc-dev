@@ -138,15 +138,15 @@ const PortCity = ({ onLocationSelect, hasError, setError, disabled = false }) =>
 
   return (
     <div
-      className={`searchMenu-loc pl-10 lg:py-20 lg:px-0 js-form-dd js-liverSearch ${
+      className={`searchMenu-loc js-form-dd js-liverSearch position-relative ${
         hasError ? "has-error" : ""
       } ${disabled ? "disabled-input" : ""}`}
       ref={dropdownRef}
+      style={{ width: "100%", minWidth: 0 }}
     >
       <div>
-        <div className="d-flex relative">
-          <i className={`icon-location-2 text-20 ${disabled ? "text-gray-400" : "text-light-1"} `}></i>
-          <div className="ml-5 flex-grow-1 w-full" style={{ minWidth: "160px" }}>
+        <div className="d-flex relative" style={{ width: "100%", minWidth: 0 }}>
+          <div className="flex-grow-1 w-full" style={{ minWidth: 0, width: "100%" }}>
             <input
               autoComplete="off"
               type="search"
@@ -154,7 +154,7 @@ const PortCity = ({ onLocationSelect, hasError, setError, disabled = false }) =>
               className={`js-search js-dd-focus w-full text-15 ${disabled ? "bg-gray-100 border-gray-200 text-gray-400" : "border-gray-300"} rounded  ${
                 hasError ? "border-red-500" : ""
               }`}
-              style={{ minWidth: "160px" }}
+              style={{ width: "100%", minWidth: 0, maxWidth: "100%" }}
               value={searchValue}
               onChange={handleInputChange}
               onFocus={() => !disabled && setIsDropdownOpen(true)}
@@ -168,7 +168,7 @@ const PortCity = ({ onLocationSelect, hasError, setError, disabled = false }) =>
       {isDropdownOpen && searchValue && !disabled && (
         <div
           className="absolute bg-white border rounded shadow mt-2 z-50 w-full"
-          style={{ maxHeight: "300px", overflowY: "auto", minWidth: "250px" }}
+          style={{ maxHeight: "300px", overflowY: "auto", left: 0, right: 0, minWidth: 0 }}
         >
           <div className="bg-white px-20 py-20 sm:px-0 sm:py-15 rounded-4">
             <ul className="y-gap-5 js-results">

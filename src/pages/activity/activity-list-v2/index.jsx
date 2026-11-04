@@ -350,7 +350,7 @@ const ActivityListPage2 = () => {
               ? `${displayedVehicleCount} vehicle${
                   displayedVehicleCount === 1 ? "" : "s"
                 } found`
-              : "Entry / exit ports"}
+              : "Entry / Exit Ports"}
           </h2>
           <small>Live inventory · port transfers</small>
         </div>

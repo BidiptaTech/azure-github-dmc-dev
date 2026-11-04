@@ -89,37 +89,29 @@ const SearchBar1 = ({
     validationTriggered && exitpickUpLocation && !isPickupValid;
 
   return (
-    <div className="searchMenu-loc pr-10 pl-10 lg:py-20 lg:px-0 js-form-dd js-liverSearch">
-      <div className="d-flex justify-between">
-        {/* Pick-up Location */}
-        <div className="flex-1 mr-10">
-          <div>
-            <div className="d-flex">
-              <i className="icon-location-2 text-20 text-light-1 mt-5"></i>
-              <div className="ml-10 flex-grow-1">
-                <h4 className="text-15 fw-500 ls-2 lh-16 mb-15">
-                  Pick Up Location
-                </h4>
-                <div className="text-15 text-light-1 ls-2 lh-20">
-                  <input
-                    id="pick-up-input"
-                    autoComplete="off"
-                    type="search"
-                    placeholder="Where is your pick up?"
-                    className="js-search js-dd-focus w-full pac-item"
-                    value={exitpickUpLocation}
-                    onChange={handlePickupChange}
-                  />
-                  {showPickupError && (
-                    <div className="text-red-500 mt-5 text-14">
-                      *Select location from dropdown
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+    <div
+      className="searchMenu-loc js-form-dd js-liverSearch"
+      style={{ width: "100%", minWidth: 0 }}
+    >
+      <h4 className="text-15 fw-500 ls-2 lh-16">
+        Pick Up Location
+      </h4>
+      <div className="text-15 text-light-1 ls-2 lh-20">
+        <input
+          id="pick-up-input"
+          autoComplete="off"
+          type="search"
+          placeholder="Where is your pick up?"
+          className="js-search js-dd-focus w-full pac-item"
+          style={{ width: "100%", minWidth: 0, maxWidth: "100%" }}
+          value={exitpickUpLocation}
+          onChange={handlePickupChange}
+        />
+        {showPickupError && (
+          <div className="text-red-500 mt-5 text-14">
+            *Select location from dropdown
           </div>
-        </div>
+        )}
       </div>
 
       {/* CSS Fixes for Google Autocomplete */}
