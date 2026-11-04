@@ -5684,7 +5684,7 @@ function confirmIndividualTravelHourlyRejection(tourId, travelHourlyOrderIndex, 
         // Show loading state
         const rejectButton = event.target;
         const originalText = rejectButton.innerHTML;
-        rejectButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Rejecting...';
+        rejectButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Canceling...';
         rejectButton.disabled = true;
         
         console.log('⏰ INDIVIDUAL TRAVEL HOURLY REJECT: Submitting form data:', Object.fromEntries(formData.entries()));
@@ -14618,7 +14618,7 @@ function confirmIndividualTravelPointRejection(tourId, travelPointOrderIndex, bo
         // Show loading state
         const rejectButton = event.target;
         const originalText = rejectButton.innerHTML;
-        rejectButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Rejecting...';
+        rejectButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Canceling...';
         rejectButton.disabled = true;
         
         console.log('🚗 TRAVEL POINT REJECT: Submitting form data:', Object.fromEntries(formData.entries()));
@@ -16493,7 +16493,7 @@ function generateIndividualLocalTransportContent(localTransportData, modalId, to
                             buttonsHTML += `<button type="button" class="btn btn-sm svc-btn svc-btn-edit" onclick="editIndividualLocalTransport(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})"><i class="ri-edit-line me-1"></i>Edit</button>`;
                         }
                         if (canReject) {
-                            buttonsHTML += `<button type="button" class="btn btn-sm svc-btn svc-btn-reject" onclick="rejectIndividualLocalTransport(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})"><i class="ri-close-line me-1"></i>Reject</button>`;
+                            buttonsHTML += `<button type="button" class="btn btn-sm svc-btn svc-btn-reject" onclick="rejectIndividualLocalTransport(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})"><i class="ri-close-line me-1"></i>Cancel</button>`;
                         }
                     }
                 } else {
@@ -19605,7 +19605,7 @@ function confirmIndividualHotelRejection(tourId, hotelOrderIndex, bookingIndex) 
         // Show loading state
         const rejectButton = event.target;
         const originalText = rejectButton.innerHTML;
-        rejectButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Rejecting...';
+        rejectButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Canceling...';
         rejectButton.disabled = true;
         
         // Get reject reason
@@ -21878,7 +21878,7 @@ function confirmIndividualAttractionRejection(tourId, attractionOrderIndex, book
         // Show loading state
         const rejectButton = event.target;
         const originalText = rejectButton.innerHTML;
-        rejectButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Rejecting...';
+        rejectButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Canceling...';
         rejectButton.disabled = true;
         
         // Here you would typically send the data to the server
@@ -23050,7 +23050,7 @@ function confirmIndividualRestaurantRejection(tourId, restaurantOrderIndex, book
         // Show loading state
         const rejectButton = event.target;
         const originalText = rejectButton.innerHTML;
-        rejectButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Rejecting...';
+        rejectButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Canceling...';
         rejectButton.disabled = true;
         
         console.log('Rejecting individual restaurant booking:', Object.fromEntries(formData.entries()));

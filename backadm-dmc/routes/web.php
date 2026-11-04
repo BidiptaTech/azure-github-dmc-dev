@@ -1039,6 +1039,7 @@ Route::get('/clear', function () {
         Route::post('/booking/approve-hotel-booking', [HotelBookingController::class, 'approveHotelBooking'])->name('booking.approve.hotel.booking');
         Route::post('/booking/recheck-online-hotel-booking', [HotelBookingController::class, 'recheckOnlineHotelBooking'])->name('booking.recheck.online.hotel.booking');
         Route::post('/booking/reject-hotel-booking', [HotelBookingController::class, 'rejectHotelBooking'])->name('booking.reject.hotel.booking');
+        Route::post('/booking/hotel-cancellation-charge', [HotelBookingController::class, 'hotelCancellationCharge'])->name('booking.hotel.cancellation.charge');
         Route::post('/booking/approve-attraction-booking', [HotelBookingController::class, 'approveAttractionBooking'])->name('booking.approve.attraction.booking');
         Route::post('/booking/approve-restaurant-booking', [HotelBookingController::class, 'approveRestaurantBooking'])->name('booking.approve.restaurant.booking');
         Route::post('/booking/reject-restaurant-booking', [HotelBookingController::class, 'rejectRestaurantBooking'])->name('booking.reject.restaurant.booking');

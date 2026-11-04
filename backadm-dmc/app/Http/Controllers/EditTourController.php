@@ -288,6 +288,11 @@ class EditTourController extends Controller
 
             $deletedCount = 0;
             $jobsheets = app(\App\Services\JobsheetRemovalService::class);
+            $withoutRefundIds = collect($request->input('without_refund_booking_ids', []))
+                ->map(fn ($id) => (int) $id)
+                ->filter(fn ($id) => $id > 0)
+                ->all();
+            $refundStatus = in_array(strtolower((string) ($tour->tour_status ?? '')), ['definite', 'actual'], true);
             foreach ($toDelete as $order) {
                 if ($trackKeptServices) {
                     $bookingId = (int) ($order->booking_id ?? 0);
@@ -295,8 +300,11 @@ class EditTourController extends Controller
                         $jobsheets->deleteForOrder($order);
                     }
                 }
-                if (strcasecmp((string) ($tour->tour_status ?? ''), 'Definite') === 0) {
-                    $this->markDefiniteOrderForRefund($order);
+                if ($refundStatus) {
+                    $this->markDefiniteOrderForRefund(
+                        $order,
+                        in_array((int) ($order->booking_id ?? 0), $withoutRefundIds, true)
+                    );
                 }
                 $order->delete();
                 $deletedCount++;
@@ -332,19 +340,25 @@ class EditTourController extends Controller
     }
 
     /**
-     * Definite removal only marks the order for the Refunds page.
-     * Amount, initiate, and verify happen there.
+     * Definite / Actual removal marks the order for the Refunds page.
+     * Cancel without refund completes that refund at 0 on save.
      */
-    private function markDefiniteOrderForRefund(Order $order): void
+    private function markDefiniteOrderForRefund(Order $order, bool $withoutRefund = false): void
     {
         if (strtolower((string) ($order->bookingType ?? 'booking')) === 'enquiry') {
             return;
         }
 
         $order->is_refund = 1;
-        $order->is_verify = 0;
-        $order->refunded = false;
-        $order->refund_amount = null;
+        if ($withoutRefund) {
+            $order->refund_amount = 0;
+            $order->is_verify = 1;
+            $order->refunded = true;
+        } else {
+            $order->is_verify = 0;
+            $order->refunded = false;
+            $order->refund_amount = null;
+        }
         $order->save();
     }
 
