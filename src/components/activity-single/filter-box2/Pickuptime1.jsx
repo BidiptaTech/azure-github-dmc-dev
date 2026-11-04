@@ -38,9 +38,10 @@ const StyledMenuItem = styled(MenuItem)(({ theme, isNight }) => ({
 
 // Custom Select component with styling (matching Pickuptime)
 const StyledSelect = styled(Select)(({ theme, disabled }) => ({
-  height: "48px",
+  height: "42px",
+  width: "100%",
   borderRadius: "8px",
-  fontSize: "16px",
+  fontSize: "13px",
   padding: "0 10px",
   backgroundColor: disabled ? "#f0f0f0" : "#f5f7fb",
   opacity: disabled ? 0.8 : 1,
@@ -114,7 +115,7 @@ const Pickuptime1 = ({
   };
 
   return (
-    <FormControl>
+    <FormControl fullWidth sx={{ minWidth: 0, maxWidth: "100%" }}>
       <StyledSelect
         value={entryytime || ''}
         onChange={handleTimeChange}

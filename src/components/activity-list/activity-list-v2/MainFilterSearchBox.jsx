@@ -251,9 +251,9 @@ const MainFilterSearchBox = ({ Location }) => {
           <div className="time-selection-wrapper">
             {selectedPort === "Entry Port" ? (
               <>
-              <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1, color: '#000' }}>
-        Pick Up Time
-      </Typography>
+              <Typography variant="subtitle2" component="h4">
+                Pick Up Time
+              </Typography>
               <Pickuptime
                 entryytime={entryytime}
                 setentryytime={setentryytime}
@@ -262,9 +262,9 @@ const MainFilterSearchBox = ({ Location }) => {
               </>
             ) : (
               <>
-              <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1, color: '#000' }}>
-        Exit Time
-      </Typography>
+              <Typography variant="subtitle2" component="h4">
+                Exit Time
+              </Typography>
               <Pickuptime1
                 entryytime={entryytime1}
                 setentryytime={setentryytime1}
@@ -276,7 +276,7 @@ const MainFilterSearchBox = ({ Location }) => {
 
           {/* Fourth Section - Date Selection */}
           <div className="date-selection-wrapper">
-            <h4 className="text-15 fw-500 ls-2 lh-16 mt-15">
+            <h4 className="text-15 fw-500 ls-2 lh-16">
               {selectedPort === "Entry Port" ? "Pick Up Date" : "Exit Date"}
             </h4>
             {selectedPort === "Entry Port" ? (
@@ -295,7 +295,7 @@ const MainFilterSearchBox = ({ Location }) => {
           {/* Fifth Section - Search Button */}
           <div className="search-button-wrapper">
             <button
-              className="mainSearch__submit button -dark-1 py-15 px-35 rounded-4 bg-blue-1 text-white"
+              className="mainSearch__submit button -dark-1 px-35 rounded-4 bg-blue-1 text-white"
               onClick={buttonsearch}
             >
               <i className="icon-search text-20 mr-10" />
@@ -308,9 +308,14 @@ const MainFilterSearchBox = ({ Location }) => {
       <style jsx>{`
         .button-grid-v2 {
           display: grid;
-          grid-template-columns: 160px 4fr 1.93fr 140px 1fr;
-          gap: 5px;
-          align-items: center;
+          grid-template-columns:
+            minmax(140px, 160px)
+            minmax(280px, 3fr)
+            minmax(140px, 170px)
+            minmax(130px, 150px)
+            minmax(110px, 130px);
+          gap: 12px;
+          align-items: end;
           width: 100%;
           max-width: 1730px;
         }
@@ -321,45 +326,65 @@ const MainFilterSearchBox = ({ Location }) => {
         .date-selection-wrapper,
         .search-button-wrapper {
           width: 100%;
+          min-width: 0;
+          overflow: visible;
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-end;
+        }
+
+        .time-selection-wrapper :global(.MuiFormControl-root),
+        .time-selection-wrapper :global(.MuiInputBase-root),
+        .date-selection-wrapper :global(.MuiFormControl-root),
+        .date-selection-wrapper :global(.MuiTextField-root),
+        .date-selection-wrapper :global(.MuiInputBase-root) {
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+        }
+
+        .time-selection-wrapper :global(.MuiInputBase-root),
+        .date-selection-wrapper :global(.MuiInputBase-root) {
+          height: 42px !important;
+          min-height: 42px !important;
+          max-height: 42px !important;
         }
 
         .search-button-wrapper button {
           width: 100%;
-          max-width: 250px;
+          height: 42px;
         }
 
         @media (max-width: 1199px) {
           .button-grid-v2 {
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            gap: 16px;
+            align-items: stretch;
           }
 
           .location-search-wrapper {
             grid-column: span 2;
-            width: 100%;
           }
 
           .search-button-wrapper {
             grid-column: span 2;
-            text-align: center;
+            align-items: center;
+          }
+
+          .search-button-wrapper button {
+            max-width: 300px;
           }
         }
 
         @media (max-width: 767px) {
           .button-grid-v2 {
             grid-template-columns: 1fr;
-            gap: 15px;
+            gap: 14px;
           }
 
           .location-search-wrapper,
           .search-button-wrapper {
             grid-column: span 1;
-          }
-
-          .port-selection-wrapper,
-          .time-selection-wrapper,
-          .date-selection-wrapper {
-            margin-bottom: 10px;
           }
 
           .search-button-wrapper button {
@@ -374,10 +399,6 @@ const MainFilterSearchBox = ({ Location }) => {
 
           .button-grid-v2 {
             gap: 10px;
-          }
-
-          .text-15 {
-            font-size: 14px;
           }
         }
       `}</style>

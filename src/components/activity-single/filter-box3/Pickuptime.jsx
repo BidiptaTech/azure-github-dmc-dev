@@ -32,9 +32,10 @@ const StyledMenuItem = styled(MenuItem)(({ theme, isNight }) => ({
 
 // Custom Select component with styling
 const StyledSelect = styled(Select)(({ theme }) => ({
-  height: "48px",
+  height: "42px",
+  width: "100%",
   borderRadius: "8px",
-  fontSize: "16px",
+  fontSize: "13px",
   padding: "0 10px",
   backgroundColor: "#f5f7fb",
   "& .MuiOutlinedInput-notchedOutline": {
@@ -100,12 +101,12 @@ const Pickuptime = ({
   };
 
   return (
-    <FormControl fullWidth variant="outlined">
+    <FormControl fullWidth variant="outlined" sx={{ minWidth: 0, maxWidth: "100%" }}>
       <label
         htmlFor="pickup-time-select"
-        className="text-15 fw-500 ls-2 lh-16 mt-5"
+        className="text-15 fw-500 ls-2 lh-16"
       >
-        Select the Pick Up Time
+        Pick Up Time
       </label>
       <StyledSelect
         id="pickup-time-select"

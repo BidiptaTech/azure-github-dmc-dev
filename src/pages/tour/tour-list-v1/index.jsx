@@ -43,7 +43,7 @@ const TourListPage1 = () => {
         }
       >
         <div className="pw-results-head">
-          <h2>Experiences</h2>
+          <h2>Attraction & Experiences</h2>
           <small>Live inventory · attractions</small>
         </div>
         <div className="row y-gap-30">
