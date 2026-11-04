@@ -3785,8 +3785,18 @@
             var removeBtn = e.target.closest('.hotel-remove-added');
             if (removeBtn && root.contains(removeBtn)) {
                 e.preventDefault();
-                if (!window.confirm('Are you sure you want to remove this service?')) return;
-                removeAddedHotel(root, parseInt(removeBtn.getAttribute('data-idx'), 10) || 0);
+                var removeIdx = parseInt(removeBtn.getAttribute('data-idx'), 10) || 0;
+                var hotelRows = readHotelChunk(root);
+                var hotelRow = hotelRows[removeIdx];
+                if (!hotelRow) return;
+                var removeHotelNow = function () {
+                    removeAddedHotel(root, removeIdx);
+                };
+                if (window.StpLiteTransportShared && window.StpLiteTransportShared.requestServiceRemoval) {
+                    window.StpLiteTransportShared.requestServiceRemoval(hotelRow, removeHotelNow, 'Hotel');
+                } else if (window.confirm('Are you sure you want to remove this service?')) {
+                    removeHotelNow();
+                }
                 return;
             }
             var editBtn = e.target.closest('.hotel-edit-added');

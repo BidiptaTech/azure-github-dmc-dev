@@ -58,14 +58,6 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-sm-8 col-md-4 d-flex flex-wrap gap-2">
-                <button type="submit" class="btn btn-primary btn-sm" id="wallet-ledger-apply-btn">
-                    <i class="ri-filter-3-line me-1"></i> Apply
-                </button>
-                <button type="button" class="btn btn-outline-secondary btn-sm" id="wallet-ledger-clear-btn">
-                    Clear
-                </button>
-            </div>
         </form>
     </div>
 
@@ -216,6 +208,15 @@
                             });
                         });
                     }
+
+                    form.querySelectorAll('input, select').forEach((el) => {
+                        el.addEventListener('change', function () {
+                            if (pageInput) {
+                                pageInput.value = '1';
+                            }
+                            loadLedger({ ledger_page: 1 });
+                        });
+                    });
 
                     form.addEventListener('submit', function (event) {
                         event.preventDefault();

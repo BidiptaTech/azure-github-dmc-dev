@@ -5640,16 +5640,33 @@
             ? normalizeArrDepVehiclesList(item)
             : (Array.isArray(item.vehicles) ? item.vehicles.slice() : []);
         if (!list.length && (item.vehicleId || item.vehicle_id)) {
+            const _tt0 = (typeof normalizeTransferTypePS === 'function')
+                ? normalizeTransferTypePS(item.transferType || item.type || 'S') : 'S';
+            const _shared0 = _tt0 === 'S';
+            const _pax0 = Math.max(1, pax || 1);
+            let _uCost = parseFloat(item.unitCost != null ? item.unitCost : item.unit_cost);
+            let _uSell = parseFloat(item.unitSell != null ? item.unitSell : item.unit_sell);
+            const _ac0 = parseFloat(item.adultCost || item.cost) || 0;
+            const _as0 = parseFloat(item.adultSell || item.sell) || 0;
+            // Parent cost/sell after local MV save is LINE (unit×pax) for Shared — peel to unit
+            if (!Number.isFinite(_uCost) || _uCost <= 0) {
+                _uCost = (_shared0 && _pax0 > 1 && _ac0 > 0) ? (_ac0 / _pax0) : _ac0;
+            }
+            if (!Number.isFinite(_uSell) || _uSell <= 0) {
+                _uSell = (_shared0 && _pax0 > 1 && _as0 > 0) ? (_as0 / _pax0) : _as0;
+            }
             list = [{
                 vehicleId: item.vehicleId || item.vehicle_id,
                 vehicleName: item.vehicleName || item.vehicle_name || item.vehicles_name || '',
                 vehicleType: item.vehicleType || item.vehicle_type || '',
                 qty: item.vehicleQty || item.vehicle_qty || 1,
                 transferType: item.transferType || item.type || 'S',
-                unitCost: item.adultCost || item.cost,
-                unitSell: item.adultSell || item.sell,
-                lineCost: null,
-                lineSell: null
+                adults: adults,
+                child: child,
+                unitCost: _uCost,
+                unitSell: _uSell,
+                lineCost: _shared0 ? (_uCost * _pax0) : null,
+                lineSell: _shared0 ? (_uSell * _pax0) : null
             }];
         }
         return list.map(function (v, idx) {
@@ -5659,12 +5676,12 @@
             const isShared = tt === 'S';
             const qty = Math.max(1, parseInt(v.qty || v.quantity || 1, 10) || 1);
             const typeLabel = tt === 'P' ? 'Private' : 'Shared';
-            let unitCost = parseFloat(v.unitCost);
-            let unitSell = parseFloat(v.unitSell);
+            let unitCost = parseFloat(v.unitCost != null ? v.unitCost : v.unit_cost);
+            let unitSell = parseFloat(v.unitSell != null ? v.unitSell : v.unit_sell);
             let lineCost = parseFloat(v.lineCost);
             let lineSell = parseFloat(v.lineSell);
-            if (!Number.isFinite(unitCost)) unitCost = NaN;
-            if (!Number.isFinite(unitSell)) unitSell = NaN;
+            if (!Number.isFinite(unitCost) || unitCost <= 0) unitCost = NaN;
+            if (!Number.isFinite(unitSell) || unitSell <= 0) unitSell = NaN;
             if (!Number.isFinite(lineCost)) lineCost = NaN;
             if (!Number.isFinite(lineSell)) lineSell = NaN;
 
@@ -5686,13 +5703,20 @@
                 const ac = parseFloat(item.adultCost || item.cost) || 0;
                 const as_ = parseFloat(item.adultSell || item.sell) || ac;
                 if (isShared) {
-                    // adultCost/cost may be unit×qty (listing) — peel qty to get true unit
-                    const qtyPeel = qty > 1 && ac > 0 ? (ac / qty) : ac;
-                    const sellPeel = qty > 1 && as_ > 0 ? (as_ / qty) : as_;
+                    // Parent cost/sell after MV save is LINE (unit×pax). Qty peel alone is not enough
+                    // (qty=1 left unitSell=1120 → Adult 1120×4 double-count). Peel by pax when unit missing.
+                    const billGuess = Math.max(1, pax || 1);
+                    let qtyPeel = qty > 1 && ac > 0 ? (ac / qty) : ac;
+                    let sellPeel = qty > 1 && as_ > 0 ? (as_ / qty) : as_;
+                    if (billGuess > 1 && as_ > 0) {
+                        // Vehicle unit missing → treat parent sell/cost as LINE (totalSell / totalCost)
+                        sellPeel = as_ / billGuess;
+                        if (ac > 0) qtyPeel = ac / billGuess;
+                    }
                     if (!Number.isFinite(unitCost) || unitCost <= 0) unitCost = qtyPeel;
                     if (!Number.isFinite(unitSell) || unitSell <= 0) unitSell = sellPeel;
-                    if (!Number.isFinite(lineCost)) lineCost = (Number.isFinite(unitCost) ? unitCost : qtyPeel) * pax;
-                    if (!Number.isFinite(lineSell)) lineSell = (Number.isFinite(unitSell) ? unitSell : sellPeel) * pax;
+                    if (!Number.isFinite(lineCost)) lineCost = (Number.isFinite(unitCost) ? unitCost : qtyPeel) * billGuess;
+                    if (!Number.isFinite(lineSell)) lineSell = (Number.isFinite(unitSell) ? unitSell : sellPeel) * billGuess;
                 } else {
                     // Private: adultCost/cost may be unit — line = unit × qty
                     if (!Number.isFinite(unitCost) || unitCost <= 0) unitCost = ac;
@@ -5713,7 +5737,10 @@
                     unitCost = isShared && billPax > 0 ? (lineCost / billPax) : (lineCost / qty);
                 } else {
                     const ac = parseFloat(v.adultCost || item.adultCost || item.cost) || 0;
-                    if (ac > 0) unitCost = qty > 1 ? (ac / qty) : ac;
+                    if (ac > 0) {
+                        unitCost = qty > 1 ? (ac / qty) : ac;
+                        if (isShared && billPax > 1) unitCost = unitCost / billPax;
+                    }
                 }
             }
             if (!Number.isFinite(unitSell) || unitSell <= 0) {
@@ -5721,7 +5748,23 @@
                     unitSell = isShared && billPax > 0 ? (lineSell / billPax) : (lineSell / qty);
                 } else {
                     const as_ = parseFloat(v.adultSell || item.adultSell || item.sell) || 0;
-                    if (as_ > 0) unitSell = qty > 1 ? (as_ / qty) : as_;
+                    if (as_ > 0) {
+                        unitSell = qty > 1 ? (as_ / qty) : as_;
+                        if (isShared && billPax > 1) unitSell = unitSell / billPax;
+                    }
+                }
+            }
+            // Guard: unit accidentally equals Shared LINE (same value as line) — peel once
+            if (isShared && billPax > 1) {
+                if (Number.isFinite(unitSell) && unitSell > 0
+                    && Number.isFinite(lineSell) && lineSell > 0
+                    && Math.abs(unitSell - lineSell) < 0.02) {
+                    unitSell = lineSell / billPax;
+                }
+                if (Number.isFinite(unitCost) && unitCost > 0
+                    && Number.isFinite(lineCost) && lineCost > 0
+                    && Math.abs(unitCost - lineCost) < 0.02) {
+                    unitCost = lineCost / billPax;
                 }
             }
             if (!Number.isFinite(unitCost)) unitCost = 0;
@@ -6091,9 +6134,18 @@
 
     let _localMultiPriceTimer = null;
     function scheduleLocalMultiVehiclePriceRefresh() {
+        // While restoring an existing local transfer, never zone-refresh (wipes manual Cost/Sell)
+        if (window.editingTransferIndex != null && window.editingTransferIndex !== undefined
+            && window._localTransferRestoreLock) {
+            return;
+        }
         clearTimeout(_localMultiPriceTimer);
         _localMultiPriceTimer = setTimeout(function () {
-            refreshLocalMultiVehiclePrices();
+            // Prefer window copy so local-multi-vehicle-js patch (userEdited) is used
+            const fn = (typeof window.refreshLocalMultiVehiclePrices === 'function')
+                ? window.refreshLocalMultiVehiclePrices
+                : refreshLocalMultiVehiclePrices;
+            fn();
         }, 200);
     }
 
@@ -6127,6 +6179,10 @@
         }
         const tourPax = getLocalTourPax();
         const isShared = type === 'S' || String(type).toLowerCase() === 'shared';
+        const container = getArrDepVehicleRowsContainer('local');
+        const domRows = container
+            ? Array.from(container.querySelectorAll('.arr-dep-vehicle-row'))
+            : [];
         const enriched = [];
         let totalCost = 0, totalSell = 0, storedCost = 0, storedSell = 0;
         for (let i = 0; i < vehicles.length; i++) {
@@ -6146,9 +6202,16 @@
             const vInfant = Math.max(0, parseInt(v.infant ?? v.infantQty ?? 0, 10) || 0);
             const vehiclePax = Math.max(0, vAdults + vChild);
             const unit = calculateTransferPrice(zonePrice, rowType, way, vAdults || adults, vChild || child);
-            const unitCost = parseFloat(unit.cost) || 0;
-            const unitSell = parseFloat(unit.sell) || 0;
+            let unitCost = parseFloat(unit.cost) || 0;
+            let unitSell = parseFloat(unit.sell) || 0;
             const qty = v.qty || 1;
+            const domRow = domRows[i];
+            const ucEl = domRow?.querySelector?.('.arr-dep-unit-cost');
+            const usEl = domRow?.querySelector?.('.arr-dep-unit-sell');
+            const costEdited = !!(ucEl && ucEl.dataset.userEdited === '1') || !!v.userEditedCost || !!v.userEdited;
+            const sellEdited = !!(usEl && usEl.dataset.userEdited === '1') || !!v.userEditedSell || !!v.userEdited;
+            if (costEdited) unitCost = parseFloat(ucEl?.value != null ? ucEl.value : v.unitCost) || unitCost;
+            if (sellEdited) unitSell = parseFloat(usEl?.value != null ? usEl.value : v.unitSell) || unitSell;
             // Shared: unit × allocated pax (fallback tour pax); Private: unit × qty
             const billPax = vehiclePax > 0 ? vehiclePax : tourPax;
             const lineCost = rowShared ? unitCost * Math.max(0, billPax) : unitCost * qty;
@@ -6170,6 +6233,7 @@
                 qty: qty,
                 transferType: rowType,
                 type: rowType,
+                way: v.way || way,
                 adults: vAdults,
                 child: vChild,
                 infant: vInfant,
@@ -6338,25 +6402,40 @@
     function collectArrDepVehiclesPayload(side) {
         return collectArrDepVehicleRows(side)
             .filter(r => r.vehicleId)
-            .map(r => ({
-                vehicleId: r.vehicleId,
-                vehicle_id: r.vehicleId,
-                vehicleName: r.vehicleName,
-                vehicleType: r.vehicleType,
-                seats: r.seats,
-                seating_capacity: r.seats,
-                qty: r.qty,
-                quantity: r.qty,
-                transferType: r.transferType || 'S',
-                type: r.transferType || 'S',
-                way: r.way || (r.row && r.row.querySelector('.arr-dep-vehicle-way')?.value) || null,
-                adults: r.adults || 0,
-                child: r.child || 0,
-                infant: r.infant || 0,
-                adultsQty: r.adults || 0,
-                childQty: r.child || 0,
-                infantQty: r.infant || 0
-            }));
+            .map(r => {
+                const ucEl = r.row?.querySelector?.('.arr-dep-unit-cost');
+                const usEl = r.row?.querySelector?.('.arr-dep-unit-sell');
+                const unitCost = parseFloat(ucEl?.value);
+                const unitSell = parseFloat(usEl?.value);
+                const userEditedCost = !!(ucEl && ucEl.dataset.userEdited === '1');
+                const userEditedSell = !!(usEl && usEl.dataset.userEdited === '1');
+                return {
+                    vehicleId: r.vehicleId,
+                    vehicle_id: r.vehicleId,
+                    vehicleName: r.vehicleName,
+                    vehicleType: r.vehicleType,
+                    seats: r.seats,
+                    seating_capacity: r.seats,
+                    qty: r.qty,
+                    quantity: r.qty,
+                    transferType: r.transferType || 'S',
+                    type: r.transferType || 'S',
+                    way: r.way || (r.row && r.row.querySelector('.arr-dep-vehicle-way')?.value) || null,
+                    adults: r.adults || 0,
+                    child: r.child || 0,
+                    infant: r.infant || 0,
+                    adultsQty: r.adults || 0,
+                    childQty: r.child || 0,
+                    infantQty: r.infant || 0,
+                    unitCost: Number.isFinite(unitCost) ? unitCost : undefined,
+                    unitSell: Number.isFinite(unitSell) ? unitSell : undefined,
+                    unit_cost: Number.isFinite(unitCost) ? unitCost : undefined,
+                    unit_sell: Number.isFinite(unitSell) ? unitSell : undefined,
+                    userEditedCost: userEditedCost,
+                    userEditedSell: userEditedSell,
+                    userEdited: userEditedCost || userEditedSell
+                };
+            });
     }
 
     function normalizeArrDepVehiclesList(entry) {
@@ -6392,8 +6471,12 @@
                     infantQty: infant,
                     lineCost: v.lineCost,
                     lineSell: v.lineSell,
-                    unitCost: v.unitCost,
-                    unitSell: v.unitSell,
+                    unitCost: (v.unitCost != null && v.unitCost !== '') ? v.unitCost
+                        : ((v.unit_cost != null && v.unit_cost !== '') ? v.unit_cost
+                            : (v.adultCost != null ? v.adultCost : v.cost)),
+                    unitSell: (v.unitSell != null && v.unitSell !== '') ? v.unitSell
+                        : ((v.unit_sell != null && v.unit_sell !== '') ? v.unit_sell
+                            : (v.adultSell != null ? v.adultSell : v.sell)),
                     zonePrivatePrice: v.zonePrivatePrice,
                     zoneSharedPrice: v.zoneSharedPrice,
                     zonePrivateCostPrice: v.zonePrivateCostPrice,
@@ -6422,7 +6505,11 @@
             infant: infant,
             adultsQty: adults,
             childQty: child,
-            infantQty: infant
+            infantQty: infant,
+            unitCost: entry.unitCost != null ? entry.unitCost : entry.unit_cost,
+            unitSell: entry.unitSell != null ? entry.unitSell : entry.unit_sell,
+            cost: entry.cost,
+            sell: entry.sell
         }];
     }
 
@@ -6706,6 +6793,11 @@
         };
         const onUnitEdit = function (ev) {
             if (ev && ev.target) ev.target.dataset.userEdited = '1';
+            // Typed Cost/Sell match the CURRENT Way — keep lastWay in sync for later rescale
+            const wayElOnEdit = row.querySelector('.arr-dep-vehicle-way');
+            const wayNow = wayElOnEdit?.value || 'one-way';
+            if (wayElOnEdit) wayElOnEdit.dataset.lastWay = wayNow;
+            row.dataset.lastWay = wayNow;
             recalcArrDepVehicleRowTotals(side, row);
             updateArrDepVehicleCoverage(side);
             if (side === 'local' && typeof applyLocalMultiVehicleTotalsToForm === 'function') {
@@ -6832,7 +6924,9 @@
         }
     }
 
-    function fillArrDepRowUnitPrices(side, enrichedVehicles) {
+    function fillArrDepRowUnitPrices(side, enrichedVehicles, opts) {
+        opts = opts || {};
+        const force = !!opts.force;
         const container = getArrDepVehicleRowsContainer(side);
         if (!container || !Array.isArray(enrichedVehicles)) return;
         const rows = Array.from(container.querySelectorAll('.arr-dep-vehicle-row'));
@@ -6841,9 +6935,22 @@
             if (!row) return;
             const uc = row.querySelector('.arr-dep-unit-cost');
             const us = row.querySelector('.arr-dep-unit-sell');
-            if (uc && !uc.dataset.userEdited) uc.value = (parseFloat(v.unitCost) || 0).toFixed(2);
-            if (us && !us.dataset.userEdited) us.value = (parseFloat(v.unitSell) || 0).toFixed(2);
+            const nextCost = parseFloat(v.unitCost != null ? v.unitCost : v.unit_cost);
+            const nextSell = parseFloat(v.unitSell != null ? v.unitSell : v.unit_sell);
+            if (uc && (force || !uc.dataset.userEdited) && Number.isFinite(nextCost)) {
+                uc.value = nextCost.toFixed(2);
+            }
+            if (us && (force || !us.dataset.userEdited) && Number.isFinite(nextSell)) {
+                us.value = nextSell.toFixed(2);
+            }
             recalcArrDepVehicleRowTotals(side, row);
+            const wayEl = row.querySelector('.arr-dep-vehicle-way');
+            const wayNow = v.way || wayEl?.value || 'one-way';
+            if (typeof window.enquiryProSeedTransferUnitLastWay === 'function') {
+                window.enquiryProSeedTransferUnitLastWay(row, wayNow);
+            } else if (wayEl && !wayEl.dataset.lastWay) {
+                wayEl.dataset.lastWay = wayNow;
+            }
         });
     }
 
@@ -6943,6 +7050,7 @@
             || (typeof getArrivalDepartureServiceCity === 'function' ? getArrivalDepartureServiceCity() : '')
             || document.getElementById('arrivalDepartureCity')?.value
             || document.getElementById('hotelDestination')?.value
+            || document.getElementById('tourDestination')?.value
             || (typeof selectedDestinations !== 'undefined' && selectedDestinations[0])
             || '').trim();
 
@@ -6971,6 +7079,25 @@
         });
         if (typeof hideEmptyVehicleOptgroups === 'function') {
             hideEmptyVehicleOptgroups(vehicleSelect);
+        }
+
+        // Drop stale selection (e.g. global default "Testing Car") when it is not valid
+        // for this city/DMC/type — otherwise the closed select still shows a hidden option.
+        const curOpt = vehicleSelect.selectedOptions && vehicleSelect.selectedOptions[0];
+        const curInvalid = !!(vehicleSelect.value && curOpt
+            && (curOpt.disabled || curOpt.hidden || curOpt.style.display === 'none'));
+        if (!vehicleSelect.value || curInvalid) {
+            const matching = Array.from(vehicleSelect.options).filter(function (o) {
+                return o.value && !o.disabled && !o.hidden && o.style.display !== 'none';
+            });
+            if (matching.length) {
+                const pick = (typeof pickDefaultVehicleFromMatches === 'function')
+                    ? pickDefaultVehicleFromMatches(matching, serviceType)
+                    : matching[0];
+                if (pick) vehicleSelect.value = pick.value;
+            } else if (curInvalid) {
+                vehicleSelect.value = '';
+            }
         }
     }
 
@@ -7002,6 +7129,11 @@
         let metaParts = [];
         const enriched = [];
         let anyShared = false, anyPrivate = false;
+        const arrDepMvContainer = (typeof getArrDepVehicleRowsContainer === 'function')
+            ? getArrDepVehicleRowsContainer(side) : null;
+        const arrDepMvDomRows = arrDepMvContainer
+            ? Array.from(arrDepMvContainer.querySelectorAll('.arr-dep-vehicle-row'))
+            : [];
 
         for (let i = 0; i < vehicles.length; i++) {
             const v = vehicles[i];
@@ -7033,8 +7165,14 @@
             const unit = (typeof calculateTransferPrice === 'function')
                 ? calculateTransferPrice(zonePrice, rowType, 'one-way', vAdults || adults, vChild || child)
                 : { cost: 0, sell: 0 };
-            const unitCost = parseFloat(unit.cost) || 0;
-            const unitSell = parseFloat(unit.sell) || 0;
+            let unitCost = parseFloat(unit.cost) || 0;
+            let unitSell = parseFloat(unit.sell) || 0;
+            // Honour manual Cost/Sell when zone mapping is missing (same as attraction/restaurant MV)
+            const domRow = arrDepMvDomRows[i] || null;
+            const ucEl = domRow?.querySelector('.arr-dep-unit-cost');
+            const usEl = domRow?.querySelector('.arr-dep-unit-sell');
+            if (ucEl && ucEl.dataset.userEdited === '1') unitCost = parseFloat(ucEl.value) || unitCost;
+            if (usEl && usEl.dataset.userEdited === '1') unitSell = parseFloat(usEl.value) || unitSell;
             let lineCost, lineSell;
             if (rowShared) {
                 // Shared: unit × this vehicle's allocated adults+child (qty is coverage only)
@@ -15295,6 +15433,9 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         if (fields) fields.style.display = 'none';
         if (header) header.style.display = 'none';
         if (foc) foc.checked = false;
+        if (typeof window.enquiryProClearArrDepGuideManualPrices === 'function') {
+            window.enquiryProClearArrDepGuideManualPrices(side);
+        }
     }
 
     /**
@@ -15341,6 +15482,11 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         if (adultEl) adultEl.value = guideEntry.adultsQty ?? guideEntry.adults ?? adultEl.value ?? 0;
         if (childEl) childEl.value = guideEntry.childQty ?? guideEntry.children ?? childEl.value ?? 0;
         if (foc) foc.checked = !!(guideEntry.focServiceDiscount || guideEntry.foc_service_discount);
+
+        // Keep saved/manual guide Cost/Sell instead of catalog default
+        if (typeof window.enquiryProSetArrDepGuideManualPrices === 'function') {
+            window.enquiryProSetArrDepGuideManualPrices(side, guideEntry);
+        }
 
         let masterId = String(
             guideEntry.guideId || guideEntry.guide_id || guideEntry.guideID || ''
@@ -17521,9 +17667,12 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             if (typeSel && entry.transferType) { typeSel.value = entry.transferType; if (typeof filterArrivalVehiclesByServiceType === 'function') filterArrivalVehiclesByServiceType(); }
             // Vehicles (multi-row + qty; set after filter)
             setTimeout(() => {
-                const list = (typeof normalizeArrDepVehiclesList === 'function')
+                let list = (typeof normalizeArrDepVehiclesList === 'function')
                     ? normalizeArrDepVehiclesList(entry)
                     : (entry.vehicleId ? [{ vehicleId: entry.vehicleId, qty: entry.vehicleQty || 1 }] : []);
+                if (typeof window.enquiryProPeelTransferUnitsOntoVehicleList === 'function') {
+                    list = window.enquiryProPeelTransferUnitsOntoVehicleList(list, entry);
+                }
                 if (typeof ensureArrDepVehicleRows === 'function') {
                     ensureArrDepVehicleRows('arrival', list.length ? list : [{ vehicleId: entry.vehicleId || '', qty: 1 }]);
                     if (typeof filterArrivalVehiclesByServiceType === 'function') filterArrivalVehiclesByServiceType();
@@ -17550,6 +17699,15 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                                 );
                             }
                         });
+                        if (typeof fillArrDepRowUnitPrices === 'function') fillArrDepRowUnitPrices('arrival', list);
+                        if (typeof window.enquiryProMarkArrDepUnitsUserEdited === 'function') {
+                            window.enquiryProMarkArrDepUnitsUserEdited('arrival');
+                        }
+                        const _arrSavedCost = parseFloat(entry.cost || entry.adultCost || 0) || 0;
+                        const _arrSavedSell = parseFloat(entry.sell || entry.adultSell || 0) || 0;
+                        if ((_arrSavedCost > 0 || _arrSavedSell > 0) && typeof setArrDepTransferPriceUI === 'function') {
+                            setArrDepTransferPriceUI('arrival', _arrSavedCost, _arrSavedSell, '', true);
+                        }
                         if (typeof syncArrDepPrimaryVehicleSelect === 'function') syncArrDepPrimaryVehicleSelect('arrival');
                     }
                     if (typeof scheduleArrivalZonePriceRefresh === 'function') scheduleArrivalZonePriceRefresh();
@@ -17572,6 +17730,9 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             if (entry.guideId) {
                 const gEntry = guideList.find(g => String(g.id) === String(entry.guideId));
                 if (gEntry) {
+                    if (typeof window.enquiryProSetArrDepGuideManualPrices === 'function') {
+                        window.enquiryProSetArrDepGuideManualPrices('arrival', gEntry);
+                    }
                     const guideChk = document.getElementById('arrivalGuideCheckbox');
                     if (guideChk && !guideChk.checked) {
                         guideChk.checked = true;
@@ -17585,6 +17746,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                         const qc = document.getElementById('arrivalGuideChildQty'); if (qc) qc.value = gEntry.childQty  || 0;
                         const agf = document.getElementById('arrivalGuideFocServiceDiscount');
                         if (agf) agf.checked = !!(gEntry.focServiceDiscount || gEntry.foc_service_discount);
+                        if (typeof refreshArrivalGuidePriceDisplay === 'function') refreshArrivalGuidePriceDisplay();
                     }, 150);
                 } else {
                     // Stale guideId — clear UI
@@ -17622,9 +17784,12 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             const typeSel = document.getElementById('departureTransferType');
             if (typeSel && entry.transferType) { typeSel.value = entry.transferType; if (typeof filterDepartureVehiclesByServiceType === 'function') filterDepartureVehiclesByServiceType(); }
             setTimeout(() => {
-                const list = (typeof normalizeArrDepVehiclesList === 'function')
+                let list = (typeof normalizeArrDepVehiclesList === 'function')
                     ? normalizeArrDepVehiclesList(entry)
                     : (entry.vehicleId ? [{ vehicleId: entry.vehicleId, qty: entry.vehicleQty || 1 }] : []);
+                if (typeof window.enquiryProPeelTransferUnitsOntoVehicleList === 'function') {
+                    list = window.enquiryProPeelTransferUnitsOntoVehicleList(list, entry);
+                }
                 if (typeof ensureArrDepVehicleRows === 'function') {
                     ensureArrDepVehicleRows('departure', list.length ? list : [{ vehicleId: entry.vehicleId || '', qty: 1 }]);
                     if (typeof filterDepartureVehiclesByServiceType === 'function') filterDepartureVehiclesByServiceType();
@@ -17651,6 +17816,15 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                                 );
                             }
                         });
+                        if (typeof fillArrDepRowUnitPrices === 'function') fillArrDepRowUnitPrices('departure', list);
+                        if (typeof window.enquiryProMarkArrDepUnitsUserEdited === 'function') {
+                            window.enquiryProMarkArrDepUnitsUserEdited('departure');
+                        }
+                        const _depSavedCost = parseFloat(entry.cost || entry.adultCost || 0) || 0;
+                        const _depSavedSell = parseFloat(entry.sell || entry.adultSell || 0) || 0;
+                        if ((_depSavedCost > 0 || _depSavedSell > 0) && typeof setArrDepTransferPriceUI === 'function') {
+                            setArrDepTransferPriceUI('departure', _depSavedCost, _depSavedSell, '', true);
+                        }
                         if (typeof syncArrDepPrimaryVehicleSelect === 'function') syncArrDepPrimaryVehicleSelect('departure');
                     }
                     if (typeof scheduleDepartureZonePriceRefresh === 'function') scheduleDepartureZonePriceRefresh();
@@ -17671,6 +17845,9 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             if (entry.guideId) {
                 const gEntry = guideList.find(g => String(g.id) === String(entry.guideId));
                 if (gEntry) {
+                    if (typeof window.enquiryProSetArrDepGuideManualPrices === 'function') {
+                        window.enquiryProSetArrDepGuideManualPrices('departure', gEntry);
+                    }
                     const guideChk = document.getElementById('departureGuideCheckbox');
                     if (guideChk && !guideChk.checked) {
                         guideChk.checked = true;
@@ -17684,6 +17861,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                         const qc = document.getElementById('departureGuideChildQty'); if (qc) qc.value = gEntry.childQty  || 0;
                         const dgf = document.getElementById('departureGuideFocServiceDiscount');
                         if (dgf) dgf.checked = !!(gEntry.focServiceDiscount || gEntry.foc_service_discount);
+                        if (typeof refreshDepartureGuidePriceDisplay === 'function') refreshDepartureGuidePriceDisplay();
                     }, 150);
                 } else {
                     const guideChk = document.getElementById('departureGuideCheckbox');
@@ -18393,8 +18571,8 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     const guideOpt = guideSelect.selectedOptions[0];
                     const guideName = guideOpt?.getAttribute('data-name') || guideOpt?.text || '';
                     const guideLang = guideOpt?.getAttribute('data-languages') || '';
-                    const guidePrice = parseFloat(guideOpt?.getAttribute('data-twelve-hour-price') || 0);
-                    const guideCost = (typeof resolveGuideCostSellFromOption === 'function')
+                    let guidePrice = parseFloat(guideOpt?.getAttribute('data-twelve-hour-price') || 0);
+                    let guideCost = (typeof resolveGuideCostSellFromOption === 'function')
                         ? resolveGuideCostSellFromOption(guideOpt, 12).cost
                         : guidePrice;
                     const linkedTo = travelLabel;
@@ -18423,6 +18601,25 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     }
                     if (existingIdx === -1 && entry.guideId) {
                         existingIdx = guideList.findIndex(g => String(g.id) === String(entry.guideId));
+                    }
+
+                    const existingGuide = existingIdx !== -1 ? guideList[existingIdx] : null;
+                    const sameGuideMaster = !!(existingGuide
+                        && String(existingGuide.guideId || existingGuide.guide_id || '') === String(guideId));
+                    const manualGuidePrices = (typeof window.enquiryProGetArrDepGuideManualPrices === 'function')
+                        ? window.enquiryProGetArrDepGuideManualPrices(travelLabel, guideId)
+                        : null;
+                    if (sameGuideMaster || manualGuidePrices) {
+                        const preferred = (typeof window.enquiryProPreferSavedGuideCostSell === 'function')
+                            ? window.enquiryProPreferSavedGuideCostSell(
+                                sameGuideMaster ? existingGuide : null,
+                                guideCost,
+                                guidePrice,
+                                manualGuidePrices
+                            )
+                            : { cost: guideCost, sell: guidePrice };
+                        guideCost = preferred.cost;
+                        guidePrice = preferred.sell;
                     }
 
                     const guideObj = {
@@ -20860,6 +21057,30 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 if (sellEl) sellEl.value = result.storedSell || 0;
                 window._arrivalMultiVehicleResult = result;
                 if (typeof fillArrDepRowUnitPrices === 'function') fillArrDepRowUnitPrices('arrival', result.vehicles || []);
+                // Manual Cost/Sell: re-sync hidden + display from DOM after qty/pax refresh
+                const arrRowsHost = (typeof getArrDepVehicleRowsContainer === 'function')
+                    ? getArrDepVehicleRowsContainer('arrival') : null;
+                const arrHasManual = !!(arrRowsHost && Array.from(arrRowsHost.querySelectorAll('.arr-dep-unit-cost, .arr-dep-unit-sell'))
+                    .some(function (el) { return el.dataset.userEdited === '1'; }));
+                if (arrHasManual && typeof applyArrDepRowTotalsToHidden === 'function') {
+                    applyArrDepRowTotalsToHidden('arrival');
+                    cost = result.totalCost;
+                    sell = result.totalSell;
+                    let tc = 0, ts = 0;
+                    Array.from(arrRowsHost.querySelectorAll('.arr-dep-vehicle-row')).forEach(function (rEl) {
+                        if (typeof recalcArrDepVehicleRowTotals === 'function') {
+                            const t = recalcArrDepVehicleRowTotals('arrival', rEl);
+                            tc += t.lineCost; ts += t.lineSell;
+                        }
+                    });
+                    cost = tc; sell = ts;
+                    if (window._arrivalMultiVehicleResult) {
+                        window._arrivalMultiVehicleResult.totalCost = tc;
+                        window._arrivalMultiVehicleResult.totalSell = ts;
+                        window._arrivalMultiVehicleResult.storedCost = parseFloat(document.getElementById('arrivalCost')?.value) || 0;
+                        window._arrivalMultiVehicleResult.storedSell = parseFloat(document.getElementById('arrivalSell')?.value) || 0;
+                    }
+                }
             } catch (e) {
                 if (fetchSeq !== window._arrivalZoneFetchSeq) return;
                 console.warn('Arrival zone price fetch failed', e);
@@ -20935,6 +21156,27 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 meta = result.meta || '';
                 window._departureMultiVehicleResult = result;
                 if (typeof fillArrDepRowUnitPrices === 'function') fillArrDepRowUnitPrices('departure', result.vehicles || []);
+                const depRowsHost = (typeof getArrDepVehicleRowsContainer === 'function')
+                    ? getArrDepVehicleRowsContainer('departure') : null;
+                const depHasManual = !!(depRowsHost && Array.from(depRowsHost.querySelectorAll('.arr-dep-unit-cost, .arr-dep-unit-sell'))
+                    .some(function (el) { return el.dataset.userEdited === '1'; }));
+                if (depHasManual && typeof applyArrDepRowTotalsToHidden === 'function') {
+                    applyArrDepRowTotalsToHidden('departure');
+                    let tc = 0, ts = 0;
+                    Array.from(depRowsHost.querySelectorAll('.arr-dep-vehicle-row')).forEach(function (rEl) {
+                        if (typeof recalcArrDepVehicleRowTotals === 'function') {
+                            const t = recalcArrDepVehicleRowTotals('departure', rEl);
+                            tc += t.lineCost; ts += t.lineSell;
+                        }
+                    });
+                    cost = tc; sell = ts;
+                    if (window._departureMultiVehicleResult) {
+                        window._departureMultiVehicleResult.totalCost = tc;
+                        window._departureMultiVehicleResult.totalSell = ts;
+                        window._departureMultiVehicleResult.storedCost = parseFloat(document.getElementById('departureCost')?.value) || 0;
+                        window._departureMultiVehicleResult.storedSell = parseFloat(document.getElementById('departureSell')?.value) || 0;
+                    }
+                }
             } catch (e) {
                 if (fetchSeq !== window._departureZoneFetchSeq) return;
                 console.warn('Departure zone price fetch failed', e);
@@ -20981,9 +21223,16 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             setAccommodationPricingSide('arrivalGuide', 'ready');
             return;
         }
-        const _agp = (typeof resolveGuideCostSellFromOption === 'function')
+        let _agp = (typeof resolveGuideCostSellFromOption === 'function')
             ? resolveGuideCostSellFromOption(sel.selectedOptions[0], 12)
             : { cost: 0, sell: parseFloat(sel.selectedOptions[0]?.getAttribute('data-twelve-hour-price') || 0) || 0 };
+        const _agManual = (typeof window.enquiryProGetArrDepGuideManualPrices === 'function')
+            ? window.enquiryProGetArrDepGuideManualPrices('arrival', sel.value)
+            : null;
+        if (_agManual) {
+            if ((parseFloat(_agManual.cost) || 0) > 0) _agp.cost = parseFloat(_agManual.cost) || _agp.cost;
+            if ((parseFloat(_agManual.sell) || 0) > 0) _agp.sell = parseFloat(_agManual.sell) || _agp.sell;
+        }
         row.style.display = '';
         disp.textContent = `${formatArrDepZonePrice(_agp.cost)} / ${formatArrDepZonePrice(_agp.sell)}`;
         setAccommodationPricingSide('arrivalGuide', 'ready');
@@ -21005,9 +21254,16 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             setAccommodationPricingSide('departureGuide', 'ready');
             return;
         }
-        const _dgp = (typeof resolveGuideCostSellFromOption === 'function')
+        let _dgp = (typeof resolveGuideCostSellFromOption === 'function')
             ? resolveGuideCostSellFromOption(sel.selectedOptions[0], 12)
             : { cost: 0, sell: parseFloat(sel.selectedOptions[0]?.getAttribute('data-twelve-hour-price') || 0) || 0 };
+        const _dgManual = (typeof window.enquiryProGetArrDepGuideManualPrices === 'function')
+            ? window.enquiryProGetArrDepGuideManualPrices('departure', sel.value)
+            : null;
+        if (_dgManual) {
+            if ((parseFloat(_dgManual.cost) || 0) > 0) _dgp.cost = parseFloat(_dgManual.cost) || _dgp.cost;
+            if ((parseFloat(_dgManual.sell) || 0) > 0) _dgp.sell = parseFloat(_dgManual.sell) || _dgp.sell;
+        }
         row.style.display = '';
         disp.textContent = `${formatArrDepZonePrice(_dgp.cost)} / ${formatArrDepZonePrice(_dgp.sell)}`;
         setAccommodationPricingSide('departureGuide', 'ready');
@@ -21752,6 +22008,15 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             const tourId = oldTour.id; // Use existing tour ID
             let transferId = oldTour.transferId; // Keep existing transfer ID if updating
             let guideEntryId = oldTour.guideId; // Keep existing guide ID if updating
+            // Preserve listing-edited guide Cost/Sell when same guide is kept
+            const oldGuideForPrice = oldTour.guideId
+                ? guideList.find(g => String(g.id) === String(oldTour.guideId))
+                : null;
+            const oldGuideCost = parseFloat(oldGuideForPrice?.cost) || parseFloat(oldTour.guideInfo?.cost) || 0;
+            const oldGuideSell = parseFloat(oldGuideForPrice?.sell) || parseFloat(oldTour.guideInfo?.sell) || 0;
+            const oldGuideMasterId = String(
+                oldGuideForPrice?.guide_id || oldTour.guideInfo?.guide_id || oldTour.guideInfo?.guideId || ''
+            );
             
             if (oldTour.transferId) {
                 transferList = transferList.filter(t => t.id !== oldTour.transferId);
@@ -21925,23 +22190,30 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     : { cost: parseFloat(guideOption.getAttribute('data-twelve-hour-price') || '0') || 0, sell: parseFloat(guideOption.getAttribute('data-twelve-hour-price') || '0') || 0 };
                 const defaultCost = _gp.cost;
                 const defaultPrice = _gp.sell;
+                // Same guide as listing → keep manually edited listing prices
+                const keepListingGuidePrice = oldGuideMasterId
+                    && String(guideId) === oldGuideMasterId
+                    && (oldGuideCost > 0 || oldGuideSell > 0);
+                const totalCost = keepListingGuidePrice && oldGuideCost > 0 ? oldGuideCost : defaultCost;
+                const totalSell = keepListingGuidePrice && oldGuideSell > 0 ? oldGuideSell : defaultPrice;
                 
                 console.log('Editing linked guide:', {
                     guideId: guideId,
                     guideName: guideName,
                     defaultCost: defaultCost,
                     defaultPrice: defaultPrice,
+                    totalCost: totalCost,
+                    totalSell: totalSell,
+                    keepListingGuidePrice: keepListingGuidePrice,
                     adultsQty: adultsQty,
                     childQty: childQty
                 });
                 
                 // Guide price is fixed for 12 hours, not dependent on pax
-                const adultCost = defaultCost;
-                const adultSell = defaultPrice;
-                const childCost = defaultCost;
-                const childSell = defaultPrice;
-                const totalCost = defaultCost;
-                const totalSell = defaultPrice;
+                const adultCost = totalCost;
+                const adultSell = totalSell;
+                const childCost = totalCost;
+                const childSell = totalSell;
 
                 guideInfo = {
                     guide_id: guideId,
@@ -21991,16 +22263,9 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 guideEntryId = null;
             }
             
-            // Create guide_options object if guide is selected
+            // Create guide_options object if guide is selected (prefer preserved listing prices)
             let guide_options = null;
             if (guideChecked && guideId && guideInfo) {
-                const guideOptionForPrice = guideSelect.options[guideSelect.selectedIndex];
-                const guideOptSell = (typeof resolveGuideCostSellFromOption === 'function')
-                    ? resolveGuideCostSellFromOption(guideOptionForPrice, 12)
-                    : {
-                        cost: parseFloat(guideOptionForPrice?.getAttribute('data-twelve-hour-cost-price') || '0') || 0,
-                        sell: parseFloat(guideOptionForPrice?.getAttribute('data-twelve-hour-price') || '0') || 0
-                    };
                 guide_options = {
                     guideId: guideId,
                     guide_id: guideId,
@@ -22018,9 +22283,9 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     child_qty: childQty,
                     childrenQty: childQty,
                     children_qty: childQty,
-                    cost: guideOptSell.cost,
-                    sell: guideOptSell.sell,
-                    total_price: guideOptSell.sell,
+                    cost: guideInfo.cost,
+                    sell: guideInfo.sell,
+                    total_price: guideInfo.sell,
                     serviceType: 'Full Day',
                     service_type: 'Full Day',
                     tourActivity: `${attractionName} - ${guideName}`,
@@ -22835,22 +23100,44 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 waySelect.value = tour.transferInfo.way;
             }
 
-            // Restore A/D-style multi-vehicle panel for this attraction transfer
+            // Restore A/D-style multi-vehicle panel + manual Cost/Sell (listing prices)
             if (typeof ensureAttractionTransferPanelAfterRow === 'function') {
-                const vehicles = Array.isArray(tour.transferInfo.vehicles) && tour.transferInfo.vehicles.length
-                    ? tour.transferInfo.vehicles
-                    : (tour.transferInfo.vehicleId ? [{
-                        vehicleId: tour.transferInfo.vehicleId,
-                        qty: tour.transferInfo.vehicleQty || 1,
-                        transferType: tour.transferInfo.type || tour.transferInfo.transferType || 'S',
-                        adults: tour.transferInfo.adults || tour.adultsQty || 0,
-                        child: tour.transferInfo.child || tour.childQty || 0,
-                        infant: 0
+                const linkedXfer = (tour.transferId && typeof transferList !== 'undefined')
+                    ? transferList.find(t => String(t.id) === String(tour.transferId))
+                    : null;
+                const info = linkedXfer || tour.transferInfo || {};
+                let vehicles = Array.isArray(info.vehicles) && info.vehicles.length
+                    ? info.vehicles
+                    : (info.vehicleId ? [{
+                        vehicleId: info.vehicleId,
+                        qty: info.vehicleQty || 1,
+                        transferType: info.type || info.transferType || 'S',
+                        adults: info.adults || tour.adultsQty || 0,
+                        child: info.child || tour.childQty || 0,
+                        infant: 0,
+                        unitCost: info.unitCost || info.cost || info.adultCost,
+                        unitSell: info.unitSell || info.sell || info.adultSell,
+                        way: info.way || 'both-way'
                     }] : [{ vehicleId: '', qty: 1, transferType: 'S' }]);
+                if (typeof window.enquiryProPeelTransferUnitsOntoVehicleList === 'function') {
+                    vehicles = window.enquiryProPeelTransferUnitsOntoVehicleList(vehicles, info);
+                }
                 ensureAttractionTransferPanelAfterRow(matchRow, vehicles);
                 if (typeof toggleAttractionTransferPanel === 'function') {
                     toggleAttractionTransferPanel(transferCheckbox, true);
                 }
+                setTimeout(function () {
+                    const uid = matchRow.getAttribute('data-unique-id')
+                        || matchRow.querySelector('.attraction-checkbox')?.getAttribute('data-unique-id')
+                        || '';
+                    const side = 'attr:' + String(uid);
+                    if (typeof fillArrDepRowUnitPrices === 'function') {
+                        fillArrDepRowUnitPrices(side, vehicles);
+                    }
+                    if (typeof window.enquiryProMarkArrDepUnitsUserEdited === 'function') {
+                        window.enquiryProMarkArrDepUnitsUserEdited(side);
+                    }
+                }, 120);
             } else if (typeof toggleAttractionTransferPanel === 'function') {
                 toggleAttractionTransferPanel(transferCheckbox, true);
             }
@@ -25870,31 +26157,8 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             if (transferId) {
                 const te = transferList.find(t => String(t.id) === String(transferId));
                 if (te) {
-                    transferInfo = {
-                        id: transferId,
-                        destination: te.destination || te.dropoff || '',
-                        destinationId: te.destinationId || null,
-                        vehicleId: te.vehicleId || '',
-                        vehicleName: te.vehicleName || '',
-                        vehicleType: te.vehicleType || '',
-                        capacity: te.capacity || 0,
-                        type: te.type,
-                        way: te.way,
-                        pickup: te.pickup || '',
-                        dropoff: te.dropoff || '',
-                        isDestinationPickup: !!te.isDestinationPickup,
-                        adults: te.adults ?? te.adultsQty ?? 0,
-                        adultsQty: te.adultsQty ?? te.adults ?? 0,
-                        child: te.child ?? te.childQty ?? 0,
-                        childQty: te.childQty ?? te.child ?? 0,
-                        cost: te.cost ?? 0,
-                        sell: te.sell ?? 0,
-                        zonePrivatePrice: te.zonePrivatePrice || 0,
-                        zoneSharedPrice: te.zoneSharedPrice || 0,
-                        zonePrivateCostPrice: te.zonePrivateCostPrice || 0,
-                        zoneSharedCostPrice: te.zoneSharedCostPrice || 0,
-                        focServiceDiscount: !!te.focServiceDiscount
-                    };
+                    // Keep full MV payload (vehicles + unitCost/unitSell) — do not strip like attraction
+                    transferInfo = Object.assign({}, te);
                 }
             }
             
@@ -27006,7 +27270,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                         console.log('Set type to:', typeValue);
                     }
 
-                    // Restore multi-vehicle panel (pax / Shared / Private / zone Cost&Sell)
+                    // Restore multi-vehicle panel + manual Cost/Sell (same as edit / attraction)
                     if (typeof ensureRestaurantMvPanel === 'function') {
                         const linked = (meal.transferId && typeof transferList !== 'undefined')
                             ? transferList.find(t => t.id === meal.transferId)
@@ -27021,11 +27285,24 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                                 way: tInfo.way || 'one-way',
                                 adults: parseInt(meal.adultsQty || src?.adults || 0, 10) || 0,
                                 child: parseInt(meal.childQty || src?.child || 0, 10) || 0,
-                                infant: parseInt(meal.infantQty || src?.infant || 0, 10) || 0
+                                infant: parseInt(meal.infantQty || src?.infant || 0, 10) || 0,
+                                unitCost: tInfo.unitCost || tInfo.cost || src?.cost || src?.unitCost,
+                                unitSell: tInfo.unitSell || tInfo.sell || src?.sell || src?.unitSell
                             }];
                         }
                         setTimeout(function () {
+                            if (typeof window.enquiryProPeelTransferUnitsOntoVehicleList === 'function') {
+                                seedVehicles = window.enquiryProPeelTransferUnitsOntoVehicleList(seedVehicles, src || tInfo);
+                            }
                             ensureRestaurantMvPanel(seedVehicles);
+                            setTimeout(function () {
+                                if (typeof fillArrDepRowUnitPrices === 'function') {
+                                    fillArrDepRowUnitPrices('rest:meal', seedVehicles);
+                                }
+                                if (typeof window.enquiryProMarkArrDepUnitsUserEdited === 'function') {
+                                    window.enquiryProMarkArrDepUnitsUserEdited('rest:meal');
+                                }
+                            }, 80);
                         }, 80);
                     }
                 } else {
@@ -29036,7 +29313,14 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             
             // Multi-vehicle payload (qty + coverage)
             if (typeof scheduleLocalMultiVehiclePriceRefresh === 'function') {
-                await refreshLocalMultiVehiclePrices();
+                const fn = (typeof window.refreshLocalMultiVehiclePrices === 'function')
+                    ? window.refreshLocalMultiVehiclePrices
+                    : refreshLocalMultiVehiclePrices;
+                await fn();
+            }
+            // Rebuild totals from DOM so manual Cost/Sell win over zone zeros
+            if (typeof applyLocalMultiVehicleTotalsToForm === 'function') {
+                applyLocalMultiVehicleTotalsToForm();
             }
             const localVehicles = (typeof collectLocalVehiclesPayload === 'function')
                 ? collectLocalVehiclesPayload()
@@ -29329,6 +29613,9 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         } else {
             transferList.push(transferData);
         }
+        window._localTransferRestoreLock = false;
+        window._localTransferRestoreEntry = null;
+        window._localTransferRestoreVehicles = null;
         
         // Update header dates
         if (isEditing) {
@@ -29494,6 +29781,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         }
         
         window.editingTransferIndex = index;
+        window._localTransferRestoreLock = true;
         
         // Reset all forms first
         resetAllTransferForms();
@@ -29543,6 +29831,20 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 dropType: transfer.dropType || '',
                 dropName: dropLabel
             };
+            window._localTransferRestoreEntry = transfer;
+
+            const reassertLocalUnitPrices = function (list, force) {
+                if (!list || !list.length) return;
+                if (typeof fillArrDepRowUnitPrices === 'function') {
+                    fillArrDepRowUnitPrices('local', list, { force: !!force });
+                }
+                if (typeof window.enquiryProMarkArrDepUnitsUserEdited === 'function') {
+                    window.enquiryProMarkArrDepUnitsUserEdited('local', { force: true });
+                }
+                if (typeof applyLocalMultiVehicleTotalsToForm === 'function') {
+                    applyLocalMultiVehicleTotalsToForm();
+                }
+            };
 
             const fillLocalTransferFields = function () {
                 if (typeof bindLocalPickupDropSync === 'function') {
@@ -29559,20 +29861,35 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                         $('#localDrop').val(transfer.dropId).trigger('change');
                     }
                 }
-                                const localVehList = (typeof normalizeArrDepVehiclesList === 'function')
+                let localVehList = (typeof normalizeArrDepVehiclesList === 'function')
                     ? normalizeArrDepVehiclesList(transfer)
                     : (transfer.vehicleId ? [{ vehicleId: transfer.vehicleId, qty: transfer.vehicleQty || 1 }] : []);
+                if (typeof window.enquiryProPeelTransferUnitsOntoVehicleList === 'function') {
+                    localVehList = window.enquiryProPeelTransferUnitsOntoVehicleList(localVehList, transfer);
+                }
+                window._localTransferRestoreVehicles = localVehList;
                 if (typeof ensureArrDepVehicleRows === 'function') {
                     ensureArrDepVehicleRows('local', localVehList.length ? localVehList : [{ vehicleId: transfer.vehicleId || '', qty: 1 }]);
                 }
                 document.getElementById('localVehicleType').value = transfer.vehicleId || '';
 
                 if (typeof filterLocalTransferVehiclesByServiceType === 'function') {
+                    // Keep restore lock so filter's scheduleLocalMultiVehiclePriceRefresh is a no-op
                     filterLocalTransferVehiclesByServiceType();
                 }
                 if (transfer.vehicleId) {
                     document.getElementById('localVehicleType').value = transfer.vehicleId;
+                    const rowSel = document.querySelector('#localVehicleRows .arr-dep-vehicle-select');
+                    if (rowSel) rowSel.value = String(transfer.vehicleId);
                 }
+                reassertLocalUnitPrices(localVehList, true);
+                // Keep saved/manual Cost/Sell after any late filter/select2 races
+                setTimeout(function () { reassertLocalUnitPrices(localVehList, true); }, 120);
+                setTimeout(function () { reassertLocalUnitPrices(localVehList, true); }, 350);
+                setTimeout(function () {
+                    reassertLocalUnitPrices(localVehList, true);
+                    window._localTransferRestoreLock = false;
+                }, 700);
             };
 
             const cityFilterPromise = (typeof applyLocalTransferCityFilters === 'function')
@@ -29734,6 +30051,11 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         if (transportMode === 'local' && window._pendingLocalTransferRestore) {
             Promise.resolve(window._pendingLocalTransferRestore).then(showTransferEditModal);
         } else {
+            if (transportMode !== 'local') {
+                window._localTransferRestoreLock = false;
+                window._localTransferRestoreEntry = null;
+                window._localTransferRestoreVehicles = null;
+            }
             showTransferEditModal();
         }
     }

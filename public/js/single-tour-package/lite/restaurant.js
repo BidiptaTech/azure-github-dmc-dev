@@ -781,15 +781,23 @@
         root.addEventListener('click', function (e) {
             var removeBtn = e.target.closest('.restaurant-remove');
             if (removeBtn) {
-                if (!(window.StpLiteTransportShared && window.StpLiteTransportShared.confirmRemoveService
-                    ? window.StpLiteTransportShared.confirmRemoveService()
-                    : window.confirm('Are you sure you want to remove this service?'))) return;
                 var rows = readChunk(root);
-                rows.splice(parseInt(removeBtn.getAttribute('data-idx'), 10) || 0, 1);
-                writeChunk(root, rows);
-                root.__editingIdx = null;
-                setAddMode(root, false);
-                renderAdded(root);
+                var removeIdx = parseInt(removeBtn.getAttribute('data-idx'), 10) || 0;
+                var row = rows[removeIdx];
+                if (!row) return;
+                var removeNow = function () {
+                    var next = readChunk(root);
+                    next.splice(removeIdx, 1);
+                    writeChunk(root, next);
+                    root.__editingIdx = null;
+                    setAddMode(root, false);
+                    renderAdded(root);
+                };
+                if (window.StpLiteTransportShared && window.StpLiteTransportShared.requestServiceRemoval) {
+                    window.StpLiteTransportShared.requestServiceRemoval(row, removeNow, 'Restaurant');
+                } else if (window.confirm('Are you sure you want to remove this service?')) {
+                    removeNow();
+                }
                 return;
             }
             var editBtn = e.target.closest('.restaurant-edit-added');

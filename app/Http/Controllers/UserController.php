@@ -3772,6 +3772,32 @@ class UserController extends Controller
     }
 
     /**
+     * Travclicks only: refresh countries.current_rate from the live SGD rates.
+     */
+    public function syncCurrencyRates()
+    {
+        if (! in_array((int) Auth::user()->role_id, [1, 2, 3, 4], true)) {
+            abort(403, 'Only Travclicks can sync currency rates.');
+        }
+
+        try {
+            $result = Country::syncCurrentRates();
+        } catch (\Throwable $e) {
+            \Log::error('Currency rate sync failed', ['error' => $e->getMessage()]);
+
+            return redirect()->route('user.profile')->with('error', 'Currency rate sync failed. Please try again.');
+        }
+
+        $msg = "Updated rates for {$result['updated']} countries.";
+        if ($result['failed']) {
+            return redirect()->route('user.profile')
+                ->with('error', $msg.' Could not fetch: '.implode(', ', $result['failed']).' (previous rates kept).');
+        }
+
+        return redirect()->route('user.profile')->with('success', $msg);
+    }
+
+    /**
      * Save DMC hotel/other markup into users.markup_json.
      */
     public function updateProfileMarkup(Request $request)

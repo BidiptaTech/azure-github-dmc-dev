@@ -191,7 +191,7 @@
             +           '<option value="P"' + pSel + '>Private</option>'
             +         '</select></div>'
             +       '<div class="attraction-mv-field attraction-mv-field--way"><label>Way</label>'
-            +         '<select class="form-select form-select-sm arr-dep-vehicle-way">'
+            +         '<select class="form-select form-select-sm arr-dep-vehicle-way" data-last-way="' + defaultWay + '">'
             +           '<option value="one-way"' + oneSel + '>1-Way</option>'
             +           '<option value="both-way"' + bothSel + '>2-Way</option>'
             +         '</select></div>'
@@ -285,6 +285,7 @@
                 var wayEl = row.querySelector('.arr-dep-vehicle-way');
                 if (wayEl) {
                     wayEl.value = (paxOpts && paxOpts.way) ? paxOpts.way : getLocalDefaultWay();
+                    wayEl.dataset.lastWay = wayEl.value || getLocalDefaultWay();
                 }
                 window._arrDepVehicleForceCity = String(document.getElementById('localDestination')?.value || '').trim();
                 if (typeof applyArrDepVehicleFilterToSelect === 'function') {
@@ -479,15 +480,28 @@
                 var domRow = domRows[i];
                 var ucEl = domRow?.querySelector('.arr-dep-unit-cost');
                 var usEl = domRow?.querySelector('.arr-dep-unit-sell');
-                if (ucEl && ucEl.dataset.userEdited === '1') {
-                    unitCost = parseFloat(ucEl.value) || unitCost;
-                } else if (ucEl) {
-                    ucEl.value = unitCost.toFixed(2);
-                }
-                if (usEl && usEl.dataset.userEdited === '1') {
-                    unitSell = parseFloat(usEl.value) || unitSell;
-                } else if (usEl) {
-                    usEl.value = unitSell.toFixed(2);
+                var costEdited = !!(ucEl && ucEl.dataset.userEdited === '1');
+                var sellEdited = !!(usEl && usEl.dataset.userEdited === '1');
+                // Manual Cost/Sell: keep typed units, but rescale 1-way ↔ both-way like zone pricing
+                if (costEdited || sellEdited) {
+                    if (typeof window.enquiryProApplyManualUnitWayRescale === 'function') {
+                        var scaled = window.enquiryProApplyManualUnitWayRescale(domRow, way, {
+                            ucEl: ucEl, usEl: usEl, wayEl: wayEl
+                        });
+                        if (costEdited) unitCost = parseFloat(scaled.unitCost) || unitCost;
+                        if (sellEdited) unitSell = parseFloat(scaled.unitSell) || unitSell;
+                    } else {
+                        if (costEdited) unitCost = parseFloat(ucEl.value) || unitCost;
+                        if (sellEdited) unitSell = parseFloat(usEl.value) || unitSell;
+                    }
+                } else {
+                    if (ucEl) ucEl.value = unitCost.toFixed(2);
+                    if (usEl) usEl.value = unitSell.toFixed(2);
+                    if (typeof window.enquiryProSeedTransferUnitLastWay === 'function') {
+                        window.enquiryProSeedTransferUnitLastWay(domRow, way);
+                    } else if (wayEl) {
+                        wayEl.dataset.lastWay = way;
+                    }
                 }
                 var lineCost = rowShared ? unitCost * Math.max(0, billPax) : unitCost * qty;
                 var lineSell = rowShared ? unitSell * Math.max(0, billPax) : unitSell * qty;
@@ -583,9 +597,26 @@
         widenTransferModalForLocal();
         var container = document.getElementById('localVehicleRows');
         if (!container) return null;
-        var list = (Array.isArray(vehicles) && vehicles.length)
+        var hasExplicitSeed = Array.isArray(vehicles) && vehicles.length > 0;
+        var list = hasExplicitSeed
             ? vehicles
             : [{ vehicleId: '', qty: 1, transferType: 'S', way: getLocalDefaultWay() }];
+        var parentEntry = window._localTransferRestoreEntry || null;
+        if (hasExplicitSeed && typeof window.enquiryProPeelTransferUnitsOntoVehicleList === 'function') {
+            var peelEntry = parentEntry || {
+                cost: list.reduce(function (s, v) {
+                    return s + (parseFloat(v.unitCost != null ? v.unitCost : v.unit_cost) || parseFloat(v.cost) || 0);
+                }, 0) || (parseFloat(list[0]?.cost) || 0),
+                sell: list.reduce(function (s, v) {
+                    return s + (parseFloat(v.unitSell != null ? v.unitSell : v.unit_sell) || parseFloat(v.sell) || 0);
+                }, 0) || (parseFloat(list[0]?.sell) || 0),
+                adults: list[0]?.adults || list[0]?.adultsQty,
+                child: list[0]?.child || list[0]?.childQty,
+                type: list[0]?.transferType || list[0]?.type,
+                transferType: list[0]?.transferType || list[0]?.type
+            };
+            list = window.enquiryProPeelTransferUnitsOntoVehicleList(list, peelEntry);
+        }
         container.innerHTML = '';
         list.forEach(function (v) {
             window.addArrDepVehicleRow(
@@ -601,8 +632,33 @@
                 }
             );
         });
-        if (typeof scheduleLocalMultiVehiclePriceRefresh === 'function') {
+        // Restore manual Cost/Sell (re-open Edit Transfer Package)
+        if (hasExplicitSeed) {
+            if (typeof fillArrDepRowUnitPrices === 'function') {
+                fillArrDepRowUnitPrices('local', list, { force: true });
+            }
+            if (typeof window.enquiryProMarkArrDepUnitsUserEdited === 'function') {
+                window.enquiryProMarkArrDepUnitsUserEdited('local', { force: true });
+            }
+        }
+        var restoring = !!(window._localTransferRestoreLock
+            || (window.editingTransferIndex != null && window.editingTransferIndex !== undefined));
+        if (!restoring && typeof scheduleLocalMultiVehiclePriceRefresh === 'function') {
             scheduleLocalMultiVehiclePriceRefresh();
+        }
+        // Re-assert manual units after any late filter/select2 races
+        if (hasExplicitSeed) {
+            setTimeout(function () {
+                if (typeof fillArrDepRowUnitPrices === 'function') {
+                    fillArrDepRowUnitPrices('local', list, { force: true });
+                }
+                if (typeof window.enquiryProMarkArrDepUnitsUserEdited === 'function') {
+                    window.enquiryProMarkArrDepUnitsUserEdited('local', { force: true });
+                }
+                if (typeof updateArrDepVehicleCoverage === 'function') {
+                    updateArrDepVehicleCoverage('local');
+                }
+            }, 280);
         }
         return container;
     };
@@ -649,6 +705,12 @@
             }
         });
 
+        document.getElementById('transferModal')?.addEventListener('hidden.bs.modal', function () {
+            window._localTransferRestoreLock = false;
+            window._localTransferRestoreEntry = null;
+            window._localTransferRestoreVehicles = null;
+        });
+
         document.getElementById('transferModal')?.addEventListener('shown.bs.modal', function () {
             ensureLocalMvStyles();
             widenTransferModalForLocal();
@@ -656,15 +718,29 @@
             var mode = document.querySelector('input[name="transferMode"]:checked')?.value;
             if (mode === 'local') {
                 var c = document.getElementById('localVehicleRows');
-                if (c && !c.querySelector('.arr-dep-vehicle-row')) {
+                var hasRows = !!(c && c.querySelector('.arr-dep-vehicle-row'));
+                if (c && !hasRows) {
                     var a = parseInt(document.getElementById('localAdults')?.value || '0', 10) || 0;
                     var ch = parseInt(document.getElementById('localChild')?.value || '0', 10) || 0;
                     window.addArrDepVehicleRow('local', '', 1, 'S', {
                         adults: a, child: ch, infant: 0, way: getLocalDefaultWay()
                     });
                 }
-                if (typeof scheduleLocalMultiVehiclePriceRefresh === 'function') {
+                // Do not zone-refresh when editing an existing local transfer (rows already seeded
+                // with manual Cost/Sell). New empty rows still refresh.
+                var editingExisting = (window.editingTransferIndex != null
+                    && window.editingTransferIndex !== undefined)
+                    || !!window._localTransferRestoreLock;
+                if (!editingExisting && typeof scheduleLocalMultiVehiclePriceRefresh === 'function') {
                     scheduleLocalMultiVehiclePriceRefresh();
+                } else if (editingExisting) {
+                    var restoreList = window._localTransferRestoreVehicles;
+                    if (restoreList && restoreList.length && typeof fillArrDepRowUnitPrices === 'function') {
+                        fillArrDepRowUnitPrices('local', restoreList, { force: true });
+                    }
+                    if (typeof window.enquiryProMarkArrDepUnitsUserEdited === 'function') {
+                        window.enquiryProMarkArrDepUnitsUserEdited('local', { force: true });
+                    }
                 }
             }
         });

@@ -349,7 +349,7 @@
             +           '<option value="P"' + pSel + '>Private</option>'
             +         '</select></div>'
             +       '<div class="attraction-mv-field attraction-mv-field--way"><label>Way</label>'
-            +         '<select class="form-select form-select-sm arr-dep-vehicle-way">'
+            +         '<select class="form-select form-select-sm arr-dep-vehicle-way" data-last-way="' + defaultWay + '">'
             +           '<option value="one-way"' + oneSel + '>1-Way</option>'
             +           '<option value="both-way"' + bothSel + '>2-Way</option>'
             +         '</select></div>'
@@ -460,9 +460,27 @@
                 const wayEl = row.querySelector('.arr-dep-vehicle-way');
                 if (wayEl && paxOpts && paxOpts.way) {
                     wayEl.value = paxOpts.way;
+                    wayEl.dataset.lastWay = paxOpts.way;
+                } else if (wayEl && !wayEl.dataset.lastWay) {
+                    wayEl.dataset.lastWay = wayEl.value || 'both-way';
                 }
                 if (typeof applyArrDepVehicleFilterToSelect === 'function') {
-                    applyArrDepVehicleFilterToSelect(side, sel);
+                    const tourCity = String(document.getElementById('tourDestination')?.value || '').trim();
+                    applyArrDepVehicleFilterToSelect(side, sel, tourCity || undefined);
+                }
+                // If filter cleared a non-city default, sync seats/header from the valid pick
+                if (sel && sel.value && typeof updateArrDepVehicleCoverage === 'function') {
+                    const seatsEl = row.querySelector('.arr-dep-vehicle-seats');
+                    const opt = sel.selectedOptions && sel.selectedOptions[0];
+                    if (seatsEl && opt) {
+                        seatsEl.textContent = String(
+                            parseInt(opt.getAttribute('data-city-tour-seating')
+                                || opt.getAttribute('data-seating') || '0', 10) || 0
+                        );
+                    }
+                    if (typeof refreshAttractionMvItemHeader === 'function') {
+                        refreshAttractionMvItemHeader(row, 0);
+                    }
                 }
                 if (typeof bindArrDepVehicleRowEvents === 'function') {
                     bindArrDepVehicleRowEvents(side, row);
@@ -685,11 +703,21 @@
         const side = attrMvSide(uid);
         const container = document.getElementById('attractionVehicleRows_' + uid);
         const hasRows = !!(container && container.querySelector('.arr-dep-vehicle-row'));
+        const seedList = Array.isArray(vehicles) && vehicles.length ? vehicles : null;
         if (typeof ensureArrDepVehicleRows === 'function') {
-            if (Array.isArray(vehicles) && vehicles.length) {
-                ensureArrDepVehicleRows(side, vehicles);
+            if (seedList && seedList.length) {
+                ensureArrDepVehicleRows(side, seedList);
             } else if (!hasRows) {
                 ensureArrDepVehicleRows(side, [{ vehicleId: '', qty: 1, transferType: 'S' }]);
+            }
+        }
+        // Restore saved/manual Cost/Sell so re-open does not show 0 after zone refresh
+        if (seedList && seedList.length) {
+            if (typeof fillArrDepRowUnitPrices === 'function') {
+                fillArrDepRowUnitPrices(side, seedList);
+            }
+            if (typeof window.enquiryProMarkArrDepUnitsUserEdited === 'function') {
+                window.enquiryProMarkArrDepUnitsUserEdited(side);
             }
         }
         return panel;
@@ -712,7 +740,13 @@
             const uid = row.getAttribute('data-unique-id')
                 || panel?.getAttribute?.('data-unique-id');
             if (uid) {
-                scheduleAttractionMvPriceRefresh(attrMvSide(uid));
+                // Delay zone refresh so restore fill+userEdited can land first (re-open edit)
+                setTimeout(function () {
+                    if (typeof window.enquiryProMarkArrDepUnitsUserEdited === 'function') {
+                        window.enquiryProMarkArrDepUnitsUserEdited(attrMvSide(uid));
+                    }
+                    scheduleAttractionMvPriceRefresh(attrMvSide(uid));
+                }, 80);
                 if (typeof updateArrDepVehicleCoverage === 'function') {
                     updateArrDepVehicleCoverage(attrMvSide(uid));
                 }
@@ -819,15 +853,29 @@
             const domRow = domRows[i];
             const ucEl = domRow?.querySelector('.arr-dep-unit-cost');
             const usEl = domRow?.querySelector('.arr-dep-unit-sell');
-            if (ucEl && ucEl.dataset.userEdited === '1') {
-                unitCost = parseFloat(ucEl.value) || unitCost;
-            } else if (ucEl) {
-                ucEl.value = unitCost.toFixed(2);
-            }
-            if (usEl && usEl.dataset.userEdited === '1') {
-                unitSell = parseFloat(usEl.value) || unitSell;
-            } else if (usEl) {
-                usEl.value = unitSell.toFixed(2);
+            const wayEl = domRow?.querySelector('.arr-dep-vehicle-way');
+            const costEdited = !!(ucEl && ucEl.dataset.userEdited === '1');
+            const sellEdited = !!(usEl && usEl.dataset.userEdited === '1');
+            // Manual Cost/Sell: keep typed units, but rescale 1-way ↔ both-way like zone pricing
+            if (costEdited || sellEdited) {
+                if (typeof window.enquiryProApplyManualUnitWayRescale === 'function') {
+                    const scaled = window.enquiryProApplyManualUnitWayRescale(domRow, way, {
+                        ucEl: ucEl, usEl: usEl, wayEl: wayEl
+                    });
+                    if (costEdited) unitCost = parseFloat(scaled.unitCost) || unitCost;
+                    if (sellEdited) unitSell = parseFloat(scaled.unitSell) || unitSell;
+                } else {
+                    if (costEdited) unitCost = parseFloat(ucEl.value) || unitCost;
+                    if (sellEdited) unitSell = parseFloat(usEl.value) || unitSell;
+                }
+            } else {
+                if (ucEl) ucEl.value = unitCost.toFixed(2);
+                if (usEl) usEl.value = unitSell.toFixed(2);
+                if (typeof window.enquiryProSeedTransferUnitLastWay === 'function') {
+                    window.enquiryProSeedTransferUnitLastWay(domRow, way);
+                } else if (wayEl) {
+                    wayEl.dataset.lastWay = way;
+                }
             }
             const lineCost = rowShared ? unitCost * billPax : unitCost * qty;
             const lineSell = rowShared ? unitSell * billPax : unitSell * qty;

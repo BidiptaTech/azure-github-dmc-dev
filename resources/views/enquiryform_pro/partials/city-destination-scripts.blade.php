@@ -1691,6 +1691,9 @@
         const hotelDest = String(document.getElementById('hotelDestination')?.value || '').trim();
         if (hotelDest) return hotelDest;
 
+        const tourDest = String(document.getElementById('tourDestination')?.value || '').trim();
+        if (tourDest) return tourDest;
+
         // Prefer city from currently selected dropoff/pickup hotel
         const dropHotel = document.getElementById('arrivalDestination');
         if (dropHotel && dropHotel.selectedIndex >= 0) {

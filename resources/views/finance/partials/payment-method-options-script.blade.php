@@ -68,8 +68,8 @@
             : (checkAmount <= 0
                 ? 'No payable amount on this booking.'
                 : (balance <= 0
-                    ? `No ${currency} wallet balance for this agency under the tour DMC.`
-                    : `Insufficient wallet balance (${currency} ${balance} available, ${checkAmount} required).`));
+                    ? `No ${currency} balance in the DMC wallet.`
+                    : `Insufficient DMC wallet balance (${currency} ${balance} available, ${checkAmount} required).`));
         if (wallet.wallet) {
             wallet.wallet.required_amount = checkAmount;
         }

@@ -6463,6 +6463,7 @@ class SingleTourPackageController extends Controller
                                             'order_ref_no' => '1111111',
                                         ]);
                                         $order->refresh();
+                                        $this->topUpEnquiryAmount($order);
 
                                         \Log::info("Hotel order created successfully", [
                                             'order_id' => $order->booking_id,
@@ -7129,10 +7130,9 @@ class SingleTourPackageController extends Controller
 
     /** All Add more services modal submission handling from below */
     /**
-     * Add a freshly booked service on top of the tour's negotiated enquiry amount.
-     *
-     * No-op when the tour was never negotiated. Never allowed to fail the booking —
-     * the order row is already committed by the time this runs.
+     * Append a new service to the existing negotiation JSON on Confirmed, Definite,
+     * or Actual tours. No-op otherwise. Never allowed to fail the booking — the
+     * order row is already committed by the time this runs.
      */
     private function topUpEnquiryAmount(Order $order): void
     {
@@ -8388,6 +8388,7 @@ class SingleTourPackageController extends Controller
 
         $order = Order::create($attributes);
         $order->refresh();
+        $this->topUpEnquiryAmount($order);
 
         return $order;
     }
