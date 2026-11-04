@@ -74,6 +74,7 @@ const Index2Zone = () => {
   const vehicles = location.state?.vehicles || checkoutVehicle || null;
   const seatingCapacity = vehicles?.seating_capacity || 0;
   const [isBookNowEnabled, setIsBookNowEnabled] = useState(false);
+  const [addedToCart, setAddedToCart] = useState(false);
   const [isNight, setIsNight] = useState(false);
   // Get default values for guests from Redux store
   // Fetch values from Redux
@@ -315,8 +316,9 @@ const Index2Zone = () => {
       return;
     }
     lockCartDmc(dispatch, details);
+    setAddedToCart(true);
     toast.success("Added to cart successfully.");
-    navigate(`/app/cart`);
+    // navigate(`/app/cart`);
   };
 
   // const handleFinalSubmit = async () => {
@@ -464,11 +466,20 @@ const Index2Zone = () => {
         <button
           onClick={handlesubmit0}
           className={`button -dark-1 py-15 px-35 h-60 col-12 rounded-4 ${
-            isBookNowEnabled ? "bg-blue-1 text-white" : "bg-gray-1 text-gray-3"
+            addedToCart
+              ? "text-white"
+              : isBookNowEnabled
+                ? "bg-blue-1 text-white"
+                : "bg-gray-1 text-gray-3"
           }`}
+          style={
+            addedToCart
+              ? { backgroundColor: "#22c55e", borderColor: "#22c55e" }
+              : undefined
+          }
           disabled={!isBookNowEnabled} // Disable button if not enabled
         >
-          Add to Cart
+          {addedToCart ? "Added to Cart" : "Add to Cart"}
         </button>
         {/* {isNight && (
           <div className="text-14 mt-10" style={{ color: "#E53935" }}>

@@ -623,7 +623,21 @@ console.log("vehicles123", vehicles);
                       onClick={() => onVehicleClick(vehicle, navigate)}
                       variant="contained"
                       color="primary"
-                      className="button -md -dark-1 bg-blue-1 text-white mt-20 mb-10"
+                      size="medium"
+                      className="button -dark-1 bg-blue-1 text-white"
+                      sx={{
+                        mt: 2,
+                        mb: 1,
+                        minWidth: 140,
+                        px: 3,
+                        py: 1.1,
+                        fontSize: "0.95rem",
+                        fontWeight: 600,
+                        textTransform: "none",
+                        borderRadius: "8px",
+                        boxShadow: "none",
+                        "&:hover": { boxShadow: "none" },
+                      }}
                     >
                       View Detail
                     </Button>

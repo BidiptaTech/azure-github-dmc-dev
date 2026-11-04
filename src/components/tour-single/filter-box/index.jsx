@@ -78,6 +78,7 @@ const index = () => {
     checkoutDraft?.selectedTicket || null
   );
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [addedToCart, setAddedToCart] = useState(false);
   const [transportOption, setTransportOption] = useState(null); // null, "private", or "shared"
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [nriStatus, setNriStatus] = useState(
@@ -401,8 +402,9 @@ const index = () => {
       toast.error(cartError);
       return;
     }
+    setAddedToCart(true);
     toast.success("Added to cart successfully.");
-    navigate("/app/cart");
+    // navigate("/app/cart");
   };
 
   // Format price in different currencies
@@ -602,33 +604,57 @@ const index = () => {
       <div className="col-12">
         <button
           className={`button -dark-1 py-15 px-35 h-60 col-12 rounded-4 text-white ${
-            isBookingReady ? 'bg-blue-1' : 'bg-light-3 text-light-1'
+            addedToCart
+              ? ""
+              : isBookingReady
+                ? "bg-blue-1"
+                : "bg-light-3 text-light-1"
           }`}
           onClick={isBookingReady ? handleBookNow : undefined}
           disabled={!isBookingReady}
           style={{
             transition: "all 0.3s ease",
-            boxShadow: isBookingReady ? "0 4px 10px rgba(53, 84, 209, 0.25)" : "none",
+            backgroundColor: addedToCart ? "#22c55e" : undefined,
+            borderColor: addedToCart ? "#22c55e" : undefined,
+            boxShadow: addedToCart
+              ? "0 4px 10px rgba(34, 197, 94, 0.25)"
+              : isBookingReady
+                ? "0 4px 10px rgba(53, 84, 209, 0.25)"
+                : "none",
             fontWeight: "600",
             letterSpacing: "0.5px",
             marginTop: "15px",
             cursor: isBookingReady ? "pointer" : "not-allowed",
-            opacity: isBookingReady ? 1 : 0.6
+            opacity: isBookingReady || addedToCart ? 1 : 0.6,
           }}
           onMouseOver={(e) => {
-            if (isBookingReady) {
+            if (addedToCart) {
               e.currentTarget.style.transform = "translateY(-2px)";
-              e.currentTarget.style.boxShadow = "0 6px 15px rgba(53, 84, 209, 0.35)";
+              e.currentTarget.style.boxShadow =
+                "0 6px 15px rgba(34, 197, 94, 0.35)";
+            } else if (isBookingReady) {
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.boxShadow =
+                "0 6px 15px rgba(53, 84, 209, 0.35)";
             }
           }}
           onMouseOut={(e) => {
-            if (isBookingReady) {
+            if (addedToCart) {
               e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = "0 4px 10px rgba(53, 84, 209, 0.25)";
+              e.currentTarget.style.boxShadow =
+                "0 4px 10px rgba(34, 197, 94, 0.25)";
+            } else if (isBookingReady) {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow =
+                "0 4px 10px rgba(53, 84, 209, 0.25)";
             }
           }}
         >
-          {isBookingReady ? "Add to Cart" : "Complete all selections to proceed"}
+          {addedToCart
+            ? "Added to Cart"
+            : isBookingReady
+              ? "Add to Cart"
+              : "Complete all selections to proceed"}
         </button>
       </div>
      

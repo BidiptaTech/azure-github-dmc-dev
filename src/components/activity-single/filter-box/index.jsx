@@ -421,7 +421,7 @@ const Index = () => {
       return;
     }
     toast.success("Added to cart successfully.");
-    navigate("/app/cart");
+    // navigate("/app/cart");
   };
 
   
