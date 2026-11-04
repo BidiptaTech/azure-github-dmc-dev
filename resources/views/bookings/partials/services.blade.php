@@ -411,6 +411,31 @@
         font-weight: 650;
         text-align: center;
     }
+    .svc-panel.is-multi-restaurant {
+        position: relative;
+        border-left: 3px solid #0d6e6e;
+    }
+    .svc-multi-flag {
+        position: absolute;
+        left: 0;
+        top: 12px;
+        z-index: 2;
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        background: #0d6e6e;
+        color: #fff;
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 0.45rem 0.28rem;
+        border-radius: 0 6px 6px 0;
+        box-shadow: 0 2px 6px rgba(13, 110, 110, 0.25);
+    }
+    .svc-panel.is-multi-restaurant .svc-panel-head,
+    .svc-panel.is-multi-restaurant .svc-section {
+        padding-left: 1.35rem;
+    }
 </style>
 <script>
 (function (w) {
@@ -953,11 +978,20 @@
             fullBooking = Object.assign({}, fullBooking, {
                 restaurantName: fullBooking.restaurantName || booking.restaurantDetails.restaurant_name,
                 mealType: fullBooking.mealType || booking.restaurantDetails.meal_type,
+                mealTypeLabel: fullBooking.mealTypeLabel || booking.restaurantDetails.meal_type_label,
                 mealSpecificType: fullBooking.mealSpecificType || booking.restaurantDetails.meal_specific_type,
                 adultCount: fullBooking.adultCount != null ? fullBooking.adultCount : booking.restaurantDetails.adult_count,
                 childCount: fullBooking.childCount != null ? fullBooking.childCount : booking.restaurantDetails.child_count,
+                adults: fullBooking.adults != null ? fullBooking.adults : booking.restaurantDetails.adults,
+                children: fullBooking.children != null ? fullBooking.children : booking.restaurantDetails.children,
+                infants: fullBooking.infants != null ? fullBooking.infants : booking.restaurantDetails.infants,
+                infantCount: fullBooking.infantCount != null ? fullBooking.infantCount : booking.restaurantDetails.infant_count,
                 bookingDate: fullBooking.bookingDate || booking.restaurantDetails.booking_date,
-                visitTime: fullBooking.visitTime || booking.restaurantDetails.visit_time
+                visitTime: fullBooking.visitTime || booking.restaurantDetails.visit_time,
+                MealDescription: fullBooking.MealDescription || booking.restaurantDetails.MealDescription,
+                is_multi_restaurant: fullBooking.is_multi_restaurant != null
+                    ? fullBooking.is_multi_restaurant
+                    : booking.restaurantDetails.is_multi_restaurant
             });
         }
 
@@ -970,29 +1004,73 @@
         };
 
         var name = w.escapeServiceHtml(fullBooking.restaurantName || booking.restaurant_name || 'Restaurant Booking');
-        var mealType = w.escapeServiceHtml(fullBooking.mealType || booking.meal_type || 'Meal');
-        var mealSpecific = w.escapeServiceHtml(fullBooking.mealSpecificType || booking.meal_specific_type || 'Standard');
-        var adults = parseInt(fullBooking.adultCount != null ? fullBooking.adultCount : (booking.adult_count || 0), 10) || 0;
-        var children = parseInt(fullBooking.childCount != null ? fullBooking.childCount : (booking.child_count || 0), 10) || 0;
-        var party = adults + children;
+
+        // Pro: mealType text; Lite: mealType id + mealTypeLabel
+        var mealTypeRaw = fullBooking.mealTypeLabel || fullBooking.meal_type_label || fullBooking.mealType || booking.meal_type || 'Meal';
+        if (/^\d+$/.test(String(mealTypeRaw))) {
+            mealTypeRaw = fullBooking.mealTypeLabel || fullBooking.meal_type_label || 'Meal';
+        }
+        var mealType = w.escapeServiceHtml(String(mealTypeRaw).charAt(0).toUpperCase() + String(mealTypeRaw).slice(1));
+
+        var mealsArr = Array.isArray(fullBooking.MealDescription)
+            ? fullBooking.MealDescription
+            : (Array.isArray(fullBooking.meals) ? fullBooking.meals : []);
+        var mealDescName = (mealsArr[0] && mealsArr[0].name) ? mealsArr[0].name : null;
+        var mealSpecificRaw = fullBooking.mealSpecificType || booking.meal_specific_type || null;
+        var mealSpecificValue = mealDescName
+            || ((!mealSpecificRaw || /^\d+$/.test(String(mealSpecificRaw))) ? (mealDescName || 'Standard') : mealSpecificRaw);
+        var mealSpecific = w.escapeServiceHtml(mealSpecificValue);
+
+        // Pro: adultCount/childCount; Lite: adults/children/infants
+        var adults = parseInt(
+            fullBooking.adultCount != null ? fullBooking.adultCount
+                : (fullBooking.adultsQty != null ? fullBooking.adultsQty
+                    : (fullBooking.adults != null ? fullBooking.adults : (booking.adult_count || booking.adults || 0))),
+            10
+        ) || 0;
+        var children = parseInt(
+            fullBooking.childCount != null ? fullBooking.childCount
+                : (fullBooking.childQty != null ? fullBooking.childQty
+                    : (fullBooking.children != null ? fullBooking.children : (booking.child_count || booking.children || 0))),
+            10
+        ) || 0;
+        var infants = parseInt(
+            fullBooking.infantCount != null ? fullBooking.infantCount
+                : (fullBooking.infantQty != null ? fullBooking.infantQty
+                    : (fullBooking.infants != null ? fullBooking.infants : (booking.infant_count || booking.infants || 0))),
+            10
+        ) || 0;
+        var party = adults + children + infants;
 
         var diningDate = 'Date TBD';
-        if (fullBooking.bookingDate || booking.booking_date) {
+        var rawDiningDate = fullBooking.bookingDate || fullBooking.date || booking.booking_date || '';
+        if (rawDiningDate) {
             try {
-                diningDate = new Date(fullBooking.bookingDate || booking.booking_date).toLocaleDateString('en-US', {
+                diningDate = new Date(rawDiningDate).toLocaleDateString('en-US', {
                     weekday: 'short', month: 'short', day: 'numeric', year: 'numeric'
                 });
             } catch (e) {
-                diningDate = String(fullBooking.bookingDate || booking.booking_date);
+                diningDate = String(rawDiningDate);
             }
         }
-        var diningTime = w.escapeServiceHtml(fullBooking.visitTime || booking.visit_time || 'TBC');
+        var diningTimeRaw = fullBooking.visitTime || fullBooking.time || booking.visit_time || '';
+        var diningTime = w.escapeServiceHtml(String(diningTimeRaw).trim() ? diningTimeRaw : 'TBC');
 
-        var mealPrice = parseFloat(fullBooking.mealPrice || booking.meal_price || fullBooking.totalPrice || booking.total_price || booking.totalPrice || 0) || 0;
+        var mealPrice = parseFloat(
+            fullBooking.mealPrice || booking.meal_price || fullBooking.totalPrice || fullBooking.grand_total ||
+            booking.total_price || booking.totalPrice || 0
+        ) || 0;
         var transferPrice = parseFloat(opts.transferPrice != null ? opts.transferPrice : 0) || 0;
         var guidePrice = parseFloat(opts.guidePrice != null ? opts.guidePrice : 0) || 0;
         var isPro = parseInt(opts.isPro || 0, 10) === 1;
-        var grand = mealPrice + transferPrice + (isPro ? guidePrice : 0);
+        // Include guide for both pro + lite restaurant bookings when present
+        var grand = mealPrice + transferPrice + guidePrice;
+
+        var isMulti = fullBooking.is_multi_restaurant === true
+            || fullBooking.is_multi_restaurant === 1
+            || fullBooking.is_multi_restaurant === '1'
+            || fullBooking.is_multi_restaurant === 'true'
+            || fullBooking.isMultiRestaurant === true;
 
         var tf = booking.transferOptions || fullBooking.transfer_options || null;
         var transferRequired = tf && (
@@ -1007,11 +1085,14 @@
                 if (tf.vehicle_details.seating_capacity) {
                     vehicle += ' <span class="text-muted">(' + w.escapeServiceHtml(tf.vehicle_details.seating_capacity) + ' seats)</span>';
                 }
+            } else if (tf.vehicle_name) {
+                vehicle = w.escapeServiceHtml(tf.vehicle_name);
             } else if (tf.vehicle_id) {
                 vehicle = w.escapeServiceHtml(tf.vehicle_id);
             }
             transferHtml = section('Transfer Details',
                 dlRow('Type', w.escapeServiceHtml(tf.type || 'N/A')) +
+                dlRow('Way', w.escapeServiceHtml(tf.way || tf.trip_way || 'N/A')) +
                 dlRow('Cost', transferPrice > 0 ? ('<span class="svc-amount">' + money(transferPrice) + '</span>') : '—') +
                 (tf.pickup_location_name ? dlRow('Pickup', w.escapeServiceHtml(tf.pickup_location_name), true) : '') +
                 dlRow('Vehicle', vehicle, true)
@@ -1020,31 +1101,55 @@
 
         var guideHtml = '';
         var g = fullBooking.guide_options || fullBooking.guideInfo || null;
-        if (g && typeof g === 'object') {
+        if (g && typeof g === 'object' && (g.guide_required === true || g.guide_required === 'true' || g.guide_required === 1 || g.guideId || g.guide_id || g.guideName || g.guide_name || g.name)) {
             var guideName = w.escapeServiceHtml(g.guideName || g.guide_name || g.name || 'N/A');
             var gCost = parseFloat(g.cost ?? g.Cost ?? g.sell ?? g.Sell ?? g.total_price ?? 0) || 0;
             guideHtml = section('Guide Details',
                 dlRow('Guide', guideName) +
                 dlRow('Service type', w.escapeServiceHtml(g.serviceType || g.service_type || 'N/A')) +
                 dlRow('Language', w.escapeServiceHtml(g.language || g.languages || 'N/A')) +
-                dlRow('Hours', w.escapeServiceHtml((g.hours || g.service_hours || 'N/A') + '')) +
+                dlRow('Hours', w.escapeServiceHtml((g.hours || g.package_hours || g.service_hours || 'N/A') + '')) +
                 (gCost > 0 ? dlRow('Guide cost', '<span class="svc-amount">' + money(gCost) + '</span>') : '')
             );
+        }
+
+        var menuRows = '';
+        if (mealsArr.length) {
+            mealsArr.forEach(function (meal, idx) {
+                var qty = parseInt(meal.quantity != null ? meal.quantity : 1, 10) || 1;
+                var unit = parseFloat(meal.price != null ? meal.price : (meal.sell || 0)) || 0;
+                var sub = 0;
+                if (unit > 0) {
+                    sub = unit * qty;
+                } else {
+                    var adultUnit = parseFloat(meal.adult_price != null ? meal.adult_price : (fullBooking.adult_price || fullBooking.adultSell || 0)) || 0;
+                    var childUnit = parseFloat(meal.child_price != null ? meal.child_price : (fullBooking.child_price || fullBooking.childSell || 0)) || 0;
+                    sub = (adultUnit * adults) + (childUnit * children);
+                }
+                var label = String(
+                    (meal.category || meal.name || 'Item') + ' / ' + (meal.item_type || meal.name || mealSpecificValue || 'Menu')
+                );
+                menuRows += dlRow('Item ' + (idx + 1), w.escapeServiceHtml(label) + ' × ' + qty);
+                menuRows += dlRow('Subtotal', '<span class="svc-amount">' + money(sub) + '</span>');
+            });
+            menuRows += dlRow('Meal Total', '<span class="svc-amount">' + money(mealPrice) + '</span>', true);
         }
 
         var pricingRows =
             dlRow('Meal price', '<span class="svc-amount">' + money(mealPrice) + '</span>') +
             dlRow('Vehicle price', '<span class="svc-amount">' + money(transferPrice) + '</span>');
-        if (isPro && guidePrice > 0) {
+        if (guidePrice > 0) {
             pricingRows += dlRow('Guide price', '<span class="svc-amount">' + money(guidePrice) + '</span>');
         }
         pricingRows += dlRow('Grand total', '<span class="svc-amount">' + money(grand) + '</span>', true);
 
         var actionsHtml = opts.actionsHtml || '';
         var qrHtml = opts.qrHtml || '';
+        var guestCols = infants > 0 ? 3 : 2;
 
         return '' +
-            '<div class="svc-panel">' +
+            '<div class="svc-panel' + (isMulti ? ' is-multi-restaurant' : '') + '">' +
+                (isMulti ? '<div class="svc-multi-flag" title="Multi restaurant booking"><span>Multi</span></div>' : '') +
                 '<div class="svc-panel-head">' +
                     '<div class="svc-panel-head-main">' +
                         '<div class="svc-thumb svc-thumb-fallback"><i class="ri-restaurant-2-line"></i></div>' +
@@ -1062,14 +1167,17 @@
                 '<div class="svc-dl">' +
                     dlRow('Dining date', w.escapeServiceHtml(diningDate)) +
                     dlRow('Dining time', diningTime) +
+                    dlRow('Meal', mealType + ' / ' + mealSpecific) +
                 '</div>' +
-                '<div class="svc-guest-grid">' +
+                '<div class="svc-guest-grid" style="grid-template-columns:repeat(' + guestCols + ',1fr);">' +
                     '<div class="svc-guest-box"><div class="num">' + adults + '</div><div class="lbl">Adults</div></div>' +
                     '<div class="svc-guest-box"><div class="num">' + children + '</div><div class="lbl">Children</div></div>' +
+                    (infants > 0 ? '<div class="svc-guest-box"><div class="num">' + infants + '</div><div class="lbl">Infants</div></div>' : '') +
                 '</div>' +
                 '<div class="svc-total-bar">Total: ' + party + ' Guest' + (party === 1 ? '' : 's') + '</div>' +
             '</div>' +
 
+            (menuRows ? section('Menu Items (' + mealsArr.length + ')', menuRows) : '') +
             transferHtml +
             guideHtml +
             section('Pricing Overview', pricingRows) +

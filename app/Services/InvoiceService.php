@@ -697,13 +697,146 @@ class InvoiceService
     }
 
     /**
+     * Resolve attraction guest counts from pro or lite booking JSON.
+     * Pro: adultCount/childCount/infantCount · Lite: adults/children/infants
+     */
+    public static function resolveAttractionGuestCounts(array $booking): array
+    {
+        $adults = (int) (
+            $booking['adultCount']
+            ?? $booking['adultsQty']
+            ?? $booking['adult_count']
+            ?? $booking['adults']
+            ?? 0
+        );
+        $children = (int) (
+            $booking['childCount']
+            ?? $booking['childQty']
+            ?? $booking['child_count']
+            ?? $booking['children']
+            ?? 0
+        );
+        $infants = (int) (
+            $booking['infantCount']
+            ?? $booking['infantQty']
+            ?? $booking['infant_count']
+            ?? $booking['infants']
+            ?? 0
+        );
+        $seniors = (int) (
+            $booking['seniorCount']
+            ?? $booking['seniorQty']
+            ?? $booking['senior_count']
+            ?? $booking['seniors']
+            ?? 0
+        );
+
+        return [
+            'adults' => $adults,
+            'children' => $children,
+            'infants' => $infants,
+            'seniors' => $seniors,
+        ];
+    }
+
+    /**
+     * Display pax for invoice attraction rows.
+     * Uses stored quantities first; fills missing adults/children/infants from
+     * service_details then live order JSON (lite uses `infants`).
+     */
+    public static function resolveAttractionDisplayPax($item, $invoice = null): array
+    {
+        $adults = (int) ($item->quantity_adults ?? 0);
+        $children = (int) ($item->quantity_children ?? 0);
+        $infants = (int) ($item->quantity_infants ?? 0);
+        $serviceDetails = is_array($item->service_details ?? null) ? $item->service_details : [];
+
+        $fromDetails = self::resolveAttractionGuestCounts($serviceDetails);
+        if ($adults === 0 && $fromDetails['adults'] > 0) {
+            $adults = $fromDetails['adults'];
+        }
+        if ($children === 0 && $fromDetails['children'] > 0) {
+            $children = $fromDetails['children'];
+        }
+        if ($infants === 0 && $fromDetails['infants'] > 0) {
+            $infants = $fromDetails['infants'];
+        }
+
+        $needsOrderLookup = ($adults === 0 || $infants === 0);
+        if ($needsOrderLookup && $invoice && !empty($invoice->tour)) {
+            $tourId = $invoice->tour->tour_id ?? $invoice->tour_id ?? null;
+            if ($tourId) {
+                $itemAttractionName = trim((string) ($serviceDetails['attraction_name'] ?? ''));
+                if ($itemAttractionName === '' && !empty($item->description)) {
+                    $itemAttractionName = trim(explode(' - ', (string) $item->description)[0] ?? '');
+                }
+                $itemBookingDate = (string) ($serviceDetails['booking_date'] ?? '');
+                $itemTicket = trim((string) ($serviceDetails['ticket_name'] ?? $serviceDetails['ticket_details'] ?? ''));
+
+                $orders = Order::where('tour_id', $tourId)
+                    ->where('type', 'attraction')
+                    ->whereNull('deleted_at')
+                    ->get();
+
+                foreach ($orders as $order) {
+                    $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                    if (!is_array($orderData)) {
+                        continue;
+                    }
+                    $bookings = isset($orderData[0]) && is_array($orderData[0]) ? $orderData : [$orderData];
+                    foreach ($bookings as $booking) {
+                        if (!is_array($booking)) {
+                            continue;
+                        }
+                        $bName = trim((string) (
+                            $booking['AttractionName']
+                            ?? $booking['attractionName']
+                            ?? $booking['attraction_name']
+                            ?? ''
+                        ));
+                        $bDate = (string) ($booking['bookingDate'] ?? $booking['date'] ?? '');
+                        $bTicket = trim((string) ($booking['ticketName'] ?? $booking['ticket_name'] ?? ''));
+                        $nameOk = $itemAttractionName !== '' && $bName !== ''
+                            && strtolower($itemAttractionName) === strtolower($bName);
+                        $dateOk = $itemBookingDate === '' || $itemBookingDate === $bDate;
+                        $ticketOk = $itemTicket === '' || $bTicket === ''
+                            || strtolower($itemTicket) === strtolower($bTicket)
+                            || stripos($itemTicket, $bTicket) !== false
+                            || stripos($bTicket, $itemTicket) !== false;
+                        if ($nameOk && $dateOk && $ticketOk) {
+                            $fromBooking = self::resolveAttractionGuestCounts($booking);
+                            if ($adults === 0) {
+                                $adults = $fromBooking['adults'];
+                            }
+                            if ($children === 0) {
+                                $children = $fromBooking['children'];
+                            }
+                            if ($infants === 0) {
+                                $infants = $fromBooking['infants'];
+                            }
+                            break 2;
+                        }
+                    }
+                }
+            }
+        }
+
+        return [
+            'adults' => $adults,
+            'children' => $children,
+            'infants' => $infants,
+        ];
+    }
+
+    /**
      * Create invoice item for attraction order
      */
     private function createAttractionItem($booking, $totalPrice, $displayOrder)
     {
-        $attractionName = $booking['AttractionName'] ?? 'Attraction';
-        $ticketName = $booking['ticketName'] ?? '';
+        $attractionName = $booking['AttractionName'] ?? $booking['attractionName'] ?? $booking['attraction_name'] ?? 'Attraction';
+        $ticketName = $booking['ticketName'] ?? $booking['ticket_name'] ?? '';
         $ticketDetails = $booking['ticket_details'] ?? [];
+        $pax = self::resolveAttractionGuestCounts($booking);
         
         // Build ticket details string - just the ticket name, no prices
         $ticketDetailsStr = $ticketName;
@@ -729,23 +862,32 @@ class InvoiceService
             
             // Build vehicle details string - just the vehicle name, no type, seating, or price
             $vehicleDetailsStr = $vehicleName;
+        } elseif (!empty($transferOptions['vehicle_name'])) {
+            $vehicleName = $transferOptions['vehicle_name'];
+            $vehicleDetailsStr = $vehicleName;
         }
         
         // Guide information
         $guideOptions = $booking['guide_options'] ?? [];
         $guideRequired = $guideOptions['guide_required'] ?? false;
-        $guideName = $guideOptions['guide_name'] ?? '';
+        $guideName = $guideOptions['guide_name'] ?? $guideOptions['guideName'] ?? '';
         $guideHours = $guideOptions['hours'] ?? $guideOptions['package_hours'] ?? '';
-        $guideLanguage = $guideOptions['language'] ?? '';
+        $guideLanguage = $guideOptions['language'] ?? $guideOptions['languages'] ?? '';
         
         // Calculate prices
-        $attractionBasePrice = $booking['price'] ?? $booking['totalPrice'] ?? 0;
+        $attractionBasePrice = $booking['price'] ?? $booking['totalPrice'] ?? $booking['grand_total'] ?? 0;
         $transferCost = isset($transferOptions['cost']) && $transferOptions['cost'] > 0 ? (float) $transferOptions['cost'] : 0;
-        $guideTotalPrice = isset($guideOptions['total_price']) && $guideOptions['total_price'] > 0 ? (float) $guideOptions['total_price'] : 0;
+        $guideTotalPrice = 0;
+        if (!empty($guideOptions)) {
+            $gv = $guideOptions['total_price'] ?? $guideOptions['cost'] ?? $guideOptions['Cost'] ?? $guideOptions['sell'] ?? $guideOptions['Sell'] ?? 0;
+            if ((float) $gv > 0) {
+                $guideTotalPrice = (float) $gv;
+            }
+        }
         $grandTotal = $attractionBasePrice + $transferCost + $guideTotalPrice;
         
         // Calculate total pax
-        $totalPax = ($booking['adultCount'] ?? 0) + ($booking['childCount'] ?? 0) + ($booking['seniorCount'] ?? 0) + ($booking['infantCount'] ?? 0);
+        $totalPax = $pax['adults'] + $pax['children'] + $pax['seniors'] + $pax['infants'];
         
         $description = $attractionName . ($ticketName ? ' - ' . $ticketName : '');
 
@@ -756,8 +898,8 @@ class InvoiceService
                 'attraction_name' => $attractionName,
                 'ticket_name' => $ticketName,
                 'ticket_details' => $ticketDetailsStr,
-                'booking_date' => $booking['bookingDate'] ?? '',
-                'visit_time' => $booking['visitTime'] ?? '',
+                'booking_date' => $booking['bookingDate'] ?? $booking['date'] ?? '',
+                'visit_time' => $booking['visitTime'] ?? $booking['time'] ?? '',
                 'transfer_required' => $transferRequired ? 'Yes' : 'No',
                 'transfer_way' => $transferWay,
                 'transfer_type' => $transferType,
@@ -774,14 +916,167 @@ class InvoiceService
                 'guide_total_price' => $guideTotalPrice,
                 'attraction_base_price' => $attractionBasePrice,
                 'total_pax' => $totalPax,
+                'adult_count' => $pax['adults'],
+                'child_count' => $pax['children'],
+                'infant_count' => $pax['infants'],
+                'adults' => $pax['adults'],
+                'children' => $pax['children'],
+                'infants' => $pax['infants'],
             ],
-            'quantity_adults' => $booking['adultCount'] ?? 0,
-            'quantity_children' => $booking['childCount'] ?? 0,
-            'quantity_infants' => $booking['infantCount'] ?? 0,
-            'quantity_seniors' => $booking['seniorCount'] ?? 0,
+            'quantity_adults' => $pax['adults'],
+            'quantity_children' => $pax['children'],
+            'quantity_infants' => $pax['infants'],
+            'quantity_seniors' => $pax['seniors'],
             'unit_price' => $grandTotal,
             'total_price' => $grandTotal,
             'display_order' => $displayOrder,
+        ];
+    }
+
+    /**
+     * Resolve restaurant guest counts from pro or lite booking JSON.
+     * Pro: adultCount/childCount/infantCount · Lite: adults/children/infants
+     */
+    public static function resolveRestaurantGuestCounts(array $booking): array
+    {
+        $adults = (int) (
+            $booking['adultCount']
+            ?? $booking['adultsQty']
+            ?? $booking['adult_count']
+            ?? $booking['adults']
+            ?? 0
+        );
+        $children = (int) (
+            $booking['childCount']
+            ?? $booking['childQty']
+            ?? $booking['child_count']
+            ?? $booking['children']
+            ?? 0
+        );
+        $infants = (int) (
+            $booking['infantCount']
+            ?? $booking['infantQty']
+            ?? $booking['infant_count']
+            ?? $booking['infants']
+            ?? 0
+        );
+
+        return [
+            'adults' => $adults,
+            'children' => $children,
+            'infants' => $infants,
+        ];
+    }
+
+    /**
+     * Resolve meal type label for restaurant (pro text or lite mealTypeLabel).
+     */
+    public static function resolveRestaurantMealType(array $booking): array
+    {
+        $mealType = $booking['mealTypeLabel']
+            ?? $booking['meal_type_label']
+            ?? $booking['meal_type']
+            ?? $booking['mealType']
+            ?? '';
+        if (is_numeric((string) $mealType)) {
+            $mealType = $booking['mealTypeLabel'] ?? $booking['meal_type_label'] ?? '';
+        }
+
+        $mealDescName = null;
+        if (!empty($booking['MealDescription'][0]['name'])) {
+            $mealDescName = $booking['MealDescription'][0]['name'];
+        } elseif (!empty($booking['meals'][0]['name'])) {
+            $mealDescName = $booking['meals'][0]['name'];
+        }
+        $mealSpecificRaw = $booking['mealSpecificType'] ?? $booking['meal_specific_type'] ?? '';
+        $mealSpecificType = $mealDescName
+            ?: ((!is_numeric((string) $mealSpecificRaw) && $mealSpecificRaw !== '')
+                ? $mealSpecificRaw
+                : ($mealDescName ?? ''));
+
+        return [
+            'meal_type' => is_string($mealType) ? $mealType : (string) $mealType,
+            'meal_specific_type' => is_string($mealSpecificType) ? $mealSpecificType : (string) $mealSpecificType,
+        ];
+    }
+
+    /**
+     * Display pax for invoice restaurant rows.
+     * Uses stored item quantities first; if adults+children are 0 (lite save bug),
+     * falls back to service_details then live order booking JSON.
+     */
+    public static function resolveRestaurantDisplayPax($item, $invoice = null): array
+    {
+        $adults = (int) ($item->quantity_adults ?? 0);
+        $children = (int) ($item->quantity_children ?? 0);
+        $infants = (int) ($item->quantity_infants ?? 0);
+        $serviceDetails = is_array($item->service_details ?? null) ? $item->service_details : [];
+
+        if ($adults === 0 && $children === 0) {
+            $fromDetails = self::resolveRestaurantGuestCounts($serviceDetails);
+            if ($fromDetails['adults'] > 0 || $fromDetails['children'] > 0 || $fromDetails['infants'] > 0) {
+                $adults = $fromDetails['adults'];
+                $children = $fromDetails['children'];
+                $infants = $fromDetails['infants'] ?: $infants;
+            }
+        }
+
+        if ($adults === 0 && $children === 0 && $invoice && !empty($invoice->tour)) {
+            $tourId = $invoice->tour->tour_id ?? $invoice->tour_id ?? null;
+            if ($tourId) {
+                $itemRestaurantName = trim((string) ($serviceDetails['restaurant_name'] ?? ''));
+                if ($itemRestaurantName === '' && !empty($item->description)) {
+                    $itemRestaurantName = trim(explode(' - ', (string) $item->description)[0] ?? '');
+                }
+                $itemBookingDate = (string) ($serviceDetails['booking_date'] ?? '');
+
+                $orders = Order::where('tour_id', $tourId)
+                    ->where('type', 'restaurant')
+                    ->whereNull('deleted_at')
+                    ->get();
+
+                foreach ($orders as $order) {
+                    $orderData = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                    if (!is_array($orderData)) {
+                        continue;
+                    }
+                    $bookings = isset($orderData[0]) && is_array($orderData[0]) ? $orderData : [$orderData];
+                    foreach ($bookings as $booking) {
+                        if (!is_array($booking)) {
+                            continue;
+                        }
+                        $bName = trim((string) ($booking['restaurantName'] ?? $booking['restaurant_name'] ?? ''));
+                        $bDate = (string) ($booking['bookingDate'] ?? $booking['date'] ?? '');
+                        $nameOk = $itemRestaurantName !== '' && $bName !== ''
+                            && strtolower($itemRestaurantName) === strtolower($bName);
+                        $dateOk = $itemBookingDate === '' || $itemBookingDate === $bDate;
+                        if ($nameOk && $dateOk) {
+                            $fromBooking = self::resolveRestaurantGuestCounts($booking);
+                            return [
+                                'adults' => $fromBooking['adults'],
+                                'children' => $fromBooking['children'],
+                                'infants' => $fromBooking['infants'],
+                                'meal_type' => self::resolveRestaurantMealType($booking)['meal_type']
+                                    ?: ($serviceDetails['meal_type'] ?? ''),
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+
+        $mealType = $serviceDetails['meal_type_label']
+            ?? $serviceDetails['meal_type']
+            ?? '';
+        if (is_numeric((string) $mealType)) {
+            $mealType = $serviceDetails['meal_type_label'] ?? '';
+        }
+
+        return [
+            'adults' => $adults,
+            'children' => $children,
+            'infants' => $infants,
+            'meal_type' => $mealType,
         ];
     }
 
@@ -790,9 +1085,11 @@ class InvoiceService
      */
     private function createRestaurantItem($booking, $totalPrice, $displayOrder)
     {
-        $restaurantName = $booking['restaurantName'] ?? 'Restaurant';
-        $mealType = $booking['mealType'] ?? '';
-        $mealSpecificType = $booking['mealSpecificType'] ?? '';
+        $restaurantName = $booking['restaurantName'] ?? $booking['restaurant_name'] ?? 'Restaurant';
+        $mealResolved = self::resolveRestaurantMealType($booking);
+        $mealType = $mealResolved['meal_type'];
+        $mealSpecificType = $mealResolved['meal_specific_type'];
+        $pax = self::resolveRestaurantGuestCounts($booking);
         
         // Transfer information
         $transferOptions = $booking['transfer_options'] ?? [];
@@ -815,6 +1112,9 @@ class InvoiceService
             
             // Build vehicle details string - just the vehicle name, no type, seating, or price
             $vehicleDetailsStr = $vehicleName;
+        } elseif (!empty($transferOptions['vehicle_name'])) {
+            $vehicleName = $transferOptions['vehicle_name'];
+            $vehicleDetailsStr = $vehicleName;
         }
         
         // Guide options (for Pro tours) - pickup from total_price, cost, or sell
@@ -830,7 +1130,7 @@ class InvoiceService
         $guideHours = $guideOptions['hours'] ?? $guideOptions['package_hours'] ?? '';
 
         // Calculate prices
-        $restaurantBasePrice = $booking['mealPrice'] ?? $booking['totalPrice'] ?? 0;
+        $restaurantBasePrice = $booking['mealPrice'] ?? $booking['totalPrice'] ?? $booking['grand_total'] ?? 0;
         $transferCost = isset($transferOptions['cost']) && $transferOptions['cost'] > 0 ? (float) $transferOptions['cost'] : 0;
         $grandTotal = $restaurantBasePrice + $transferCost + $guideTotalPrice;
 
@@ -842,9 +1142,10 @@ class InvoiceService
             'service_details' => [
                 'restaurant_name' => $restaurantName,
                 'meal_type' => $mealType,
+                'meal_type_label' => $mealType,
                 'meal_specific_type' => $mealSpecificType,
-                'booking_date' => $booking['bookingDate'] ?? '',
-                'visit_time' => $booking['visitTime'] ?? '',
+                'booking_date' => $booking['bookingDate'] ?? $booking['date'] ?? '',
+                'visit_time' => $booking['visitTime'] ?? $booking['time'] ?? '',
                 'transfer_required' => $transferRequired ? 'Yes' : 'No',
                 'transfer_way' => $transferWay,
                 'transfer_type' => $transferType,
@@ -859,12 +1160,16 @@ class InvoiceService
                 'guide_name' => $guideName,
                 'guide_hours' => $guideHours,
                 'guide_total_price' => $guideTotalPrice,
-                'adult_count' => $booking['adultCount'] ?? 0,
-                'child_count' => $booking['childCount'] ?? 0,
+                'adult_count' => $pax['adults'],
+                'child_count' => $pax['children'],
+                'infant_count' => $pax['infants'],
+                'adults' => $pax['adults'],
+                'children' => $pax['children'],
+                'infants' => $pax['infants'],
             ],
-            'quantity_adults' => $booking['adultCount'] ?? 0,
-            'quantity_children' => $booking['childCount'] ?? 0,
-            'quantity_infants' => $booking['infantCount'] ?? 0,
+            'quantity_adults' => $pax['adults'],
+            'quantity_children' => $pax['children'],
+            'quantity_infants' => $pax['infants'],
             'unit_price' => $grandTotal,
             'total_price' => $grandTotal,
             'display_order' => $displayOrder,
