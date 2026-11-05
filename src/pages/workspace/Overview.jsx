@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import Hero1 from "@/components/hero/hero-1";
 import SalesManagerDashboard from "@/components/dashboard/dashboard/db-dashboard/components/SalesManagerDashboard";
+import PartnerTourBookings from "@/components/workspace/PartnerTourBookings";
 import { fetchEnquiries } from "@/slice/enquiries/enquiryListSlice";
 import { fetchLists } from "@/slice/common/TourlistSlice";
 import { appPath } from "@/utils/appPaths";
@@ -32,51 +33,24 @@ function tourTitle(tour, idx) {
   );
 }
 
-function tourMeta(tour) {
-  return (
-    [
-      tour.destination || tour.country,
-      tour.check_in || tour.checkIn,
-      tour.pax || tour.travellers
-        ? `${tour.pax || tour.travellers} travellers`
-        : null,
-    ]
-      .filter(Boolean)
-      .join(" · ") || "Open in My bookings for details"
-  );
-}
-
-function statusBadge(tour) {
-  const raw = (tour.status || tour.booking_status || "").toLowerCase();
-  if (raw.includes("await") || raw.includes("pending") || raw.includes("confirm")) {
-    return { label: "Awaiting confirmation", amber: true };
-  }
-  if (raw.includes("complete") || raw.includes("past")) {
-    return { label: "Completed", amber: false };
-  }
-  return { label: "Confirmed", amber: false };
-}
-
 export default function Overview() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const username = useSelector((state) => state.auth.Username);
   const userRole = useSelector((state) => state.auth.userRole);
-  const {
-    upcomingTours = [],
-    pendingTours = [],
-    lists = [],
-  } = useSelector((state) => state.lists);
+  const { upcomingTours = [], pendingTours = [] } = useSelector(
+    (state) => state.lists
+  );
   const enquiries = useSelector(
     (state) => state.bookingEnquiry?.enquiries || []
   );
-  const [bookingFilter, setBookingFilter] = useState("Upcoming");
 
   const isManager = MANAGER_ROLES.includes(userRole);
 
   useEffect(() => {
     if (isManager) return;
     dispatch(fetchEnquiries({ reset: true, start: 0, limit: 30 }));
+    // Counts for summary cards; PartnerTourBookings loads its own tab data
     dispatch(fetchLists({ reset: true, type: "upcoming" }));
     dispatch(fetchLists({ reset: true, type: "ongoing" }));
   }, [dispatch, isManager]);
@@ -89,16 +63,6 @@ export default function Overview() {
   const upcomingCount = Array.isArray(upcomingTours) ? upcomingTours.length : 0;
   const pendingCount = Array.isArray(pendingTours) ? pendingTours.length : 0;
   const quoteCount = Array.isArray(enquiries) ? enquiries.length : 0;
-
-  const filteredBookings = useMemo(() => {
-    if (bookingFilter === "In progress") {
-      return (Array.isArray(pendingTours) ? pendingTours : []).slice(0, 5);
-    }
-    if (bookingFilter === "Completed") {
-      return (Array.isArray(lists) ? lists : []).slice(0, 5);
-    }
-    return (Array.isArray(upcomingTours) ? upcomingTours : []).slice(0, 5);
-  }, [bookingFilter, upcomingTours, pendingTours, lists]);
 
   const nextSteps = useMemo(() => {
     const fromEnquiries = (Array.isArray(enquiries) ? enquiries : [])
@@ -216,7 +180,7 @@ export default function Overview() {
       </div>
 
       <div className="partner-columns">
-        <section className="partner-panel">
+        <section className="partner-panel partner-overview-bookings">
           <div className="partner-toolbar">
             <h2>Your bookings</h2>
             <button
@@ -228,77 +192,11 @@ export default function Overview() {
             </button>
           </div>
 
-          <div className="partner-tabs">
-            {["Upcoming", "In progress", "Completed"].map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                className={`partner-tabs__btn${
-                  bookingFilter === tab ? " is-active" : ""
-                }`}
-                onClick={() => setBookingFilter(tab)}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-
-          {filteredBookings.length === 0 ? (
-            <div style={{ padding: "28px 0", color: "var(--pw-muted)" }}>
-              No {bookingFilter.toLowerCase()} bookings yet.{" "}
-              <button
-                type="button"
-                className="partner-link"
-                onClick={() => navigate(appPath("plan"))}
-              >
-                Plan a trip →
-              </button>
-            </div>
-          ) : (
-            filteredBookings.map((tour, idx) => {
-              const badge = statusBadge(tour);
-              return (
-                <div className="partner-booking" key={tour.id || idx}>
-                  <div>
-                    <h3>{tourTitle(tour, idx)}</h3>
-                    <div className="partner-sub">{tourMeta(tour)}</div>
-                    {tour.id ? (
-                      <div className="partner-sub">TC-{tour.id}</div>
-                    ) : null}
-                  </div>
-                  <div>
-                    <span
-                      className={`partner-badge${
-                        badge.amber ? " partner-badge--amber" : ""
-                      }`}
-                    >
-                      {badge.label}
-                    </span>
-                  </div>
-                  <div>
-                    <strong>
-                      {tour.total_amount ||
-                        tour.grand_total ||
-                        tour.amount ||
-                        "—"}
-                    </strong>
-                    {(tour.balance || tour.unallocated) && (
-                      <div className="partner-sub">
-                        {tour.balance || tour.unallocated} unallocated
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    className="partner-link"
-                    onClick={() => navigate(appPath("bookings"))}
-                  >
-                    View booking →
-                  </button>
-                </div>
-              );
-            })
-          )}
+          <PartnerTourBookings
+            embedded
+            limit={5}
+            showFilters={false}
+          />
         </section>
 
         <aside className="partner-panel">

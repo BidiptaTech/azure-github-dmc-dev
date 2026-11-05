@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { Menu, MenuItem } from "@mui/material";
+import { Divider, Menu, MenuItem } from "@mui/material";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
+import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
+import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
 import PartnerNav from "@/components/workspace/PartnerNav";
 import AgentProfileModal from "@/components/header/AgentProfileModal";
 import { logoutUser } from "@/slice/common/authSlices";
@@ -46,14 +50,24 @@ export default function PartnerLayout() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const username = useSelector((state) => state.auth.Username);
+  const email = useSelector((state) => state.auth.Email);
   const agencyLogo = useSelector((state) => state.auth.agencyLogo);
   const dmcLogo = useSelector((state) => state.auth.dmcLogo);
   const userRole = useSelector((state) => state.auth.userRole);
+  const agentCompanyName = useSelector((state) => state.auth.agentCompanyName);
+  const dmcCompanyName = useSelector((state) => state.auth.dmcCompanyName);
   const [userMenuAnchor, setUserMenuAnchor] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
 
+  const displayName = username || "Agent";
+  const companyLabel =
+    userRole === "Agent"
+      ? agentCompanyName
+      : dmcCompanyName || agentCompanyName;
+  const roleLabel = userRole || "Agent";
+
   const initials =
-    (username || "Agent")
+    displayName
       .split(" ")
       .filter(Boolean)
       .slice(0, 2)
@@ -118,27 +132,75 @@ export default function PartnerLayout() {
 
         <button
           type="button"
-          className="partner-avatar-btn"
+          className="partner-account-btn"
           onClick={(e) => setUserMenuAnchor(e.currentTarget)}
           aria-label="Account menu"
+          aria-haspopup="menu"
+          aria-expanded={Boolean(userMenuAnchor)}
         >
-          {initials}
+          <span className="partner-avatar-btn" aria-hidden="true">
+            {initials}
+          </span>
+          <span className="partner-account-btn__meta">
+            <span className="partner-account-btn__name">{displayName}</span>
+            {roleLabel ? (
+              <span className="partner-account-btn__role">{roleLabel}</span>
+            ) : null}
+          </span>
+          <KeyboardArrowDownIcon className="partner-account-btn__chevron" />
         </button>
         <Menu
           anchorEl={userMenuAnchor}
           open={Boolean(userMenuAnchor)}
           onClose={() => setUserMenuAnchor(null)}
+          anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
+          transformOrigin={{ horizontal: "right", vertical: "top" }}
+          PaperProps={{
+            className: "partner-account-menu",
+            elevation: 0,
+          }}
         >
+          <div className="partner-account-menu__header">
+            <span className="partner-avatar-btn" aria-hidden="true">
+              {initials}
+            </span>
+            <div className="partner-account-menu__identity">
+              <strong>{displayName}</strong>
+              {email ? <span>{email}</span> : null}
+              <span className="partner-account-menu__role">
+                {[roleLabel, companyLabel].filter(Boolean).join(" · ")}
+              </span>
+            </div>
+          </div>
+          <Divider className="partner-account-menu__divider" />
           <MenuItem
+            className="partner-account-menu__item"
             onClick={() => {
               setUserMenuAnchor(null);
               setProfileOpen(true);
             }}
           >
-            Profile
+            <PersonOutlineIcon fontSize="small" />
+            View profile
           </MenuItem>
-          <MenuItem onClick={() => navigate(appPath("cart"))}>Cart</MenuItem>
-          <MenuItem onClick={handleLogout}>Log out</MenuItem>
+          <MenuItem
+            className="partner-account-menu__item"
+            onClick={() => {
+              setUserMenuAnchor(null);
+              navigate(appPath("cart"));
+            }}
+          >
+            <ShoppingCartOutlinedIcon fontSize="small" />
+            Cart
+          </MenuItem>
+          <Divider className="partner-account-menu__divider" />
+          <MenuItem
+            className="partner-account-menu__item partner-account-menu__item--danger"
+            onClick={handleLogout}
+          >
+            <LogoutOutlinedIcon fontSize="small" />
+            Sign out
+          </MenuItem>
         </Menu>
       </header>
 
