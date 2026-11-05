@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import TabStatus from "@/components/dashboard/dashboard/db-dashboard/components/TabStatus";
+import PartnerTourBookings from "@/components/workspace/PartnerTourBookings";
 import { appPath } from "@/utils/appPaths";
 
 export default function Bookings() {
@@ -9,7 +9,7 @@ export default function Bookings() {
     <div>
       <div className="partner-hero">
         <div>
-          <div className="partner-kicker">My bookings</div>
+          <div className="partner-kicker">Booking management</div>
           <h1 className="partner-title">Every journey, under control.</h1>
           <p className="partner-lede">
             Manage services, traveller details, payments and trip documents.
@@ -24,8 +24,8 @@ export default function Bookings() {
         </button>
       </div>
 
-      <section className="partner-card" style={{ padding: 12 }}>
-        <TabStatus />
+      <section className="partner-card partner-tour-bookings-card">
+        <PartnerTourBookings />
       </section>
     </div>
   );

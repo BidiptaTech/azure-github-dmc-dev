@@ -49,6 +49,7 @@
 .partner-shell .partner-seg__btn,
 .partner-shell .partner-tabs__btn,
 .partner-shell .partner-avatar-btn,
+.partner-shell .partner-account-btn,
 .partner-shell .partner-brand {
   box-shadow: none;
   text-transform: none;
@@ -175,27 +176,157 @@
   line-height: 1.2;
 }
 
+.partner-account-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 260px;
+  padding: 4px 10px 4px 4px;
+  border-radius: 999px;
+  border: 1px solid var(--pw-line);
+  background: #fff;
+  color: var(--pw-ink);
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.partner-account-btn:hover {
+  background: #f8fafc;
+  border-color: #d7e0ef;
+}
+
+.partner-account-btn__meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  text-align: left;
+  line-height: 1.2;
+}
+
+.partner-account-btn__name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--pw-ink);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.partner-account-btn__role {
+  font-size: 11px;
+  color: var(--pw-muted);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.partner-account-btn__chevron {
+  font-size: 18px !important;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
 .partner-avatar-btn {
-  width: auto;
-  min-width: 40px;
-  height: 40px;
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: 0;
   background: var(--pw-avatar);
   color: var(--pw-blue);
   font-weight: 700;
-  font-size: 14px;
-  cursor: pointer;
+  font-size: 13px;
+  cursor: inherit;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 12px;
+  padding: 0;
   flex: 0 0 auto;
   line-height: 1;
+  pointer-events: none;
 }
 
-.partner-avatar-btn:hover {
-  filter: brightness(0.97);
+.partner-account-menu.MuiPaper-root {
+  margin-top: 8px !important;
+  min-width: 280px;
+  border-radius: 14px !important;
+  border: 1px solid var(--pw-line);
+  box-shadow: 0 12px 32px rgba(15, 27, 45, 0.12) !important;
+  overflow: hidden;
+}
+
+.partner-account-menu__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px 12px;
+}
+
+.partner-account-menu__identity {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.partner-account-menu__identity strong {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--pw-ink);
+  line-height: 1.3;
+}
+
+.partner-account-menu__identity span {
+  font-size: 12px;
+  color: var(--pw-muted);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.partner-account-menu__role {
+  color: var(--pw-blue) !important;
+  font-weight: 600;
+}
+
+.partner-account-menu__divider {
+  margin: 0 !important;
+  border-color: var(--pw-line) !important;
+}
+
+.partner-account-menu__item.MuiMenuItem-root {
+  gap: 10px;
+  padding: 11px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--pw-ink);
+}
+
+.partner-account-menu__item.MuiMenuItem-root .MuiSvgIcon-root {
+  color: #64748b;
+  font-size: 18px;
+}
+
+.partner-account-menu__item.MuiMenuItem-root:hover {
+  background: #f4f7fb;
+}
+
+.partner-account-menu__item--danger.MuiMenuItem-root {
+  color: #b42318;
+}
+
+.partner-account-menu__item--danger.MuiMenuItem-root .MuiSvgIcon-root {
+  color: #b42318;
+}
+
+.partner-account-menu__item--danger.MuiMenuItem-root:hover {
+  background: #fff5f5;
 }
 
 /* —— Page —— */
@@ -644,6 +775,175 @@
   color: var(--pw-amber-ink);
 }
 
+.partner-badge--muted {
+  background: #eef1f6;
+  color: var(--pw-muted);
+}
+
+/* My bookings — concept table */
+.partner-tour-bookings-card {
+  padding: 18px 20px 8px;
+}
+
+.partner-overview-bookings .partner-tour-bookings--embedded {
+  margin-top: 4px;
+}
+
+.partner-overview-bookings .partner-tour-bookings--embedded .partner-quotes-empty {
+  padding: 28px 0;
+}
+
+.partner-overview-bookings .partner-bookings-table {
+  min-width: 560px;
+}
+
+.partner-overview-bookings .partner-bookings-table th,
+.partner-overview-bookings .partner-bookings-table td {
+  padding: 14px 10px;
+}
+
+.partner-tour-bookings__filters {
+  grid-template-columns: minmax(0, 1.6fr) minmax(180px, 0.8fr) auto;
+  margin-bottom: 18px;
+  align-items: stretch;
+  border: 1px solid var(--pw-line);
+}
+
+.partner-tour-bookings__filters .partner-btn {
+  align-self: stretch;
+  margin: 4px;
+  white-space: nowrap;
+}
+
+.partner-table-scroll {
+  overflow: auto;
+  margin: 0 -4px;
+}
+
+.partner-bookings-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 720px;
+}
+
+.partner-bookings-table th {
+  text-align: left;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #7987a1;
+  font-weight: 700;
+  padding: 12px 14px;
+  background: #f4f7fb;
+  border-bottom: 1px solid var(--pw-line);
+  white-space: nowrap;
+}
+
+.partner-bookings-table td {
+  padding: 18px 14px;
+  border-bottom: 1px solid var(--pw-line);
+  vertical-align: middle;
+  color: var(--pw-ink);
+  font-size: 14px;
+}
+
+.partner-bookings-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.partner-bookings-table td strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--pw-ink);
+}
+
+.partner-bookings-table td:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.partner-bookings-table__amount {
+  display: inline-block;
+  min-width: 120px;
+  cursor: help;
+  border-radius: 8px;
+  padding: 4px 6px;
+  margin: -4px -6px;
+  transition: background 0.15s ease;
+}
+
+.partner-bookings-table__amount:hover,
+.partner-bookings-table__amount:focus-visible {
+  background: #f4f7fb;
+  outline: none;
+}
+
+.partner-bookings-table__actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.partner-bookings-table__manage {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.partner-bookings-table__manage .MuiSvgIcon-root {
+  font-size: 16px;
+}
+
+.partner-bookings-table__more.MuiIconButton-root {
+  color: var(--pw-muted);
+}
+
+.partner-bookings-table__more.MuiIconButton-root:hover {
+  color: var(--pw-blue);
+  background: #eef3ff;
+}
+
+.partner-booking-actions-menu.MuiPaper-root {
+  margin-top: 6px !important;
+  min-width: 220px;
+  border-radius: 12px !important;
+  border: 1px solid var(--pw-line);
+  box-shadow: 0 12px 32px rgba(15, 27, 45, 0.12) !important;
+  overflow: hidden;
+}
+
+.partner-booking-actions-menu__item.MuiMenuItem-root {
+  gap: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--pw-ink);
+}
+
+.partner-booking-actions-menu__item.MuiMenuItem-root .MuiSvgIcon-root {
+  color: #64748b;
+  font-size: 18px;
+}
+
+.partner-booking-actions-menu__item.MuiMenuItem-root:hover {
+  background: #f4f7fb;
+}
+
+.partner-booking-actions-menu__item--danger.MuiMenuItem-root {
+  color: #b42318;
+}
+
+.partner-booking-actions-menu__item--danger.MuiMenuItem-root .MuiSvgIcon-root {
+  color: #b42318;
+}
+
+.partner-booking-actions-menu__divider {
+  margin: 4px 0 !important;
+  border-color: var(--pw-line) !important;
+}
+
 .partner-task {
   padding: 18px 0;
   border-bottom: 1px solid var(--pw-line);
@@ -936,6 +1236,19 @@
     width: 100%;
     overflow: auto;
   }
+
+  .partner-account-btn__meta {
+    display: none;
+  }
+
+  .partner-account-btn {
+    padding: 4px;
+    max-width: none;
+  }
+
+  .partner-account-btn__chevron {
+    display: none;
+  }
 }
 
 @media (max-width: 900px) {
@@ -987,6 +1300,15 @@
 
   .partner-searchbar .partner-btn--primary {
     grid-column: 1 / -1;
+  }
+
+  .partner-tour-bookings__filters {
+    grid-template-columns: 1fr;
+  }
+
+  .partner-tour-bookings__filters .partner-btn {
+    grid-column: 1 / -1;
+    margin: 4px 8px 8px;
   }
 
   .partner-summary-grid {
