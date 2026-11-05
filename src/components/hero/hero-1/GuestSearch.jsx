@@ -440,7 +440,7 @@ const GuestSearch = ({ onGuestChange, guestCounts }) => {
     (guestCounts.Infants || 0);
 
   return (
-    <div className="searchMenu-guests px-20 lg:py-15 lg:px-0 js-form-dd js-form-counters position-relative">
+    <div className="searchMenu-guests px-20 lg:px-0 js-form-dd js-form-counters position-relative" style={{ paddingTop: 10, paddingBottom: 10 }}>
       <div
         data-bs-toggle="dropdown"
         data-bs-auto-close="outside"
@@ -455,14 +455,14 @@ const GuestSearch = ({ onGuestChange, guestCounts }) => {
             letterSpacing: "0.04em",
             textTransform: "uppercase",
             color: "#64748b",
-            marginBottom: 4,
+            marginBottom: 2,
           }}
         >
           Travellers
         </div>
         <div
           style={{
-            fontSize: "22px",
+            fontSize: "18px",
             fontWeight: 700,
             color: "#0f172a",
             lineHeight: 1.2,
@@ -470,7 +470,7 @@ const GuestSearch = ({ onGuestChange, guestCounts }) => {
         >
           {totalPax} Traveller{totalPax === 1 ? "" : "s"}
         </div>
-        <div style={{ fontSize: "12px", color: "#64748b", marginTop: 2 }}>
+        <div style={{ fontSize: "11px", color: "#64748b", marginTop: 1 }}>
           <span className="js-count-adult">{guestCounts.Adults}</span> Adult
           {guestCounts.Adults === 1 ? "" : "s"}
           {guestCounts.Children > 0 && (

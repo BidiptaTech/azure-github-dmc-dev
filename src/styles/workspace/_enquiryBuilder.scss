@@ -7,11 +7,13 @@
 }
 
 /* Search step already has its own hero — hide partner page title there */
-.booking-enquiry-page:has(.masthead) > .partner-hero {
+.booking-enquiry-page:has(.masthead) > .partner-hero,
+.booking-enquiry-page:has(.hero1-trip) > .partner-hero {
   display: none;
 }
 
-.booking-enquiry-page:has(.masthead) {
+.booking-enquiry-page:has(.masthead),
+.booking-enquiry-page:has(.hero1-trip) {
   margin-top: -12px;
 }
 

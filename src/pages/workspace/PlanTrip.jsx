@@ -4,7 +4,7 @@ import { useDispatch } from "react-redux";
 import Hero1 from "@/components/hero/hero-1";
 import TourPackages from "@/components/Tour-Packages";
 import { setSearchCriteria } from "@/slice/tour-packages/tourPackageSlice";
-import { appPath, QUOTES_ENQUIRY_PATH } from "@/utils/appPaths";
+import { QUOTES_ENQUIRY_PATH } from "@/utils/appPaths";
 
 export default function PlanTrip() {
   const navigate = useNavigate();

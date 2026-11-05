@@ -1785,69 +1785,80 @@ dispatch(fetchHotels());
     return "Build hotels, transfers and experiences into one package";
   };
 
-  const tripTypeHint = isPlanMode
-    ? "Book hotels, transfers & experiences for your clients"
-    : "Compose a custom package — hotels, transfers & experiences";
-
   return (
     <Box
       component="form"
       onSubmit={handleFormSubmit}
-      className="tp-plan-search"
+      className="tp-plan-search hero-search-reserve"
       sx={{
         width: "100%",
+        maxWidth: "none",
         position: "relative",
         zIndex: 50,
-        borderRadius: "16px",
-        boxShadow: "0 12px 40px rgba(15, 23, 42, 0.16)",
-        border: "1px solid rgba(15, 23, 42, 0.06)",
-        bgcolor: "#fff",
-        p: "18px 18px 14px",
-        maxWidth: 1100,
-        mx: "auto",
+        borderRadius: 0,
+        boxShadow: "none",
+        border: 0,
+        bgcolor: "transparent",
+        p: 0,
+        m: 0,
       }}
     >
       <div
-        className="tp-plan-search__toolbar d-flex items-center justify-between flex-wrap"
-        style={{ gap: 12, marginBottom: 14 }}
+        className="hero-trip-seg tp-plan-search__toolbar"
+        role="group"
+        aria-label="Trip type"
+        style={{
+          display: "flex",
+          gap: 8,
+          marginBottom: 10,
+          position: "relative",
+          zIndex: 2,
+        }}
       >
-        <div className="d-flex items-center flex-wrap" style={{ gap: 18 }}>
-          {[
-            { id: "single", label: "Single City" },
-            { id: "multi", label: "Multi City" },
-          ].map((opt) => (
-            <label
-              key={opt.id}
-              className="d-flex items-center cursor-pointer"
-              style={{
-                gap: 8,
-                fontSize: 14,
-                fontWeight: 600,
-                color: "#0f172a",
-              }}
-            >
-              <input
-                type="radio"
-                name="tpTripType"
-                checked={tripType === opt.id}
-                onChange={() => {
-                  setTripType(opt.id);
-                  if (opt.id === "single" && reduxSelectedCities.length > 1) {
-                    const keep = reduxSelectedCities[0];
-                    dispatch(clearSelectedCities());
-                    if (keep) dispatch(addSelectedCity(keep));
-                  }
-                }}
-                style={{ accentColor: "#3554D1", width: 16, height: 16 }}
-              />
-              {opt.label}
-            </label>
-          ))}
-        </div>
-        <div style={{ fontSize: 13, color: "#64748b", fontWeight: 500 }}>
-          {tripTypeHint}
-        </div>
+        {[
+          { id: "single", label: "Single city" },
+          { id: "multi", label: "Multi-city" },
+        ].map((opt) => (
+          <button
+            key={opt.id}
+            type="button"
+            className={`hero-trip-seg__btn${tripType === opt.id ? " is-active" : ""}`}
+            onClick={() => {
+              setTripType(opt.id);
+              if (opt.id === "single" && reduxSelectedCities.length > 1) {
+                const keep = reduxSelectedCities[0];
+                dispatch(clearSelectedCities());
+                if (keep) dispatch(addSelectedCity(keep));
+              }
+            }}
+            style={{
+              border:
+                tripType === opt.id
+                  ? "1px solid transparent"
+                  : "1px solid rgba(229, 234, 243, 0.45)",
+              background: tripType === opt.id ? "#e9efff" : "#fff",
+              color: tripType === opt.id ? "#234adc" : "#192944",
+              borderRadius: 9,
+              padding: "10px 16px",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            {opt.label}
+          </button>
+        ))}
       </div>
+
+      <div
+        className="bg-white hero-search-bar tp-plan-search__bar"
+        style={{
+          borderRadius: 12,
+          padding: 8,
+          width: "100%",
+          display: "block",
+        }}
+      >
 
       <Grid container spacing={1.5}>
         {/* Single Row: All Form Fields */}
@@ -2349,62 +2360,77 @@ dispatch(fetchHotels());
           </Grid>
         )}
         
-        {/* Attractive Search Button Section */}
+        {/* Search CTA */}
         <Grid item xs={12}>
-          <Box 
-            sx={{ 
-              display: 'flex', 
-              justifyContent: 'center',
-              alignItems: 'center',
-              mt: 2,
-              mb: 1
+          <Box
+            className="hero-search-bar__cta"
+            sx={{
+              display: "flex",
+              justifyContent: "flex-end",
+              alignItems: "center",
+              mt: 1,
+              mb: 0,
             }}
           >
             {!isButtonHidden && (
-              <Button 
+              <Button
                 type="submit"
-                variant="contained" 
+                variant="contained"
                 size="large"
+                disableElevation
                 className="partner-tour-packages__cta"
-                sx={{ 
+                sx={{
                   borderRadius: "9px",
-                  px: 4,
-                  py: 1.5,
-                  fontSize: "0.95rem",
+                  px: "18px",
+                  py: 0,
+                  fontSize: 13,
                   fontWeight: 700,
+                  letterSpacing: 0,
                   textTransform: "none",
-                  minWidth: 220,
-                  background: "#3554D1",
+                  minWidth: 170,
+                  minHeight: 52,
+                  height: 52,
+                  background: "#234adc",
                   boxShadow: "none",
                   color: "#fff",
+                  whiteSpace: "nowrap",
                   "&:hover": {
-                    background: "#2c46b3",
+                    background: "#1d3fc0",
                     boxShadow: "none",
                     transform: "none",
                   },
                 }}
               >
-                {getButtonText()}
+                {getButtonText() === "SEARCH"
+                  ? isPlanMode
+                    ? "Continue to services →"
+                    : "Build package →"
+                  : getButtonText() === "UPDATE"
+                    ? "Update package →"
+                    : `${getButtonText()} →`}
               </Button>
             )}
           </Box>
-          
-          {!isButtonHidden && (
-            <Box sx={{ textAlign: "center", mt: 1 }}>
-              <Typography 
-                variant="caption" 
-                sx={{ 
-                  color: "#7788ad",
-                  fontSize: "0.8rem",
-                  fontStyle: "normal",
-                }}
-              >
-                {getButtonSubtext()}
-              </Typography>
-            </Box>
-          )}
         </Grid>
       </Grid>
+      </div>
+
+      <div className="hero-room-options">
+        <button
+          type="button"
+          className="hero-room-options__btn"
+          onClick={() => {
+            const paxTrigger = document.querySelector(
+              ".tp-plan-search .tp-plan-search__cell:nth-child(3) [role='button'], .tp-plan-search .tp-plan-search__cell:nth-child(3) button, .tp-plan-search .tp-plan-search__cell:nth-child(3) .cursor-pointer"
+            );
+            if (paxTrigger) paxTrigger.click();
+          }}
+        >
+          Room &amp; traveller options · 1 room(s) ·{" "}
+          {guestCounts.Children || 0} children · {guestCounts.Infants || 0}{" "}
+          infants ↓
+        </button>
+      </div>
       
       {/* Date Validation Dialog */}
       <Dialog 
