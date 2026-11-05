@@ -124,13 +124,68 @@
     /* Compact table styles (aligned with cancelled) */
     #toursTable {
         font-size: 0.875rem;
-        table-layout: fixed;
+        table-layout: auto;
         width: 100% !important;
         margin-bottom: 0;
         background-color: #fff;
     }
     .dataTables_wrapper .dataTables_scroll .dataTables_scrollBody #toursTable,
-    .dataTables_wrapper #toursTable { width: 100% !important; table-layout: fixed; }
+    .dataTables_wrapper #toursTable { width: 100% !important; table-layout: auto; }
+    #toursTable th.col-refund-status,
+    #toursTable td.col-refund-status {
+        width: auto !important;
+        min-width: max-content;
+        max-width: none !important;
+        overflow: visible;
+    }
+    #toursTable .col-refund-status .refund-status-stack {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.4rem;
+    }
+    #toursTable .col-refund-status .refund-status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        font-size: 0.72rem;
+        font-weight: 600;
+        line-height: 1.25;
+        padding: 0.28rem 0.55rem;
+        border-radius: 6px;
+        border: 1px solid transparent;
+    }
+    #toursTable .col-refund-status .refund-status-badge.is-completed {
+        color: #166534;
+        background: #f0fdf4;
+        border-color: #bbf7d0;
+    }
+    #toursTable .col-refund-status .refund-status-badge.is-pending {
+        color: #9a3412;
+        background: #fff7ed;
+        border-color: #fed7aa;
+    }
+    #toursTable .refund-money-summary {
+        display: inline-grid;
+        grid-template-columns: max-content max-content;
+        column-gap: 0.85rem;
+        row-gap: 0.12rem;
+        align-items: center;
+        font-size: 0.82rem;
+        line-height: 1.45;
+        font-weight: 600;
+        color: #334155;
+        white-space: nowrap;
+    }
+    #toursTable .refund-money-summary .rms-paid {
+        color: #15803d;
+    }
+    #toursTable .refund-money-summary .rms-due {
+        color: #b91c1c;
+    }
+    #toursTable .refund-money-summary .rms-refunded {
+        color: #166534;
+    }
     #toursTable thead th {
         padding: 0.5rem 0.5rem;
         font-size: 0.8125rem;
@@ -151,6 +206,13 @@
     #toursTable td.col-agent .agent-name-line { font-weight: 600; font-size: 0.875rem; color: #0d6efd; display: flex; align-items: center; gap: 0.35rem; }
     #toursTable td.col-agent .agent-company-line { font-size: 0.75rem; color: #6c757d; display: flex; align-items: center; gap: 0.35rem; margin-top: 0.2rem; }
     #toursTable td.col-agent .agent-empty { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.8rem; color: #6c757d; font-style: italic; }
+    #toursTable td.col-agent .party-line { display: flex; align-items: flex-start; gap: 0.35rem; line-height: 1.35; font-size: 0.82rem; }
+    #toursTable td.col-agent .party-line + .party-line { margin-top: 0.35rem; }
+    #toursTable td.col-agent .party-label { flex: 0 0 auto; min-width: 3.2rem; color: #64748b; font-weight: 600; }
+    #toursTable td.col-agent .party-value { color: #0f172a; font-weight: 600; word-break: break-word; }
+    #toursTable td.col-agent .party-value.is-dmc { color: #0f766e; }
+    #toursTable td.col-agent .party-value.is-agent { color: #0d6efd; }
+    #toursTable td.col-agent .party-value.is-empty { color: #94a3b8; font-weight: 500; font-style: italic; }
     #toursTable td.col-created { white-space: normal; word-wrap: break-word; overflow-wrap: break-word; }
     #toursTable td.col-created .created-by-line, #toursTable td.col-created .created-at-line { display: flex; align-items: flex-start; gap: 0.35rem; line-height: 1.35; }
     #toursTable td.col-actions { min-height: 72px; min-width: 160px; overflow: visible; }
@@ -188,9 +250,9 @@
     }
     #toursTable .action-icon-badge.is-refund-initiated:hover { background: #d97706 !important; }
     #toursTable .action-icon-badge.is-refunded {
-        background: #22c55e !important;
+        background: #15803d !important;
     }
-    #toursTable .action-icon-badge.is-refunded:hover { background: #16a34a !important; }
+    #toursTable .action-icon-badge.is-refunded:hover { background: #166534 !important; }
     #toursTable .action-icon-badge i { font-size: 1rem; color: var(--action-color, #475569); }
     #toursTable .action-icon-badge.is-refund-initiated i,
     #toursTable .action-icon-badge.is-refunded i { color: #fff !important; }
@@ -368,11 +430,14 @@
             @if($tours->count() > 0)
             <div class="table-responsive">
                 <table class="datatables-basic table table-bordered" id="toursTable">
+                    @php
+                        $showDmcColumn = in_array((int) (auth()->user()->role_id ?? 0), [1, 2, 3, 4], true);
+                    @endphp
                     <colgroup>
                         <col style="width: 2%">
                         <col style="width: 16%">
-                        <col style="width: 10%">
-                        <col style="width: 12%">
+                        <col style="width: {{ $showDmcColumn ? '14%' : '10%' }}">
+                        <col class="col-refund-status">
                         <col style="width: 12%">
                         <col style="width: 10%">
                         <col style="width: 14%">
@@ -382,8 +447,8 @@
                         <tr>
                             <th class="th-tooltip" data-tooltip="#">#</th>
                             <th class="th-tooltip" data-tooltip="Tour Details">Tour Details</th>
-                            <th class="th-tooltip" data-tooltip="Agent">Agent</th>
-                            <th class="th-tooltip" data-tooltip="Refund Status">Refund Status</th>
+                            <th class="th-tooltip" data-tooltip="{{ $showDmcColumn ? 'DMC / Agent' : 'Agent' }}">{{ $showDmcColumn ? 'DMC / Agent' : 'Agent' }}</th>
+                            <th class="th-tooltip col-refund-status" data-tooltip="Refund Status">Refund Status</th>
                             <th class="th-tooltip" data-tooltip="Cancelled Date">Cancelled Date</th>
                             <!-- <th class="th-tooltip" data-tooltip="Refund Services">Cancel Services</th> -->
                             <th class="th-tooltip" data-tooltip="Actions">Actions</th>
@@ -397,20 +462,30 @@
                             $rowRefundOrders = collect($tour->booking ?? [])->filter(function ($order) {
                                 return (int) ($order->is_refund ?? 0) === 1;
                             });
-                            $rowHasInitiatedRefund = $rowRefundOrders->contains(function ($order) {
+                            // TravClicks tracks wallet credit to DMC; DMC tracks refund to agent.
+                            $orderRefundDone = function ($order) use ($showDmcColumn) {
+                                if ($showDmcColumn) {
+                                    return (bool) ($order->travclicks_refunded ?? false);
+                                }
+                                return (bool) ($order->refunded ?? false);
+                            };
+                            $rowHasInitiatedRefund = ! $showDmcColumn && $rowRefundOrders->contains(function ($order) {
                                 return (int) ($order->is_verify ?? 0) === 2 && ! ((bool) ($order->refunded ?? false));
                             });
                             $isTourCancel = in_array($tour->tour_status, ['Refund - Pending', 'Refunded'], true);
-                            if ($isTourCancel) {
+                            if ($isTourCancel && ! $showDmcColumn) {
+                                // Full tour cancel (DMC view): status alone decides pending vs refunded.
                                 $hasPendingRefund = $tour->tour_status === 'Refund - Pending';
                                 $hasRefunded = $tour->tour_status === 'Refunded';
                             } else {
-                                $hasPendingRefund = $rowRefundOrders->contains(function ($order) {
-                                    return ! ((bool) ($order->refunded ?? false));
+                                // Service cancel: unfinished for this viewer's refund layer keeps row Pending.
+                                $hasPendingRefund = $rowRefundOrders->contains(function ($order) use ($orderRefundDone) {
+                                    return ! $orderRefundDone($order);
                                 });
-                                $hasRefunded = $rowRefundOrders->contains(function ($order) {
-                                    return (bool) ($order->refunded ?? false);
+                                $hasCompletedOrderRefund = $rowRefundOrders->contains(function ($order) use ($orderRefundDone) {
+                                    return $orderRefundDone($order);
                                 });
+                                $hasRefunded = $hasCompletedOrderRefund && ! $hasPendingRefund;
                             }
                         @endphp
                         <tr 
@@ -423,6 +498,7 @@
                             data-has-pending="{{ $hasPendingRefund ? '1' : '0' }}"
                             data-has-refunded="{{ $hasRefunded ? '1' : '0' }}"
                             data-agent="{{ $tour->agent_name }}"
+                            data-dmc="{{ $tour->dmc_company_name ?: ($tour->dmc_name ?? '') }}"
                             data-destination="{{ $tour->destination }}"
                         >
                             <td>{{ $key + 1 }}</td>
@@ -494,33 +570,55 @@
                                 </div>
                             </td>
                             <td class="col-agent">
+                                @php
+                                    $dmcLabel = trim((string) ($tour->dmc_company_name ?: ($tour->dmc_name ?? '')));
+                                    $agentLabel = trim((string) ($tour->agent_name ?? ''));
+                                    $agentCompany = trim((string) ($tour->agent_company_name ?? ''));
+                                @endphp
                                 <div class="d-flex flex-column">
-                                    @if($tour->agent_name)
-                                        <span class="agent-name-line"><i class="ri-user-line"></i><span>{{ $tour->agent_name }}</span></span>
-                                        <span class="agent-company-line"><i class="ri-building-line"></i><span>{{ $tour->agent_company_name ?? 'N/A' }}</span></span>
+                                    @if($showDmcColumn)
+                                        <span class="party-line">
+                                            <span class="party-label">DMC</span>
+                                            <span class="party-value {{ $dmcLabel !== '' ? 'is-dmc' : 'is-empty' }}">{{ $dmcLabel !== '' ? $dmcLabel : 'N/A' }}</span>
+                                        </span>
+                                        <span class="party-line">
+                                            <span class="party-label">Agent</span>
+                                            <span class="party-value {{ $agentLabel !== '' ? 'is-agent' : 'is-empty' }}">{{ $agentLabel !== '' ? $agentLabel : 'N/A' }}</span>
+                                        </span>
+                                    @elseif($agentLabel !== '')
+                                        <span class="agent-name-line"><i class="ri-user-line"></i><span>{{ $agentLabel }}</span></span>
+                                        <span class="agent-company-line"><i class="ri-building-line"></i><span>{{ $agentCompany !== '' ? $agentCompany : 'N/A' }}</span></span>
                                     @else
                                         <span class="agent-empty"><i class="ri-user-unfollow-line"></i><span>No agent assigned</span></span>
                                     @endif
                                 </div>
                             </td>
                             @if($tour->tour_status === 'Refund - Pending' || $tour->tour_status === 'Refunded')
-                            <td>
+                            <td class="col-refund-status align-top">
+                                <div class="refund-status-stack">
                                 @if($tour->tour_status === 'Refund - Pending')
-                                    <span class="badge bg-danger text-start">
-                                        <i class="ri-time-line me-1"></i>
-                                        <span class="d-block">Cancel Tour</span>
-                                        <span class="d-block">Refund Pending</span>
+                                    <span class="refund-status-badge is-pending text-start">
+                                        <i class="ri-time-line"></i>
+                                        <span>
+                                            <span class="d-block">Cancel Tour</span>
+                                            <span class="d-block">Refund Pending</span>
+                                        </span>
                                     </span>
                                 @else
-                                    <span class="badge bg-success">
-                                        <i class="ri-check-circle-line me-1"></i>
-                                        Refunded
+                                    <span class="refund-status-badge is-completed">
+                                        <i class="ri-check-circle-line"></i>
+                                        Refund completed
                                     </span>
                                 @endif
-                                @include('bookings.partials.refund-money-summary', ['tour' => $tour, 'currency' => $currency ?? ''])
+                                @include('bookings.partials.refund-money-summary', [
+                                    'tour' => $tour,
+                                    'currency' => $currency ?? '',
+                                    'isTravclicksView' => $showDmcColumn,
+                                ])
+                                </div>
                             </td>
                             @else
-                            <td class="align-top">
+                            <td class="col-refund-status align-top">
                                 @php
                                     $refundServiceIcons = [
                                         'hotel' => ['icon' => 'ri-hotel-bed-line', 'label' => 'Hotel'],
@@ -540,10 +638,21 @@
                                         })
                                         ->values();
 
-                                    $hasPendingOrderRefund = $refundOrders->contains(function ($order) {
-                                        return !((bool)($order->refunded ?? false));
+                                    $hasPendingOrderRefund = $refundOrders->contains(function ($order) use ($showDmcColumn) {
+                                        if ($showDmcColumn) {
+                                            return ! ((bool) ($order->travclicks_refunded ?? false));
+                                        }
+                                        return ! ((bool) ($order->refunded ?? false));
                                     });
+                                    $serviceRefundCompleted = $refundOrders->isNotEmpty() && ! $hasPendingOrderRefund;
                                 @endphp
+                                <div class="refund-status-stack">
+                                @if($serviceRefundCompleted)
+                                    <span class="refund-status-badge is-completed">
+                                        <i class="ri-check-circle-line"></i>
+                                        {{ $showDmcColumn ? 'Refunded to DMC' : 'Refund completed' }}
+                                    </span>
+                                @endif
                                 <div class="d-flex flex-wrap gap-2">
                                     <!-- @if($hasPendingOrderRefund)
                                         <button type="button"
@@ -559,23 +668,39 @@
                                         @php
                                             $refundType = $refundOrder->type ?? null;
                                             $serviceMeta = $refundServiceIcons[$refundType] ?? ['icon' => 'ri-service-line', 'label' => ucfirst(str_replace('_', ' ', (string)$refundType))];
-                                            $isRefundCompleteForOrder = (bool)($refundOrder->refunded ?? false);
-                                            $isRefundInitiated = (int)($refundOrder->is_verify ?? 0) === 2 && ! $isRefundCompleteForOrder;
+                                            $isRefundCompleteForOrder = $showDmcColumn
+                                                ? (bool) ($refundOrder->travclicks_refunded ?? false)
+                                                : (bool) ($refundOrder->refunded ?? false);
+                                            $isRefundInitiated = ! $showDmcColumn
+                                                && (int) ($refundOrder->is_verify ?? 0) === 2
+                                                && ! $isRefundCompleteForOrder;
                                             // Always use primary key for action endpoints to avoid
                                             // mismatching records that share booking_id.
                                             $orderActionId = $refundOrder->id ?? null;
                                             $orderIdentifier = $refundOrder->booking_id ?? $refundOrder->id ?? null;
                                             $refundPriceMax = (float) ($refundOrder->refund_price_with_markup ?? 0);
                                             $refundPriceCurrency = trim((string) ($refundOrder->refund_price_currency ?? ($currency ?? '')));
-                                            $savedRefundAmount = $refundOrder->refund_amount;
+                                            $savedRefundAmount = $showDmcColumn
+                                                ? ($refundOrder->travclicks_refund_amount ?? null)
+                                                : ($refundOrder->refund_amount ?? null);
+                                            $hotelSuggested = isset($refundOrder->refund_suggested_amount)
+                                                ? (float) $refundOrder->refund_suggested_amount
+                                                : null;
+                                            $hotelCharge = isset($refundOrder->hotel_cancellation_charge)
+                                                ? (float) $refundOrder->hotel_cancellation_charge
+                                                : null;
+                                            $hotelSummary = trim((string) ($refundOrder->hotel_cancellation_summary ?? ''));
                                             $serviceTooltip = $serviceMeta['label']
                                                 . ' ('
-                                                . ($isRefundCompleteForOrder ? 'Refunded' : ($isRefundInitiated ? 'Refund initiated — click to verify' : 'Initiate refund'))
+                                                . ($isRefundCompleteForOrder
+                                                    ? ($showDmcColumn ? 'Refunded to DMC' : 'Refunded to agent')
+                                                    : ($isRefundInitiated ? 'Refund initiated — click to verify' : ($showDmcColumn ? 'Refund to DMC wallet' : 'Initiate refund')))
                                                 . ')'
                                                 . ($orderIdentifier ? (' · Order: ' . $orderIdentifier) : '')
                                                 . ($savedRefundAmount !== null && $savedRefundAmount !== ''
                                                     ? (' · Refund ' . $refundPriceCurrency . ' ' . number_format((float) $savedRefundAmount, 2))
-                                                    : '');
+                                                    : '')
+                                                . ($hotelSummary !== '' ? (' · ' . $hotelSummary) : '');
                                         @endphp
                                         <div class="d-flex flex-column align-items-center">
                                         <button type="button"
@@ -589,6 +714,9 @@
                                                 data-refund-max="{{ number_format($refundPriceMax, 2, '.', '') }}"
                                                 data-refund-currency="{{ $refundPriceCurrency }}"
                                                 data-refund-current="{{ ($savedRefundAmount !== null && $savedRefundAmount !== '') ? number_format((float) $savedRefundAmount, 2, '.', '') : '' }}"
+                                                data-refund-suggested="{{ $hotelSuggested !== null ? number_format($hotelSuggested, 2, '.', '') : '' }}"
+                                                data-cancel-charge="{{ $hotelCharge !== null ? number_format($hotelCharge, 2, '.', '') : '' }}"
+                                                data-cancel-summary="{{ e($hotelSummary) }}"
                                                 @if($isRefundCompleteForOrder)
                                                     disabled
                                                     aria-disabled="true"
@@ -602,7 +730,12 @@
                                         <span class="text-muted small">N/A</span>
                                     @endforelse
                                 </div>
-                                @include('bookings.partials.refund-money-summary', ['tour' => $tour, 'currency' => $currency ?? ''])
+                                @include('bookings.partials.refund-money-summary', [
+                                    'tour' => $tour,
+                                    'currency' => $currency ?? '',
+                                    'isTravclicksView' => $showDmcColumn,
+                                ])
+                                </div>
                             </td>
                             @endif
                             <td>
@@ -843,10 +976,12 @@
                 show = false;
             }
 
+            // Pending: any unfinished tour/service refund.
+            // Refunded: completed only — a row with any pending service cancel stays out.
             if (statusFilter === 'pending' && !hasPending) {
                 show = false;
             }
-            if (statusFilter === 'refunded' && !hasRefunded) {
+            if (statusFilter === 'refunded' && (!hasRefunded || hasPending)) {
                 show = false;
             }
 
@@ -1248,37 +1383,76 @@ function processSingleOrderRefund(tourId, orderId, event) {
 
     const button = event?.target?.closest('button');
     const initiated = button?.dataset.refundInitiated === '1';
+    const isTravclicksRefund = {{ in_array((int) (auth()->user()->role_id ?? 0), [1, 2, 3, 4], true) ? 'true' : 'false' }};
     const maxAmount = parseFloat(button?.dataset.refundMax || '0');
     const currency = button?.dataset.refundCurrency || '';
     const savedAmount = button?.dataset.refundCurrent;
+    const suggestedRaw = button?.dataset.refundSuggested;
+    const cancelCharge = button?.dataset.cancelCharge;
+    const cancelSummary = button?.dataset.cancelSummary || '';
+    const suggestedAmount = (suggestedRaw !== undefined && suggestedRaw !== '')
+        ? parseFloat(suggestedRaw)
+        : NaN;
     const startingAmount = (savedAmount !== undefined && savedAmount !== '')
         ? Math.min(parseFloat(savedAmount) || 0, isFinite(maxAmount) ? maxAmount : 0)
-        : (isFinite(maxAmount) ? maxAmount : 0);
+        : (isFinite(suggestedAmount)
+            ? Math.min(suggestedAmount, isFinite(maxAmount) ? maxAmount : suggestedAmount)
+            : (isFinite(maxAmount) ? maxAmount : 0));
+
+    let initiateMessage = isTravclicksRefund
+        ? 'Enter the refund amount. This amount will be credited to the DMC wallet.'
+        : 'Enter the refund amount for this service. You can use the full price or a lower amount.';
+    if (!initiated && cancelSummary) {
+        initiateMessage = 'Hotel cancellation policy applied.<br><strong>Charge:</strong> '
+            + (currency ? currency + ' ' : '')
+            + (isFinite(parseFloat(cancelCharge)) ? Number(cancelCharge).toFixed(2) : '0.00')
+            + '<br><strong>Suggested refund:</strong> '
+            + (currency ? currency + ' ' : '')
+            + (isFinite(suggestedAmount) ? suggestedAmount.toFixed(2) : startingAmount.toFixed(2))
+            + '<br><span class="small">' + cancelSummary + '</span>'
+            + (isTravclicksRefund ? '<br><br>This amount will be credited to the DMC wallet.' : '');
+    }
 
     const modalOptions = initiated
         ? {
-            title: 'Verify Refund',
-            confirmLabel: 'Verify Refund',
+            title: isTravclicksRefund ? 'Complete Refund to DMC' : 'Verify Refund',
+            confirmLabel: isTravclicksRefund ? 'Credit DMC Wallet' : 'Verify Refund',
             verifyOnly: true,
             currency: currency,
-            amount: isFinite(parseFloat(savedAmount)) ? parseFloat(savedAmount) : 0
+            amount: isFinite(parseFloat(savedAmount)) ? parseFloat(savedAmount) : 0,
+            note: isTravclicksRefund
+                ? 'This will complete the refund and credit the amount to the DMC wallet.'
+                : null
         }
         : {
-            title: 'Initiate Refund',
-            confirmLabel: 'Initiate Refund',
+            title: isTravclicksRefund ? 'Refund to DMC Wallet' : 'Initiate Refund',
+            confirmLabel: isTravclicksRefund ? 'Refund to DMC' : 'Initiate Refund',
             maxAmount: isFinite(maxAmount) ? maxAmount : 0,
             currency: currency,
-            amount: isFinite(startingAmount) ? startingAmount : 0
+            amount: isFinite(startingAmount) ? startingAmount : 0,
+            helpText: cancelSummary
+                ? 'Default is the policy suggested refund. You can lower it, but not above the order price with markup.'
+                : 'You can refund this amount or less. It cannot be higher than the order price with markup.',
+            note: isTravclicksRefund
+                ? 'This credits the DMC wallet only (TravClicks → DMC). DMC still refunds the agent separately.'
+                : null
         };
 
     showConfirmationModal(
         modalOptions.title,
         initiated
-            ? 'This refund is already initiated. Verify it to complete the service refund.'
-            : 'Enter the refund amount for this service. You can use the full price or a lower amount.',
+            ? (isTravclicksRefund
+                ? 'Complete this refund and credit the amount to the DMC wallet.'
+                : 'This refund is already initiated. Verify it to complete the service refund.')
+            : initiateMessage,
         'warning',
         function(refundAmount) {
-            showLoadingModal(initiated ? 'Verifying Refund' : 'Initiating Refund', 'Please wait...');
+            showLoadingModal(
+                initiated
+                    ? (isTravclicksRefund ? 'Crediting DMC Wallet' : 'Verifying Refund')
+                    : (isTravclicksRefund ? 'Refunding to DMC Wallet' : 'Initiating Refund'),
+                'Please wait...'
+            );
 
             const originalContent = button ? button.innerHTML : '';
             if (button) {

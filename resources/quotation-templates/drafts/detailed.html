@@ -1,0 +1,70 @@
+{# Detailed Quotation draft — Twig only. Validate with:
+   php artisan quotation-template:check-draft detailed
+   Allowed HTML elements only (no header/section/a/script).
+#}
+<div class="q-wrap">
+  <div class="q-header">
+    <h1>{{ branding.company_name|default('Detailed Quotation') }}</h1>
+    <p class="q-meta">
+      Ref: {{ quotation.reference|default('—') }}
+      · Type: {{ quotation.type|default('detailed') }}
+    </p>
+  </div>
+
+  <div class="q-section">
+    <h2>Booking</h2>
+    <p>{{ booking.lead_guest_name|default('—') }}</p>
+    {% if booking.email %}
+      <p>{{ booking.email }}</p>
+    {% endif %}
+  </div>
+
+  <div class="q-section">
+    <h2>Destination</h2>
+    <p>{{ travel.destination|default('—') }}</p>
+  </div>
+
+  <div class="q-section">
+    <h2>Services</h2>
+    {% if services.by_type.hotel is defined and services.by_type.hotel|length > 0 %}
+      <table class="q-table">
+        <thead>
+          <tr>
+            <th>Service</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for hotel in services.by_type.hotel %}
+            <tr>
+              <td>{{ hotel.name|default('Hotel') }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>No services listed.</p>
+    {% endif %}
+  </div>
+
+  <div class="q-section q-pricing">
+    <h2>Total</h2>
+    <p class="q-total">
+      {{ pricing.grand_total|default(0)|number_format(2) }}
+      {{ pricing.display_currency|default('') }}
+    </p>
+  </div>
+
+  {% if exclusions %}
+    <div class="q-section">
+      <h2>Exclusions</h2>
+      <p>{{ exclusions }}</p>
+    </div>
+  {% endif %}
+
+  {% if terms_and_conditions %}
+    <div class="q-section">
+      <h2>Terms &amp; conditions</h2>
+      <p>{{ terms_and_conditions }}</p>
+    </div>
+  {% endif %}
+</div>

@@ -7,6 +7,7 @@
     "require": {
         "php": "^8.2",
         "barryvdh/laravel-dompdf": "^3.1",
+        "ezyang/htmlpurifier": "4.19",
         "guzzlehttp/guzzle": "^7.8",
         "intervention/image": "^3.9",
         "kreait/firebase-php": "^7.24",
@@ -22,10 +23,12 @@
         "maennchen/zipstream-php": "^3.1",
         "matthewbdaly/laravel-azure-storage": "^2.0",
         "microsoft/azure-storage-blob": "^1.5",
+        "sabberworm/php-css-parser": "^9.4",
         "simplesoftwareio/simple-qrcode": "^4.2",
         "spatie/laravel-permission": "^6.9",
         "stevebauman/location": "^7.4",
         "stripe/stripe-php": "^21.3",
+        "twig/twig": "3.12",
         "yajra/laravel-datatables-oracle": "^11.1"
     },
     "require-dev": {

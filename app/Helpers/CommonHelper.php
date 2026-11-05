@@ -37,6 +37,12 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Config;
 // use Illuminate\Support\Facades\Cache;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Models\QuotationTemplate;
+use App\Services\Quotations\QuotationDataBuilder;
+use App\Services\Quotations\QuotationTemplateRenderException;
+use App\Services\Quotations\QuotationTemplateRenderer;
+use App\Services\Quotations\QuotationTemplateResolver;
+use App\Services\Quotations\SystemQuotationTemplateFallbackException;
 use MicrosoftAzure\Storage\Blob\BlobRestProxy;
 use League\Flysystem\Filesystem;
 use League\Flysystem\AzureBlobStorage\AzureBlobStorageAdapter;
@@ -7580,100 +7586,241 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
        
         // Exclusions (can be extended to fetch from database if needed)
         $exclusions = '';
+
+        $viewData = [
+            'tour' => $tour,
+            'servicesByDate' => $servicesByDate,
+            'servicesByType' => $servicesByType,
+            'generatedAt' => now(),
+            'dmcLogo' => $dmcLogo,
+            'dmcCompanyName' => $dmcCompanyName,
+            'dmcDetails' => $dmcDetails,
+            'dmcUser' => $dmcUser,
+            'agentDetails' => $agentDetails,
+            'proposalDetails' => $proposalDetails,
+            'bookingDetails' => $bookingDetails,
+            'travelDetails' => $travelDetails,
+            'tourPrices' => $tourPrices,
+            'hotelOptions' => $hotelOptions,
+            'countryQuotationGroups' => $countryQuotationGroups,
+            'orders' => $orders,
+            'bankDetails' => $bankDetails,
+            'termsAndConditions' => $termsAndConditions,
+            'exclusions' => $exclusions,
+            'paymentTerms' => $paymentTerms,
+            'baseCurrency' => $baseCurrency,
+            'selectedCurrency' => $selectedCurrency,
+            'exchangeRate' => $exchangeRate,
+            'quotationInformationHtml' => $quotationInformationHtml,
+            'logoType' => $logoType,
+            'user_agency' => $userAgencyForHeader,
+        ];
        
         try {
-            // Configure DomPDF options to work without GD if possible
-            //$pdf = Pdf::loadView('single-tour-package.pdf-itinerary', [
-            $pdf = Pdf::loadView($viewName, [
-                'tour' => $tour,
-                'servicesByDate' => $servicesByDate,
-                'servicesByType' => $servicesByType,
-                'generatedAt' => now(),
-                'dmcLogo' => $dmcLogo,
-                'dmcCompanyName' => $dmcCompanyName,
-                'dmcDetails' => $dmcDetails,
-                'agentDetails' => $agentDetails,
-                'proposalDetails' => $proposalDetails,
-                'bookingDetails' => $bookingDetails,
-                'travelDetails' => $travelDetails,
-                'tourPrices' => $tourPrices,
-                'hotelOptions' => $hotelOptions,
-                'countryQuotationGroups' => $countryQuotationGroups,
-                'orders' => $orders,
-                'bankDetails' => $bankDetails,
-                'termsAndConditions' => $termsAndConditions,
-                'exclusions' => $exclusions,
-                'paymentTerms' => $paymentTerms,
-                'baseCurrency' => $baseCurrency,
-                'selectedCurrency' => $selectedCurrency,
-                'exchangeRate' => $exchangeRate,
-                'quotationInformationHtml' => $quotationInformationHtml,
-                'logoType' => $logoType,
-                'user_agency' => $userAgencyForHeader,
-            ]);
-           
-            $pdf->setPaper('a4');
-            $pdf->setOption('enable-php', false);
-            $pdf->setOption('isHtml5ParserEnabled', true);
-            $pdf->setOption('isRemoteEnabled', false);
-
-            if ($preview) {
-                return $pdf->stream("tour-quotation.pdf");
-            }
-
-            return $pdf->download("tour-quotation.pdf");
+            return self::streamOrDownloadQuotationPdf($viewName, $viewData, $preview);
         } catch (\Exception $e) {
             // If GD is required and not available, try without logo
             if (strpos($e->getMessage(), 'GD extension') !== false && !empty($dmcLogo)) {
                 Log::warning('PDF generation failed with logo, retrying without logo', [
                     'error' => $e->getMessage()
                 ]);
-               
-                // Retry without logo
-                //$pdf = Pdf::loadView('single-tour-package.pdf-itinerary', [
-                $pdf = Pdf::loadView($viewName, [
-                    'tour' => $tour,
-                    'servicesByDate' => $servicesByDate,
-                    'servicesByType' => $servicesByType,
-                    'generatedAt' => now(),
-                    'dmcLogo' => null, // Remove logo
-                    'dmcCompanyName' => $dmcCompanyName,
-                    'dmcDetails' => $dmcDetails,
-                    'agentDetails' => $agentDetails,
-                    'proposalDetails' => $proposalDetails,
-                    'bookingDetails' => $bookingDetails,
-                    'travelDetails' => $travelDetails,
-                    'tourPrices' => $tourPrices,
-                    'hotelOptions' => $hotelOptions,
-                    'countryQuotationGroups' => $countryQuotationGroups,
-                    'orders' => $orders,
-                    'bankDetails' => $bankDetails,
-                    'termsAndConditions' => $termsAndConditions,
-                    'exclusions' => $exclusions,
-                    'paymentTerms' => $paymentTerms,
-                    'baseCurrency' => $baseCurrency,
-                    'selectedCurrency' => $selectedCurrency,
-                    'exchangeRate' => $exchangeRate,
-                    'quotationInformationHtml' => $quotationInformationHtml,
-                    'logoType' => $logoType,
-                    'user_agency' => $userAgencyForHeader,
-                ]);
-               
-                $pdf->setPaper('a4');
-                $pdf->setOption('enable-php', false);
-                $pdf->setOption('isHtml5ParserEnabled', true);
-                $pdf->setOption('isRemoteEnabled', false);
 
-                if ($preview) {
-                    return $pdf->stream("tour-quotation.pdf");
-                }
+                $viewData['dmcLogo'] = null;
 
-                return $pdf->download("tour-quotation.pdf");
+                return self::streamOrDownloadQuotationPdf($viewName, $viewData, $preview);
             }
            
             // Re-throw if it's a different error
             throw $e;
         }
+    }
+
+    /**
+     * Request-scoped local draft override for Super Admin pre-save checks.
+     * Never set from production PDF download paths.
+     *
+     * @var array{html_content: string, css_content: string, as_pdf?: bool}|null
+     */
+    protected static ?array $localDraftTemplateOverride = null;
+
+    /**
+     * Render a local draft HTML/CSS template against a real tour quotation payload.
+     * Does not read or write quotation_templates / versions.
+     *
+     * @return \Illuminate\Http\Response|null
+     */
+    public static function previewLocalQuotationTemplateDraft(
+        $tourId,
+        string $htmlContent,
+        string $cssContent = '',
+        ?string $targetCurrency = null,
+        string $viewName = 'single-tour-package.quotation',
+        string $logoType = 'dmc',
+        bool $asPdf = false
+    ) {
+        self::$localDraftTemplateOverride = [
+            'html_content' => $htmlContent,
+            'css_content' => $cssContent,
+            'as_pdf' => $asPdf,
+        ];
+
+        try {
+            return self::downloadTourPdf(
+                $tourId,
+                $targetCurrency,
+                true,
+                null,
+                $viewName,
+                $logoType
+            );
+        } finally {
+            self::$localDraftTemplateOverride = null;
+        }
+    }
+
+    /**
+     * Merge quotation presentation data, then render a custom template or the system Blade view with DomPDF.
+     *
+     * Custom HTML uses QuotationTemplateResolver + QuotationTemplateRenderer.
+     * System source and custom-render failures use the resolver default_view (existing Blade).
+     *
+     * When $localDraftTemplateOverride is set (Super Admin draft check only), that
+     * HTML/CSS is rendered instead of any database template / Blade fallback.
+     *
+     * @param  array<string, mixed>  $viewData
+     * @return \Illuminate\Http\Response
+     */
+    protected static function streamOrDownloadQuotationPdf(string $viewName, array $viewData, bool $preview)
+    {
+        $viewData = app(QuotationDataBuilder::class)->forViewName($viewData, $viewName);
+
+        $quotationType = $viewName === 'single-tour-package.detailedqutation'
+            ? QuotationTemplate::TYPE_DETAILED
+            : QuotationTemplate::TYPE_ITINERARY;
+
+        $defaultView = $viewName;
+        $pdf = null;
+        $tour = $viewData['tour'] ?? null;
+
+        if (is_array(self::$localDraftTemplateOverride)) {
+            $quotationData = is_array($viewData['quotationData'] ?? null)
+                ? $viewData['quotationData']
+                : [];
+            $draftResolved = [
+                'source' => QuotationTemplateResolver::SOURCE_CUSTOM,
+                'dmc_id' => ($tour instanceof Tour) ? (int) ($tour->dmc_id ?? 0) : 0,
+                'quotation_type' => $quotationType,
+                'template_id' => null,
+                'version_id' => null,
+                'version_number' => null,
+                'html_content' => (string) (self::$localDraftTemplateOverride['html_content'] ?? ''),
+                'css_content' => (string) (self::$localDraftTemplateOverride['css_content'] ?? ''),
+                'identifier' => 'local-draft:'.$quotationType,
+                'default_view' => $viewName,
+            ];
+
+            $html = app(QuotationTemplateRenderer::class)->render(
+                $draftResolved,
+                $quotationData,
+                self::approvedQuotationPresentationForRenderer($viewData)
+            );
+
+            if (empty(self::$localDraftTemplateOverride['as_pdf'])) {
+                return response($html, 200, [
+                    'Content-Type' => 'text/html; charset=UTF-8',
+                    'X-Quotation-Template-Draft' => '1',
+                ]);
+            }
+
+            $pdf = Pdf::loadHTML($html);
+
+            return self::finalizeQuotationPdfResponse($pdf, $preview);
+        }
+
+        if ($tour instanceof Tour) {
+            $resolved = app(QuotationTemplateResolver::class)->resolve($tour, $quotationType);
+            $defaultView = (string) ($resolved['default_view'] ?? $viewName);
+
+            if (($resolved['source'] ?? null) === QuotationTemplateResolver::SOURCE_CUSTOM) {
+                try {
+                    $quotationData = is_array($viewData['quotationData'] ?? null)
+                        ? $viewData['quotationData']
+                        : [];
+                    $html = app(QuotationTemplateRenderer::class)->render(
+                        $resolved,
+                        $quotationData,
+                        self::approvedQuotationPresentationForRenderer($viewData)
+                    );
+                    $pdf = Pdf::loadHTML($html);
+                } catch (SystemQuotationTemplateFallbackException|QuotationTemplateRenderException $exception) {
+                    Log::warning('Custom quotation template render failed; using system Blade view', [
+                        'tour_id' => $tour->tour_id ?? null,
+                        'quotation_type' => $quotationType,
+                        'template_identifier' => $resolved['identifier'] ?? null,
+                        'template_version_id' => $resolved['version_id'] ?? null,
+                        'exception' => $exception::class,
+                        'message' => $exception->getMessage(),
+                    ]);
+                    $pdf = null;
+                }
+            }
+        }
+
+        if ($pdf === null) {
+            $pdf = Pdf::loadView($defaultView, $viewData);
+        }
+
+        return self::finalizeQuotationPdfResponse($pdf, $preview);
+    }
+
+    /**
+     * Explicitly approved presentation values for the sandboxed renderer.
+     * Normalized quotationData already carries pricing/branding; keep this minimal.
+     *
+     * @param  array<string, mixed>  $viewData
+     * @return array<string, mixed>
+     */
+    protected static function approvedQuotationPresentationForRenderer(array $viewData): array
+    {
+        $approved = [];
+
+        if (isset($viewData['logoType']) && is_string($viewData['logoType'])) {
+            $approved['logoType'] = $viewData['logoType'];
+        }
+
+        if (isset($viewData['selectedCurrency']) && (is_string($viewData['selectedCurrency']) || is_numeric($viewData['selectedCurrency']))) {
+            $approved['selectedCurrency'] = $viewData['selectedCurrency'];
+        }
+
+        if (isset($viewData['baseCurrency']) && (is_string($viewData['baseCurrency']) || is_numeric($viewData['baseCurrency']))) {
+            $approved['baseCurrency'] = $viewData['baseCurrency'];
+        }
+
+        if (isset($viewData['exchangeRate']) && (is_int($viewData['exchangeRate']) || is_float($viewData['exchangeRate']))) {
+            $approved['exchangeRate'] = $viewData['exchangeRate'];
+        }
+
+        return $approved;
+    }
+
+    /**
+     * Apply the existing quotation DomPDF paper/security options, then stream or download.
+     *
+     * @param  \Barryvdh\DomPDF\PDF  $pdf
+     * @return \Illuminate\Http\Response
+     */
+    protected static function finalizeQuotationPdfResponse($pdf, bool $preview)
+    {
+        $pdf->setPaper('a4');
+        $pdf->setOption('enable-php', false);
+        $pdf->setOption('isHtml5ParserEnabled', true);
+        $pdf->setOption('isRemoteEnabled', false);
+
+        if ($preview) {
+            return $pdf->stream('tour-quotation.pdf');
+        }
+
+        return $pdf->download('tour-quotation.pdf');
     }
 
     /**
@@ -11054,9 +11201,213 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $status = Tour::where('tour_id', $tourId)->value('tour_status');
         if (in_array($status ?? '', ['Definite', 'Actual'], true)) {
             $updateData['is_refund'] = 1;
+            if (request()->boolean('without_refund')) {
+                $updateData['refund_amount'] = 0;
+                $updateData['is_verify'] = 1;
+                $updateData['refunded'] = true;
+            }
         }
 
         return $updateData;
+    }
+
+    /**
+     * Apply hotels.cancellation_data rules to a hotel order.
+     * Duration is hours before check-in. The tightest matching window wins
+     * (e.g. within 48h uses the 48 rule, within 72h but outside 48 uses 72).
+     *
+     * @param  \App\Models\Order|object|array<string, mixed>  $order
+     * @return array{
+     *     applicable: bool,
+     *     free: bool,
+     *     hotel_price: float,
+     *     cancellation_charge: float,
+     *     suggested_refund: float,
+     *     currency: string,
+     *     hours_until_check_in: float|null,
+     *     matched_rule: array<string, mixed>|null,
+     *     rules: list<array<string, mixed>>,
+     *     summary: string
+     * }
+     */
+    public static function calculateHotelCancellationCharge($order, ?float $hotelPriceOverride = null): array
+    {
+        $empty = [
+            'applicable' => false,
+            'free' => true,
+            'hotel_price' => 0.0,
+            'cancellation_charge' => 0.0,
+            'suggested_refund' => 0.0,
+            'currency' => '',
+            'hours_until_check_in' => null,
+            'matched_rule' => null,
+            'rules' => [],
+            'summary' => 'No hotel cancellation policy found.',
+        ];
+
+        if (! $order) {
+            return $empty;
+        }
+
+        $currency = strtoupper(trim((string) (is_object($order) ? ($order->currency ?? '') : ($order['currency'] ?? ''))));
+        $data = is_object($order) ? ($order->data ?? null) : ($order['data'] ?? null);
+        if (is_string($data)) {
+            $data = json_decode($data, true);
+        }
+        $item = [];
+        if (is_array($data)) {
+            $item = (isset($data[0]) && is_array($data[0])) ? $data[0] : $data;
+        }
+        if (! is_array($item)) {
+            $item = [];
+        }
+
+        $hotelDetails = is_array($item['hotelDetails'] ?? null) ? $item['hotelDetails'] : [];
+        $hotelPrice = $hotelPriceOverride !== null
+            ? max(0.0, $hotelPriceOverride)
+            : (float) ($item['totalPrice'] ?? $item['price'] ?? $item['grand_total'] ?? 0);
+        if ($currency === '') {
+            $currency = strtoupper(trim((string) ($item['currency'] ?? $hotelDetails['currency'] ?? '')));
+        }
+
+        $hotelId = trim((string) (
+            $item['hotel_unique_id']
+            ?? $hotelDetails['hotel_unique_id']
+            ?? $hotelDetails['hotel_id']
+            ?? $item['hotel_id']
+            ?? ''
+        ));
+        $hotel = $hotelId !== ''
+            ? Hotel::where('hotel_unique_id', $hotelId)->first(['hotel_unique_id', 'cancellation_type', 'cancellation_data'])
+            : null;
+
+        $rawRules = $hotel->cancellation_data ?? null;
+        if (is_string($rawRules)) {
+            $rawRules = json_decode($rawRules, true);
+        }
+        $rules = [];
+        if (is_array($rawRules)) {
+            foreach ($rawRules as $rule) {
+                if (! is_array($rule)) {
+                    continue;
+                }
+                $rules[] = [
+                    'duration' => (float) ($rule['duration'] ?? 0),
+                    'price' => (float) ($rule['price'] ?? 0),
+                    'type' => strtolower(trim((string) ($rule['type'] ?? 'flat'))),
+                ];
+            }
+        }
+
+        $isChargeable = $hotel && in_array($hotel->cancellation_type, [1, '1', true, 'true'], true);
+        $bookingDates = $item['bookingDate'] ?? $item['booking_date'] ?? null;
+        $stayStart = null;
+        if (is_array($bookingDates) && ! empty($bookingDates[0])) {
+            $stayStart = (string) $bookingDates[0];
+        } elseif (is_string($bookingDates) && $bookingDates !== '') {
+            $stayStart = $bookingDates;
+        }
+        $checkInRaw = $item['stay_start']
+            ?? $item['check_in']
+            ?? $item['checkIn']
+            ?? $stayStart
+            ?? $hotelDetails['check_in']
+            ?? null;
+        $checkInTime = trim((string) ($hotelDetails['checkInTime'] ?? $hotelDetails['check_in_time'] ?? ''));
+        $hoursUntil = null;
+        if (! empty($checkInRaw)) {
+            try {
+                $checkInString = (string) $checkInRaw;
+                // bookingDate is often YYYY-MM-DD; append hotel check-in time when present.
+                if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $checkInString) && $checkInTime !== '') {
+                    $checkInString .= ' ' . $checkInTime;
+                }
+                $hoursUntil = round((Carbon::parse($checkInString)->getTimestamp() - now()->getTimestamp()) / 3600, 2);
+            } catch (\Throwable $e) {
+                $hoursUntil = null;
+            }
+        }
+
+        $base = [
+            'applicable' => true,
+            'free' => true,
+            'hotel_price' => round(max(0, $hotelPrice), 2),
+            'cancellation_charge' => 0.0,
+            'suggested_refund' => round(max(0, $hotelPrice), 2),
+            'currency' => $currency,
+            'hours_until_check_in' => $hoursUntil,
+            'matched_rule' => null,
+            'rules' => $rules,
+            'summary' => 'Free cancellation applies.',
+        ];
+
+        if (! $hotel) {
+            $base['applicable'] = false;
+            $base['summary'] = 'Hotel policy could not be loaded.';
+
+            return $base;
+        }
+
+        if (! $isChargeable || $rules === []) {
+            $base['summary'] = 'Cancellation type is Free — no cancellation charge.';
+
+            return $base;
+        }
+
+        if ($hoursUntil === null) {
+            $base['summary'] = 'Check-in date missing — cancellation charge could not be calculated.';
+
+            return $base;
+        }
+
+        // Tightest window first: cancel within 48h beats within 72h.
+        usort($rules, static fn ($a, $b) => $a['duration'] <=> $b['duration']);
+        $matched = null;
+        foreach ($rules as $rule) {
+            if ($hoursUntil <= (float) $rule['duration']) {
+                $matched = $rule;
+                break;
+            }
+        }
+
+        if ($matched === null) {
+            $base['summary'] = sprintf(
+                'Outside all charge windows (%.0f hours before check-in) — free cancellation.',
+                $hoursUntil
+            );
+
+            return $base;
+        }
+
+        $charge = str_starts_with((string) $matched['type'], 'percent')
+            ? round(max(0, $hotelPrice) * ((float) $matched['price'] / 100), 2)
+            : round(max(0, (float) $matched['price']), 2);
+        $suggested = round(max(0, $hotelPrice - $charge), 2);
+        $typeLabel = str_starts_with((string) $matched['type'], 'percent') ? 'Percentage' : 'Flat';
+
+        return [
+            'applicable' => true,
+            'free' => false,
+            'hotel_price' => round(max(0, $hotelPrice), 2),
+            'cancellation_charge' => $charge,
+            'suggested_refund' => $suggested,
+            'currency' => $currency,
+            'hours_until_check_in' => $hoursUntil,
+            'matched_rule' => $matched,
+            'rules' => $rules,
+            'summary' => sprintf(
+                'Within %.0f hours of check-in: %s %s charge. Hotel %s %s − charge %s %s = refund %s %s.',
+                (float) $matched['duration'],
+                $typeLabel,
+                number_format((float) $matched['price'], 2),
+                $currency,
+                number_format(max(0, $hotelPrice), 2),
+                $currency,
+                number_format($charge, 2),
+                $currency,
+                number_format($suggested, 2)
+            ),
+        ];
     }
 
     /**
