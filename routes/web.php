@@ -263,6 +263,41 @@ Route::get('/clear', function () {
                     ->whereNumber('version')
                     ->name('quotation-templates.versions.show');
             });
+
+            // Super Admin Invoice Template Studio (draft + publish)
+            Route::middleware(['super.admin'])->prefix('invoice-templates')->group(function () {
+                Route::get('/', [App\Http\Controllers\Admin\InvoiceTemplateStudioController::class, 'index'])
+                    ->name('invoice-templates.index');
+                // Local file drafts (no DB) — must be before {dmcId} routes
+                Route::get('/drafts/{name}/preview', [App\Http\Controllers\Admin\InvoiceTemplateStudioController::class, 'previewLocalDraft'])
+                    ->where('name', '[A-Za-z0-9_\-]+')
+                    ->name('invoice-templates.drafts.preview');
+                Route::get('/drafts/{name}/pdf', [App\Http\Controllers\Admin\InvoiceTemplateStudioController::class, 'previewLocalDraftPdf'])
+                    ->where('name', '[A-Za-z0-9_\-]+')
+                    ->name('invoice-templates.drafts.pdf');
+                Route::get('/{dmcId}/{type}', [App\Http\Controllers\Admin\InvoiceTemplateStudioController::class, 'show'])
+                    ->whereNumber('dmcId')
+                    ->name('invoice-templates.show');
+                Route::post('/{dmcId}/{type}', [App\Http\Controllers\Admin\InvoiceTemplateStudioController::class, 'store'])
+                    ->whereNumber('dmcId')
+                    ->name('invoice-templates.store');
+                Route::put('/{dmcId}/{type}/draft', [App\Http\Controllers\Admin\InvoiceTemplateStudioController::class, 'updateDraft'])
+                    ->whereNumber('dmcId')
+                    ->name('invoice-templates.draft.update');
+                Route::post('/{dmcId}/{type}/publish', [App\Http\Controllers\Admin\InvoiceTemplateStudioController::class, 'publishDraft'])
+                    ->whereNumber('dmcId')
+                    ->name('invoice-templates.publish');
+                Route::post('/{dmcId}/{type}/deactivate', [App\Http\Controllers\Admin\InvoiceTemplateStudioController::class, 'deactivate'])
+                    ->whereNumber('dmcId')
+                    ->name('invoice-templates.deactivate');
+                Route::post('/{dmcId}/{type}/activate', [App\Http\Controllers\Admin\InvoiceTemplateStudioController::class, 'activate'])
+                    ->whereNumber('dmcId')
+                    ->name('invoice-templates.activate');
+                Route::get('/{dmcId}/{type}/versions/{version}', [App\Http\Controllers\Admin\InvoiceTemplateStudioController::class, 'showVersion'])
+                    ->whereNumber('dmcId')
+                    ->whereNumber('version')
+                    ->name('invoice-templates.versions.show');
+            });
             
             // Miscellaneous Selection & Pricing - DMC Routes (like restaurant selection)
             Route::get('/services/miscellaneous', [App\Http\Controllers\Admin\MiscellaneousItemController::class, 'dmcMiscellaneousSelection'])->name('services.miscellaneous');
