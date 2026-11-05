@@ -613,19 +613,19 @@
   top: 96px;
 }
 
+.pw-summary__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .pw-summary__eyebrow {
   font-size: 11px;
   letter-spacing: 1.8px;
   font-weight: 700;
   text-transform: uppercase;
   color: #7788ad;
-}
-
-.pw-summary__badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  justify-content: flex-end;
 }
 
 .pw-summary h2 {
@@ -649,19 +649,65 @@
   margin-bottom: 16px;
 }
 
-.pw-summary-services {
+.pw-summary-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.pw-summary-group {
+  border: 1px solid var(--pw-line, #e5eaf3);
+  border-radius: 10px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.pw-summary-group__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #fff;
   border-bottom: 1px solid var(--pw-line, #e5eaf3);
-  margin-bottom: 2px;
+}
+
+.pw-summary-group__head h3 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pw-muted, #748097);
+}
+
+.pw-summary-group__head span {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--pw-soft, #edf1ff);
+  color: var(--pw-blue, #234adc);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+}
+
+.pw-summary-services {
+  list-style: none;
+  margin: 0;
+  padding: 0 12px;
 }
 
 .pw-summary-service {
-  padding: 14px 0;
+  padding: 12px 0;
   border-top: 1px solid var(--pw-line, #e5eaf3);
 }
 
 .pw-summary-service:first-child {
   border-top: 0;
-  padding-top: 4px;
 }
 
 .pw-summary-service__row {
@@ -682,14 +728,22 @@
   white-space: nowrap;
 }
 
-.pw-summary-service__meta {
+.pw-summary-service__foot {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
   margin-top: 4px;
+}
+
+.pw-summary-service__meta {
   font-size: 12px;
   color: var(--pw-muted, #748097);
+  line-height: 1.4;
 }
 
 .pw-summary-service__remove {
-  margin-top: 6px;
+  flex-shrink: 0;
   padding: 0;
   border: 0;
   background: none;
@@ -721,6 +775,12 @@
 .pw-summary-total__row strong {
   font-size: 22px;
   line-height: 1.2;
+}
+
+.pw-summary-total__note {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--pw-muted, #748097);
 }
 
 .pw-summary .partner-btn--primary {
