@@ -1,6 +1,9 @@
 @extends('layouts.layout')
 @section('title', 'New Enquiries')
 @extends('layouts.datatablecss')
+@php
+    $pendingOnlineHotelsByTour = [];
+@endphp
 
 <!-- Add SweetAlert2 CSS -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
@@ -1017,8 +1020,56 @@
                         </tr>
                     </thead>
                     <tbody>
+                        @php
+                            $pendingOnlineHotelsByTour = $pendingOnlineHotelsByTour ?? [];
+                        @endphp
                         @forelse($tours as $key => $tour)
+                        @php
+                            // hotel_order_index must match HotelBookingController::resolveHotelOrderBooking (type=hotel, deleted_at null, orderBy id).
+                            $hotelOrdersForIndex = collect($tour->booking ?? [])
+                                ->filter(function ($order) {
+                                    return strtolower(trim((string) ($order->type ?? ''))) === 'hotel'
+                                        && empty($order->deleted_at);
+                                })
+                                ->sortBy(function ($order) {
+                                    return (int) ($order->id ?? $order->booking_id ?? 0);
+                                })
+                                ->values();
+                            $tourPendingOnlineHotels = [];
+                            foreach ($hotelOrdersForIndex as $hotelOrderIndex => $hotelOrder) {
+                                if (strtolower(trim((string) ($hotelOrder->order_type ?? ''))) !== 'online') {
+                                    continue;
+                                }
+                                if ((int) ($hotelOrder->is_approve ?? 0) === 1) {
+                                    continue;
+                                }
+                                $hotelData = is_array($hotelOrder->data ?? null)
+                                    ? $hotelOrder->data
+                                    : (is_string($hotelOrder->data ?? null) ? json_decode($hotelOrder->data, true) : []);
+                                if (! is_array($hotelData) || $hotelData === []) {
+                                    continue;
+                                }
+                                foreach ($hotelData as $bookingIndex => $bookingRow) {
+                                    if (! is_array($bookingRow)) {
+                                        continue;
+                                    }
+                                    $tourPendingOnlineHotels[] = [
+                                        'hotelOrderIndex' => (int) $hotelOrderIndex,
+                                        'bookingIndex' => (int) $bookingIndex,
+                                        'orderType' => 'online',
+                                        'isOnline' => true,
+                                        'autoCancelDate' => $tour->auto_cancel_date
+                                            ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
+                                            : null,
+                                    ];
+                                }
+                            }
+                            if ($tourPendingOnlineHotels !== []) {
+                                $pendingOnlineHotelsByTour[(int) $tour->tour_id] = $tourPendingOnlineHotels;
+                            }
+                        @endphp
                         <tr 
+                            data-tour-id="{{ $tour->tour_id }}"
                             data-created-at="{{ optional($tour->destination_created_at ?? $tour->created_at)->toDateString() }}"
                             data-updated-at="{{ optional($tour->updated_at)->toDateString() }}"
                             data-check-in="{{ $tour->check_in_time ? \Carbon\Carbon::parse($tour->check_in_time)->toDateString() : '' }}"
@@ -2887,6 +2938,14 @@ function testServices() {
 @endsection
 @section('scripts')
 @include('bookings.partials.negotiation-profit-breakdown')
+@include('bookings.partials.online-hotel-approve-modal')
+<script>
+    window.__pendingOnlineHotelsByTour = Object.assign(
+        {},
+        window.__pendingOnlineHotelsByTour || {},
+        @json($pendingOnlineHotelsByTour ?? [])
+    );
+</script>
 <!-- Select2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/js/select2.min.js"></script>
 <script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
