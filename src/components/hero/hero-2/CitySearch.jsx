@@ -269,8 +269,8 @@ const CitySearch = ({ onCitySelect, multiSelect = false }) => {
 
   return (
     <div
-      className="searchMenu-loc px-20 lg:py-15 lg:px-0"
-      style={{ minWidth: 0, position: "relative" }}
+      className="searchMenu-loc"
+      style={{ minWidth: 0, position: "relative", padding: "8px 14px" }}
     >
       <div>
         <div
@@ -290,7 +290,7 @@ const CitySearch = ({ onCitySelect, multiSelect = false }) => {
           <div className="cursor-pointer" onClick={startSingleEdit}>
             <div
               style={{
-                fontSize: "22px",
+                fontSize: "18px",
                 fontWeight: 700,
                 color: "#0f172a",
                 lineHeight: 1.2,

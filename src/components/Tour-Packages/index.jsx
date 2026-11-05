@@ -58,8 +58,16 @@ export default function TourPackages({ mode = "packages" } = {}) {
             </div>
           ) : null}
           <Hero1
-            title={heroTitle}
-            subtitle={heroSubtitle}
+            pageKicker={isPlanMode ? "Plan a trip" : "Tour packages"}
+            pageTitle={heroTitle}
+            pageSubtitle={heroSubtitle}
+            kicker={isPlanMode ? "Your next client journey" : "Custom package builder"}
+            title="Where are we taking them?"
+            subtitle={
+              isPlanMode
+                ? "Find stays, add experiences and build a complete trip with your DMC."
+                : "Pick destination, dates and travellers — then build a sellable package."
+            }
             footerNote={footerNote}
             searchSlot={
               <div className="tp-hero-search">

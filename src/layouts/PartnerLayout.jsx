@@ -116,32 +116,30 @@ export default function PartnerLayout() {
 
         <PartnerNav />
 
-        <div className="partner-topbar__end">
-          <button
-            type="button"
-            className="partner-avatar-btn"
-            onClick={(e) => setUserMenuAnchor(e.currentTarget)}
-            aria-label="Account menu"
+        <button
+          type="button"
+          className="partner-avatar-btn"
+          onClick={(e) => setUserMenuAnchor(e.currentTarget)}
+          aria-label="Account menu"
+        >
+          {initials}
+        </button>
+        <Menu
+          anchorEl={userMenuAnchor}
+          open={Boolean(userMenuAnchor)}
+          onClose={() => setUserMenuAnchor(null)}
+        >
+          <MenuItem
+            onClick={() => {
+              setUserMenuAnchor(null);
+              setProfileOpen(true);
+            }}
           >
-            {initials}
-          </button>
-          <Menu
-            anchorEl={userMenuAnchor}
-            open={Boolean(userMenuAnchor)}
-            onClose={() => setUserMenuAnchor(null)}
-          >
-            <MenuItem
-              onClick={() => {
-                setUserMenuAnchor(null);
-                setProfileOpen(true);
-              }}
-            >
-              Profile
-            </MenuItem>
-            <MenuItem onClick={() => navigate(appPath("cart"))}>Cart</MenuItem>
-            <MenuItem onClick={handleLogout}>Log out</MenuItem>
-          </Menu>
-        </div>
+            Profile
+          </MenuItem>
+          <MenuItem onClick={() => navigate(appPath("cart"))}>Cart</MenuItem>
+          <MenuItem onClick={handleLogout}>Log out</MenuItem>
+        </Menu>
       </header>
 
       <main

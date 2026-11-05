@@ -170,7 +170,7 @@ export default function Overview() {
       </div>
 
       <div className="partner-plan-hero partner-plan-hero--overview">
-        <Hero1 />
+        <Hero1 showPageIntro={false} />
       </div>
 
       <div className="partner-summary-grid">

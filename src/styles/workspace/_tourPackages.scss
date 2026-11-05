@@ -1,4 +1,4 @@
-/* Tour packages — same Plan & book hero search flow */
+/* Tour packages / package search — Plan-a-trip hero parity */
 
 .partner-tour-packages-embed,
 .partner-tour-packages {
@@ -9,33 +9,56 @@
   position: relative;
 }
 
+.partner-package-toolbar {
+  display: flex;
+  justify-content: flex-start;
+  margin: 0 0 12px;
+}
+
+.partner-package-toolbar .partner-btn {
+  min-height: 40px;
+}
+
 .partner-tour-packages__back {
-  position: absolute;
-  top: 12px;
-  left: 12px;
+  position: relative;
+  top: auto;
+  left: auto;
   z-index: 5;
+  margin: 0 0 12px;
 }
 
 .partner-tour-packages__back .partner-btn {
-  background: rgba(255, 255, 255, 0.92);
-  border-color: rgba(255, 255, 255, 0.7);
+  background: #fff;
+  border-color: var(--pw-line, #e5eaf3);
 }
 
-/* SearchForm inside Hero1 card — match MainFilterSearchBox look */
-.tp-hero-search {
+/* SearchForm / package search inside Hero1 card */
+.tp-hero-search,
+.pp-hero-search {
   width: 100%;
 }
 
 .tp-hero-search > .tp-plan-search,
 .tp-plan-search {
-  width: 100%;
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.16);
-  border: 1px solid rgba(15, 23, 42, 0.06);
-  padding: 18px 18px 14px;
-  max-width: 1100px;
-  margin: 0 auto;
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.tp-plan-search__bar,
+.pp-hero-search__bar {
+  width: 100% !important;
+  max-width: none !important;
+  background: #fff !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  padding: 8px !important;
 }
 
 .tp-plan-search__toolbar {
@@ -45,10 +68,10 @@
 .tp-plan-search__row {
   display: flex !important;
   flex-wrap: wrap !important;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border: 0 !important;
+  border-radius: 0 !important;
   overflow: visible;
-  background: #fff;
+  background: transparent !important;
   margin: 0 !important;
   width: 100% !important;
 }
@@ -63,7 +86,6 @@
   border-right: 0;
 }
 
-/* Destination uses hero-1 LocationSearch (own padding) — don't double-pad */
 .tp-plan-search__cell:first-child > .MuiBox-root {
   padding: 0 !important;
   border: 0 !important;
@@ -71,15 +93,17 @@
   background: transparent !important;
   box-shadow: none !important;
   height: 100%;
-  min-height: 92px;
+  min-height: 72px;
 }
 
 .tp-plan-search__cell > .MuiBox-root {
   height: 100%;
-  min-height: 92px;
+  min-height: 72px;
   border: 0 !important;
   border-radius: 0 !important;
   box-shadow: none !important;
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
 }
 
 .tp-plan-search__cell > .MuiBox-root:hover {
@@ -94,33 +118,35 @@
   letter-spacing: 0.04em !important;
   text-transform: uppercase !important;
   color: #64748b !important;
-  margin-bottom: 4px !important;
+  margin-bottom: 2px !important;
 }
 
 .tp-plan-search .MuiTypography-caption .MuiSvgIcon-root {
   display: none;
 }
 
-/* SEARCH CTA — pill like Plan & book */
+/* Inline CTA — match Plan a trip */
 .tp-hero-search .partner-tour-packages__cta,
 .tp-plan-search .partner-tour-packages__cta,
 .tp-hero-search button[type="submit"],
 .tp-plan-search button[type="submit"],
 .tp-hero-search .MuiButton-contained,
-.tp-plan-search .MuiButton-contained {
-  display: block !important;
-  margin: 16px auto 4px !important;
-  min-width: 220px !important;
+.tp-plan-search .MuiButton-contained,
+.pp-hero-search__cta {
+  display: inline-flex !important;
+  margin: 0 !important;
+  min-width: 170px !important;
   height: 52px !important;
-  border-radius: 28px !important;
+  min-height: 52px !important;
+  border-radius: 9px !important;
   border: none !important;
-  font-size: 18px !important;
-  font-weight: 800 !important;
-  letter-spacing: 0.04em !important;
-  text-transform: uppercase !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
   color: #fff !important;
-  background: #3554d1 !important;
-  box-shadow: 0 10px 24px rgba(53, 84, 209, 0.35) !important;
+  background: #234adc !important;
+  box-shadow: none !important;
 }
 
 .tp-hero-search .partner-tour-packages__cta:hover,
@@ -128,9 +154,10 @@
 .tp-hero-search button[type="submit"]:hover,
 .tp-plan-search button[type="submit"]:hover,
 .tp-hero-search .MuiButton-contained:hover,
-.tp-plan-search .MuiButton-contained:hover {
-  background: #2c46b3 !important;
-  box-shadow: 0 10px 24px rgba(53, 84, 209, 0.4) !important;
+.tp-plan-search .MuiButton-contained:hover,
+.pp-hero-search__cta:hover {
+  background: #1d3fc0 !important;
+  box-shadow: none !important;
   transform: none !important;
 }
 
@@ -161,16 +188,15 @@
   font-weight: 700 !important;
 }
 
-/* PlanTrip already has its own hero when startTrip — hide TourPackages hero chrome back btn overlap */
 .partner-plan-builder .partner-tour-packages__back {
   display: none;
 }
 
 .partner-plan-builder .partner-tour-packages__hero {
-  margin: -36px -28px 0;
+  margin: 0;
 }
 
-/* Package search — Plan / Quick Enquiry hero parity */
+/* Package search */
 .partner-package-search {
   width: 100%;
 }
@@ -180,20 +206,14 @@
   position: relative;
   z-index: 40;
   overflow: visible;
+  padding-bottom: 0 !important;
 }
 
-.partner-package-search .pp-hero-search__card {
-  overflow: visible !important;
-  position: relative;
-  z-index: 40;
-}
-
-.partner-package-search .pp-hero-search__row,
+.partner-package-search .pp-hero-search__bar,
 .partner-package-search .pp-hero-search__cell {
   overflow: visible !important;
 }
 
-/* Portal calendar must sit above hero footer / chips / SEARCH CTA */
 .rmdp-container.pp-date-select__calendar,
 .pp-date-select__calendar.rmdp-wrapper,
 .pp-date-select__calendar .rmdp-calendar,
@@ -221,11 +241,15 @@
 }
 
 @media (max-width: 900px) {
+  .partner-package-toolbar {
+    margin-bottom: 10px;
+  }
+
   .partner-tour-packages__back {
     position: relative;
-    top: 0;
-    left: 0;
-    margin: 8px 12px 0;
+    top: auto;
+    left: auto;
+    margin: 0 0 10px;
   }
 
   .tp-plan-search__cell {
@@ -239,14 +263,22 @@
     border-bottom: 0;
   }
 
+  .pp-hero-search__bar {
+    grid-template-columns: 1fr !important;
+  }
+
   .pp-hero-search__cell {
     border-right: 0 !important;
     border-bottom: 1px solid #e2e8f0;
-    flex-basis: 100% !important;
-    max-width: 100% !important;
   }
 
-  .pp-hero-search__cell:last-child {
-    border-bottom: 0;
+  .pp-hero-search__cell:last-of-type,
+  .pp-hero-search__cta-wrap {
+    border-bottom: 0 !important;
+  }
+
+  .pp-hero-search__cta,
+  .partner-tour-packages__cta {
+    width: 100% !important;
   }
 }

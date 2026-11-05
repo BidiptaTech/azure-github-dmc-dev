@@ -22,9 +22,12 @@
 
 .partner-shell {
   min-height: 100vh;
+  width: 100%;
+  max-width: none;
   background: var(--pw-bg);
   color: var(--pw-ink);
   font: 14px/1.5 var(--pw-font);
+  overflow-x: clip;
 }
 
 .partner-shell button,
@@ -52,35 +55,45 @@
   line-height: 1.3;
 }
 
-/* —— Header: brand | nav | badge + avatar —— */
+/* —— Header: brand | nav | demo | avatar — concept single-row stretch —— */
 .partner-topbar {
   position: sticky;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 100;
-  height: 80px;
+  width: 100%;
+  max-width: none;
+  height: 88px;
+  margin: 0;
   background: #fff;
   border-bottom: 1px solid var(--pw-line);
   display: flex;
+  flex-wrap: nowrap;
   align-items: center;
-  padding: 0 5%;
-  gap: 36px;
+  padding: 0 3%;
+  gap: 25px;
+  box-sizing: border-box;
 }
 
 .partner-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
+  display: block;
   border: 0;
   background: transparent;
   cursor: pointer;
   padding: 0;
+  flex: 0 0 auto;
   flex-shrink: 0;
   text-align: left;
+  color: var(--pw-brand);
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: -1px;
 }
 
 .partner-brand__logo {
-  width: 155px;
-  height: 62px;
+  width: 190px;
+  height: 76px;
   object-fit: contain;
   display: block;
 }
@@ -104,13 +117,14 @@
   letter-spacing: 2px;
   color: var(--pw-muted);
   margin-top: 4px;
-  text-transform: uppercase;
+  text-transform: none;
+  font-weight: 400;
 }
 
 .partner-nav {
   display: flex;
-  gap: 6px;
-  flex: 1;
+  gap: 1px;
+  flex: 1 1 0%;
   min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
@@ -125,13 +139,15 @@
   border: 0;
   background: transparent;
   color: var(--pw-muted);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 400;
-  padding: 12px 14px;
+  padding: 13px 12px;
   border-radius: 8px;
-  text-decoration: none;
+  text-decoration: none !important;
   cursor: pointer;
   white-space: nowrap;
+  display: inline-block;
+  line-height: 1.2;
   transition: background 0.15s ease, color 0.15s ease;
 }
 
@@ -140,18 +156,11 @@
   background: rgba(237, 241, 255, 0.55);
 }
 
-.partner-nav__link.is-active {
+.partner-nav__link.is-active,
+.partner-nav__link.active {
   background: var(--pw-soft);
   color: var(--pw-blue);
   font-weight: 700;
-}
-
-.partner-topbar__end {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-left: auto;
-  flex-shrink: 0;
 }
 
 .partner-demo-badge {
@@ -160,23 +169,29 @@
   color: var(--pw-demo-ink);
   padding: 6px 10px;
   border-radius: 5px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-weight: 400;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  line-height: 1.2;
 }
 
 .partner-avatar-btn {
-  width: 42px;
-  height: 42px;
+  width: auto;
+  min-width: 40px;
+  height: 40px;
   border-radius: 50%;
   border: 0;
   background: var(--pw-avatar);
   color: var(--pw-blue);
   font-weight: 700;
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  padding: 12px;
+  flex: 0 0 auto;
+  line-height: 1;
 }
 
 .partner-avatar-btn:hover {
@@ -185,27 +200,78 @@
 
 /* —— Page —— */
 .partner-main {
-  max-width: 1230px;
+  max-width: 1480px;
   margin: 0 auto;
-  padding: 36px 28px 64px;
+  padding: 36px 3% 64px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
-/* Full-bleed classic book-tour search inside partner shell */
+/* Plan / overview search hero inside partner shell */
 .partner-plan-hero {
-  margin: -36px -28px 28px;
+  margin: 0 0 16px;
 }
 
 .partner-plan-hero--overview {
-  margin: 8px -28px 28px;
+  margin: 4px 0 16px;
 }
 
-.partner-plan-hero .masthead.-type-1 {
+.partner-plan-hero .hero1-trip {
   border-radius: 0;
+  padding: 0 !important;
+  min-height: 0 !important;
+  height: auto !important;
+}
+
+.partner-plan-hero .hero1-trip__card {
+  margin-left: 0;
+  margin-right: 0;
+  padding: 24px 24px 12px !important;
+  min-height: 0 !important;
+  height: auto !important;
+  display: block !important;
+  overflow: visible !important;
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.partner-plan-hero .hero1-trip__wrap,
+.partner-plan-hero .hero1-trip__search .hero-search-bar {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.partner-plan-hero .hero1-trip .hero-search-reserve {
+  padding-bottom: 0 !important;
+}
+
+.partner-plan-hero .hero1-trip__sub {
+  margin-bottom: 12px !important;
+}
+
+.partner-plan-hero .hero1-trip .hero-room-options {
+  margin: 10px 0 0 !important;
+  padding: 0 !important;
+}
+
+.partner-plan-hero .hero1-trip__search .searchMenu-loc,
+.partner-plan-hero .hero1-trip__search .searchMenu-guests {
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+}
+
+.partner-plan-hero .hero1-trip__search .searchMenu-date > div {
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+}
+
+.partner-plan-hero + .partner-card {
+  margin-top: 12px;
 }
 
 .partner-main--wide {
   max-width: 1480px;
-  padding: 36px 4% 64px;
+  padding: 36px 3% 64px;
 }
 
 .partner-hero-row {
@@ -855,17 +921,39 @@
   font-size: 0.95rem;
 }
 
+@media (max-width: 1150px) {
+  .partner-topbar {
+    height: auto;
+    padding: 12px 3%;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .partner-nav {
+    order: 3;
+    flex: 1 1 100%;
+    flex-basis: 100%;
+    width: 100%;
+    overflow: auto;
+  }
+}
+
 @media (max-width: 900px) {
   .partner-topbar {
     height: auto;
     padding: 12px 20px;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 15px;
   }
 
   .partner-nav {
     order: 3;
     width: 100%;
+    overflow: auto;
+  }
+
+  .partner-nav__link {
+    padding: 10px;
   }
 
   .partner-main {
@@ -933,7 +1021,7 @@
   }
 
   .partner-brand__logo {
-    width: 120px;
-    height: 48px;
+    width: 148px;
+    height: 60px;
   }
 }

@@ -267,8 +267,8 @@ const SearchBar = ({ onLocationSelect, multiSelect = false }) => {
 
   return (
     <div
-      className="searchMenu-loc px-20 lg:py-15 lg:px-0"
-      style={{ minWidth: 0, position: "relative" }}
+      className="searchMenu-loc px-20 lg:px-0"
+      style={{ minWidth: 0, position: "relative", paddingTop: 10, paddingBottom: 10 }}
     >
       <div>
         <div
@@ -289,7 +289,7 @@ const SearchBar = ({ onLocationSelect, multiSelect = false }) => {
           <div className="cursor-pointer" onClick={startSingleEdit}>
             <div
               style={{
-                fontSize: "22px",
+                fontSize: "18px",
                 fontWeight: 700,
                 color: "#0f172a",
                 lineHeight: 1.2,
