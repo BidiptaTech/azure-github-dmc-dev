@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import moment from "moment";
 import { appPath } from "@/utils/appPaths";
@@ -10,40 +10,18 @@ import {
 } from "@/slice/cart/carSlice";
 import { formatDestinationLabel } from "@/utils/applyTourSearchToRedux";
 
-const SERVICE_TABS = [
-  {
-    key: "hotels",
-    match: /view-hotel-search|hotel-details|hotel-checkout/i,
-    types: ["hotel"],
-    emptyLabel: "hotel",
-  },
-  {
-    key: "ports",
-    match: /pickupdrop/i,
-    types: ["entryport", "exitport"],
-    emptyLabel: "port",
-  },
+const SERVICE_GROUPS = [
+  { key: "hotels", types: ["hotel"], label: "Hotels" },
+  { key: "ports", types: ["entryport", "exitport"], label: "Ports" },
   {
     key: "attractions",
-    match: /attractions|tour-single|attraction-/i,
     types: ["attraction", "attraction_package"],
-    emptyLabel: "attraction",
+    label: "Attractions",
   },
-  {
-    key: "guides",
-    match: /tourguide|activity-single/i,
-    types: ["guide"],
-    emptyLabel: "guide",
-  },
-  {
-    key: "restaurants",
-    match: /restaurants/i,
-    types: ["restaurant"],
-    emptyLabel: "restaurant",
-  },
+  { key: "guides", types: ["guide"], label: "Guides" },
+  { key: "restaurants", types: ["restaurant"], label: "Restaurants" },
   {
     key: "transfers",
-    match: /localtransfer/i,
     types: [
       "travelpoint",
       "travel_point",
@@ -54,7 +32,7 @@ const SERVICE_TABS = [
       "local_transport",
       "zone",
     ],
-    emptyLabel: "transfer",
+    label: "Transfers",
   },
 ];
 
@@ -66,9 +44,13 @@ function nightsBetween(checkIn, checkOut) {
   return Math.max(0, b.diff(a, "days"));
 }
 
-function getActiveServiceTab(pathname) {
+function groupForType(type) {
+  const normalized = String(type || "").toLowerCase();
   return (
-    SERVICE_TABS.find((tab) => tab.match.test(pathname)) || SERVICE_TABS[0]
+    SERVICE_GROUPS.find((group) => group.types.includes(normalized)) || {
+      key: "other",
+      label: "Other",
+    }
   );
 }
 
@@ -150,12 +132,10 @@ function getBookingMeta(booking) {
 export default function TripSummary() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { pathname } = useLocation();
   const tourdetails = useSelector((state) => state.hotels?.tourdetails);
   const searchState = useSelector((state) => state.hotels?.searchState);
   const cart = useSelector(selectCart);
   const cartCount = useSelector(selectCartItemCount);
-  const activeTab = useMemo(() => getActiveServiceTab(pathname), [pathname]);
 
   const destination = formatDestinationLabel(
     tourdetails?.destination || searchState?.location || "Trip"
@@ -177,13 +157,10 @@ export default function TripSummary() {
     return parts.join(" · ");
   }, [nights, adults, children, rooms]);
 
-  const activeBookings = useMemo(() => {
-    const typeSet = new Set(activeTab.types.map((t) => t.toLowerCase()));
+  const bookings = useMemo(() => {
     const rows = [];
     (cart || []).forEach((trip) => {
       (trip.bookings || []).forEach((booking) => {
-        const type = String(booking?.type || "").toLowerCase();
-        if (!typeSet.has(type)) return;
         rows.push({
           ...booking,
           tripId: trip.tripId,
@@ -191,23 +168,36 @@ export default function TripSummary() {
       });
     });
     return rows;
-  }, [cart, activeTab]);
+  }, [cart]);
 
-  const activeCount = activeBookings.length;
-  const serviceLabel = `${activeTab.emptyLabel}${activeCount === 1 ? "" : "s"}`;
+  const groupedBookings = useMemo(() => {
+    const buckets = new Map();
+    bookings.forEach((booking) => {
+      const group = groupForType(booking?.type);
+      if (!buckets.has(group.key)) {
+        buckets.set(group.key, { key: group.key, label: group.label, items: [] });
+      }
+      buckets.get(group.key).items.push(booking);
+    });
+
+    const ordered = SERVICE_GROUPS.map((group) => buckets.get(group.key)).filter(
+      Boolean
+    );
+    const other = buckets.get("other");
+    return other ? [...ordered, other] : ordered;
+  }, [bookings]);
+
+  const bookingCount = bookings.length;
+  const serviceLabel = `${bookingCount === 1 ? "service" : "services"}`;
 
   const currency = useMemo(() => {
-    const fromBooking = activeBookings.find((b) => getBookingCurrency(b, null));
+    const fromBooking = bookings.find((b) => getBookingCurrency(b, null));
     return fromBooking ? getBookingCurrency(fromBooking) : "SGD";
-  }, [activeBookings]);
+  }, [bookings]);
 
   const totalAmount = useMemo(
-    () =>
-      activeBookings.reduce(
-        (sum, booking) => sum + getBookingPrice(booking),
-        0
-      ),
-    [activeBookings]
+    () => bookings.reduce((sum, booking) => sum + getBookingPrice(booking), 0),
+    [bookings]
   );
 
   const handleRemove = (booking) => {
@@ -222,66 +212,74 @@ export default function TripSummary() {
 
   return (
     <aside className="pw-summary">
-      <div className="partner-toolbar" style={{ marginBottom: 0 }}>
+      <header className="pw-summary__head">
         <div className="pw-summary__eyebrow">Your trip</div>
-        <div className="pw-summary__badges">
-          <span className="partner-badge">
-            {activeCount} {serviceLabel}
-          </span>
-          <span className="partner-badge">
-            {cartCount || 0} total
-          </span>
-        </div>
-      </div>
+        <span className="partner-badge">
+          {bookingCount} {serviceLabel}
+        </span>
+      </header>
       <h2>{destination} itinerary</h2>
       <p>{meta || "Add dates and travellers to begin."}</p>
 
-      {!activeBookings.length ? (
+      {!bookings.length ? (
         <div className="pw-summary__empty">
-          {cartCount
-            ? `No ${activeTab.emptyLabel}s in this trip yet.`
-            : "Add a hotel or service to begin."}
+          Add a hotel or service to begin.
         </div>
       ) : (
-        <div className="pw-summary-services">
-          {activeBookings.map((booking) => {
-            const itemMeta = getBookingMeta(booking);
-            return (
-              <div key={booking.cartItemId} className="pw-summary-service">
-                <div className="pw-summary-service__row">
-                  <strong className="pw-summary-service__name">
-                    {getBookingName(booking)}
-                  </strong>
-                  <strong className="pw-summary-service__price">
-                    {formatMoney(
-                      getBookingPrice(booking),
-                      getBookingCurrency(booking, currency)
-                    )}
-                  </strong>
-                </div>
-                {itemMeta ? (
-                  <div className="pw-summary-service__meta">{itemMeta}</div>
-                ) : null}
-                <button
-                  type="button"
-                  className="pw-summary-service__remove"
-                  onClick={() => handleRemove(booking)}
-                >
-                  Remove
-                </button>
+        <div className="pw-summary-groups">
+          {groupedBookings.map((group) => (
+            <section key={group.key} className="pw-summary-group">
+              <div className="pw-summary-group__head">
+                <h3>{group.label}</h3>
+                <span>{group.items.length}</span>
               </div>
-            );
-          })}
+              <ul className="pw-summary-services">
+                {group.items.map((booking) => {
+                  const itemMeta = getBookingMeta(booking);
+                  return (
+                    <li key={booking.cartItemId} className="pw-summary-service">
+                      <div className="pw-summary-service__row">
+                        <strong className="pw-summary-service__name">
+                          {getBookingName(booking)}
+                        </strong>
+                        <strong className="pw-summary-service__price">
+                          {formatMoney(
+                            getBookingPrice(booking),
+                            getBookingCurrency(booking, currency)
+                          )}
+                        </strong>
+                      </div>
+                      <div className="pw-summary-service__foot">
+                        <span className="pw-summary-service__meta">
+                          {itemMeta || "Added to this trip"}
+                        </span>
+                        <button
+                          type="button"
+                          className="pw-summary-service__remove"
+                          onClick={() => handleRemove(booking)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
         </div>
       )}
 
       <div className="pw-summary-total">
         <div className="pw-summary-total__row">
-          <span>Total</span>
+          <span>Trip total</span>
           <strong>
-            {activeBookings.length ? formatMoney(totalAmount, currency) : "—"}
+            {bookings.length ? formatMoney(totalAmount, currency) : "—"}
           </strong>
         </div>
+        <p className="pw-summary-total__note">
+          All services currently in this cart.
+        </p>
       </div>
 
       <button
