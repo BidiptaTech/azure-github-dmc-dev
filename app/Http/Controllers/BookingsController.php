@@ -1033,6 +1033,61 @@ class BookingsController extends Controller
     }
 
     /**
+     * TravClicks refund modal: DMC wallet currency + countries.current_rate factors
+     * so the UI can preview the converted credit (source → SGD → DMC currency).
+     *
+     * @param  \Illuminate\Support\Collection|array<int, mixed>  $tours
+     */
+    private function attachTravclicksDmcWalletFx($tours): void
+    {
+        if ($tours === null) {
+            return;
+        }
+
+        $walletQuery = app(WalletQueryService::class);
+        $dmcCache = [];
+        $sourceRateCache = [];
+
+        foreach ($tours as $tour) {
+            $dmcId = (int) ($tour->dmc_id ?? 0);
+            if ($dmcId > 0 && ! isset($dmcCache[$dmcId])) {
+                $configured = $walletQuery->getConfiguredCurrenciesForOwner('dmc', $dmcId);
+                $dmcCurrency = strtoupper(trim((string) (
+                    $configured['default']
+                    ?: ($configured['currencies'][0] ?? '')
+                    ?: $walletQuery->resolveCurrencyForOwner('dmc', $dmcId)
+                )));
+                $dmcCache[$dmcId] = [
+                    'currency' => $dmcCurrency,
+                    'rate' => ($dmcCurrency !== '' ? Country::sgdRateFor($dmcCurrency) : null),
+                ];
+            }
+
+            $dmcFx = $dmcCache[$dmcId] ?? ['currency' => '', 'rate' => null];
+            $tour->setAttribute('dmc_wallet_currency', $dmcFx['currency']);
+            $tour->setAttribute('dmc_wallet_sgd_rate', $dmcFx['rate']);
+
+            $orders = $tour->relationLoaded('booking') ? $tour->booking : collect();
+            foreach ($orders as $order) {
+                $sourceCurrency = strtoupper(trim((string) (
+                    $order->refund_price_currency
+                    ?: $order->currency
+                    ?: $tour->user_currency
+                    ?: 'SGD'
+                )));
+                if (! array_key_exists($sourceCurrency, $sourceRateCache)) {
+                    $sourceRateCache[$sourceCurrency] = Country::sgdRateFor($sourceCurrency);
+                }
+
+                $order->setAttribute('refund_source_currency', $sourceCurrency);
+                $order->setAttribute('refund_source_sgd_rate', $sourceRateCache[$sourceCurrency]);
+                $order->setAttribute('dmc_wallet_currency', $dmcFx['currency']);
+                $order->setAttribute('dmc_wallet_sgd_rate', $dmcFx['rate']);
+            }
+        }
+    }
+
+    /**
      * Full tour sell with markup: every booking order on the tour.
      *
      * @return array{amount: float, currency: string}
@@ -3565,6 +3620,9 @@ class BookingsController extends Controller
         $this->attachTourMoneySummary($tours);
         $this->attachRefundPrices($tours);
         $this->attachTourRefundPrices($tours);
+        if (in_array((int) ($user->role_id ?? 0), [1, 2, 3, 4], true)) {
+            $this->attachTravclicksDmcWalletFx($tours);
+        }
         $this->hydrateDestinationCreatedAt($tours);
         return view('bookings.refunds', compact('tours', 'country_tax', 'currency'));
     }
