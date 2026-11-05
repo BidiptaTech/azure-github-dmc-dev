@@ -1195,12 +1195,12 @@ class HotelBookingController extends Controller
             // Get tour data
             $tour = DB::table('tours')->where('tour_id', $tourId)->first();
             
-            // Find the hotel booking
+            // Find the hotel booking (orderBy id must match resolveHotelOrderBooking / recheck / approve)
             $hotelOrder = DB::table('orders')
                 ->where('tour_id', $tourId)
                 ->where('type', 'hotel')
-                // ->orderBy('id')
                 ->whereNull('deleted_at')
+                ->orderBy('id')
                 ->skip($hotelOrderIndex)
                 ->first();
 

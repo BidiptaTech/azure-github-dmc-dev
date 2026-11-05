@@ -379,7 +379,7 @@
                 : walletLine;
             const submit = document.getElementById('acceptancePaySubmit');
             submit.disabled = payable <= 0;
-            submit.onclick = async () => {
+                submit.onclick = async () => {
                 if (payable <= 0) {
                     alert('This booking has no payable amount yet.');
                     return;
@@ -400,6 +400,20 @@
                     } else if (result.requires_supplier_booking && result.attempt?.attempt_uuid) {
                         await finalizeWallet(tourId, result.attempt.attempt_uuid);
                     }
+
+                    // Close pay modal, then open the same online-hotel approve flow used on confirmed.
+                    if (window.bootstrap?.Modal) {
+                        window.bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+                    } else {
+                        modalEl.classList.remove('show');
+                        modalEl.style.display = 'none';
+                    }
+
+                    if (typeof window.openPendingOnlineHotelApprovalsAfterPay === 'function'
+                        && window.openPendingOnlineHotelApprovalsAfterPay(tourId)) {
+                        return;
+                    }
+
                     window.location.reload();
                 } catch (e) {
                     alert(e.message || 'Payment failed');

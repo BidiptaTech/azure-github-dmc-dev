@@ -220,7 +220,7 @@ class BookingsController extends Controller
         }
 
         $tourIds = $items->pluck('tour_id')->filter()->unique()->values()->all();
-        $orderColumns = ['booking_id', 'tour_id', 'type', 'status', 'bookingType', 'data', 'cost_price', 'country', 'currency'];
+        $orderColumns = ['id', 'booking_id', 'tour_id', 'type', 'status', 'bookingType', 'data', 'cost_price', 'country', 'currency', 'is_approve', 'deleted_at'];
         if (Schema::hasColumn('orders', 'order_type')) {
             $orderColumns[] = 'order_type';
         }
