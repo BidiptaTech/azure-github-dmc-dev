@@ -23,6 +23,7 @@ class FinanceReportController extends Controller
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
         $tourStatus = trim((string) $request->input('tour_status', ''));
+        $restaurantFilter = trim((string) $request->input('restaurant', ''));
 
         $baseQuery = Order::query()
             ->where('type', 'restaurant')
@@ -68,7 +69,7 @@ class FinanceReportController extends Controller
                 $payload = [];
             }
 
-            // Pro form stores restaurant as [ {...} ]; support single object too (lite later)
+            // Pro form stores restaurant as [ {...} ]; support single object too (lite)
             $item = $payload;
             if (isset($payload[0]) && is_array($payload[0])) {
                 $item = $payload[0];
@@ -82,9 +83,24 @@ class FinanceReportController extends Controller
             $phone = $item['phone'] ?? null;
             $countryCode = $item['countryCode'] ?? $item['country_code'] ?? null;
             $bookingDate = $item['bookingDate'] ?? $item['date'] ?? null;
-            $visitTime = $item['visitTime'] ?? $item['time'] ?? null;
-            $mealType = $item['mealType'] ?? $item['meal_type'] ?? null;
-            $mealSpecific = $item['mealSpecificType'] ?? $item['meal_specific_type'] ?? null;
+            $visitTime = trim((string) ($item['visitTime'] ?? $item['time'] ?? ''));
+
+            $mealTypeRaw = $item['mealTypeLabel'] ?? $item['meal_type_label'] ?? $item['mealType'] ?? $item['meal_type'] ?? null;
+            if (is_numeric((string) $mealTypeRaw)) {
+                $mealTypeRaw = $item['mealTypeLabel'] ?? $item['meal_type_label'] ?? $mealTypeRaw;
+            }
+            $mealType = $mealTypeRaw ? ucfirst((string) $mealTypeRaw) : null;
+
+            $mealDescName = $item['MealDescription'][0]['name'] ?? $item['meals'][0]['name'] ?? null;
+            $mealSpecificRaw = $item['mealSpecificType'] ?? $item['meal_specific_type'] ?? null;
+            $mealSpecific = $mealDescName
+                ?: ((!is_numeric((string) $mealSpecificRaw) && $mealSpecificRaw !== null && $mealSpecificRaw !== '')
+                    ? $mealSpecificRaw
+                    : null);
+            if (is_string($mealSpecific)) {
+                $mealSpecific = trim(preg_replace('/[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}]/u', '', $mealSpecific));
+            }
+
             $mealName = $item['mealName'] ?? $item['meal_name'] ?? null;
             if ($mealName === 'null' || $mealName === null || $mealName === '') {
                 $mealName = null;
@@ -93,7 +109,7 @@ class FinanceReportController extends Controller
             $currency = $item['currency'] ?? $order->currency ?? 'SGD';
             $adults = (int) ($item['adultCount'] ?? $item['adultsQty'] ?? $item['adults'] ?? 0);
             $children = (int) ($item['childCount'] ?? $item['childQty'] ?? $item['children'] ?? 0);
-            $infants = (int) ($item['infantQty'] ?? $item['infants'] ?? 0);
+            $infants = (int) ($item['infantCount'] ?? $item['infantQty'] ?? $item['infants'] ?? 0);
             $totalPrice = (float) (
                 $item['totalPrice']
                 ?? $item['grand_total']
@@ -102,31 +118,22 @@ class FinanceReportController extends Controller
                 ?? 0
             );
 
-            $voucherImage = $order->voucher_image;
-            if (!$voucherImage && !empty($item['voucher_image'])) {
-                $voucherImage = $item['voucher_image'];
-            }
-            $qrCode = $order->qr_code;
-            if (!$qrCode && !empty($item['qr_code'])) {
-                $qrCode = $item['qr_code'];
-            }
-
             $tour = $order->tour;
-            $tourStatus = $tour?->tour_status ?? '—';
+            $tourStatusLabel = $tour?->tour_status ?? '—';
 
             return [
                 'id' => $order->id,
                 'booking_id' => $order->booking_id,
                 'tour_id' => $order->tour_id,
                 'tour_display_id' => $tour?->display_id ?? ('#' . $order->tour_id),
-                'tour_status' => $tourStatus,
+                'tour_status' => $tourStatusLabel,
                 'restaurant_name' => $restaurantName,
                 'guest_name' => $guestName,
                 'email' => $email,
                 'phone' => $phone,
                 'country_code' => $countryCode,
                 'booking_date' => $bookingDate,
-                'visit_time' => $visitTime,
+                'visit_time' => $visitTime !== '' ? $visitTime : null,
                 'meal_type' => $mealType,
                 'meal_specific' => $mealSpecific,
                 'meal_name' => $mealName,
@@ -136,14 +143,25 @@ class FinanceReportController extends Controller
                 'children' => $children,
                 'infants' => $infants,
                 'total_price' => $totalPrice,
-                'voucher_image' => $voucherImage,
-                'qr_code' => $qrCode,
                 'redeemed_by' => $order->reedem_by,
                 'remarks' => $order->remarks,
                 'redeemed_at' => $order->updated_at,
-                'raw' => $item,
             ];
         });
+
+        $restaurantOptions = $rows
+            ->pluck('restaurant_name')
+            ->filter(fn ($n) => $n && $n !== '—')
+            ->unique()
+            ->sort()
+            ->values();
+
+        if ($restaurantFilter !== '') {
+            $needleRest = mb_strtolower($restaurantFilter);
+            $rows = $rows->filter(function (array $row) use ($needleRest) {
+                return mb_strtolower((string) $row['restaurant_name']) === $needleRest;
+            })->values();
+        }
 
         if ($search !== '') {
             $needle = mb_strtolower($search);
@@ -165,14 +183,40 @@ class FinanceReportController extends Controller
 
         $totalCount = $rows->count();
         $totalValue = $rows->sum('total_price');
-        $withVoucher = $rows->filter(fn ($r) => !empty($r['voucher_image']))->count();
-        $withQr = $rows->filter(fn ($r) => !empty($r['qr_code']))->count();
 
-        $perPage = 20;
+        // Group by tour for compact listing (multiple restaurants under one tour)
+        $tourGroups = $rows
+            ->groupBy('tour_id')
+            ->map(function ($tourRows) {
+                $first = $tourRows->first();
+                $latestRedeemed = $tourRows
+                    ->map(fn ($r) => $r['redeemed_at'])
+                    ->filter()
+                    ->sortDesc()
+                    ->first();
+
+                return [
+                    'tour_id' => $first['tour_id'],
+                    'tour_display_id' => $first['tour_display_id'],
+                    'tour_status' => $first['tour_status'],
+                    'voucher_count' => $tourRows->count(),
+                    'tour_total' => $tourRows->sum('total_price'),
+                    'latest_redeemed_at' => $latestRedeemed,
+                    'rows' => $tourRows
+                        ->sortByDesc(fn ($r) => $r['redeemed_at'] ? strtotime((string) $r['redeemed_at']) : 0)
+                        ->values()
+                        ->all(),
+                ];
+            })
+            ->sortByDesc(fn ($g) => $g['latest_redeemed_at'] ? strtotime((string) $g['latest_redeemed_at']) : 0)
+            ->values();
+
+        $tourCount = $tourGroups->count();
+        $perPage = 15;
         $page = max(1, (int) $request->input('page', 1));
         $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
-            $rows->forPage($page, $perPage)->values(),
-            $totalCount,
+            $tourGroups->forPage($page, $perPage)->values(),
+            $tourCount,
             $perPage,
             $page,
             [
@@ -182,16 +226,17 @@ class FinanceReportController extends Controller
         );
 
         return view('reports.redeemed-restaurant-vouchers', [
-            'vouchers' => $paginator,
+            'tourGroups' => $paginator,
             'totalCount' => $totalCount,
+            'tourCount' => $tourCount,
             'totalValue' => $totalValue,
-            'withVoucher' => $withVoucher,
-            'withQr' => $withQr,
             'search' => $search,
             'startDate' => $startDate,
             'endDate' => $endDate,
             'tourStatus' => $tourStatus,
             'tourStatuses' => $tourStatuses,
+            'restaurantFilter' => $restaurantFilter,
+            'restaurantOptions' => $restaurantOptions,
         ]);
     }
 
