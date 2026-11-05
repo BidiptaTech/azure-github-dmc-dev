@@ -551,124 +551,109 @@ const PreDefinePackages = ({ variant = "default" } = {}) => {
   };
 
   if (isHero) {
+    const gridCols = showAgentSelector
+      ? "1.2fr 1.3fr 0.9fr 1fr 0.9fr auto"
+      : "1.3fr 1.4fr 1.1fr 1fr auto";
+
     const heroSearch = (
-      <div className="pp-hero-search">
+      <div
+        className="pp-hero-search hero-search-reserve"
+        style={{ paddingBottom: 0 }}
+      >
         <div
-          className="pp-hero-search__card"
+          className="bg-white hero-search-bar pp-hero-search__bar"
           style={{
             position: "relative",
             zIndex: 50,
-            borderRadius: 16,
-            boxShadow: "0 12px 40px rgba(15, 23, 42, 0.16)",
-            border: "1px solid rgba(15, 23, 42, 0.06)",
-            background: "#fff",
-            padding: "18px 18px 14px",
-            maxWidth: 1100,
-            margin: "0 auto",
+            borderRadius: 12,
+            boxShadow: "none",
+            border: 0,
+            padding: 8,
+            width: "100%",
+            maxWidth: "none",
+            margin: 0,
+            display: "grid",
+            gridTemplateColumns: gridCols,
+            alignItems: "stretch",
+            gap: 5,
           }}
         >
           <div
-            className="d-flex items-center justify-between flex-wrap"
-            style={{ gap: 12, marginBottom: 14 }}
-          >
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
-              Package search
-            </div>
-            <div style={{ fontSize: 13, color: "#64748b", fontWeight: 500 }}>
-              Find fixed itineraries for your clients
-            </div>
-          </div>
-
-          <div
-            className="pp-hero-search__row d-flex flex-wrap"
+            className="pp-hero-search__cell"
             style={{
-              border: "1px solid #e2e8f0",
-              borderRadius: 12,
-              overflow: "visible",
-              background: "#fff",
+              minWidth: 0,
+              borderRight: "1px solid #e2e8f0",
+              padding: "8px 14px",
             }}
           >
-            <div
-              className="pp-hero-search__cell"
-              style={{
-                flex: "1.2 1 180px",
-                minWidth: 160,
-                borderRight: "1px solid #e2e8f0",
-                padding: "16px 18px",
-              }}
-            >
-              <div style={cellLabel}>Location</div>
-              <LocationSearch
-                onLocationSelect={handleLocationSelect}
-                onCountrySelect={handleCountrySelect}
-              />
-            </div>
-
-            <div
-              className="pp-hero-search__cell"
-              style={{
-                flex: "1.3 1 200px",
-                minWidth: 180,
-                borderRight: "1px solid #e2e8f0",
-              }}
-            >
-              <CitySearch
-                selectedCountry={selectedCountry}
-                onCitySelect={handleCitySelect}
-              />
-            </div>
-
-            {showAgentSelector ? (
-              <div
-                className="pp-hero-search__cell"
-                style={{
-                  flex: "1 1 160px",
-                  minWidth: 140,
-                  borderRight: "1px solid #e2e8f0",
-                  padding: "16px 18px",
-                }}
-              >
-                <div style={cellLabel}>Agent</div>
-                <SelectAgent
-                  onAgentSelect={handleAgentSelect}
-                  initialValue={selectedAgent}
-                />
-              </div>
-            ) : null}
-
-            <div
-              className="pp-hero-search__cell"
-              style={{
-                flex: "1.1 1 170px",
-                minWidth: 150,
-                borderRight: "1px solid #e2e8f0",
-                padding: "16px 18px",
-              }}
-            >
-              <div style={cellLabel}>Travel date</div>
-              <DateSelect onChange={handleDateChange} value={selectedDate} />
-            </div>
-
-            <div
-              className="pp-hero-search__cell"
-              style={{
-                flex: "1 1 160px",
-                minWidth: 140,
-              }}
-            >
-              <HeroGuestSearch
-                onGuestChange={handleGuestChange}
-                guestCounts={guestCounts}
-              />
-            </div>
+            <div style={{ ...cellLabel, marginBottom: 2 }}>Location</div>
+            <LocationSearch
+              onLocationSelect={handleLocationSelect}
+              onCountrySelect={handleCountrySelect}
+            />
           </div>
 
           <div
+            className="pp-hero-search__cell"
+            style={{
+              minWidth: 0,
+              borderRight: "1px solid #e2e8f0",
+            }}
+          >
+            <CitySearch
+              selectedCountry={selectedCountry}
+              onCitySelect={handleCitySelect}
+            />
+          </div>
+
+          {showAgentSelector ? (
+            <div
+              className="pp-hero-search__cell"
+              style={{
+                minWidth: 0,
+                borderRight: "1px solid #e2e8f0",
+                padding: "8px 14px",
+              }}
+            >
+              <div style={{ ...cellLabel, marginBottom: 2 }}>Agent</div>
+              <SelectAgent
+                onAgentSelect={handleAgentSelect}
+                initialValue={selectedAgent}
+              />
+            </div>
+          ) : null}
+
+          <div
+            className="pp-hero-search__cell"
+            style={{
+              minWidth: 0,
+              borderRight: "1px solid #e2e8f0",
+              padding: "8px 14px",
+            }}
+          >
+            <div style={{ ...cellLabel, marginBottom: 2 }}>Travel date</div>
+            <DateSelect onChange={handleDateChange} value={selectedDate} />
+          </div>
+
+          <div
+            className="pp-hero-search__cell"
+            style={{
+              minWidth: 0,
+              borderRight: "1px solid #e2e8f0",
+            }}
+          >
+            <HeroGuestSearch
+              onGuestChange={handleGuestChange}
+              guestCounts={guestCounts}
+            />
+          </div>
+
+          <div
+            className="hero-search-bar__cta pp-hero-search__cta-wrap"
             style={{
               display: "flex",
-              justifyContent: "center",
-              marginTop: 16,
-              marginBottom: 4,
+              alignItems: "center",
+              padding: 4,
             }}
           >
             <Button
@@ -676,39 +661,48 @@ const PreDefinePackages = ({ variant = "default" } = {}) => {
               variant="contained"
               onClick={handleSubmit}
               className="pp-hero-search__cta"
+              disableElevation
               sx={{
-                minWidth: 220,
-                height: 52,
-                borderRadius: "28px",
+                minWidth: 150,
+                height: "100%",
+                minHeight: 52,
+                borderRadius: "9px",
                 border: "none",
-                fontSize: 18,
-                fontWeight: 800,
-                letterSpacing: "0.04em",
-                textTransform: "uppercase",
+                fontSize: 13,
+                fontWeight: 700,
+                letterSpacing: 0,
+                textTransform: "none",
                 color: "#fff",
-                background: "#3554d1",
-                boxShadow: "0 10px 24px rgba(53, 84, 209, 0.35)",
+                background: "#234adc",
+                boxShadow: "none",
+                px: "18px",
+                whiteSpace: "nowrap",
                 "&:hover": {
-                  background: "#2c46b3",
-                  boxShadow: "0 10px 24px rgba(53, 84, 209, 0.4)",
+                  background: "#1d3fc0",
+                  boxShadow: "none",
                 },
               }}
             >
-              SEARCH
+              Find packages →
             </Button>
           </div>
-          <Typography
-            variant="caption"
-            sx={{
-              display: "block",
-              textAlign: "center",
-              color: "#7788ad",
-              fontSize: "0.8rem",
-              mt: 0.5,
+        </div>
+
+        <div className="hero-room-options">
+          <button
+            type="button"
+            className="hero-room-options__btn"
+            onClick={() => {
+              const guestToggle = document.querySelector(
+                ".pp-hero-search .searchMenu-guests [data-bs-toggle='dropdown']"
+              );
+              if (guestToggle) guestToggle.click();
             }}
           >
-            Search ready-made packages by location, city, date and travellers
-          </Typography>
+            Room &amp; traveller options · 1 room(s) ·{" "}
+            {guestCounts.Children || 0} children · {guestCounts.Infants || 0}{" "}
+            infants ↓
+          </button>
         </div>
       </div>
     );
@@ -716,8 +710,12 @@ const PreDefinePackages = ({ variant = "default" } = {}) => {
     return (
       <div className="partner-package-search">
         <Hero1
-          title="Search for a package"
-          subtitle="Set location, city, date and travellers — then browse fixed itineraries to customise"
+          pageKicker="Fixed itinerary packages"
+          pageTitle="Start with a journey already planned."
+          pageSubtitle="Set location, city, date and travellers — then browse packages to customise."
+          kicker="Package search"
+          title="Where are we taking them?"
+          subtitle="Search ready-made packages by destination, date and travellers."
           footerNote="Ready-made packages — hotels, attractions, transfers & more in one itinerary"
           searchSlot={heroSearch}
           showServiceChips={false}

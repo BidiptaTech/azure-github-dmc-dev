@@ -394,6 +394,11 @@ main.main-search-hero {
   }
 }
 
+/* Plan-a-trip card: no reserved dropdown gap (concept is compact) */
+.hero1-trip .hero-search-reserve {
+  padding-bottom: 0 !important;
+}
+
 // Quick Enquiry (home_2): fill viewport when CallToActions is removed
 .masthead.-type-2.enquiry-hero-home {
   .masthead__content {

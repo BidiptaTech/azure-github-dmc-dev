@@ -546,8 +546,8 @@ const GuestSearch = ({ onGuestChange, guestCounts, disabled = false }) => {
   return (
     <Box 
       ref={dropdownRef}
-      className="searchMenu-guests px-20 lg:py-15 lg:px-0 js-form-dd js-form-counters position-relative" 
-      sx={{ zIndex: 1000 }}
+      className="searchMenu-guests js-form-dd js-form-counters position-relative" 
+      sx={{ zIndex: 1000, padding: "8px 14px" }}
     >
       <Box
         data-bs-toggle={disabled ? "" : "dropdown"}
@@ -576,7 +576,7 @@ const GuestSearch = ({ onGuestChange, guestCounts, disabled = false }) => {
         </div>
         <div
           style={{
-            fontSize: "22px",
+            fontSize: "18px",
             fontWeight: 700,
             color: disabled ? "#94a3b8" : "#0f172a",
             lineHeight: 1.2,
@@ -584,7 +584,7 @@ const GuestSearch = ({ onGuestChange, guestCounts, disabled = false }) => {
         >
           {totalPax} Traveller{totalPax === 1 ? "" : "s"}
         </div>
-        <div style={{ fontSize: "12px", color: "#64748b", marginTop: 2 }}>
+        <div style={{ fontSize: "11px", color: "#64748b", marginTop: 1 }}>
           <span className="js-count-adult">{guestCounts.Adults}</span> Adult
           {guestCounts.Adults === 1 ? "" : "s"}
           {guestCounts.Children > 0 && (

@@ -370,176 +370,213 @@ const MainFilterSearchBox = ({ onNext }) => {
       ? canSearchSingle
       : canSearchMulti) && guestCounts.Adults > 0;
 
+  const setTripTypeMode = (id) => {
+    setTripType(id);
+    if (id === "single" && selectedCities.length > 1) {
+      const keep = selectedCities[0];
+      dispatch(clearSelectedCities());
+      if (keep) dispatch(addSelectedCity(keep));
+    }
+  };
+
   return (
-    <div className="position-relative mt-30 md:mt-20 js-tabs-content hero-search-reserve">
+    <div
+      className="position-relative js-tabs-content hero-search-reserve"
+      style={{ paddingBottom: 0 }}
+    >
       <div
-        className="bg-white"
+        className="hero-trip-seg"
+        role="group"
+        aria-label="Trip type"
+        style={{
+          display: "flex",
+          gap: 8,
+          marginBottom: 10,
+          position: "relative",
+          zIndex: 2,
+        }}
+      >
+        {[
+          { id: "single", label: "Single city" },
+          { id: "multi", label: "Multi-city" },
+        ].map((opt) => (
+          <button
+            key={opt.id}
+            type="button"
+            className={`hero-trip-seg__btn${tripType === opt.id ? " is-active" : ""}`}
+            onClick={() => setTripTypeMode(opt.id)}
+            style={{
+              border:
+                tripType === opt.id
+                  ? "1px solid transparent"
+                  : "1px solid rgba(229, 234, 243, 0.45)",
+              background: tripType === opt.id ? "#e9efff" : "#fff",
+              color: tripType === opt.id ? "#234adc" : "#192944",
+              borderRadius: 9,
+              padding: "10px 16px",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
+      <div
+        className="bg-white hero-search-bar"
         style={{
           position: "relative",
           zIndex: 50,
-          borderRadius: 16,
-          boxShadow: "0 12px 40px rgba(15, 23, 42, 0.16)",
-          border: "1px solid rgba(15, 23, 42, 0.06)",
-          padding: "18px 18px 14px",
-          maxWidth: 1100,
-          margin: "0 auto",
+          borderRadius: 12,
+          boxShadow: "none",
+          border: "0",
+          padding: "8px",
+          maxWidth: "none",
+          width: "100%",
+          margin: "0",
+          display: "grid",
+          gridTemplateColumns: "1.4fr 1fr 1fr 0.8fr auto",
+          alignItems: "stretch",
+          gap: 5,
         }}
       >
         <div
-          className="d-flex items-center justify-between flex-wrap"
-          style={{ gap: 12, marginBottom: 14 }}
+          style={{
+            minWidth: 0,
+            borderRight: "1px solid #e2e8f0",
+          }}
         >
-          <div className="d-flex items-center flex-wrap" style={{ gap: 18 }}>
-            {[
-              { id: "single", label: "Single City" },
-              { id: "multi", label: "Multi City" },
-            ].map((opt) => (
-              <label
-                key={opt.id}
-                className="d-flex items-center cursor-pointer"
-                style={{ gap: 8, fontSize: 14, fontWeight: 600, color: "#0f172a" }}
-              >
-                <input
-                  type="radio"
-                  name="enquiryTripType"
-                  checked={tripType === opt.id}
-                  onChange={() => {
-                    setTripType(opt.id);
-                    if (opt.id === "single") {
-                      if (selectedCities.length > 1) {
-                        const keep = selectedCities[0];
-                        dispatch(clearSelectedCities());
-                        if (keep) dispatch(addSelectedCity(keep));
-                      }
-                    }
-                  }}
-                  style={{ accentColor: "#3554D1", width: 16, height: 16 }}
-                />
-                {opt.label}
-              </label>
-            ))}
-          </div>
-          <div style={{ fontSize: 13, color: "#64748b", fontWeight: 500 }}>
-            Quick enquiry — destinations, dates &amp; pax to DMCs
-          </div>
+          <CitySearch
+            onCitySelect={handleCitySelect}
+            multiSelect={tripType === "multi"}
+          />
         </div>
 
         <div
-          className="d-flex flex-wrap"
+          className="searchMenu-date js-form-dd js-calendar position-relative cursor-pointer"
           style={{
-            border: "1px solid #e2e8f0",
-            borderRadius: 12,
-            overflow: "visible",
-            background: "#fff",
+            gridColumn: "span 2",
+            minWidth: 0,
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 5,
+            borderRight: "1px solid #e2e8f0",
+          }}
+          onClick={(e) => {
+            const input = e.currentTarget.querySelector("input");
+            if (input) input.focus();
           }}
         >
-          <div
-            style={{
-              flex: "1.4 1 220px",
-              minWidth: 200,
-              borderRight: "1px solid #e2e8f0",
-            }}
-          >
-            <CitySearch
-              onCitySelect={handleCitySelect}
-              multiSelect={tripType === "multi"}
-            />
-          </div>
-
-          <div
-            className="searchMenu-date js-form-dd js-calendar position-relative cursor-pointer d-flex"
-            style={{
-              flex: "2 1 320px",
-              minWidth: 280,
-              borderRight: "1px solid #e2e8f0",
-            }}
-            onClick={(e) => {
-              const input = e.currentTarget.querySelector("input");
-              if (input) input.focus();
-            }}
-          >
-            <div style={{ flex: 1, padding: "16px 18px" }}>
-              <div
-                style={{
-                  fontSize: "11px",
-                  fontWeight: 600,
-                  letterSpacing: "0.04em",
-                  textTransform: "uppercase",
-                  color: "#64748b",
-                  marginBottom: 4,
-                }}
-              >
-                Check-in
-              </div>
-              <div
-                style={{
-                  fontSize: 22,
-                  fontWeight: 700,
-                  color: "#0f172a",
-                  lineHeight: 1.2,
-                }}
-              >
-                {checkInDisplay.primary}
-              </div>
-              <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-                {checkInDisplay.secondary}
-              </div>
+          <div style={{ padding: "8px 14px", borderRight: "1px solid #e2e8f0" }}>
+            <div
+              style={{
+                fontSize: "11px",
+                fontWeight: 600,
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+                color: "#64748b",
+                marginBottom: 2,
+              }}
+            >
+              Check-in
             </div>
             <div
               style={{
-                width: 1,
-                background: "#e2e8f0",
-                alignSelf: "stretch",
+                fontSize: 18,
+                fontWeight: 700,
+                color: "#0f172a",
+                lineHeight: 1.2,
               }}
-            />
-            <div style={{ flex: 1, padding: "16px 18px" }}>
-              <div
-                style={{
-                  fontSize: "11px",
-                  fontWeight: 600,
-                  letterSpacing: "0.04em",
-                  textTransform: "uppercase",
-                  color: "#64748b",
-                  marginBottom: 4,
-                }}
-              >
-                Check-out
-              </div>
-              <div
-                style={{
-                  fontSize: 22,
-                  fontWeight: 700,
-                  color: hasTotalDates ? "#0f172a" : "#94a3b8",
-                  lineHeight: 1.2,
-                }}
-              >
-                {checkOutDisplay.primary}
-              </div>
-              <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-                {checkOutDisplay.secondary}
-              </div>
+            >
+              {checkInDisplay.primary}
             </div>
-            <div style={{ position: "absolute", inset: 0, opacity: 0 }}>
-              <DateSearch
-                onDateChange={handleDateChange}
-                value={selectedDates.length === 2 ? selectedDates : undefined}
-                notifyOnMount
-              />
+            <div style={{ fontSize: 11, color: "#64748b", marginTop: 1 }}>
+              {checkInDisplay.secondary}
             </div>
           </div>
+          <div style={{ padding: "8px 14px" }}>
+            <div
+              style={{
+                fontSize: "11px",
+                fontWeight: 600,
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+                color: "#64748b",
+                marginBottom: 2,
+              }}
+            >
+              Check-out
+            </div>
+            <div
+              style={{
+                fontSize: 18,
+                fontWeight: 700,
+                color: hasTotalDates ? "#0f172a" : "#94a3b8",
+                lineHeight: 1.2,
+              }}
+            >
+              {checkOutDisplay.primary}
+            </div>
+            <div style={{ fontSize: 11, color: "#64748b", marginTop: 1 }}>
+              {checkOutDisplay.secondary}
+            </div>
+          </div>
+          <div style={{ position: "absolute", inset: 0, opacity: 0 }}>
+            <DateSearch
+              onDateChange={handleDateChange}
+              value={selectedDates.length === 2 ? selectedDates : undefined}
+              notifyOnMount
+            />
+          </div>
+        </div>
 
-          <div style={{ flex: "1 1 180px", minWidth: 160 }}>
-            <GuestSearch
-              onGuestChange={handleGuestChange}
-              guestCounts={guestCounts}
-            />
-          </div>
+        <div style={{ minWidth: 0, borderRight: "1px solid #e2e8f0" }}>
+          <GuestSearch
+            onGuestChange={handleGuestChange}
+            guestCounts={guestCounts}
+          />
+        </div>
+
+        <div
+          className="hero-search-bar__cta"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            padding: "4px",
+          }}
+        >
+          <button
+            type="button"
+            onClick={handleSearch}
+            disabled={!canSearch}
+            style={{
+              minWidth: 170,
+              height: "100%",
+              minHeight: 52,
+              borderRadius: 9,
+              border: "none",
+              fontSize: 13,
+              fontWeight: 700,
+              letterSpacing: "0",
+              color: "#fff",
+              background: !canSearch ? "#94a3b8" : "#234adc",
+              cursor: !canSearch ? "not-allowed" : "pointer",
+              boxShadow: "none",
+              padding: "0 18px",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Continue to services →
+          </button>
         </div>
 
         {showItineraryPlanner && (
           <div
             style={{
-              marginTop: 16,
+              gridColumn: "1 / -1",
+              marginTop: 8,
               border: "1px solid #e2e8f0",
               borderRadius: 12,
               background: "#f8fafc",
@@ -725,8 +762,9 @@ const MainFilterSearchBox = ({ onNext }) => {
           !hasTotalDates && (
             <div
               style={{
-                marginTop: 14,
-                padding: "12px 14px",
+                gridColumn: "1 / -1",
+                marginTop: 8,
+                padding: "10px 12px",
                 borderRadius: 10,
                 background: "rgba(53, 84, 209, 0.06)",
                 color: "#3554D1",
@@ -737,31 +775,23 @@ const MainFilterSearchBox = ({ onNext }) => {
               Select total trip check-in and check-out to allocate dates per city.
             </div>
           )}
+      </div>
 
-        <div className="d-flex justify-center" style={{ marginTop: 12 }}>
-          <button
-            type="button"
-            onClick={handleSearch}
-            disabled={!canSearch}
-            style={{
-              minWidth: 220,
-              height: 52,
-              borderRadius: 28,
-              border: "none",
-              fontSize: 18,
-              fontWeight: 800,
-              letterSpacing: "0.04em",
-              color: "#fff",
-              background: !canSearch ? "#94a3b8" : "#3554D1",
-              cursor: !canSearch ? "not-allowed" : "pointer",
-              boxShadow: !canSearch
-                ? "none"
-                : "0 10px 24px rgba(53, 84, 209, 0.35)",
-            }}
-          >
-            SEARCH
-          </button>
-        </div>
+      <div className="hero-room-options">
+        <button
+          type="button"
+          className="hero-room-options__btn"
+          onClick={() => {
+            const guestToggle = document.querySelector(
+              ".hero-search-reserve .searchMenu-guests [data-bs-toggle='dropdown']"
+            );
+            if (guestToggle) guestToggle.click();
+          }}
+        >
+          Room &amp; traveller options · 1 room(s) ·{" "}
+          {guestCounts.Children || 0} children · {guestCounts.Infants || 0}{" "}
+          infants ↓
+        </button>
       </div>
 
       <Snackbar
