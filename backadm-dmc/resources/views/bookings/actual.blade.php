@@ -7246,7 +7246,7 @@ function approveIndividualHotel(tourId, hotelOrderIndex, bookingIndex, autoCance
 function rejectIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
     showRejectServiceAlert('hotel', () => {
         createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'reject');
-    }, tourId);
+    }, tourId, !!window.__cancelWithoutRefund, { hotelOrderIndex: hotelOrderIndex });
 }
 
 // Override any previous definitions - this is the correct attraction approve function
@@ -18790,8 +18790,9 @@ function rejectIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
             console.error('Error opening individual hotel reject modal:', error);
             alert('Error opening reject modal. Please try again.');
         }
-    }, tourId);
+    }, tourId, !!window.__cancelWithoutRefund, { hotelOrderIndex: hotelOrderIndex });
 }
+window.rejectIndividualHotel = rejectIndividualHotel;
 
 function createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, action, autoCancelDate=null) {
     try {

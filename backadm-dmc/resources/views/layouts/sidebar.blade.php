@@ -844,7 +844,7 @@
                 <!-- End Products Section -->
             @endif
 
-            @if(in_array(auth()->user()->role_id, [1,2,3,4,10,11,20,138]))
+            @if(in_array((int) auth()->user()->role_id, [1,2,3,4,10,11,20,33,34,36,37,38,126,127,128,129,130,131,132,133,134,135,136,137,138], true))
               <!-- Finance & Wallet -->
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Finance">Finance</span>

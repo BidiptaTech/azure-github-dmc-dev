@@ -797,9 +797,15 @@ class WalletQueryService
                         $fund->where('w.wallet_owner_id', $masterDmcId);
                     }
                 })->orWhere(function (Builder $ret) {
+                    // Legacy booking returns only — online/admin markup belongs in Commission statement.
                     $ret->where('w.wallet_owner_type', 'travclicks')
                         ->where('w.wallet_owner_id', 1)
-                        ->where('wl.ledger_entry_type', 'booking_credit');
+                        ->where('wl.ledger_entry_type', 'booking_credit')
+                        ->whereRaw("COALESCE(wl.ledger_metadata->>'purpose', '') NOT IN (?, ?, ?)", [
+                            'online_markup_commission',
+                            'commission',
+                            'commission_balance',
+                        ]);
                 });
             });
 
@@ -1778,6 +1784,26 @@ class WalletQueryService
     public function resolveCurrencyForOwner(string $ownerType, int $ownerId, ?string $requestedCurrency = null): string
     {
         return $this->resolveWalletCurrency($ownerType, $ownerId, $requestedCurrency);
+    }
+
+    /**
+     * DMC home wallet currency (country/user config) — Indonesia → IDR, Singapore → SGD.
+     * Used when crediting commission so funds land in the DMC's own wallet, not the tour currency.
+     */
+    public function resolveDmcWalletCurrency(int $dmcId): string
+    {
+        if ($dmcId <= 0) {
+            return 'SGD';
+        }
+
+        $configured = $this->getConfiguredCurrenciesForOwner('dmc', $dmcId);
+        $code = strtoupper(trim((string) (
+            $configured['default']
+            ?: ($configured['currencies'][0] ?? '')
+            ?: $this->resolveCurrencyForOwner('dmc', $dmcId)
+        )));
+
+        return $code !== '' ? $code : 'SGD';
     }
 
     /**
