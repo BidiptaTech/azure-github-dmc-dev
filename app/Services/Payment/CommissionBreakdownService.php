@@ -165,13 +165,46 @@ class CommissionBreakdownService
      */
     protected function agentPrice(Order $order, array $data): float
     {
-        if (isset($order->cost_price) && is_numeric($order->cost_price) && (float) $order->cost_price > 0) {
-            return (float) $order->cost_price;
+        $costPrice = $order->cost_price ?? null;
+        if (is_numeric($costPrice) && (float) $costPrice > 0) {
+            return (float) $costPrice;
+        }
+        if (is_string($costPrice)) {
+            $decoded = json_decode($costPrice, true);
+            $costPrice = (json_last_error() === JSON_ERROR_NONE) ? $decoded : null;
+        }
+        if (is_array($costPrice)) {
+            foreach (['total_cost', 'total_price', 'selling_price', 'agent_price', 'amount'] as $key) {
+                if (isset($costPrice[$key]) && is_numeric($costPrice[$key]) && (float) $costPrice[$key] > 0) {
+                    return (float) $costPrice[$key];
+                }
+            }
         }
 
-        foreach (['selling_price', 'total_price', 'agent_price', 'price', 'amount', 'net_price'] as $key) {
-            if (isset($data[$key]) && is_numeric($data[$key]) && (float) $data[$key] > 0) {
-                return (float) $data[$key];
+        $candidates = [$data];
+        if (isset($data[0]) && is_array($data[0])) {
+            $candidates[] = $data[0];
+        }
+        foreach (['onlineHotelBooking', 'booking', 'room', 'helperPriceResult', 'price_payload'] as $nest) {
+            if (isset($data[$nest]) && is_array($data[$nest])) {
+                $candidates[] = $data[$nest];
+            }
+            if (isset($data[0][$nest]) && is_array($data[0][$nest])) {
+                $candidates[] = $data[0][$nest];
+            }
+        }
+
+        foreach ($candidates as $node) {
+            foreach (['selling_price', 'total_price', 'grand_total', 'agent_price', 'totalPrice', 'price', 'amount', 'net_price', 'room_total'] as $key) {
+                if (isset($node[$key]) && is_numeric($node[$key]) && (float) $node[$key] > 0) {
+                    return (float) $node[$key];
+                }
+            }
+            if (isset($node['price']['actual']) && is_numeric($node['price']['actual']) && (float) $node['price']['actual'] > 0) {
+                return (float) $node['price']['actual'];
+            }
+            if (isset($node['currencyConvertedPrice']['actual']) && is_numeric($node['currencyConvertedPrice']['actual']) && (float) $node['currencyConvertedPrice']['actual'] > 0) {
+                return (float) $node['currencyConvertedPrice']['actual'];
             }
         }
 

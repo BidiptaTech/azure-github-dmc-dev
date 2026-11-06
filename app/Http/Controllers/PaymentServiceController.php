@@ -50,6 +50,7 @@ class PaymentServiceController extends Controller
             'amount' => 'nullable|numeric|min:0.01',
             'idempotency_key' => 'nullable|string|min:8|max:128',
             'remarks' => 'nullable|string|max:2000',
+            'user_remarks' => 'nullable|string|max:2000',
             'transaction_id' => 'nullable|string|max:128',
             'payment_date' => 'nullable|date',
             'metadata' => 'nullable|array',

@@ -2,7 +2,7 @@
 
 namespace App\Services\Payment;
 
-use App\Helpers\CurrencyHelper;
+use App\Models\Country;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -56,7 +56,7 @@ class CurrencySnapshotService
             }
 
             $destinationAmount = round($sourceAmount * $rate, 4);
-            $provider = $input['rate_provider'] ?? 'CurrencyService';
+            $provider = $input['rate_provider'] ?? 'countries.current_rate';
             $rateTs = now();
         }
 
@@ -120,17 +120,13 @@ class CurrencySnapshotService
 
     protected function fetchAuthoritativeRate(string $source, string $destination): float
     {
-        try {
-            if (method_exists(CurrencyHelper::class, 'getExchangeRate')) {
-                $rate = CurrencyHelper::getExchangeRate($source, $destination);
-                if (is_numeric($rate) && (float) $rate > 0) {
-                    return (float) $rate;
-                }
-            }
-        } catch (\Throwable) {
-            // fall through
+        $rate = Country::exchangeRateBetween($source, $destination);
+        if ($rate !== null && $rate > 0) {
+            return (float) $rate;
         }
 
-        throw new RuntimeException("Exchange rate unavailable for {$source}→{$destination}.");
+        throw new RuntimeException(
+            "Exchange rate unavailable for {$source}→{$destination}. Sync countries.current_rate first."
+        );
     }
 }

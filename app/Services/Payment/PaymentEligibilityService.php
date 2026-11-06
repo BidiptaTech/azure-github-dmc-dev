@@ -5,6 +5,7 @@ namespace App\Services\Payment;
 use App\Helpers\CurrencyHelper;
 use App\Helpers\TaxHelper;
 use App\Models\Agent;
+use App\Models\Country;
 use App\Models\Enquiry;
 use App\Models\Order;
 use App\Models\Tour;
@@ -406,18 +407,13 @@ class PaymentEligibilityService
             Log::debug('fx_charge_percent_unavailable', ['error' => $e->getMessage()]);
         }
 
+        // Always use that DMC's home wallet currency (Indonesia → IDR, Singapore → SGD).
         $walletCurrency = $orderCurrency;
         try {
-            if ($dmcId > 0 && Schema::hasTable('wallet')) {
-                // Wallet payments are debited from the DMC wallet: prefer the order currency, else the latest DMC wallet.
-                $query = DB::table('wallet')
-                    ->where('wallet_owner_type', 'dmc')
-                    ->where('wallet_owner_id', $dmcId)
-                    ->whereNull('deleted_at');
-                $code = (clone $query)->whereRaw('UPPER(wallet_currency_code) = ?', [$orderCurrency])->value('wallet_currency_code')
-                    ?: $query->orderByDesc('id')->value('wallet_currency_code');
-                if (is_string($code) && $code !== '') {
-                    $walletCurrency = CurrencyHelper::toIsoCode($code, $orderCurrency);
+            if ($dmcId > 0) {
+                $home = strtoupper(trim($this->walletQueryService->resolveDmcWalletCurrency($dmcId)));
+                if ($home !== '') {
+                    $walletCurrency = $home;
                 }
             }
         } catch (\Throwable) {
@@ -427,7 +423,8 @@ class PaymentEligibilityService
         $differ = $walletCurrency !== $orderCurrency;
         $rate = 1.0;
         if ($differ) {
-            $rate = (float) (CurrencyHelper::getExchangeRate($orderCurrency, $walletCurrency) ?? 0);
+            // Wallet pay amount uses countries.current_rate (SGD pivot), not live CurrencyHelper.
+            $rate = (float) (Country::exchangeRateBetween($orderCurrency, $walletCurrency) ?? 0);
             if ($rate <= 0) {
                 $rate = 1.0;
                 $differ = false;

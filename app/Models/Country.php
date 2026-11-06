@@ -41,6 +41,43 @@ class Country extends Model
     }
 
     /**
+     * Cross rate via countries.current_rate (SGD pivot): amount_to = amount_from * rate.
+     * 1 SGD = current_rate of that currency.
+     */
+    public static function exchangeRateBetween(string $fromCurrency, string $toCurrency): ?float
+    {
+        $from = strtoupper(trim($fromCurrency));
+        $to = strtoupper(trim($toCurrency));
+        if ($from === '' || $to === '') {
+            return null;
+        }
+        if ($from === $to) {
+            return 1.0;
+        }
+
+        $fromRate = static::sgdRateFor($from);
+        $toRate = static::sgdRateFor($to);
+        if ($fromRate === null || $fromRate <= 0 || $toRate === null || $toRate <= 0) {
+            return null;
+        }
+
+        return (float) ($toRate / $fromRate);
+    }
+
+    /**
+     * Convert amount using countries.current_rate only (no live helper/API rate).
+     */
+    public static function convertAmount(float $amount, string $fromCurrency, string $toCurrency): ?float
+    {
+        $rate = static::exchangeRateBetween($fromCurrency, $toCurrency);
+        if ($rate === null || $rate <= 0) {
+            return null;
+        }
+
+        return round($amount * $rate, 4);
+    }
+
+    /**
      * Refresh current_rate for every country from the live rate (same CurrencyHelper stack
      * as Wallet Management). One lookup per distinct currency; failures keep the old rate.
      *

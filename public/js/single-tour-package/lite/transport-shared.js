@@ -2882,7 +2882,32 @@
     }
 
     function ensureRejectRefundDialog() {
-        if (document.getElementById('stpLiteRejectRefundStyle')) return;
+        if (document.getElementById('stpLiteRejectRefundStyle')) {
+            // Older page sessions may lack the hotel policy slot — add it if missing
+            if (!document.getElementById('stpLiteRejectRefundPolicyCss')) {
+                var policyCss = document.createElement('style');
+                policyCss.id = 'stpLiteRejectRefundPolicyCss';
+                policyCss.textContent =
+                    '#stpLiteRejectRefund .stp-reject-policy{display:none;align-items:flex-start;gap:.5rem;margin-top:.75rem;padding:.75rem;text-align:left;background:linear-gradient(135deg,#eff6ff 0%,#e0e7ff 100%);border:1px solid rgba(99,102,241,.3);border-radius:10px;color:#3730a3;font-size:.8125rem;line-height:1.5;}' +
+                    '#stpLiteRejectRefund .stp-reject-policy i{color:#4f46e5;font-size:1rem;margin-top:.125rem;}';
+                document.head.appendChild(policyCss);
+            }
+            var existing = document.getElementById('stpLiteRejectRefund');
+            if (existing && !document.getElementById('stpLiteRejectRefundPolicy')) {
+                var note = existing.querySelector('.stp-reject-note');
+                var policy = document.createElement('div');
+                policy.id = 'stpLiteRejectRefundPolicy';
+                policy.className = 'stp-reject-policy';
+                policy.setAttribute('aria-live', 'polite');
+                if (note && note.parentNode) {
+                    note.parentNode.insertBefore(policy, note.nextSibling);
+                } else {
+                    var card = existing.querySelector('.stp-reject-card');
+                    if (card) card.appendChild(policy);
+                }
+            }
+            return;
+        }
         var style = document.createElement('style');
         style.id = 'stpLiteRejectRefundStyle';
         style.textContent =
@@ -2894,6 +2919,8 @@
             '#stpLiteRejectRefund p strong{color:#334155;font-weight:600;}' +
             '#stpLiteRejectRefund .stp-reject-note{display:flex;align-items:flex-start;gap:.5rem;margin-top:.75rem;padding:.75rem;text-align:left;background:linear-gradient(135deg,#eff6ff 0%,#e0e7ff 100%);border:1px solid rgba(99,102,241,.3);border-radius:10px;color:#3730a3;font-size:.8125rem;line-height:1.5;}' +
             '#stpLiteRejectRefund .stp-reject-note i{color:#4f46e5;font-size:1rem;margin-top:.125rem;}' +
+            '#stpLiteRejectRefund .stp-reject-policy{display:none;align-items:flex-start;gap:.5rem;margin-top:.75rem;padding:.75rem;text-align:left;background:linear-gradient(135deg,#eff6ff 0%,#e0e7ff 100%);border:1px solid rgba(99,102,241,.3);border-radius:10px;color:#3730a3;font-size:.8125rem;line-height:1.5;}' +
+            '#stpLiteRejectRefund .stp-reject-policy i{color:#4f46e5;font-size:1rem;margin-top:.125rem;}' +
             '#stpLiteRejectRefund .stp-reject-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:.75rem;margin-top:1.25rem;}' +
             '#stpLiteRejectRefund .stp-reject-cancel{background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:10px;padding:.625rem 1.25rem;font-weight:500;}' +
             '#stpLiteRejectRefund .stp-reject-zero{background:#fff;color:#334155;border:1px solid #cbd5e1;border-radius:10px;padding:.625rem 1.25rem;font-weight:600;}' +
@@ -2907,6 +2934,7 @@
             '  <h2 id="stpLiteRejectRefundTitle">Partial cancellation &amp; Refund?</h2>' +
             '  <p id="stpLiteRejectRefundBody"></p>' +
             '  <div class="stp-reject-note"><i class="ri-shield-check-line"></i><span><strong>Tour status</strong> and <strong>payment details</strong> stay unchanged. Only this service is included in partial cancellation &amp; refund. <strong>This cannot be undone.</strong></span></div>' +
+            '  <div id="stpLiteRejectRefundPolicy" class="stp-reject-policy" aria-live="polite"></div>' +
             '  <div class="stp-reject-actions">' +
             '    <button type="button" id="stpLiteRejectRefundCancel" class="stp-reject-cancel">Close</button>' +
             '    <button type="button" id="stpLiteRejectRefundZero" class="stp-reject-zero">Cancel without refund</button>' +
@@ -2918,43 +2946,101 @@
 
     var cancelWithoutRefundIds = [];
 
+    function hotelCancellationPolicyHtml(calc) {
+        if (!calc || !calc.applicable) return '';
+        var cur = calc.currency || '';
+        var hours = calc.hours_until_check_in;
+        var hoursLabel = (hours === null || hours === undefined) ? '—' : (Number(hours).toFixed(0) + 'h');
+        return '<i class="ri-calculator-line"></i><span>' +
+            '<strong>Cancellation policy</strong><br>' +
+            'Hours to check-in: <strong>' + hoursLabel + '</strong><br>' +
+            'Hotel price: <strong>' + esc(cur) + ' ' + Number(calc.hotel_price || 0).toFixed(2) + '</strong><br>' +
+            'Cancellation charge: <strong>' + esc(cur) + ' ' + Number(calc.cancellation_charge || 0).toFixed(2) + '</strong><br>' +
+            'Suggested refund: <strong>' + esc(cur) + ' ' + Number(calc.suggested_refund || 0).toFixed(2) + '</strong><br>' +
+            '<span style="opacity:.9">' + esc(calc.summary || '') + '</span>' +
+            '</span>';
+    }
+
+    function resolveLiteTourId() {
+        var fromEdit = window.STP_LITE_EDIT && window.STP_LITE_EDIT.tourId;
+        var fromCfg = cfg().tourId || (cfg().edit && cfg().edit.tourId);
+        var fromInput = (document.getElementById('tour_id') || {}).value;
+        return parseInt(fromEdit || fromCfg || fromInput, 10) || 0;
+    }
+
     function openRejectRefundDialog(serviceLabel, row, onConfirm) {
         ensureRejectRefundDialog();
         var dialog = document.getElementById('stpLiteRejectRefund');
         var title = document.getElementById('stpLiteRejectRefundTitle');
         var body = document.getElementById('stpLiteRejectRefundBody');
+        var policyEl = document.getElementById('stpLiteRejectRefundPolicy');
         var ok = document.getElementById('stpLiteRejectRefundOk');
         var zero = document.getElementById('stpLiteRejectRefundZero');
         var cancel = document.getElementById('stpLiteRejectRefundCancel');
         var label = serviceLabel || 'Service';
         title.textContent = 'Partial cancellation & Refund?';
         body.innerHTML = 'Remove this <strong>' + esc(label) + '</strong> service? Cancel with refund is finished on the Refunds page. Cancel without refund completes it at 0.';
-        dialog.style.display = 'flex';
+        if (policyEl) {
+            policyEl.style.display = 'none';
+            policyEl.innerHTML = '';
+        }
 
-        function close() {
-            dialog.style.display = 'none';
-            ok.onclick = null;
-            cancel.onclick = null;
-            if (zero) zero.onclick = null;
-        }
-        function removeRow() {
-            if (typeof onConfirm === 'function') onConfirm();
-        }
-        cancel.onclick = function () { close(); };
-        ok.onclick = function () {
-            close();
-            removeRow();
-        };
-        if (zero) {
-            zero.onclick = function () {
-                var bookingId = parseInt(row && (row._booking_id || row.booking_id), 10) || 0;
-                if (bookingId > 0 && cancelWithoutRefundIds.indexOf(bookingId) < 0) {
-                    cancelWithoutRefundIds.push(bookingId);
-                }
+        function bindAndShow() {
+            dialog.style.display = 'flex';
+
+            function close() {
+                dialog.style.display = 'none';
+                ok.onclick = null;
+                cancel.onclick = null;
+                if (zero) zero.onclick = null;
+            }
+            function removeRow() {
+                if (typeof onConfirm === 'function') onConfirm();
+            }
+            cancel.onclick = function () { close(); };
+            ok.onclick = function () {
                 close();
                 removeRow();
             };
+            if (zero) {
+                zero.onclick = function () {
+                    var bookingId = parseInt(row && (row._booking_id || row.booking_id), 10) || 0;
+                    if (bookingId > 0 && cancelWithoutRefundIds.indexOf(bookingId) < 0) {
+                        cancelWithoutRefundIds.push(bookingId);
+                    }
+                    close();
+                    removeRow();
+                };
+            }
         }
+
+        // Hotel only: load cancellation policy into this same modal when available
+        var isHotel = String(label).toLowerCase() === 'hotel';
+        var tourId = resolveLiteTourId();
+        var bookingId = parseInt(row && (row._booking_id || row.booking_id), 10) || 0;
+        var orderId = parseInt(row && (row._order_id || row.order_id), 10) || 0;
+        if (isHotel && tourId > 0 && (bookingId > 0 || orderId > 0)) {
+            var payload = { tour_id: tourId };
+            if (orderId > 0) payload.order_id = orderId;
+            if (bookingId > 0) payload.booking_id = bookingId;
+            fetchJson('/booking/hotel-cancellation-charge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).then(function (res) {
+                var html = hotelCancellationPolicyHtml(res && res.data ? res.data : null);
+                if (html && policyEl) {
+                    policyEl.innerHTML = html;
+                    policyEl.style.display = 'flex';
+                }
+                bindAndShow();
+            }).catch(function () {
+                bindAndShow();
+            });
+            return;
+        }
+
+        bindAndShow();
     }
 
     /**
@@ -3015,6 +3101,9 @@
         if (!payload || !previous) return payload;
         if (previous._booking_id != null && previous._booking_id !== '') {
             payload._booking_id = previous._booking_id;
+        }
+        if (previous._order_id != null && previous._order_id !== '') {
+            payload._order_id = previous._order_id;
         }
         return payload;
     }

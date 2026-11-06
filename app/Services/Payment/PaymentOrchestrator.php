@@ -125,6 +125,7 @@ class PaymentOrchestrator
                 'order_currency' => $orderCurrency,
                 'exchange_rate' => $exchangeRate,
                 'conversion_charge' => $destinationCurrency !== $orderCurrency ? (float) ($fxMeta['conversion_charge'] ?? 0) : 0.0,
+                'user_remarks' => trim((string) ($input['user_remarks'] ?? '')),
             ]),
         ]);
 
@@ -474,6 +475,7 @@ class PaymentOrchestrator
             'exchange_rate' => $converted ? (float) ($attemptMeta['exchange_rate'] ?? 1) : 1,
             'transaction_id' => $financeReference ?: $attemptUuid,
             'remarks' => 'Wallet payment — auto verified',
+            'user_remarks' => trim((string) ($attemptMeta['user_remarks'] ?? '')),
             'payment_type' => 'wallet',
             'status' => 1, // verified — no manual approve needed
             'auto_verified' => true,

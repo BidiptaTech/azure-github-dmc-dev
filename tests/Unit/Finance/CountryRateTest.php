@@ -38,6 +38,19 @@ class CountryRateTest extends TestCase
         $this->assertNull(Country::sgdRateFor('XXX'));
     }
 
+    public function test_exchange_rate_between_uses_current_rate_sgd_pivot(): void
+    {
+        Country::create(['name' => 'Indonesia', 'currency' => 'IDR', 'current_rate' => 12000]);
+        Country::create(['name' => 'USA', 'currency' => 'USD', 'current_rate' => 0.75]);
+
+        $this->assertSame(1.0, Country::exchangeRateBetween('SGD', 'SGD'));
+        $this->assertEquals(12000.0, Country::exchangeRateBetween('SGD', 'IDR'));
+        $this->assertEqualsWithDelta(1 / 12000, Country::exchangeRateBetween('IDR', 'SGD'), 1e-12);
+        $this->assertEqualsWithDelta(12000 / 0.75, Country::exchangeRateBetween('USD', 'IDR'), 1e-8);
+        $this->assertNull(Country::exchangeRateBetween('SGD', 'THB'));
+        $this->assertEquals(120000.0, Country::convertAmount(10, 'SGD', 'IDR'));
+    }
+
     public function test_sgd_preview_uses_stored_rate_and_fails_safely(): void
     {
         Country::create(['name' => 'Indonesia', 'currency' => 'IDR', 'current_rate' => 12000]);

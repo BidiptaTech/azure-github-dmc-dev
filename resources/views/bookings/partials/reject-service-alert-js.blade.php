@@ -132,9 +132,10 @@ function showRejectServiceAlert(serviceType, callback, tourId, withoutRefund, ex
     };
     const serviceLabel = labels[serviceType] || serviceType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     const pageTourStatus = (window.rejectServicePageTourStatus || '').trim();
-    const isDefiniteOrActualPage = pageTourStatus === 'Definite' || pageTourStatus === 'Actual';
+    const isDefiniteOrActualPage = pageTourStatus === 'Confirmed' || pageTourStatus === 'Definite' || pageTourStatus === 'Actual';
     const hasNegotiation = tourId && (window.tourNegotiationHistory || {})[tourId] === true;
     extra = extra || {};
+    withoutRefund = !!(withoutRefund || window.__cancelWithoutRefund);
 
     function policyBlock(calc) {
         if (!calc || !calc.applicable) return '';
