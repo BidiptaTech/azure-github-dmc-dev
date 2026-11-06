@@ -2597,16 +2597,20 @@ $formatSelectedPersonsCells = function ($single, $double, $triple, $selectedPers
                 $tour->check_in_time ?? null,
                 $tour->check_out_time ?? null
             );
-            $taxResult = \App\Helpers\TaxHelper::calculateTourTaxes(
+            $taxResult = \App\Helpers\TaxHelper::calculateTourTaxesForTour(
                 (float) $taxableBase,
                 $tour->taxes ?? null,
                 $taxPersons,
-                $taxDays
+                $taxDays,
+                $tour
             );
             $overallTaxShown = (float) ceil((float) ($taxResult['total_tax'] ?? 0));
             $overallTaxBreakdown = is_array($taxResult['breakdown'] ?? null) ? $taxResult['breakdown'] : [];
+            if (! empty($taxResult['tax_included'])) {
+                $overallTaxBreakdown = ['Tax (included)' => 0];
+            }
 
-            // TOTAL COST = Subtotal − Discount + Tax
+            // TOTAL COST = Subtotal − Discount + Tax (online: tax already in sell, total_tax=0)
             $totalCostAmount = max(0.0, $taxableBase + $overallTaxShown);
             $overallDisplayLabel = $overallTargetCurrency === 'INR' ? 'INR' : $overallTargetCurrency;
             $totalCostLabel = $fmtOverallAmt($totalCostAmount);

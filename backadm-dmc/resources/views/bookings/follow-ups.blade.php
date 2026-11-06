@@ -887,6 +887,7 @@
         to { transform: rotate(360deg); }
     }
 </style>
+@include('bookings.partials.online-pay-first-card-styles')
 
 @section('content')
 @php
@@ -1517,16 +1518,10 @@
                             @if(in_array(auth()->user()->role_id, $role))
                             <td class="align-top col-negotiation">
                                 @if(isset($tour->acceptance_flow) && empty($tour->acceptance_flow['allow_negotiate']))
-                                    <button
-                                        type="button"
-                                        class="btn btn-sm btn-success"
-                                        onclick="window.TravclicksPaymentService && window.TravclicksPaymentService.openAcceptancePay({{ (int) $tour->tour_id }})"
-                                    >
-                                        {{ $tour->acceptance_flow['button_label'] ?? 'Pay' }}
-                                    </button>
-                                    @if(!empty($tour->acceptance_flow['hint']))
-                                        <small class="text-muted d-block" style="font-size: 0.7rem;">{{ $tour->acceptance_flow['hint'] }}</small>
-                                    @endif
+                                    @include('bookings.partials.online-pay-first-card', [
+                                        'acceptanceFlow' => $tour->acceptance_flow,
+                                        'tourId' => (int) $tour->tour_id,
+                                    ])
                                 @else
                                 <button 
                                     type="button"
@@ -1590,7 +1585,10 @@
                                     <span class="text-muted">No negotiation</span>
                                 @endif
                                 @if(($tour->acceptance_flow['classification'] ?? '') === 'mix' && !empty($tour->acceptance_flow['hint']))
-                                    <small class="text-muted d-block" style="font-size: 0.7rem;">{{ $tour->acceptance_flow['hint'] }}</small>
+                                    <div class="online-paid-hint-chip">
+                                        <i class="ri-checkbox-circle-line" aria-hidden="true"></i>
+                                        <span>{{ $tour->acceptance_flow['hint'] }}</span>
+                                    </div>
                                 @endif
                                 @endif
                             </td>

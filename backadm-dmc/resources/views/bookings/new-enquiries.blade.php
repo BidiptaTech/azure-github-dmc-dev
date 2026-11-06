@@ -842,6 +842,7 @@
     .new-enq-filter-bar .select2-container--default .select2-selection--single .select2-selection__arrow { height: 36px !important; right: 8px; }
     .new-enq-filter-bar .select2-container--default .select2-selection--single .select2-selection__clear { right: 32px; }
 </style>
+@include('bookings.partials.online-pay-first-card-styles')
 <div class="container-xxl flex-grow-1 container-p-y">
     @include('bookings.partials.booking-type-tabs', [
         'type' => 'tours',
@@ -1379,16 +1380,10 @@
                             <td class="align-top">
                                 <div class="d-flex flex-column gap-2">
                                     @if(isset($tour->acceptance_flow) && empty($tour->acceptance_flow['allow_negotiate']))
-                                        <button
-                                            type="button"
-                                            class="btn btn-sm btn-success"
-                                            onclick="window.TravclicksPaymentService && window.TravclicksPaymentService.openAcceptancePay({{ (int) $tour->tour_id }})"
-                                        >
-                                            {{ $tour->acceptance_flow['button_label'] ?? 'Pay' }}
-                                        </button>
-                                        @if(!empty($tour->acceptance_flow['hint']))
-                                            <small class="text-muted" style="font-size: 0.7rem;">{{ $tour->acceptance_flow['hint'] }}</small>
-                                        @endif
+                                        @include('bookings.partials.online-pay-first-card', [
+                                            'acceptanceFlow' => $tour->acceptance_flow,
+                                            'tourId' => (int) $tour->tour_id,
+                                        ])
                                     @else
                                     <button 
                                         type="button"
@@ -1450,7 +1445,10 @@
                                         <small class="text-muted" style="font-size: 0.7rem;">Awaiting agent</small>
                                     @endif
                                     @if(($tour->acceptance_flow['classification'] ?? '') === 'mix' && !empty($tour->acceptance_flow['hint']))
-                                        <small class="text-muted" style="font-size: 0.7rem;">{{ $tour->acceptance_flow['hint'] }}</small>
+                                        <div class="online-paid-hint-chip">
+                                            <i class="ri-checkbox-circle-line" aria-hidden="true"></i>
+                                            <span>{{ $tour->acceptance_flow['hint'] }}</span>
+                                        </div>
                                     @endif
                                     @endif
                                 </div>
