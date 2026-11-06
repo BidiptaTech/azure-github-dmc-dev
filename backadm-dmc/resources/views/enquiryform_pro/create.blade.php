@@ -1684,8 +1684,6 @@
                             <th title="Sell before DMC markup">Sell</th>
                             <th title="Sell after DMC hotel markup">Markup Price</th>
                             <th title="Adult Extra Bed Price">Extra Bed</th>
-                            <th title="Child with Bed Price">CWB</th>
-                            <th title="Child without Bed Price">CNB</th>
                             <th title="Infant/Babycot Price">Infant</th>
                             <th class="group-foc-outside-discount-ui">FOC</th>
                             <th>Supplement</th>
@@ -2395,8 +2393,6 @@
                                         <th style="width: 80px; padding: 4px 8px; text-align: center;">Avg Cost</th>
                                         <th style="width: 80px; padding: 4px 8px; text-align: center;">Sell</th>
                                         <th style="width: 70px; padding: 4px 8px; text-align: center;" title="Adult Extra Bed">Extra Bed</th>
-                                        <th style="width: 60px; padding: 4px 8px; text-align: center;" title="Child with Bed Price">CWB</th>
-                                        <th style="width: 60px; padding: 4px 8px; text-align: center;" title="Child without Bed Price">CNB</th>
                                         <th style="width: 60px; padding: 4px 8px; text-align: center;" title="Infant/Babycot Price">Infant</th>
                                         <th style="width: 80px; padding: 4px 8px; text-align: center;">Supplement</th>
                                     </tr>
@@ -13543,7 +13539,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 return;
             }
             
-            roomCombinationsTableBody.innerHTML = '<tr><td colspan="13" class="text-center text-muted py-2"><span class="spinner-border spinner-border-sm me-1"></span> Loading room combinations...</td></tr>';
+            roomCombinationsTableBody.innerHTML = '<tr><td colspan="11" class="text-center text-muted py-2"><span class="spinner-border spinner-border-sm me-1"></span> Loading room combinations...</td></tr>';
             roomCombinationsSection.style.display = 'block';
             
             const weekendDays = parseWeekendDays(currentHotelData.weekend_days || currentHotelData.weekend || currentHotelData.weekendDays || []);
@@ -13565,7 +13561,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         } catch (e) {
             console.error('Error loading room types:', e);
             roomCombinationsSection.style.display = 'none';
-            roomCombinationsTableBody.innerHTML = '<tr><td colspan="13" class="text-center text-danger">Error loading room combinations. Please try again.</td></tr>';
+            roomCombinationsTableBody.innerHTML = '<tr><td colspan="11" class="text-center text-danger">Error loading room combinations. Please try again.</td></tr>';
         } finally {
             setRoomCombinationsLoading(false);
             setAccommodationRatePanelLoading(false);
@@ -13904,22 +13900,6 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                                ${!combo.extraBedAvailable ? 'disabled title="Extra bed not available"' : 'checked'}>
                         <input type="number" class="form-control form-control-sm combo-extra-bed-price" data-combo-id="${combo.id}" 
                                value="${extraBedPrice.toFixed(0)}" min="0" step="0.01" ${combo.extraBedAvailable ? '' : 'disabled'}
-                               style="font-size: 9px; padding: 1px 2px; text-align: center; width: 50px;">
-                    </div>
-                </td>
-                <td style="padding: 2px 8px; text-align: center;">
-                    <div class="d-flex align-items-center justify-content-center gap-1">
-                        <input type="checkbox" class="form-check-input combo-cwb-check" data-combo-id="${combo.id}" ${headerValues.children > 0 ? 'checked' : ''}>
-                        <input type="number" class="form-control form-control-sm combo-cwb-price" data-combo-id="${combo.id}" 
-                               value="${cwbPrice.toFixed(0)}" min="0" step="0.01" ${headerValues.children > 0 ? '' : 'disabled'}
-                               style="font-size: 9px; padding: 1px 2px; text-align: center; width: 50px;">
-                    </div>
-                </td>
-                <td style="padding: 2px 8px; text-align: center;">
-                    <div class="d-flex align-items-center justify-content-center gap-1">
-                        <input type="checkbox" class="form-check-input combo-cnb-check" data-combo-id="${combo.id}" ${headerValues.children > 0 ? 'checked' : ''}>
-                        <input type="number" class="form-control form-control-sm combo-cnb-price" data-combo-id="${combo.id}" 
-                               value="${cnbPrice.toFixed(0)}" min="0" step="0.01" ${headerValues.children > 0 ? '' : 'disabled'}
                                style="font-size: 9px; padding: 1px 2px; text-align: center; width: 50px;">
                     </div>
                 </td>
@@ -14774,8 +14754,9 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                         extraBedOn,
                         combo.extraBedAvailable !== false
                     ));
-                const cwbOn = !!(cwbCheck?.checked);
-                const cnbOn = !!(cnbCheck?.checked);
+                // Lite form: CWB/CNB removed — never enable child-with/without-bed add-ons
+                const cwbOn = false;
+                const cnbOn = false;
                 selectedCombos.push({
                     ...combo,
                     rooms: roomsCount,
@@ -14886,8 +14867,9 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             extraBed: combo.hasExtraBed ? (Math.max(1, parseInt(combo.rooms, 10) || 1)) : 0,
             // New simplified structure
             hasExtraBed: combo.hasExtraBed || false,
-            hasCwb: combo.hasCwb || false,
-            hasCnb: combo.hasCnb || false,
+            // Lite form: CWB / CNB removed
+            hasCwb: false,
+            hasCnb: false,
             hasInfant: combo.hasInfant || false,
             mealPlan: combo.mealPlan, // Keep value for backward compatibility
             mealPlanLabel: combo.mealPlanLabel || combo.mealPlan, // Label format for single tour package
@@ -14906,19 +14888,19 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 ?? combo.bedData?.extra_bed_cost_price
                 ?? combo.roomData?.extra_bed_cost_price
                 ?? 0,
-            cwbPrice: combo.cwbPrice || 0,
-            cwbCostPrice: combo.cwbCostPrice ?? combo.roomData?.child_with_bed_cost ?? 0,
-            cnbPrice: combo.cnbPrice || 0,
-            cnbCostPrice: combo.cnbCostPrice ?? combo.roomData?.child_without_bed_cost ?? 0,
+            cwbPrice: 0,
+            cwbCostPrice: 0,
+            cnbPrice: 0,
+            cnbCostPrice: 0,
             infantPrice: combo.infantPrice || 0,
             infantCostPrice: combo.infantCostPrice
                 ?? combo.babyCotCostPrice
                 ?? combo.bedData?.baby_cot_cost_price
                 ?? combo.roomData?.baby_cot_cost_price
                 ?? 0,
-            // Child with bed / without bed counts for JSON payload (= rooms when enabled)
-            childWithBed: combo.hasCwb ? (Math.max(1, parseInt(combo.rooms, 10) || 1)) : (combo.childWithBed || 0),
-            childWithoutBed: combo.hasCnb ? (Math.max(1, parseInt(combo.rooms, 10) || 1)) : (combo.childWithoutBed || 0),
+            // Lite form: CWB / CNB removed
+            childWithBed: 0,
+            childWithoutBed: 0,
             // Store room and bed data for reference
             roomData: combo.roomData,
             bedData: combo.bedData,
@@ -17466,8 +17448,6 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 <td><input type="text" class="accommodation-price-field" value="${sellBase.toFixed(2)}" title="Sell before DMC markup" onchange="updateAccommodationField(${index}, 'sell', parseFloat(this.value) || 0); updateAccommodationTable(); recalculateTotals();" onblur="this.value = (parseFloat(this.value) || 0).toFixed(2)"></td>
                 <td><input type="text" class="accommodation-price-field ep-markup-price-field" value="${Number(markupPrice).toFixed(2)}" readonly style="background-color: #f3e8ff; color: #6b21a8;" title="Sell after DMC hotel markup"></td>
                 <td><input type="text" value="${displayExtraBedPrice}" readonly style="background-color: #f5f5f5;" title="Edit in popup to change"></td>
-                <td><input type="text" value="${displayCwbPrice}" readonly style="background-color: #f5f5f5;" title="Edit in popup to change"></td>
-                <td><input type="text" value="${displayCnbPrice}" readonly style="background-color: #f5f5f5;" title="Edit in popup to change"></td>
                 <td><input type="text" value="${displayInfantPrice}" readonly style="background-color: #f5f5f5;" title="Edit in popup to change"></td>
                 ${buildOutsideFocCellHtml(isServiceFocChecked(hotel, true), `updateAccommodationField(${index}, 'focServiceDiscount', this.checked)`)}
                 <td style="text-align: center;"><input type="checkbox" ${hotel.supplement ? 'checked' : ''} onchange="updateAccommodationField(${index}, 'supplement', this.checked)"></td>
@@ -30357,8 +30337,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     <th colspan="3" style="padding: 3px 5px; text-align: center; background: #fff3cd; min-width: 150px;">Single</th>
                     <th colspan="3" style="padding: 3px 5px; text-align: center; background: #d1ecf1; min-width: 150px;">Twin</th>
                     <th colspan="3" style="padding: 3px 5px; text-align: center; background: #f8d7da; min-width: 150px;">Triple</th>
-                    <th colspan="3" style="padding: 3px 5px; text-align: center; background: #d4edda; min-width: 150px;">Child w/ bed</th>
-                    <th colspan="3" style="padding: 3px 5px; text-align: center; background: #e7d6f5; min-width: 150px;">Child w/o bed</th>
+                    <th colspan="3" style="padding: 3px 5px; text-align: center; background: #d4edda; min-width: 150px;">Child</th>
                     <th colspan="3" style="padding: 3px 5px; text-align: center; background: #e2e3e5; min-width: 150px;">Infant</th>
                 </tr>
                 <tr>
@@ -30374,9 +30353,6 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     <th style="padding: 3px 5px; text-align: center; background: #d4edda; font-size: 8px; font-weight: normal;">Cost</th>
                     <th style="padding: 3px 5px; text-align: center; background: #d4edda; font-size: 8px; font-weight: normal;">Sell</th>
                     <th style="padding: 3px 5px; text-align: center; background: #d4edda; font-size: 8px; font-weight: normal;" title="After DMC markup">Markup</th>
-                    <th style="padding: 3px 5px; text-align: center; background: #e7d6f5; font-size: 8px; font-weight: normal;">Cost</th>
-                    <th style="padding: 3px 5px; text-align: center; background: #e7d6f5; font-size: 8px; font-weight: normal;">Sell</th>
-                    <th style="padding: 3px 5px; text-align: center; background: #e7d6f5; font-size: 8px; font-weight: normal;" title="After DMC markup">Markup</th>
                     <th style="padding: 3px 5px; text-align: center; background: #e2e3e5; font-size: 8px; font-weight: normal;">Cost</th>
                     <th style="padding: 3px 5px; text-align: center; background: #e2e3e5; font-size: 8px; font-weight: normal;">Sell</th>
                     <th style="padding: 3px 5px; text-align: center; background: #e2e3e5; font-size: 8px; font-weight: normal;" title="After DMC markup">Markup</th>
@@ -30922,13 +30898,10 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 const tripleSell = ((scaledTotalHotelSell + scaledExtraBedCost) / 3) + otherTripleSell;
                 const tripleMarkup = ((scaledTotalHotelMarkup + mkHotelAmt(scaledExtraBedCost)) / 3) + mkOther(otherTripleSell);
                 
-                const childWithBedCost = scaledCwbNight + scaledChildCost;
-                const childWithBedSell = scaledCwbNight + scaledChildSell;
-                const childWithBedMarkup = mkHotelAmt(scaledCwbNight) + mkOther(scaledChildSell);
-                
-                const childWithoutBedCost = scaledCnbNight + scaledChildCost;
-                const childWithoutBedSell = scaledCnbNight + scaledChildSell;
-                const childWithoutBedMarkup = mkHotelAmt(scaledCnbNight) + mkOther(scaledChildSell);
+                // Lite Child column: tours/meals/misc child rates (no CWB/CNB hotel add-on)
+                const childCost = scaledChildCost;
+                const childSell = scaledChildSell;
+                const childMarkup = mkOther(scaledChildSell);
                 
                 const infantCost = infantPricePerNight * nights;
                 const infantSell = infantPricePerNight * nights;
@@ -30944,12 +30917,9 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 const tripleCostRounded = roundToNextZero(tripleCost);
                 const tripleSellRounded = roundToNextZero(tripleSell);
                 const tripleMarkupRounded = roundToNextZero(tripleMarkup);
-                const childWithBedCostRounded = roundToNextZero(childWithBedCost);
-                const childWithBedSellRounded = roundToNextZero(childWithBedSell);
-                const childWithBedMarkupRounded = roundToNextZero(childWithBedMarkup);
-                const childWithoutBedCostRounded = roundToNextZero(childWithoutBedCost);
-                const childWithoutBedSellRounded = roundToNextZero(childWithoutBedSell);
-                const childWithoutBedMarkupRounded = roundToNextZero(childWithoutBedMarkup);
+                const childCostRounded = roundToNextZero(childCost);
+                const childSellRounded = roundToNextZero(childSell);
+                const childMarkupRounded = roundToNextZero(childMarkup);
                 const infantCostRounded = roundToNextZero(infantCost);
                 const infantSellRounded = roundToNextZero(infantSell);
                 const infantMarkupRounded = roundToNextZero(infantMarkup);
@@ -30996,19 +30966,12 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                         </td>
                         ${mkCell(tripleMarkupRounded)}
                         <td style="padding: 3px 5px; text-align: center;">
-                            <input type="text" value="${childWithBedCostRounded.toFixed(0)}" readonly style="width: 60px; background-color: #f5f5f5;">
+                            <input type="text" value="${childCostRounded.toFixed(0)}" readonly style="width: 60px; background-color: #f5f5f5;">
                         </td>
                         <td style="padding: 3px 5px; text-align: center;">
-                            <input type="number" value="${childWithBedSellRounded.toFixed(2)}" data-original-value="${childWithBedSellRounded.toFixed(2)}" step="1" min="0" style="width: 60px;" title="Sell before DMC markup">
+                            <input type="number" value="${childSellRounded.toFixed(2)}" data-original-value="${childSellRounded.toFixed(2)}" step="1" min="0" style="width: 60px;" title="Sell before DMC markup">
                         </td>
-                        ${mkCell(childWithBedMarkupRounded)}
-                        <td style="padding: 3px 5px; text-align: center;">
-                            <input type="text" value="${childWithoutBedCostRounded.toFixed(0)}" readonly style="width: 60px; background-color: #f5f5f5;">
-                        </td>
-                        <td style="padding: 3px 5px; text-align: center;">
-                            <input type="number" value="${childWithoutBedSellRounded.toFixed(2)}" data-original-value="${childWithoutBedSellRounded.toFixed(2)}" step="1" min="0" style="width: 60px;" title="Sell before DMC markup">
-                        </td>
-                        ${mkCell(childWithoutBedMarkupRounded)}
+                        ${mkCell(childMarkupRounded)}
                         <td style="padding: 3px 5px; text-align: center;">
                             <input type="text" value="${infantCostRounded.toFixed(0)}" readonly style="width: 60px; background-color: #f5f5f5;">
                         </td>
@@ -32739,16 +32702,21 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
     function enquiryProHotelAddonQuantity(hotel, addonKey) {
         const rooms = enquiryProHotelRoomCount(hotel);
         if (addonKey === 'extra_bed') return hotel.hasExtraBed ? rooms : 0;
-        if (addonKey === 'cwb') return hotel.hasCwb ? rooms : 0;
-        if (addonKey === 'cnb') return hotel.hasCnb ? rooms : 0;
+        // Lite form: CWB / CNB removed
+        if (addonKey === 'cwb' || addonKey === 'cnb') return 0;
         return 0;
     }
     function enquiryProSyncHotelAddonQuantities(hotel) {
         if (!hotel) return;
         const rooms = enquiryProHotelRoomCount(hotel);
         hotel.extraBed = hotel.hasExtraBed ? rooms : 0;
-        if (hotel.hasCwb) hotel.childWithBed = rooms;
-        if (hotel.hasCnb) hotel.childWithoutBed = rooms;
+        // Lite form: CWB / CNB removed
+        hotel.hasCwb = false;
+        hotel.hasCnb = false;
+        hotel.childWithBed = 0;
+        hotel.childWithoutBed = 0;
+        hotel.cwbPrice = 0;
+        hotel.cnbPrice = 0;
     }
 
     /**
