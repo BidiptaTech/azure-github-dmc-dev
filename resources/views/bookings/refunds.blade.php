@@ -459,8 +459,15 @@
                     <tbody>
                         @forelse($tours as $key => $tour)
                         @php
-                            $rowRefundOrders = collect($tour->booking ?? [])->filter(function ($order) {
-                                return (int) ($order->is_refund ?? 0) === 1;
+                            $rowRefundOrders = collect($tour->booking ?? [])->filter(function ($order) use ($showDmcColumn) {
+                                if ((int) ($order->is_refund ?? 0) !== 1) {
+                                    return false;
+                                }
+                                // TravClicks: online services only
+                                if ($showDmcColumn) {
+                                    return strtolower(trim((string) ($order->order_type ?? ''))) === 'online';
+                                }
+                                return true;
                             });
                             // TravClicks tracks wallet credit to DMC; DMC tracks refund to agent.
                             $orderRefundDone = function ($order) use ($showDmcColumn) {
@@ -478,7 +485,7 @@
                                 $hasPendingRefund = $tour->tour_status === 'Refund - Pending';
                                 $hasRefunded = $tour->tour_status === 'Refunded';
                             } else {
-                                // Service cancel: unfinished for this viewer's refund layer keeps row Pending.
+                                // TravClicks / service cancel: unfinished online (or DMC service) refunds keep row Pending.
                                 $hasPendingRefund = $rowRefundOrders->contains(function ($order) use ($orderRefundDone) {
                                     return ! $orderRefundDone($order);
                                 });
@@ -593,7 +600,14 @@
                                     @endif
                                 </div>
                             </td>
-                            @if($tour->tour_status === 'Refund - Pending' || $tour->tour_status === 'Refunded')
+                            @php
+                                // TravClicks: always use per-service online refund UI (same as order cancel).
+                                // DMC: full-tour cancel badge when there are no service-level refund rows.
+                                $useDmcTourCancelRefundUi = ! $showDmcColumn
+                                    && in_array($tour->tour_status, ['Refund - Pending', 'Refunded'], true)
+                                    && $rowRefundOrders->isEmpty();
+                            @endphp
+                            @if($useDmcTourCancelRefundUi)
                             <td class="col-refund-status align-top">
                                 <div class="refund-status-stack">
                                 @if($tour->tour_status === 'Refund - Pending')
@@ -633,8 +647,15 @@
                                         'miscellaneous' => ['icon' => 'ri-list-check-2', 'label' => 'Miscellaneous'],
                                     ];
                                     $refundOrders = collect($tour->booking ?? [])
-                                        ->filter(function ($order) {
-                                            return (int)($order->is_refund ?? 0) === 1;
+                                        ->filter(function ($order) use ($showDmcColumn) {
+                                            if ((int) ($order->is_refund ?? 0) !== 1) {
+                                                return false;
+                                            }
+                                            // TravClicks: online cancelled services only (never full-tour / offline)
+                                            if ($showDmcColumn) {
+                                                return strtolower(trim((string) ($order->order_type ?? ''))) === 'online';
+                                            }
+                                            return true;
                                         })
                                         ->values();
 
@@ -690,6 +711,17 @@
                                                 ? (float) $refundOrder->hotel_cancellation_charge
                                                 : null;
                                             $hotelSummary = trim((string) ($refundOrder->hotel_cancellation_summary ?? ''));
+                                            $dmcWalletCurrency = $showDmcColumn
+                                                ? strtoupper(trim((string) ($refundOrder->dmc_wallet_currency ?? $tour->dmc_wallet_currency ?? '')))
+                                                : '';
+                                            $dmcWalletSgdRate = $showDmcColumn && $refundOrder->dmc_wallet_sgd_rate !== null
+                                                ? (float) $refundOrder->dmc_wallet_sgd_rate
+                                                : ($showDmcColumn && ($tour->dmc_wallet_sgd_rate ?? null) !== null
+                                                    ? (float) $tour->dmc_wallet_sgd_rate
+                                                    : null);
+                                            $sourceSgdRate = $showDmcColumn && $refundOrder->refund_source_sgd_rate !== null
+                                                ? (float) $refundOrder->refund_source_sgd_rate
+                                                : null;
                                             $serviceTooltip = $serviceMeta['label']
                                                 . ' ('
                                                 . ($isRefundCompleteForOrder
@@ -717,6 +749,11 @@
                                                 data-refund-suggested="{{ $hotelSuggested !== null ? number_format($hotelSuggested, 2, '.', '') : '' }}"
                                                 data-cancel-charge="{{ $hotelCharge !== null ? number_format($hotelCharge, 2, '.', '') : '' }}"
                                                 data-cancel-summary="{{ e($hotelSummary) }}"
+                                                @if($showDmcColumn && $dmcWalletCurrency !== '')
+                                                    data-dmc-wallet-currency="{{ $dmcWalletCurrency }}"
+                                                    data-dmc-wallet-sgd-rate="{{ $dmcWalletSgdRate !== null ? number_format($dmcWalletSgdRate, 8, '.', '') : '' }}"
+                                                    data-source-sgd-rate="{{ $sourceSgdRate !== null ? number_format($sourceSgdRate, 8, '.', '') : '' }}"
+                                                @endif
                                                 @if($isRefundCompleteForOrder)
                                                     disabled
                                                     aria-disabled="true"
@@ -751,7 +788,8 @@
                                        class="action-icon-badge" style="--action-color: #0369a1;" data-tooltip="Audit Trail">
                                         <i class="ri-eye-line"></i>
                                     </a>
-                                    @if($tour->tour_status === 'Refund - Pending')
+                                    {{-- TravClicks refunds online services only — never full-tour refund --}}
+                                    @if(! $showDmcColumn && $tour->tour_status === 'Refund - Pending')
                                         @php
                                             $tourRefundMax = (float) ($tour->tour_refund_max ?? 0);
                                             $tourRefundCurrency = trim((string) ($tour->tour_refund_currency ?? ($currency ?? '')));
@@ -764,8 +802,6 @@
                                                 data-tooltip="Process tour refund">
                                             <i class="ri-money-dollar-circle-line"></i>
                                         </button>
-                                    @else
-                                        <!-- <span class="badge bg-success" title="Already Refunded">✓ Refunded</span> -->
                                     @endif
                                 </div>
                             </td>
@@ -1390,6 +1426,9 @@ function processSingleOrderRefund(tourId, orderId, event) {
     const suggestedRaw = button?.dataset.refundSuggested;
     const cancelCharge = button?.dataset.cancelCharge;
     const cancelSummary = button?.dataset.cancelSummary || '';
+    const dmcWalletCurrency = (button?.dataset.dmcWalletCurrency || '').toUpperCase();
+    const dmcWalletSgdRate = parseFloat(button?.dataset.dmcWalletSgdRate || '');
+    const sourceSgdRate = parseFloat(button?.dataset.sourceSgdRate || '');
     const suggestedAmount = (suggestedRaw !== undefined && suggestedRaw !== '')
         ? parseFloat(suggestedRaw)
         : NaN;
@@ -1400,7 +1439,7 @@ function processSingleOrderRefund(tourId, orderId, event) {
             : (isFinite(maxAmount) ? maxAmount : 0));
 
     let initiateMessage = isTravclicksRefund
-        ? 'Enter the refund amount. This amount will be credited to the DMC wallet.'
+        ? 'Enter the refund amount. The converted DMC-currency amount below is credited to the DMC wallet.'
         : 'Enter the refund amount for this service. You can use the full price or a lower amount.';
     if (!initiated && cancelSummary) {
         initiateMessage = 'Hotel cancellation policy applied.<br><strong>Charge:</strong> '
@@ -1410,7 +1449,7 @@ function processSingleOrderRefund(tourId, orderId, event) {
             + (currency ? currency + ' ' : '')
             + (isFinite(suggestedAmount) ? suggestedAmount.toFixed(2) : startingAmount.toFixed(2))
             + '<br><span class="small">' + cancelSummary + '</span>'
-            + (isTravclicksRefund ? '<br><br>This amount will be credited to the DMC wallet.' : '');
+            + (isTravclicksRefund ? '<br><br>The converted DMC-currency amount below is credited to the DMC wallet.' : '');
     }
 
     const modalOptions = initiated
@@ -1421,7 +1460,7 @@ function processSingleOrderRefund(tourId, orderId, event) {
             currency: currency,
             amount: isFinite(parseFloat(savedAmount)) ? parseFloat(savedAmount) : 0,
             note: isTravclicksRefund
-                ? 'This will complete the refund and credit the amount to the DMC wallet.'
+                ? 'This will complete the refund and credit the converted amount to the DMC wallet.'
                 : null
         }
         : {
@@ -1435,7 +1474,11 @@ function processSingleOrderRefund(tourId, orderId, event) {
                 : 'You can refund this amount or less. It cannot be higher than the order price with markup.',
             note: isTravclicksRefund
                 ? 'This credits the DMC wallet only (TravClicks → DMC). DMC still refunds the agent separately.'
-                : null
+                : null,
+            showDmcWalletConversion: isTravclicksRefund && !!dmcWalletCurrency,
+            dmcWalletCurrency: dmcWalletCurrency,
+            dmcWalletSgdRate: isFinite(dmcWalletSgdRate) ? dmcWalletSgdRate : null,
+            sourceSgdRate: isFinite(sourceSgdRate) ? sourceSgdRate : null
         };
 
     showConfirmationModal(
@@ -1522,6 +1565,18 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
     const amountCurrency = options.currency || '';
     const priceLabel = options.priceLabel || 'Order price with markup';
     const helpText = options.helpText || 'You can refund this amount or less. It cannot be higher than the order price with markup.';
+    const showDmcWalletConversion = !!options.showDmcWalletConversion && !!(options.dmcWalletCurrency || '');
+    const dmcWalletCurrency = (options.dmcWalletCurrency || '').toUpperCase();
+    const dmcWalletSgdRate = options.dmcWalletSgdRate != null ? parseFloat(options.dmcWalletSgdRate) : NaN;
+    const sourceSgdRate = options.sourceSgdRate != null ? parseFloat(options.sourceSgdRate) : NaN;
+    const dmcConversionBlock = showDmcWalletConversion ? `
+                                <label class="form-label fw-semibold mb-1 mt-3">Amount to DMC wallet</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">${dmcWalletCurrency}</span>
+                                    <input type="text" class="form-control bg-light" id="dmcWalletCreditPreview" readonly tabindex="-1" value="">
+                                </div>
+                                <div class="form-text" id="dmcWalletCreditHelp">Converted country-wise via countries.current_rate. This amount is credited to the DMC wallet.</div>
+    ` : '';
     const amountBlock = verifyOnly ? `
                             <div class="alert alert-warning border-0 text-start mb-3" style="background-color: #fff7ed;">
                                 <strong>Refund already initiated</strong>
@@ -1538,6 +1593,7 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
                                     <input type="number" class="form-control" id="refundAmountInput" min="0" max="${maxAmount.toFixed(2)}" step="0.01" value="${Math.min(amountValue, maxAmount).toFixed(2)}" inputmode="decimal">
                                 </div>
                                 <div class="form-text">${helpText}</div>
+                                ${dmcConversionBlock}
                                 <div class="text-danger small mt-1 d-none" id="refundAmountError"></div>
                             </div>
     ` : '');
@@ -1673,6 +1729,56 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
     
     // Show modal
     $('#confirmationModal').modal('show');
+
+    const convertRefundToDmcWallet = function(sourceAmount) {
+        const amount = Math.max(0, parseFloat(sourceAmount) || 0);
+        const sourceCur = (amountCurrency || 'SGD').toUpperCase();
+        const targetCur = dmcWalletCurrency;
+        if (!targetCur) {
+            return { ok: false, text: '—', help: 'DMC wallet currency is not configured.' };
+        }
+        if (sourceCur === targetCur) {
+            return {
+                ok: true,
+                text: amount.toFixed(2),
+                help: 'Same currency as the refund amount. This amount is credited to the DMC wallet.'
+            };
+        }
+        if (!isFinite(sourceSgdRate) || sourceSgdRate <= 0) {
+            return {
+                ok: false,
+                text: 'Rate unavailable',
+                help: 'No countries.current_rate for ' + sourceCur + '. Sync currency rates before refunding.'
+            };
+        }
+        if (!isFinite(dmcWalletSgdRate) || dmcWalletSgdRate <= 0) {
+            return {
+                ok: false,
+                text: 'Rate unavailable',
+                help: 'No countries.current_rate for DMC currency ' + targetCur + '. Sync currency rates before refunding.'
+            };
+        }
+        const sgdAmount = sourceCur === 'SGD' ? amount : (amount / sourceSgdRate);
+        const creditAmount = targetCur === 'SGD' ? sgdAmount : (sgdAmount * dmcWalletSgdRate);
+        return {
+            ok: true,
+            text: creditAmount.toFixed(2),
+            help: 'Converted via countries.current_rate ('
+                + sourceCur + ' → SGD → ' + targetCur
+                + '). This amount is credited to the DMC wallet.'
+        };
+    };
+
+    const refreshDmcWalletPreview = function() {
+        if (!showDmcWalletConversion) return;
+        const input = document.getElementById('refundAmountInput');
+        const preview = document.getElementById('dmcWalletCreditPreview');
+        const help = document.getElementById('dmcWalletCreditHelp');
+        if (!preview) return;
+        const result = convertRefundToDmcWallet(input ? input.value : amountValue);
+        preview.value = result.text;
+        if (help) help.textContent = result.help;
+    };
     
     // Handle confirm button click
     $('#confirmButton').off('click').on('click', function() {
@@ -1695,6 +1801,13 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
                 showAmountError('Refund amount cannot be higher than the order price with markup.');
                 return;
             }
+            if (showDmcWalletConversion) {
+                const preview = convertRefundToDmcWallet(entered);
+                if (!preview.ok) {
+                    showAmountError(preview.help);
+                    return;
+                }
+            }
             if (error) error.classList.add('d-none');
             refundAmount = entered.toFixed(2);
         }
@@ -1710,7 +1823,9 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
             if (isFinite(entered) && entered - maxAmount > 0.009) {
                 this.value = maxAmount.toFixed(2);
             }
+            refreshDmcWalletPreview();
         });
+        refreshDmcWalletPreview();
     }
     
     // Clean up when modal is hidden

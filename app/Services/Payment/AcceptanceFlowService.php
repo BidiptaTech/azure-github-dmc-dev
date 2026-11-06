@@ -79,7 +79,7 @@ class AcceptanceFlowService
                     'negotiable_amount' => $offlineAmount,
                     'payable_now' => $onlineAmount,
                     'currency' => $currency,
-                    'button_label' => 'Pay online services',
+                    'button_label' => 'Pay now',
                     'hint' => 'Pay every online service first. Negotiation applies only to the offline total.',
                 ];
             }
