@@ -3784,7 +3784,7 @@ class HotelController extends Controller
     {
         try {
             $request->validate([
-                'refundpolicy' => 'required|string|max:1000',
+                'refundpolicy' => 'required|string',
             ]);
 
             $hotel = Hotel::where('hotel_unique_id', $request->hotel_id)->first();

@@ -681,50 +681,64 @@
         const cancellationOptions = document.getElementById('cancellation-options');
         const fieldsContainer = document.getElementById('cancellation-fields');
         let index = fieldsContainer ? fieldsContainer.querySelectorAll('.cancellation-rule').length : 0;
-        
-        if (cancellationType) {
-            cancellationType.addEventListener('change', function () {
-                cancellationOptions.style.display = this.value == '1' ? '' : 'none';
-            });
+        const isUnauthorized = {{ Auth::user()->role_id != 1 && Auth::user()->role_id != 20 ? 'true' : 'false' }};
+
+        function appendCancellationRule() {
+            if (!fieldsContainer) return;
+            if (isUnauthorized) {
+                alert('You do not have permission to add cancellation rules. Contact your administrator.');
+                return false;
+            }
+
+            const readonlyAttr = isUnauthorized ? 'readonly' : '';
+            const disabledAttr = isUnauthorized ? 'disabled' : '';
+            const fieldHTML = `
+                <div class="row mb-3 cancellation-rule" id="cancellation-rule-${index}">
+                    <div class="col-md-4">
+                        <label class="form-label"><strong>Duration</strong></label>
+                        <input type="text" class="form-control" name="cancellation_duration[]" placeholder="Enter Duration" ${readonlyAttr}>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label"><strong>Type</strong></label>
+                        <select class="form-select" name="type[]" ${disabledAttr}>
+                            <option value="">Select Type</option>
+                            <option value="flat">Flat</option>
+                            <option value="percentage">Percentage</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label"><strong>Price</strong></label>
+                        <input type="number" class="form-control" name="cancellation_price[]" placeholder="Enter Price" ${readonlyAttr}>
+                    </div>
+                    <div class="col-md-2" style="margin-top: 1.5rem">
+                        <button type="button" class="btn btn-danger" onclick="removeCancellationField(${index})" ${disabledAttr}>Delete</button>
+                    </div>
+                </div>`;
+            fieldsContainer.insertAdjacentHTML('beforeend', fieldHTML);
+            index++;
+            return true;
         }
-        
+
+        function ensureChargeableFieldsVisible() {
+            if (!cancellationOptions) return;
+            const isChargeable = cancellationType && cancellationType.value == '1';
+            cancellationOptions.style.display = isChargeable ? '' : 'none';
+            // First time Chargeable: show one empty Duration/Type/Price row + Add More below
+            if (isChargeable && fieldsContainer && fieldsContainer.querySelectorAll('.cancellation-rule').length === 0) {
+                appendCancellationRule();
+            }
+        }
+
+        if (cancellationType) {
+            cancellationType.addEventListener('change', ensureChargeableFieldsVisible);
+            // If page loads already on Chargeable with no saved rules, seed one row
+            ensureChargeableFieldsVisible();
+        }
+
         const addButton = document.getElementById('add-cancellation-field');
         if (addButton) {
             addButton.addEventListener('click', function () {
-                // Check user authorization
-                var isUnauthorized = {{ Auth::user()->role_id != 1 && Auth::user()->role_id != 20 ? 'true' : 'false' }};
-                if (isUnauthorized) {
-                    alert('You do not have permission to add cancellation rules. Contact your administrator.');
-                    return false;
-                }
-                
-                const readonlyAttr = isUnauthorized ? 'readonly' : '';
-                const disabledAttr = isUnauthorized ? 'disabled' : '';
-                
-                const fieldHTML = `
-                    <div class="row mb-3 cancellation-rule" id="cancellation-rule-${index}">
-                        <div class="col-md-4">
-                            <label class="form-label"><strong>Duration</strong></label>
-                            <input type="text" class="form-control" name="cancellation_duration[]" placeholder="Enter Duration" ${readonlyAttr}>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label"><strong>Type</strong></label>
-                            <select class="form-select" name="type[]" ${disabledAttr}>
-                                <option value="">Select Type</option>
-                                <option value="flat">Flat</option>
-                                <option value="percentage">Percentage</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label"><strong>Price</strong></label>
-                            <input type="number" class="form-control" name="cancellation_price[]" placeholder="Enter Price" ${readonlyAttr}>
-                        </div>
-                        <div class="col-md-2" style="margin-top: 1.5rem">
-                            <button type="button" class="btn btn-danger" onclick="removeCancellationField(${index})" ${disabledAttr}>Delete</button>
-                        </div>
-                    </div>`;
-                fieldsContainer.insertAdjacentHTML('beforeend', fieldHTML);
-                index++; // Increment the index for the next field
+                appendCancellationRule();
             });
         }
     });
