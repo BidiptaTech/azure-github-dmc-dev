@@ -20,117 +20,136 @@ import PickUpDrop from "./PickUpDrop";
 import LocalTransfer from "./LocalTransfer";
 import TourGuide from "./TourGuide";
 
+const quietProp = {
+  shouldForwardProp: (prop) => prop !== "categorycolor" && prop !== "quiet",
+};
+
 // Styled components for customized Accordion
-const StyledAccordion = styled(Accordion)(
-  ({ theme, expanded, categorycolor }) => ({
-    margin: "10px 0 !important",
-    borderRadius: "8px !important",
-    overflow: "hidden",
-    boxShadow: expanded
+const StyledAccordion = styled(
+  Accordion,
+  quietProp
+)(({ expanded, categorycolor, quiet }) => ({
+  margin: "10px 0 !important",
+  borderRadius: quiet ? "12px !important" : "8px !important",
+  overflow: "hidden",
+  boxShadow: quiet
+    ? "none"
+    : expanded
       ? `0 8px 16px rgba(${categorycolor}, 0.2)`
       : "0 2px 6px rgba(0, 0, 0, 0.05)",
-    transition: "all 0.3s ease-in-out",
-    border: expanded
+  transition: "all 0.3s ease-in-out",
+  border: quiet
+    ? "1px solid #e5eaf3"
+    : expanded
       ? `1px solid rgba(${categorycolor}, 0.3)`
       : "1px solid rgba(0, 0, 0, 0.05)",
-    "&:hover": {
-      boxShadow: `0 6px 18px rgba(${categorycolor}, 0.25)`,
-      transform: expanded ? "none" : "translateY(-2px)",
-    },
-    "&:before": {
-      display: "none",
-    },
-  })
-);
+  "&:hover": quiet
+    ? { boxShadow: "none", transform: "none" }
+    : {
+        boxShadow: `0 6px 18px rgba(${categorycolor}, 0.25)`,
+        transform: expanded ? "none" : "translateY(-2px)",
+      },
+  "&:before": {
+    display: "none",
+  },
+}));
 
-const StyledAccordionSummary = styled(AccordionSummary)(
-  ({ theme, categorycolor }) => ({
-    padding: "0 16px",
-    minHeight: "56px !important",
-    transition: "background-color 0.3s ease",
-    background: `linear-gradient(135deg, rgba(${categorycolor}, 0.8) 0%, rgba(${categorycolor}, 0.65) 100%)`,
-    "& .MuiAccordionSummary-content": {
-      margin: "8px 0 !important",
-      alignItems: "center",
-      flexGrow: 0.95,
-    },
-    "& .MuiAccordionSummary-expandIconWrapper": {
-      position: "absolute",
-      right: "12px",
-    },
-  })
-);
+const StyledAccordionSummary = styled(
+  AccordionSummary,
+  quietProp
+)(({ categorycolor, quiet }) => ({
+  padding: "0 16px",
+  minHeight: "56px !important",
+  transition: "background-color 0.3s ease",
+  background: quiet
+    ? "#f7f9fd"
+    : `linear-gradient(135deg, rgba(${categorycolor}, 0.8) 0%, rgba(${categorycolor}, 0.65) 100%)`,
+  "& .MuiAccordionSummary-content": {
+    margin: "8px 0 !important",
+    alignItems: "center",
+    flexGrow: 0.95,
+  },
+  "& .MuiAccordionSummary-expandIconWrapper": {
+    position: "absolute",
+    right: "12px",
+  },
+}));
 
-const IconWrapper = styled(Box)(({ theme }) => ({
+const IconWrapper = styled(Box, quietProp)(({ quiet }) => ({
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  backgroundColor: "rgba(255, 255, 255, 0.2)",
+  backgroundColor: quiet ? "#eaf0ff" : "rgba(255, 255, 255, 0.2)",
   borderRadius: "50%",
   padding: "6px",
   marginRight: "12px",
   width: "30px",
   height: "30px",
   transition: "transform 0.3s ease, background-color 0.3s ease",
-  "&:hover": {
-    transform: "rotate(10deg)",
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
-  },
+  "&:hover": quiet
+    ? { transform: "none", backgroundColor: "#eaf0ff" }
+    : {
+        transform: "rotate(10deg)",
+        backgroundColor: "rgba(255, 255, 255, 0.3)",
+      },
 }));
 
-const StyledAccordionDetails = styled(AccordionDetails)(
-  ({ theme, categorycolor }) => ({
-    padding: "16px",
-    backgroundColor: "white",
-    position: "relative",
-    overflow: "hidden",
-    "&:before": {
-      content: '""',
-      position: "absolute",
-      top: 0,
-      left: 0,
-      width: "100%",
-      height: "3px",
-      background: `linear-gradient(90deg, rgba(${categorycolor}, 0.7) 0%, rgba(${categorycolor}, 0.2) 100%)`,
-    },
-  })
-);
+const StyledAccordionDetails = styled(
+  AccordionDetails,
+  quietProp
+)(({ categorycolor, quiet }) => ({
+  padding: "16px",
+  backgroundColor: "white",
+  position: "relative",
+  overflow: "hidden",
+  "&:before": quiet
+    ? { display: "none" }
+    : {
+        content: '""',
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: "100%",
+        height: "3px",
+        background: `linear-gradient(90deg, rgba(${categorycolor}, 0.7) 0%, rgba(${categorycolor}, 0.2) 100%)`,
+      },
+}));
 
-const CategoryBadge = styled(Box)(({ theme, categorycolor }) => ({
+const CategoryBadge = styled(Box, quietProp)(({ quiet }) => ({
   position: "absolute",
   right: "48px",
   top: "50%",
   transform: "translateY(-50%)",
-  backgroundColor: "rgba(255, 255, 255, 0.3)",
-  borderRadius: "12px",
-  padding: "2px 8px",
+  backgroundColor: quiet ? "#edf1ff" : "rgba(255, 255, 255, 0.3)",
+  borderRadius: "5px",
+  padding: "4px 8px",
   fontSize: "10px",
-  fontWeight: "bold",
-  color: "white",
-  letterSpacing: "0.5px",
+  fontWeight: "700",
+  color: quiet ? "#234adc" : "white",
+  letterSpacing: "0.04em",
   textTransform: "uppercase",
-  boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+  boxShadow: quiet ? "none" : "0 2px 4px rgba(0,0,0,0.1)",
 }));
 
-const CategoryCountBadge = styled(Box)(({ theme, categorycolor }) => ({
-  backgroundColor: "rgba(255, 255, 255, 0.2)",
+const CategoryCountBadge = styled(Box, quietProp)(({ quiet }) => ({
+  backgroundColor: quiet ? "#234adc" : "rgba(255, 255, 255, 0.2)",
   borderRadius: "50px",
   padding: "2px 6px",
   fontSize: "12px",
-  fontWeight: "bold",
+  fontWeight: "700",
   color: "white",
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
   minWidth: "24px",
   height: "24px",
-  boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-  marginLeft: "4px",
-  marginTop: "-12px",
+  boxShadow: quiet ? "none" : "0 2px 4px rgba(0,0,0,0.1)",
+  marginLeft: "8px",
+  marginTop: "0",
   verticalAlign: "middle",
 }));
 
-export default function CategoriesAccordion() {
+export default function CategoriesAccordion({ embedded = false }) {
   const [expanded, setExpanded] = useState(false);
   const [counts, setCounts] = useState({
     hotels: 0,
@@ -241,13 +260,20 @@ export default function CategoriesAccordion() {
 
   return (
     <div
-      style={{
-        width: "95%",
-        margin: "20px auto",
-        position: "relative",
-        zIndex: 1,
-      }}
+      className={embedded ? "partner-tour-services" : undefined}
+      style={
+        embedded
+          ? { width: "100%", margin: "8px 0 0", position: "relative", zIndex: 1 }
+          : {
+              width: "95%",
+              margin: "20px auto",
+              position: "relative",
+              zIndex: 1,
+            }
+      }
     >
+      {embedded ? null : (
+      <>
       {/* Background decorative elements - make smaller */}
       <div
         style={{
@@ -304,6 +330,8 @@ export default function CategoriesAccordion() {
       >
         Tour Services
       </Typography>
+      </>
+      )}
 
       {categories.map((category, index) => (
         <motion.div
@@ -316,18 +344,28 @@ export default function CategoriesAccordion() {
             expanded={expanded === `panel${index}`}
             onChange={handleChange(`panel${index}`)}
             categorycolor={category.color}
+            quiet={embedded}
           >
             <StyledAccordionSummary
               expandIcon={
-                <ExpandMoreIcon sx={{ color: "white", fontSize: "22px" }} />
+                <ExpandMoreIcon
+                  sx={{
+                    color: embedded ? "#748097" : "white",
+                    fontSize: "22px",
+                  }}
+                />
               }
               aria-controls={`panel${index}-content`}
               id={`panel${index}-header`}
               categorycolor={category.color}
+              quiet={embedded}
             >
-              <IconWrapper>
+              <IconWrapper quiet={embedded}>
                 {React.cloneElement(category.icon, {
-                  sx: { fontSize: "18px", color: "white" },
+                  sx: {
+                    fontSize: "18px",
+                    color: embedded ? "#234adc" : "white",
+                  },
                 })}
               </IconWrapper>
               <Box
@@ -343,25 +381,25 @@ export default function CategoriesAccordion() {
                   <Typography
                     variant="subtitle1"
                     sx={{
-                      color: "white",
-                      fontWeight: "600",
-                      letterSpacing: "0.5px",
-                      textShadow: "0 1px 2px rgba(0,0,0,0.2)",
+                      color: embedded ? "#192944" : "white",
+                      fontWeight: "700",
+                      letterSpacing: embedded ? "0" : "0.5px",
+                      textShadow: embedded ? "none" : "0 1px 2px rgba(0,0,0,0.2)",
                       fontSize: "1rem",
                     }}
                   >
                     {category.name}
                   </Typography>
-                  <CategoryCountBadge categorycolor={category.color}>
+                  <CategoryCountBadge quiet={embedded}>
                     {counts[category.countKey]}
                   </CategoryCountBadge>
                 </Box>
               </Box>
-              <CategoryBadge categorycolor={category.color}>
+              <CategoryBadge quiet={embedded}>
                 {category.badge}
               </CategoryBadge>
             </StyledAccordionSummary>
-            <StyledAccordionDetails categorycolor={category.color}>
+            <StyledAccordionDetails categorycolor={category.color} quiet={embedded}>
               {category.content}
             </StyledAccordionDetails>
           </StyledAccordion>
