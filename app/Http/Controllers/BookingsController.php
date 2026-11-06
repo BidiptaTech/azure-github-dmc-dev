@@ -1044,6 +1044,8 @@ class BookingsController extends Controller
                     $order->setAttribute('hotel_suggested_refund', $calc['suggested_refund']);
                     $order->setAttribute('hotel_cancellation_summary', $calc['summary']);
                     $order->setAttribute('hotel_cancellation_free', $calc['free'] ? 1 : 0);
+                    $order->setAttribute('hotel_refund_policy', (string) ($calc['refund_policy'] ?? ''));
+                    $order->setAttribute('hotel_refund_policy_name', (string) ($calc['hotel_name'] ?? ''));
                     // Prefer policy suggested refund as the default initiate amount when lower.
                     if (! $calc['free'] && $calc['suggested_refund'] >= 0 && $calc['suggested_refund'] <= $priced['amount']) {
                         $order->setAttribute('refund_suggested_amount', $calc['suggested_refund']);
@@ -3992,6 +3994,16 @@ class BookingsController extends Controller
                 $order->updated_at = now();
                 $order->save();
 
+                $fromStatus = (string) ($tour->tour_status ?? 'Definite');
+                $this->appendServiceRefundStatusTrack(
+                    $tour,
+                    $order,
+                    $fromStatus,
+                    'Refund - Pending',
+                    'TravClicks Refunded',
+                    $refundAmount
+                );
+
                 return response()->json([
                     'success' => true,
                     'message' => (string) ($walletCredit['message'] ?? 'Refunded to DMC wallet. DMC can still refund the agent separately.'),
@@ -4016,6 +4028,15 @@ class BookingsController extends Controller
                 $order->refunded = true;
                 $order->updated_at = now();
                 $order->save();
+
+                $this->appendServiceRefundStatusTrack(
+                    $tour,
+                    $order,
+                    'Refund - Pending',
+                    'Refunded',
+                    'Refund Verified',
+                    $order->refund_amount
+                );
 
                 return response()->json([
                     'success' => true,
@@ -4051,6 +4072,16 @@ class BookingsController extends Controller
             $order->refunded = false;
             $order->updated_at = now();
             $order->save();
+
+            $fromStatus = (string) ($tour->tour_status ?? 'Definite');
+            $this->appendServiceRefundStatusTrack(
+                $tour,
+                $order,
+                $fromStatus,
+                'Refund - Pending',
+                'Refund Initiated',
+                $refundAmount
+            );
 
             return response()->json([
                 'success' => true,
@@ -4320,8 +4351,10 @@ class BookingsController extends Controller
     public function viewTour($encryptedId)
     {
         $tourId = Crypt::decrypt($encryptedId);
-        $tour = Tour::where('tour_id', $tourId)->firstOrFail();
-        
+        $tour = Tour::with('agent')
+            ->where('tour_id', $tourId)
+            ->firstOrFail();
+
         // Parse payment details if exists
         if ($tour->payment_details) {
             try {
@@ -4333,7 +4366,301 @@ class BookingsController extends Controller
             $tour->parsed_payment_details = [];
         }
 
-        return view('bookings.view-tour', compact('tour'));
+        // Ensure per-service remove → refund initiate → refunded appear in Status History
+        $history = [];
+        $rawTrack = $tour->track_details ?? null;
+        if (! empty($rawTrack)) {
+            $decoded = is_array($rawTrack) ? $rawTrack : json_decode($rawTrack, true);
+            if (is_array($decoded)) {
+                $history = $decoded;
+            }
+        }
+        $tour->track_details = json_encode($this->enrichTrackDetailsWithServiceRefunds($tour, $history));
+
+        $tourOrders = Order::withTrashed()
+            ->where('tour_id', $tourId)
+            ->orderByRaw('CASE WHEN deleted_at IS NULL THEN 0 ELSE 1 END')
+            ->orderBy('id')
+            ->get();
+
+        return view('bookings.view-tour', compact('tour', 'tourOrders'));
+    }
+
+    /**
+     * Resolve service type/id/name for status-history entries from an order payload.
+     *
+     * @return array{0:?string,1:?string,2:?string}
+     */
+    private function resolveOrderTrackServiceMeta(Order $order): array
+    {
+        $payload = is_array($order->data) && isset($order->data[0])
+            ? $order->data[0]
+            : (is_array($order->data) ? $order->data : []);
+        if (! is_array($payload)) {
+            $payload = [];
+        }
+
+        $serviceType = trim((string) ($order->type ?? '')) ?: null;
+        $serviceId = null;
+        $serviceName = null;
+
+        if ($serviceType === 'hotel') {
+            $serviceId = $payload['hotelDetails']['hotel_id'] ?? $payload['hotel_id'] ?? null;
+            $serviceName = $payload['hotelDetails']['hotel_name'] ?? $payload['hotel_name'] ?? null;
+        } elseif ($serviceType === 'guide') {
+            $serviceId = $payload['guide_id'] ?? null;
+            $serviceName = $payload['guide_name'] ?? $payload['guideName'] ?? null;
+        } elseif ($serviceType === 'restaurant') {
+            $serviceId = $payload['restaurant_id'] ?? null;
+            $serviceName = $payload['restaurantName'] ?? $payload['restaurant_name'] ?? null;
+        } elseif ($serviceType === 'attraction') {
+            $serviceId = $payload['attraction_id'] ?? null;
+            $serviceName = $payload['AttractionName'] ?? $payload['attraction_name'] ?? null;
+        } elseif (in_array($serviceType, ['entry_port', 'exit_port', 'travel_hourly', 'travel_point', 'local_transport'], true)) {
+            $serviceId = $payload['vehicle_id'] ?? $payload['vehicles_id'] ?? null;
+            $serviceName = $payload['vehicles_name'] ?? $payload['vehicle_name'] ?? $serviceType;
+        } else {
+            $serviceName = $this->resolveNegotiationServiceName((string) ($serviceType ?? 'service'), $payload, 1);
+        }
+
+        if ($serviceName === null || $serviceName === '') {
+            $serviceName = $this->resolveNegotiationServiceName((string) ($serviceType ?? 'service'), $payload, 1);
+        }
+
+        return [
+            $serviceType,
+            $serviceId !== null && $serviceId !== '' ? (string) $serviceId : null,
+            $serviceName !== null && $serviceName !== '' ? (string) $serviceName : null,
+        ];
+    }
+
+    /**
+     * Append a service refund lifecycle entry into tour track_details.
+     */
+    private function appendServiceRefundStatusTrack(
+        ?Tour $tour,
+        Order $order,
+        string $fromStatus,
+        string $toStatus,
+        string $action,
+        $refundAmount = null,
+        $changedAt = null
+    ): void {
+        if (! $tour) {
+            return;
+        }
+
+        [$serviceType, $serviceId, $serviceName] = $this->resolveOrderTrackServiceMeta($order);
+        $user = Auth::user();
+        $changedByName = $user ? ($user->name ?? null) : null;
+        $changedByUserId = $user ? ($user->userId ?? $user->id ?? null) : null;
+        $currency = strtoupper(trim((string) (
+            $order->currency
+            ?: $order->refund_price_currency
+            ?: $tour->user_currency
+            ?: ''
+        )));
+
+        CommonHelper::appendTourStatusTrack(
+            $tour,
+            $fromStatus,
+            $toStatus,
+            $changedAt ?? now(),
+            $refundAmount,
+            null,
+            null,
+            $changedByName,
+            $changedByUserId,
+            $action,
+            $serviceType,
+            $serviceId ?? (string) $order->id,
+            $serviceName,
+            $refundAmount,
+            $currency !== '' ? $currency : null,
+            null,
+            null
+        );
+    }
+
+    /**
+     * Merge missing service-removed / refund-initiated / refunded events from refund orders
+     * into track_details so Status History shows the full per-service refund lifecycle.
+     */
+    private function enrichTrackDetailsWithServiceRefunds(Tour $tour, array $history): array
+    {
+        $orders = Order::withTrashed()
+            ->where('tour_id', $tour->tour_id)
+            ->where('is_refund', 1)
+            ->get();
+
+        if ($orders->isEmpty()) {
+            return $history;
+        }
+
+        $tourStatus = (string) ($tour->tour_status ?? 'Definite');
+        // Per-service refunds keep the tour status (e.g. Definite); use that as the baseline.
+        $baselineStatus = in_array($tourStatus, ['Refund - Pending', 'Refunded'], true)
+            ? 'Definite'
+            : ($tourStatus !== '' ? $tourStatus : 'Definite');
+
+        foreach ($orders as $order) {
+            [$serviceType, $serviceId, $serviceName] = $this->resolveOrderTrackServiceMeta($order);
+            $currency = strtoupper(trim((string) ($order->currency ?: $tour->user_currency ?: '')));
+            $refundAmount = $order->refund_amount !== null && $order->refund_amount !== ''
+                ? (float) $order->refund_amount
+                : null;
+            $isVerified = (bool) ($order->refunded ?? false) || (int) ($order->is_verify ?? 0) === 1;
+            $isInitiated = $isVerified || (int) ($order->is_verify ?? 0) === 2;
+
+            if ($order->deleted_at && ! $this->historyHasServiceRefundEvent($history, $serviceName, $serviceId, ['deleted', 'Service Removed'])) {
+                $history[] = $this->makeServiceRefundHistoryEntry(
+                    $baselineStatus,
+                    $baselineStatus,
+                    $order->deleted_at,
+                    'deleted',
+                    $serviceType,
+                    $serviceId ?? (string) $order->id,
+                    $serviceName,
+                    null,
+                    $currency
+                );
+            }
+
+            if ($isInitiated && ! $this->historyHasServiceRefundEvent($history, $serviceName, $serviceId, ['Refund Initiated'])) {
+                $initiateAt = $isVerified
+                    ? Carbon::parse($order->updated_at ?? now())->subSecond()
+                    : ($order->updated_at ?? now());
+                if ($order->deleted_at && ! $isVerified) {
+                    $deletedAt = Carbon::parse($order->deleted_at);
+                    $candidate = Carbon::parse($initiateAt);
+                    if ($candidate->lte($deletedAt)) {
+                        $initiateAt = $deletedAt->copy()->addSecond();
+                    }
+                }
+
+                $history[] = $this->makeServiceRefundHistoryEntry(
+                    $baselineStatus,
+                    'Refund - Pending',
+                    $initiateAt,
+                    'Refund Initiated',
+                    $serviceType,
+                    $serviceId ?? (string) $order->id,
+                    $serviceName,
+                    $refundAmount,
+                    $currency
+                );
+            }
+
+            if ($isVerified && ! $this->historyHasServiceRefundEvent($history, $serviceName, $serviceId, ['Refund Verified'])) {
+                $history[] = $this->makeServiceRefundHistoryEntry(
+                    'Refund - Pending',
+                    'Refunded',
+                    $order->updated_at ?? now(),
+                    'Refund Verified',
+                    $serviceType,
+                    $serviceId ?? (string) $order->id,
+                    $serviceName,
+                    $refundAmount,
+                    $currency
+                );
+            }
+        }
+
+        usort($history, function ($a, $b) {
+            $ad = $a['date'] ?? null;
+            $bd = $b['date'] ?? null;
+            if ($ad === $bd) {
+                return 0;
+            }
+            if (! $ad) {
+                return -1;
+            }
+            if (! $bd) {
+                return 1;
+            }
+
+            return strtotime((string) $ad) <=> strtotime((string) $bd);
+        });
+
+        return $history;
+    }
+
+    /**
+     * @param  list<string>  $actions
+     */
+    private function historyHasServiceRefundEvent(array $history, ?string $serviceName, ?string $serviceId, array $actions): bool
+    {
+        foreach ($history as $entry) {
+            if (! is_array($entry)) {
+                continue;
+            }
+            $action = (string) ($entry['action'] ?? '');
+            if (! in_array($action, $actions, true)) {
+                // Also treat plain status moves without action when service matches
+                $to = (string) ($entry['to'] ?? '');
+                if (! (in_array('Refund Initiated', $actions, true) && $to === 'Refund - Pending')
+                    && ! (in_array('Refund Verified', $actions, true) && $to === 'Refunded')) {
+                    continue;
+                }
+            }
+
+            $entryName = (string) ($entry['service_name'] ?? $entry['hotel_name'] ?? '');
+            $entryId = (string) ($entry['service_id'] ?? $entry['hotel_id'] ?? '');
+            if ($serviceName && $entryName !== '' && strcasecmp($entryName, $serviceName) === 0) {
+                return true;
+            }
+            if ($serviceId && $entryId !== '' && $entryId === (string) $serviceId) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function makeServiceRefundHistoryEntry(
+        string $from,
+        string $to,
+        $date,
+        string $action,
+        ?string $serviceType,
+        ?string $serviceId,
+        ?string $serviceName,
+        $refundAmount,
+        ?string $currency
+    ): array {
+        $dateString = $date instanceof Carbon
+            ? $date->format('Y-m-d H:i:s')
+            : (string) $date;
+
+        $entry = [
+            'from' => $from,
+            'to' => $to,
+            'date' => $dateString,
+            'amount' => $refundAmount !== null ? (float) $refundAmount : null,
+            'comment' => null,
+            'actual_amount' => null,
+            'changed_by_name' => null,
+            'changed_by_user_id' => null,
+            'action' => $action,
+        ];
+
+        if ($serviceType) {
+            $entry['service_type'] = $serviceType;
+        }
+        if ($serviceId) {
+            $entry['service_id'] = (string) $serviceId;
+        }
+        if ($serviceName) {
+            $entry['service_name'] = $serviceName;
+        }
+        if ($refundAmount !== null) {
+            $entry['sgd_amount'] = (float) $refundAmount;
+        }
+        if ($currency) {
+            $entry['selected_currency'] = $currency;
+        }
+
+        return $entry;
     }
 
     /**
