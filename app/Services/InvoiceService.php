@@ -17,6 +17,66 @@ use Carbon\Carbon;
 class InvoiceService
 {
     /**
+     * Post-Prospect statuses that may have invoices.
+     *
+     * @return list<string>
+     */
+    public static function invoiceEligibleStatuses(): array
+    {
+        return ['Tentative', 'Confirmed', 'Definite', 'Actual'];
+    }
+
+    /**
+     * Ensure a tour has the correct invoice after Prospect.
+     *
+     * - Tentative / Confirmed → proforma (create if missing)
+     * - Definite / Actual → final (convert proforma or create final if missing)
+     * - Prospect / earlier → throws
+     *
+     * Custom DMC HTML/CSS templates are applied at PDF render time via InvoicePdfService.
+     *
+     * @param  int  $tourId
+     * @return Invoice
+     */
+    public function ensureInvoiceForTour($tourId, array $data = []): Invoice
+    {
+        $tour = Tour::where('tour_id', $tourId)->first();
+        if (! $tour) {
+            throw new \Exception('Tour not found');
+        }
+
+        $status = (string) ($tour->tour_status ?? '');
+        if (! in_array($status, self::invoiceEligibleStatuses(), true)) {
+            throw new \Exception(
+                'Invoice is only available after Prospect (Tentative, Confirmed, Definite, or Actual). Current status: '
+                .($status !== '' ? $status : 'N/A')
+            );
+        }
+
+        $existing = Invoice::where('tour_id', $tourId)
+            ->whereNull('deleted_at')
+            ->orderByDesc('invoice_id')
+            ->first();
+
+        if ($existing) {
+            if (
+                in_array($status, ['Definite', 'Actual'], true)
+                && $existing->invoice_type === 'proforma'
+            ) {
+                return $this->convertToFinalInvoice($existing->invoice_id);
+            }
+
+            return $existing->loadMissing(['tour', 'agent.agency', 'dmc', 'items']);
+        }
+
+        if (in_array($status, ['Tentative', 'Confirmed'], true)) {
+            return $this->generateProformaInvoice($tourId, $data);
+        }
+
+        return $this->generateFinalInvoiceForTour($tourId, $data);
+    }
+
+    /**
      * Generate Proforma Invoice at TENTATIVE stage
      * 
      * @param int $tourId
