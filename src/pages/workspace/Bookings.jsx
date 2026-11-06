@@ -1,12 +1,17 @@
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import PartnerTourBookings from "@/components/workspace/PartnerTourBookings";
 import { appPath } from "@/utils/appPaths";
 
 export default function Bookings() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [seedTour] = useState(() => location.state?.openTour || null);
+  const [detailOpen, setDetailOpen] = useState(Boolean(seedTour));
 
   return (
     <div>
+      {detailOpen ? null : (
       <div className="partner-hero">
         <div>
           <div className="partner-kicker">Booking management</div>
@@ -23,9 +28,17 @@ export default function Bookings() {
           + New booking
         </button>
       </div>
+      )}
 
-      <section className="partner-card partner-tour-bookings-card">
-        <PartnerTourBookings />
+      <section
+        className={
+          detailOpen ? undefined : "partner-card partner-tour-bookings-card"
+        }
+      >
+        <PartnerTourBookings
+          initialTour={seedTour}
+          onDetailChange={setDetailOpen}
+        />
       </section>
     </div>
   );

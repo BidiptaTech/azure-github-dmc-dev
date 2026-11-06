@@ -585,6 +585,23 @@
   color: var(--pw-muted, #748097);
 }
 
+.pw-filters .pw-dmc-filter__search .MuiOutlinedInput-root {
+  border-radius: 8px;
+  background: #fff;
+  font-size: 12.5px;
+}
+
+.pw-filters .pw-dmc-filter__search .MuiOutlinedInput-input {
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+
+.pw-filters .pw-dmc-filter__list {
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
 .pw-results-head {
   display: flex;
   align-items: baseline;

@@ -13,13 +13,13 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import UpdateOutlinedIcon from "@mui/icons-material/UpdateOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import { fetchLists, setTourType } from "@/slice/common/TourlistSlice";
-import { fetchViewDetails } from "@/slice/common/ViewDetails";
-import TourDetailsModal from "@/components/dashboard/dashboard/db-dashboard/components/TourDetailsModal";
+import { fetchViewDetails, clearViewDetails } from "@/slice/common/ViewDetails";
 import CustomPaymentTooltip from "@/components/dashboard/dashboard/db-dashboard/components/CustomTooltip";
+import PartnerBookingDetail from "@/components/workspace/PartnerBookingDetail";
+import { appPath } from "@/utils/appPaths";
 import {
   canAddMoreServices,
   canCancelTour,
@@ -173,6 +173,8 @@ export default function PartnerTourBookings({
   embedded = false,
   limit = null,
   showFilters = true,
+  initialTour = null,
+  onDetailChange,
 } = {}) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -184,16 +186,16 @@ export default function PartnerTourBookings({
     error,
   } = useSelector((state) => state.lists);
   const userCountry = useSelector((state) => state.auth.user_country);
+  const userRole = useSelector((state) => state.auth.userRole);
   const [actionBusy, setActionBusy] = useState(false);
 
   const [tab, setTab] = useState("upcoming");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [refreshing, setRefreshing] = useState(false);
-  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [detailTour, setDetailTour] = useState(initialTour);
   const [markupAmount, setMarkupAmount] = useState(0);
   const [discountAmount, setDiscountAmount] = useState(0);
-  const [bookingType1, setBookingType1] = useState(null);
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [menuTour, setMenuTour] = useState(null);
 
@@ -211,6 +213,19 @@ export default function PartnerTourBookings({
       .catch(() => {})
       .finally(() => setRefreshing(false));
   }, [tab, load]);
+
+  useEffect(() => {
+    onDetailChange?.(Boolean(detailTour) && !embedded);
+  }, [detailTour, embedded, onDetailChange]);
+
+  useEffect(() => {
+    if (!initialTour?.id || embedded) return;
+    setDetailTour(initialTour);
+    setMarkupAmount(0);
+    setDiscountAmount(0);
+    dispatch(clearViewDetails());
+    dispatch(fetchViewDetails({ tour_id: initialTour.id }));
+  }, [initialTour, embedded, dispatch]);
 
   const sourceList = useMemo(() => {
     const meta = STATUS_TABS.find((item) => item.id === tab);
@@ -244,15 +259,25 @@ export default function PartnerTourBookings({
 
   const handleViewDetails = async (tour) => {
     closeActionMenu();
-    setBookingType1(tour.booking_type || null);
+    if (!tour?.id) return;
+    if (embedded) {
+      navigate(appPath("bookings"), { state: { openTour: tour } });
+      return;
+    }
     setMarkupAmount(0);
     setDiscountAmount(0);
-    setIsModalVisible(true);
+    setDetailTour(tour);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    dispatch(clearViewDetails());
     try {
       await dispatch(fetchViewDetails({ tour_id: tour.id })).unwrap();
     } catch {
-      /* ViewDetails slice holds error; modal still shows loading/empty */
+      /* ViewDetails slice holds error; detail page still shows the booking */
     }
+  };
+
+  const handleBackToList = () => {
+    setDetailTour(null);
   };
 
   const handleAddMoreServices = async (tour) => {
@@ -299,14 +324,65 @@ export default function PartnerTourBookings({
     }
   };
 
-  const handleCloseModal = () => {
-    setIsModalVisible(false);
-    setBookingType1(null);
-  };
-
   const handlePrint = () => {
     window.print();
   };
+
+  const viewStatus = useSelector((state) => state.viewDetails.status);
+
+  if (detailTour && !embedded) {
+    const checkIn = formatDate(detailTour.check_in_time || detailTour.check_in);
+    const checkOut = formatDate(
+      detailTour.check_out_time || detailTour.check_out
+    );
+    const dates =
+      checkIn && checkOut ? `${checkIn} — ${checkOut}` : checkIn || checkOut;
+    const destination =
+      detailTour.destination || detailTour.country || "Destination TBC";
+    const pax = Number(detailTour.total_pax || detailTour.pax || 0);
+    const meta = [
+      destination,
+      dates,
+      pax ? `${pax} traveller${pax === 1 ? "" : "s"}` : null,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    const paid = Number(detailTour.paidAmount ?? detailTour.paid_amount ?? 0);
+    const outstanding = outstandingAmount(detailTour);
+
+    return (
+      <PartnerBookingDetail
+        tour={detailTour}
+        badge={statusMeta(detailTour)}
+        reference={
+          detailTour.display_id ||
+          (detailTour.id ? `TC-${detailTour.id}` : "Booking")
+        }
+        title={
+          detailTour.customer_name ||
+          detailTour.tour_name ||
+          "Untitled booking"
+        }
+        meta={meta}
+        totalLabel={formatMoney(totalAmount(detailTour))}
+        paidLabel={formatMoney(Number.isFinite(paid) ? paid : 0)}
+        outstanding={outstanding}
+        outstandingLabel={formatMoney(outstanding)}
+        userRole={userRole}
+        markupAmount={markupAmount}
+        setMarkupAmount={setMarkupAmount}
+        discountAmount={discountAmount}
+        setDiscountAmount={setDiscountAmount}
+        onBack={handleBackToList}
+        onPrint={handlePrint}
+        onAddServices={() => handleAddMoreServices(detailTour)}
+        onUpdatePlan={() => handleUpdateTourPlan(detailTour)}
+        onCancel={() => handleCancelTour(detailTour)}
+        actionBusy={actionBusy}
+        loading={viewStatus === "loading"}
+      />
+    );
+  }
 
   if (status === "loading" && (!sourceList || sourceList.length === 0)) {
     return (
@@ -477,11 +553,10 @@ export default function PartnerTourBookings({
                         <button
                           type="button"
                           className="partner-link partner-bookings-table__manage"
-                          onClick={(event) => openActionMenu(event, tour)}
+                          onClick={() => handleViewDetails(tour)}
                           disabled={actionBusy}
                         >
-                          Manage
-                          <KeyboardArrowDownIcon fontSize="inherit" />
+                          Manage →
                         </button>
                         <IconButton
                           size="small"
@@ -552,17 +627,6 @@ export default function PartnerTourBookings({
         ) : null}
       </Menu>
 
-      <TourDetailsModal
-        isModalVisible={isModalVisible}
-        handleCloseModal={handleCloseModal}
-        markupAmount={markupAmount}
-        setMarkupAmount={setMarkupAmount}
-        discountAmount={discountAmount}
-        setDiscountAmount={setDiscountAmount}
-        handlePrint={handlePrint}
-        bookingType1={bookingType1}
-        handleOpenEnquiryModal={() => {}}
-      />
     </div>
   );
 }
