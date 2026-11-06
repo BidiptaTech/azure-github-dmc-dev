@@ -9,11 +9,11 @@
             <h4 class="mb-1">Commission statement</h4>
             <p class="text-muted mb-0">
                 @if($viewer === 'travclicks')
-                    Online API cost, Travclicks commission, DMC commission, amount charged, and conversion charges for each order.
+                    Travclicks online markup commission, API cost, DMC commission, and conversion charges — by tour id (not wallet).
                 @elseif($viewer === 'agent')
                     Amount charged on your wallet or card, the order id, and any currency conversion charge.
                 @else
-                    Your commission, the total amount, and conversion charges. Commission appears after the tour is fully paid.
+                    Your DMC commission (including online services) and the amount credited to wallet, by tour id.
                 @endif
             </p>
         </div>
@@ -41,6 +41,9 @@
                         @if($viewer !== 'agent')
                             <th class="text-end">DMC commission</th>
                         @endif
+                        @if($viewer === 'dmc')
+                            <th class="text-end">Wallet credited</th>
+                        @endif
                         @if($viewer === 'travclicks')
                             <th class="text-end">Travclicks commission</th>
                             <th class="text-end">API cost</th>
@@ -50,21 +53,45 @@
                 </thead>
                 <tbody>
                     @forelse($tours as $row)
-                        <tr>
-                            <td><a href="{{ route('finance.commission.index', ['tour_id' => $row->tour_id]) }}">#{{ $row->tour_id }}</a></td>
+                        <tr @if(!empty($row->has_online_commission)) class="table-primary" @endif>
+                            <td>
+                                <a href="{{ route('finance.commission.index', ['tour_id' => $row->tour_id]) }}">#{{ $row->tour_id }}</a>
+                                @if(!empty($row->has_online_commission) || ($row->markup_label ?? '') === 'Online')
+                                    <span class="badge bg-label-primary ms-1">Online</span>
+                                @endif
+                            </td>
                             <td>{{ $row->currency_code }}</td>
                             <td class="text-end">{{ number_format((float) $row->charged_amount, 2) }}</td>
                             @if($viewer !== 'agent')
                                 <td class="text-end text-success">{{ number_format((float) $row->dmc_commission, 2) }}</td>
                             @endif
+                            @if($viewer === 'dmc')
+                                <td class="text-end">
+                                    @if((float) ($row->wallet_credited_amount ?? 0) > 0)
+                                        {{ number_format((float) $row->wallet_credited_amount, 2) }}
+                                    @elseif((float) ($row->dmc_commission ?? 0) > 0 && !empty($row->has_online_commission))
+                                        {{ number_format((float) $row->dmc_commission, 2) }}
+                                    @else
+                                        —
+                                    @endif
+                                </td>
+                            @endif
                             @if($viewer === 'travclicks')
-                                <td class="text-end">{{ number_format((float) $row->travclicks_commission, 2) }}</td>
+                                <td class="text-end fw-semibold">{{ number_format((float) $row->travclicks_commission, 2) }}</td>
                                 <td class="text-end">{{ number_format((float) $row->api_cost, 2) }}</td>
                             @endif
                             <td class="text-end">{{ number_format((float) $row->conversion_charge, 2) }}</td>
                         </tr>
                     @empty
-                        <tr><td colspan="7" class="text-center text-muted py-4">No commission yet. It appears here after a tour is fully paid.</td></tr>
+                        <tr><td colspan="8" class="text-center text-muted py-4">
+                            @if($viewer === 'travclicks')
+                                No commission yet. Online service markup appears here when the service is approved.
+                            @elseif($viewer === 'dmc')
+                                No commission yet. Online service commission appears here when the service is approved; fully paid tours also appear after payment.
+                            @else
+                                No commission yet. It appears here after a tour is fully paid.
+                            @endif
+                        </td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -78,9 +105,14 @@
                 <span>Order #{{ $tourId }} {{ $selectedTour?->display_id ? '· '.$selectedTour->display_id : '' }}</span>
                 <span class="text-muted">
                     @if($opened)
-                        Commission {{ number_format((float) $opened->dmc_commission, 2) }} · Total amount {{ number_format((float) $opened->charged_amount, 2) }}
+                        All amounts in {{ $opened->currency_code }}
+                        · Commission {{ number_format((float) $opened->dmc_commission, 2) }}
+                        · Total {{ number_format((float) $opened->charged_amount, 2) }}
+                        @if($viewer === 'dmc' && (float) ($opened->wallet_credited_amount ?? 0) > 0)
+                            · Wallet {{ number_format((float) $opened->wallet_credited_amount, 2) }}
+                        @endif
                     @else
-                        Total amount {{ number_format($totals['charged_amount'], 2) }}
+                        Total amount {{ number_format($totals['charged_amount'], 2) }} {{ $totals['currency_code'] ?? $totals['charged_currency'] ?? '' }}
                     @endif
                 </span>
             </div>
@@ -98,6 +130,9 @@
                             @if($viewer !== 'agent')
                                 <th class="text-end">DMC commission</th>
                             @endif
+                            @if($viewer === 'dmc')
+                                <th class="text-end">Wallet credited</th>
+                            @endif
                             <th class="text-end">Agent price</th>
                             <th>Agent</th>
                             <th>DMC</th>
@@ -108,7 +143,7 @@
                         @forelse($lines as $line)
                             <tr>
                                 <td>{{ $line->item_label }}</td>
-                                <td>{{ $line->channel }}</td>
+                                <td>{{ $line->channel }}{{ ($line->payment_method ?? '') === 'online_approve' ? ' · online approve' : '' }}</td>
                                 @if($viewer === 'travclicks')
                                     <td>{{ $line->supplier_api ?: '—' }}</td>
                                     <td class="text-end">{{ $line->api_cost === null ? '—' : number_format((float) $line->api_cost, 2) }}</td>
@@ -117,7 +152,16 @@
                                 @if($viewer !== 'agent')
                                     <td class="text-end">{{ number_format((float) $line->dmc_commission, 2) }}</td>
                                 @endif
-                                <td class="text-end">{{ number_format((float) $line->agent_price, 2) }} {{ $line->currency_code }}</td>
+                                @if($viewer === 'dmc')
+                                    <td class="text-end">
+                                        @if((float) ($line->wallet_credited_amount ?? 0) > 0)
+                                            {{ number_format((float) $line->wallet_credited_amount, 2) }}
+                                        @else
+                                            —
+                                        @endif
+                                    </td>
+                                @endif
+                                <td class="text-end">{{ number_format((float) $line->agent_price, 2) }}</td>
                                 <td>{{ $line->agent_entry === 'debit' ? 'Debit' : '—' }}</td>
                                 <td>{{ $line->dmc_entry === 'credit' ? 'Credit' : '—' }}</td>
                                 <td class="small">
@@ -131,11 +175,11 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="10" class="text-center text-muted py-4">
+                                <td colspan="11" class="text-center text-muted py-4">
                                     @if($opened)
-                                        Commission {{ number_format((float) $opened->dmc_commission, 2) }} {{ $opened->currency_code }}. Total amount {{ number_format((float) $opened->charged_amount, 2) }} {{ $opened->currency_code }}.
+                                        All amounts in {{ $opened->currency_code }}. Commission {{ number_format((float) $opened->dmc_commission, 2) }}. Total {{ number_format((float) $opened->charged_amount, 2) }}.
                                     @else
-                                        This tour is not fully paid yet, so its markup commission is not shown.
+                                        No commission lines for this tour yet.
                                     @endif
                                 </td>
                             </tr>
@@ -151,6 +195,9 @@
                                 @endif
                                 @if($viewer !== 'agent')
                                     <td class="text-end">{{ number_format($totals['dmc_commission'], 2) }}</td>
+                                @endif
+                                @if($viewer === 'dmc')
+                                    <td class="text-end">{{ number_format($totals['wallet_credited_amount'], 2) }}</td>
                                 @endif
                                 <td class="text-end">{{ number_format($totals['agent_price'], 2) }}</td>
                                 <td colspan="3">
