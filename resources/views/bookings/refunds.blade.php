@@ -711,6 +711,11 @@
                                                 ? (float) $refundOrder->hotel_cancellation_charge
                                                 : null;
                                             $hotelSummary = trim((string) ($refundOrder->hotel_cancellation_summary ?? ''));
+                                            $hotelRefundPolicy = trim((string) ($refundOrder->hotel_refund_policy ?? ''));
+                                            $hotelRefundPolicyName = trim((string) ($refundOrder->hotel_refund_policy_name ?? ''));
+                                            $hotelRefundPolicyB64 = $hotelRefundPolicy !== ''
+                                                ? base64_encode($hotelRefundPolicy)
+                                                : '';
                                             $dmcWalletCurrency = $showDmcColumn
                                                 ? strtoupper(trim((string) ($refundOrder->dmc_wallet_currency ?? $tour->dmc_wallet_currency ?? '')))
                                                 : '';
@@ -749,6 +754,8 @@
                                                 data-refund-suggested="{{ $hotelSuggested !== null ? number_format($hotelSuggested, 2, '.', '') : '' }}"
                                                 data-cancel-charge="{{ $hotelCharge !== null ? number_format($hotelCharge, 2, '.', '') : '' }}"
                                                 data-cancel-summary="{{ e($hotelSummary) }}"
+                                                data-hotel-name="{{ e($hotelRefundPolicyName) }}"
+                                                data-refund-policy-b64="{{ $hotelRefundPolicyB64 }}"
                                                 @if($showDmcColumn && $dmcWalletCurrency !== '')
                                                     data-dmc-wallet-currency="{{ $dmcWalletCurrency }}"
                                                     data-dmc-wallet-sgd-rate="{{ $dmcWalletSgdRate !== null ? number_format($dmcWalletSgdRate, 8, '.', '') : '' }}"
@@ -1426,6 +1433,16 @@ function processSingleOrderRefund(tourId, orderId, event) {
     const suggestedRaw = button?.dataset.refundSuggested;
     const cancelCharge = button?.dataset.cancelCharge;
     const cancelSummary = button?.dataset.cancelSummary || '';
+    const hotelName = button?.dataset.hotelName || '';
+    let hotelRefundPolicyHtml = '';
+    try {
+        const policyB64 = button?.dataset.refundPolicyB64 || '';
+        if (policyB64) {
+            hotelRefundPolicyHtml = decodeURIComponent(escape(atob(policyB64)));
+        }
+    } catch (e) {
+        hotelRefundPolicyHtml = '';
+    }
     const dmcWalletCurrency = (button?.dataset.dmcWalletCurrency || '').toUpperCase();
     const dmcWalletSgdRate = parseFloat(button?.dataset.dmcWalletSgdRate || '');
     const sourceSgdRate = parseFloat(button?.dataset.sourceSgdRate || '');
@@ -1478,7 +1495,9 @@ function processSingleOrderRefund(tourId, orderId, event) {
             showDmcWalletConversion: isTravclicksRefund && !!dmcWalletCurrency,
             dmcWalletCurrency: dmcWalletCurrency,
             dmcWalletSgdRate: isFinite(dmcWalletSgdRate) ? dmcWalletSgdRate : null,
-            sourceSgdRate: isFinite(sourceSgdRate) ? sourceSgdRate : null
+            sourceSgdRate: isFinite(sourceSgdRate) ? sourceSgdRate : null,
+            hotelName: hotelName,
+            refundPolicyHtml: hotelRefundPolicyHtml
         };
 
     showConfirmationModal(
@@ -1577,6 +1596,32 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
                                 </div>
                                 <div class="form-text" id="dmcWalletCreditHelp">Converted country-wise via countries.current_rate. This amount is credited to the DMC wallet.</div>
     ` : '';
+    const refundPolicyRaw = String(options.refundPolicyHtml || '').trim();
+    const refundPolicyHotel = String(options.hotelName || '').trim();
+    const refundPolicyCollapseId = 'refundPolicyCollapse_' + Date.now();
+    const refundPolicyBlock = refundPolicyRaw ? `
+                            <div class="text-start mb-3 refund-policy-compact">
+                                <button type="button"
+                                    class="btn btn-sm btn-outline-secondary w-100 d-flex justify-content-between align-items-center"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#${refundPolicyCollapseId}"
+                                    aria-expanded="true"
+                                    aria-controls="${refundPolicyCollapseId}">
+                                    <span class="text-start">
+                                        <i class="ri-file-list-3-line me-1"></i>
+                                        <strong>Hotel refund policy</strong>
+                                        ${refundPolicyHotel ? `<span class="text-muted"> · ${$('<div>').text(refundPolicyHotel).html()}</span>` : ''}
+                                    </span>
+                                    <i class="ri-arrow-down-s-line ms-2"></i>
+                                </button>
+                                <div class="collapse show" id="${refundPolicyCollapseId}">
+                                    <div class="border rounded mt-2 p-2 bg-light refund-policy-body"
+                                         style="max-height: 150px; overflow-y: auto; font-size: 11.5px; line-height: 1.45; text-align: left;">
+                                        ${refundPolicyRaw}
+                                    </div>
+                                </div>
+                            </div>
+    ` : '';
     const amountBlock = verifyOnly ? `
                             <div class="alert alert-warning border-0 text-start mb-3" style="background-color: #fff7ed;">
                                 <strong>Refund already initiated</strong>
@@ -1617,6 +1662,7 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
                         <div class="refund-message mb-4">
                             
                             <p class="text-muted mb-3">${message || 'You are about to process a refund for this tour booking. This will update the tour status and initiate the refund process.'}</p>
+                            ${refundPolicyBlock}
                             ${amountBlock}
                             <div class="alert ${verifyOnly ? 'alert-warning' : 'alert-info'} border-0" style="background-color: ${verifyOnly ? '#fff7ed' : '#e3f2fd'};">
                                 <i class="ri-information-line me-2"></i>
@@ -1696,7 +1742,7 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
                 }
                 
                 .refund-message {
-                    max-width: 400px;
+                    max-width: 440px;
                     margin: 0 auto;
                 }
                 
@@ -1705,7 +1751,24 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
                 }
                 
                 #confirmationModal .modal-dialog {
-                    max-width: 500px;
+                    max-width: 540px;
+                }
+
+                .refund-policy-compact .refund-policy-body p {
+                    margin-bottom: 0.35rem;
+                }
+                .refund-policy-compact .refund-policy-body ol,
+                .refund-policy-compact .refund-policy-body ul {
+                    padding-left: 1.1rem;
+                    margin-bottom: 0.35rem;
+                }
+                .refund-policy-compact .refund-policy-body img {
+                    max-width: 100%;
+                    height: auto;
+                }
+                .refund-policy-compact .refund-policy-body * {
+                    max-width: 100%;
+                    word-break: break-word;
                 }
                 
                 #confirmationModal .btn {

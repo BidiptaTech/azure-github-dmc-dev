@@ -11243,6 +11243,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             'matched_rule' => null,
             'rules' => [],
             'summary' => 'No hotel cancellation policy found.',
+            'refund_policy' => '',
+            'hotel_name' => '',
         ];
 
         if (! $order) {
@@ -11278,8 +11280,23 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             ?? ''
         ));
         $hotel = $hotelId !== ''
-            ? Hotel::where('hotel_unique_id', $hotelId)->first(['hotel_unique_id', 'cancellation_type', 'cancellation_data'])
+            ? Hotel::where('hotel_unique_id', $hotelId)->first([
+                'hotel_unique_id',
+                'name',
+                'cancellation_type',
+                'cancellation_data',
+                'refundpolicy',
+            ])
             : null;
+
+        $hotelName = trim((string) (
+            ($hotel->name ?? null)
+            ?? $hotelDetails['hotel_name']
+            ?? $item['hotelName']
+            ?? $item['hotel_name']
+            ?? ''
+        ));
+        $refundPolicyHtml = $hotel ? trim((string) ($hotel->refundpolicy ?? '')) : '';
 
         $rawRules = $hotel->cancellation_data ?? null;
         if (is_string($rawRules)) {
@@ -11339,6 +11356,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             'matched_rule' => null,
             'rules' => $rules,
             'summary' => 'Free cancellation applies.',
+            'refund_policy' => $refundPolicyHtml,
+            'hotel_name' => $hotelName,
         ];
 
         if (! $hotel) {
@@ -11407,6 +11426,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 $currency,
                 number_format($suggested, 2)
             ),
+            'refund_policy' => $refundPolicyHtml,
+            'hotel_name' => $hotelName,
         ];
     }
 

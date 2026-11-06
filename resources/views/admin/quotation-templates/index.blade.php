@@ -84,7 +84,7 @@
                 @endif
 
                 <form method="get" action="{{ route('quotation-templates.index') }}" class="qts-search">
-                    <input type="search" name="q" value="{{ $search }}" placeholder="Search DMC by name, email, or ID" autocomplete="off">
+                    <input type="search" name="q" value="{{ $search }}" placeholder="Search DMC by company, country, email, or ID" autocomplete="off">
                     <button type="submit" class="btn btn-primary">Search</button>
                     @if($search !== '')
                         <a href="{{ route('quotation-templates.index') }}" class="btn btn-outline-secondary">Clear</a>
@@ -95,7 +95,8 @@
                     <thead>
                         <tr>
                             <th>DMC ID</th>
-                            <th>Name</th>
+                            <th>Company</th>
+                            <th>Country</th>
                             <th>Email</th>
                             <th>Acco+Service Quotation</th>
                             <th>Detailed Quotation</th>
@@ -110,10 +111,14 @@
                                 $detailed = $types->firstWhere('quotation_type', 'detailed');
                                 $itineraryActive = $itinerary && !empty($itinerary->active_version_id);
                                 $detailedActive = $detailed && !empty($detailed->active_version_id);
+                                $companyName = trim((string) ($dmc->company_name ?? '')) !== ''
+                                    ? $dmc->company_name
+                                    : ($dmc->name ?: '—');
                             @endphp
                             <tr>
                                 <td>{{ $dmc->userId }}</td>
-                                <td>{{ $dmc->name }}</td>
+                                <td>{{ $companyName }}</td>
+                                <td>{{ trim((string) ($dmc->country ?? '')) !== '' ? $dmc->country : '—' }}</td>
                                 <td>{{ $dmc->email }}</td>
                                 <td>
                                     @if(!$itinerary)
@@ -122,7 +127,7 @@
                                         <span class="qts-badge yes">Custom · Active</span>
                                         <form method="post" class="qts-toggle-form"
                                               action="{{ route('quotation-templates.deactivate', ['dmcId' => $dmc->userId, 'type' => 'itinerary']) }}"
-                                              onsubmit="return confirm('Deactivate Acco+Service custom template for {{ $dmc->name }}?');">
+                                              onsubmit="return confirm(@json('Deactivate Acco+Service custom template for '.$companyName.'?'));">
                                             @csrf
                                             <input type="hidden" name="return" value="index">
                                             <button type="submit">Deactivate</button>
@@ -131,7 +136,7 @@
                                         <span class="qts-badge inactive">Custom · Inactive</span>
                                         <form method="post" class="qts-toggle-form"
                                               action="{{ route('quotation-templates.activate', ['dmcId' => $dmc->userId, 'type' => 'itinerary']) }}"
-                                              onsubmit="return confirm('Activate Acco+Service custom template for {{ $dmc->name }}?');">
+                                              onsubmit="return confirm(@json('Activate Acco+Service custom template for '.$companyName.'?'));">
                                             @csrf
                                             <input type="hidden" name="return" value="index">
                                             <button type="submit">Activate</button>
@@ -145,7 +150,7 @@
                                         <span class="qts-badge yes">Custom · Active</span>
                                         <form method="post" class="qts-toggle-form"
                                               action="{{ route('quotation-templates.deactivate', ['dmcId' => $dmc->userId, 'type' => 'detailed']) }}"
-                                              onsubmit="return confirm('Deactivate Detailed custom template for {{ $dmc->name }}?');">
+                                              onsubmit="return confirm(@json('Deactivate Detailed custom template for '.$companyName.'?'));">
                                             @csrf
                                             <input type="hidden" name="return" value="index">
                                             <button type="submit">Deactivate</button>
@@ -154,7 +159,7 @@
                                         <span class="qts-badge inactive">Custom · Inactive</span>
                                         <form method="post" class="qts-toggle-form"
                                               action="{{ route('quotation-templates.activate', ['dmcId' => $dmc->userId, 'type' => 'detailed']) }}"
-                                              onsubmit="return confirm('Activate Detailed custom template for {{ $dmc->name }}?');">
+                                              onsubmit="return confirm(@json('Activate Detailed custom template for '.$companyName.'?'));">
                                             @csrf
                                             <input type="hidden" name="return" value="index">
                                             <button type="submit">Activate</button>
@@ -170,7 +175,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6">No DMC accounts found.</td>
+                                <td colspan="7">No DMC accounts found.</td>
                             </tr>
                         @endforelse
                     </tbody>
