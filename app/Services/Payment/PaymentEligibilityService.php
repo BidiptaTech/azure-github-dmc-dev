@@ -386,7 +386,8 @@ class PaymentEligibilityService
 
         $persons = (int) ($tour->adult ?? 0) + (int) ($tour->child ?? 0);
         $days = TaxHelper::calculateDays($tour->check_in_time ?? null, $tour->check_out_time ?? null);
-        $tax = TaxHelper::calculateTourTaxes($base, $tour->taxes ?? null, $persons, $days);
+        // Online sell is tax-included; mix taxes offline portion only.
+        $tax = TaxHelper::calculateTourTaxesForTour($base, $tour->taxes ?? null, $persons, $days, $tour);
         $final = $base + (float) ($tax['total_tax'] ?? 0);
 
         return $this->outstandingBalance($tour, $final);

@@ -26,6 +26,8 @@
     $hasConfirmed = $confirmedPrice > 0;
     $invoiceBase = (float) ($baseAmount ?? ($hasConfirmed ? $confirmedPrice : $actualPrice));
     $taxAmt = (float) ($taxAmount ?? 0);
+    $taxIncluded = (bool) ($taxIncluded ?? false);
+    $onlineTaxIncluded = (bool) ($onlineTaxIncluded ?? false);
     $invoiceTotal = (float) ($finalAmount ?? ($invoiceBase + $taxAmt));
     $paidAmt = (float) ($totalPaid ?? 0);
     $remainAmt = (float) ($remainingAmount ?? max(0, $invoiceTotal - $paidAmt));
@@ -310,8 +312,14 @@
             <div class="apb-val">{{ $payFmt(round($invoiceBase)) }} {{ $payCur }}</div>
         </div>
         <div>
-            <span class="apb-lbl">Tax</span>
-            <div class="apb-val text-warning">{{ $payFmt(round($taxAmt)) }} {{ $payCur }}</div>
+            <span class="apb-lbl">{{ $taxIncluded ? 'Tax (included)' : ($onlineTaxIncluded ? 'Tax (offline only)' : 'Tax') }}</span>
+            <div class="apb-val text-warning">
+                @if($taxIncluded)
+                    Included
+                @else
+                    {{ $payFmt(round($taxAmt)) }} {{ $payCur }}
+                @endif
+            </div>
         </div>
         <div>
             <span class="apb-lbl">Total</span>

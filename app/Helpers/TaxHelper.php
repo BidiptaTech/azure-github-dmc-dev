@@ -1,6 +1,9 @@
 <?php
 namespace App\Helpers;
 
+use App\Models\Tour;
+use App\Services\Payment\OrderClassificationService;
+
 class TaxHelper
 {
     /**
@@ -88,6 +91,118 @@ class TaxHelper
         }
         
         return $result;
+    }
+
+    /**
+     * Tour tax with online/offline awareness.
+     *
+     * - Fully online tours: sell prices already include tax → do NOT add separate tax.
+     * - Mix tours: tax only the offline portion of the base (online stays tax-included).
+     * - Offline tours: unchanged (tax added on full base).
+     *
+     * @param  mixed  $taxes
+     * @return array{
+     *     breakdown: array<string, float|int>,
+     *     total_tax: float|int,
+     *     tax_included: bool,
+     *     online_tax_included: bool,
+     *     taxable_base: float,
+     *     classification: string|null
+     * }
+     */
+    public static function calculateTourTaxesForTour(
+        $baseAmount,
+        $taxes,
+        $persons = 1,
+        $days = 1,
+        $tour = null
+    ): array {
+        $baseAmount = (float) $baseAmount;
+        $wrap = static function (array $result, bool $taxIncluded, bool $onlineIncluded, float $taxableBase, ?string $classification): array {
+            return [
+                'breakdown' => $result['breakdown'] ?? [],
+                'total_tax' => (float) ($result['total_tax'] ?? 0),
+                'tax_included' => $taxIncluded,
+                'online_tax_included' => $onlineIncluded,
+                'taxable_base' => $taxableBase,
+                'classification' => $classification,
+            ];
+        };
+
+        if (! $tour instanceof Tour) {
+            return $wrap(
+                self::calculateTourTaxes($baseAmount, $taxes, $persons, $days),
+                false,
+                false,
+                $baseAmount,
+                null
+            );
+        }
+
+        try {
+            $classifier = app(OrderClassificationService::class);
+            $classification = $classifier->classifyTour($tour);
+        } catch (\Throwable $e) {
+            return $wrap(
+                self::calculateTourTaxes($baseAmount, $taxes, $persons, $days),
+                false,
+                false,
+                $baseAmount,
+                null
+            );
+        }
+
+        if ($classification === OrderClassificationService::ONLINE) {
+            return $wrap(['breakdown' => [], 'total_tax' => 0], true, true, 0.0, $classification);
+        }
+
+        if ($classification === OrderClassificationService::MIX) {
+            $amounts = $classifier->amountBreakdown($tour);
+            $online = (float) ($amounts['online_amount'] ?? 0);
+            $offline = (float) ($amounts['offline_amount'] ?? 0);
+            $sum = $online + $offline;
+
+            if ($offline <= 0.009) {
+                return $wrap(['breakdown' => [], 'total_tax' => 0], true, true, 0.0, $classification);
+            }
+
+            $taxableBase = $baseAmount;
+            if ($sum > 0.009) {
+                if (abs($baseAmount - $sum) <= max(1.0, $sum * 0.08)) {
+                    // Base is full online+offline sell total → tax offline only
+                    $taxableBase = $offline;
+                } elseif (abs($baseAmount - $offline) <= max(1.0, $offline * 0.08)) {
+                    // Base already matches offline (typical after negotiation)
+                    $taxableBase = $baseAmount;
+                } elseif ($online > 0.009 && $baseAmount > $offline) {
+                    $taxableBase = max(0.0, $baseAmount - $online);
+                    if ($taxableBase > $offline * 1.15) {
+                        $taxableBase = $baseAmount * ($offline / $sum);
+                    }
+                }
+            }
+
+            $taxableBase = (float) max(0, $taxableBase);
+            if ($taxableBase <= 0.009) {
+                return $wrap(['breakdown' => [], 'total_tax' => 0], true, true, 0.0, $classification);
+            }
+
+            return $wrap(
+                self::calculateTourTaxes($taxableBase, $taxes, $persons, $days),
+                false,
+                true,
+                $taxableBase,
+                $classification
+            );
+        }
+
+        return $wrap(
+            self::calculateTourTaxes($baseAmount, $taxes, $persons, $days),
+            false,
+            false,
+            $baseAmount,
+            $classification
+        );
     }
     
     /**

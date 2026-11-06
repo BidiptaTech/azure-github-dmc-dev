@@ -173,7 +173,7 @@ class WalletManagementController extends Controller
             return $this->walletQuery->resolveCurrencyForOwner('master_dmc', (int) $user->userId);
         }
 
-        if ($roleGroup === 'dmc') {
+        if (in_array($roleGroup, ['dmc', 'dmc_viewer'], true)) {
             $dmcId = $this->resolveDmcId($user);
             if ($dmcId) {
                 return $this->walletQuery->resolveCurrencyForOwner('dmc', $dmcId);
@@ -467,9 +467,14 @@ class WalletManagementController extends Controller
             return 'master_dmc';
         }
 
-        $dmcRoles = [11];
-        if (in_array($roleId, $dmcRoles, true)) {
+        // DMC owner — can allocate when agency funding is enabled
+        if ($roleId === 11) {
             return 'dmc';
+        }
+
+        // Multi-role (sales+finance+ops+product) — view parent DMC wallet only
+        if ($roleId === 138) {
+            return 'dmc_viewer';
         }
 
         if ($roleId === 20) {
@@ -482,15 +487,11 @@ class WalletManagementController extends Controller
     protected function resolveDmcId($user): ?int
     {
         $roleGroup = $this->resolveRoleGroup($user);
-        if ($roleGroup !== 'dmc') {
+        if (! in_array($roleGroup, ['dmc', 'dmc_viewer'], true)) {
             return null;
         }
 
-        if ((int) ($user->role_id ?? 0) !== 11) {
-            return null;
-        }
-
-        return (int) $user->userId;
+        return \App\Helpers\CommonHelper::resolveDmcUserIdForStaff($user);
     }
 
     public function dropdownMasterDmcs(Request $request)
@@ -581,7 +582,7 @@ class WalletManagementController extends Controller
             if ($ownerType !== 'dmc' || ! $this->walletQuery->dmcBelongsToMaster($ownerId, (int) $user->userId)) {
                 return response()->json(['currencies' => [], 'default' => null, 'countries' => []], 403);
             }
-        } elseif ($roleGroup === 'dmc') {
+        } elseif (in_array($roleGroup, ['dmc', 'dmc_viewer'], true)) {
             $dmcId = $this->resolveDmcId($user);
             if ($ownerType === 'dmc') {
                 if (! $dmcId || $ownerId !== $dmcId) {
