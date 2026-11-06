@@ -323,6 +323,8 @@
                         <input id="acceptancePayAmount" class="form-control mb-2" readonly>
                         <label class="form-label">Method</label>
                         <select id="acceptancePayMethod" class="form-select"></select>
+                        <label class="form-label mt-3" for="acceptancePayRemarks">Remarks</label>
+                        <textarea id="acceptancePayRemarks" class="form-control" rows="2" maxlength="2000" placeholder="Optional note for this payment"></textarea>
                         <small id="acceptancePayHelp" class="text-muted d-block mt-2"></small>
                     </div>
                     <div class="modal-footer">
@@ -372,6 +374,8 @@
                 opt.dataset.reason = method.reason || '';
                 select.appendChild(opt);
             });
+            const remarksEl = document.getElementById('acceptancePayRemarks');
+            if (remarksEl) remarksEl.value = '';
             const help = document.getElementById('acceptancePayHelp');
             const walletLine = `Wallet from this DMC: ${walletCurrency} ${walletBalance.toFixed(2)}.`;
             help.textContent = Number(fx.conversion_charge) > 0
@@ -391,7 +395,10 @@
                 }
                 submit.disabled = true;
                 try {
-                    const result = await initiatePayment(tourId, method, eligibility.payable_amount);
+                    const userRemarks = (document.getElementById('acceptancePayRemarks')?.value || '').trim();
+                    const result = await initiatePayment(tourId, method, eligibility.payable_amount, {
+                        user_remarks: userRemarks,
+                    });
                     if (method === 'stripe' && result.stripe?.client_secret) {
                         await confirmStripeCard(result.stripe);
                         if (result.attempt?.attempt_uuid && result.requires_supplier_booking) {
