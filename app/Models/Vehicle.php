@@ -31,4 +31,9 @@ class Vehicle extends Model
         return $this->belongsTo(User::class, 'dmc_id', 'userId');
     }
 
+    public function zoneMappings()
+    {
+        return $this->hasMany(VehicleZoneMapping::class, 'vehicle_id', 'vehicle_id');
+    }
+
 }

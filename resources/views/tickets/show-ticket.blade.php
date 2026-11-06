@@ -243,7 +243,10 @@
                                             </div>
                                             <h6 class="mb-0">Created By</h6>
                                         </div>
-                                        <p class="mb-0 fw-semibold">{{ $ticket->created_by }}</p>
+                                        <p class="mb-0 fw-semibold">{{ $ticket->createdByUser->name ?? '—' }}</p>
+                                        @if($ticket->created_by)
+                                            {{-- <p class="text-muted small mb-0">ID: {{ $ticket->created_by }}</p> --}}
+                                        @endif
                                     </div>
                                 </div>
                                 @endif
@@ -257,7 +260,10 @@
                                             </div>
                                             <h6 class="mb-0">Updated By</h6>
                                         </div>
-                                        <p class="mb-0 fw-semibold">{{ $ticket->updated_by }}</p>
+                                        <p class="mb-0 fw-semibold">{{ $ticket->updatedByUser->name ?? '—' }}</p>
+                                        @if($ticket->updated_by)
+                                            <p class="text-muted small mb-0">ID: {{ $ticket->updated_by }}</p>
+                                        @endif
                                     </div>
                                 </div>
                                 @endif

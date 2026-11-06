@@ -8,62 +8,85 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/animate.css@4.1.1/animate.min.css">
 
 <style>
+    :root {
+        --guest-primary: #334155;
+        --guest-primary-hover: #1e293b;
+        --guest-border: #e2e8f0;
+        --guest-bg: #f8fafc;
+        --guest-text: #334155;
+        --guest-text-muted: #64748b;
+    }
+
     .guest-card {
-        border-radius: 15px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-        transition: transform 0.3s ease, box-shadow 0.3s ease;
-        background: linear-gradient(145deg, #ffffff, #f8f9fa);
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        transition: box-shadow 0.2s ease;
+        background: #fff;
+        border: 1px solid var(--guest-border);
     }
 
     .guest-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     }
 
     .form-section {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 15px;
-        padding: 30px;
-        margin-bottom: 30px;
-        color: white;
+        background: #fff;
+        border: 1px solid var(--guest-border);
+        border-radius: 12px;
+        padding: 28px;
+        margin-bottom: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
     }
 
     .form-section .card-header {
         background: transparent;
         border: none;
-        padding: 0 0 20px 0;
+        border-bottom: 1px solid var(--guest-border);
+        padding: 0 0 16px 0;
+        margin-bottom: 20px;
     }
 
     .form-section h5 {
-        color: white;
-        font-weight: 700;
-        font-size: 1.5rem;
-        margin-bottom: 10px;
+        color: var(--guest-primary);
+        font-weight: 600;
+        font-size: 1.15rem;
+        margin-bottom: 4px;
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 8px;
+    }
+
+    .form-section .card-header p {
+        color: var(--guest-text-muted);
+        font-size: 0.875rem;
     }
 
     .form-section .form-label {
-        color: rgba(255, 255, 255, 0.95);
-        font-weight: 600;
-        margin-bottom: 8px;
+        color: var(--guest-text);
+        font-weight: 500;
+        margin-bottom: 6px;
+        font-size: 0.875rem;
     }
 
     .form-section .form-control,
     .form-section .form-select {
-        border-radius: 10px;
-        border: 2px solid rgba(255, 255, 255, 0.3);
-        background: rgba(255, 255, 255, 0.95);
-        padding: 12px 15px;
-        transition: all 0.3s ease;
+        border-radius: 8px;
+        border: 1px solid var(--guest-border);
+        background: #fff;
+        padding: 10px 14px;
+        color: var(--guest-text);
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
 
     .form-section .form-control:focus,
     .form-section .form-select:focus {
-        border-color: #fff;
-        box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.25);
-        background: white;
+        border-color: var(--guest-primary);
+        box-shadow: 0 0 0 3px rgba(51, 65, 85, 0.12);
+        background: #fff;
+    }
+
+    .form-section .form-control::placeholder {
+        color: #94a3b8;
     }
 
     .form-section .input-group .form-select {
@@ -77,22 +100,20 @@
         border-bottom-left-radius: 0;
     }
 
-    .form-section .input-group .form-select:focus {
-        border-right: none;
-    }
-
-    .form-section .input-group .btn-outline-light {
-        border-top-left-radius: 0;
-        border-bottom-left-radius: 0;
+    .form-section .input-group .btn-outline-light,
+    .form-section .input-group .btn-outline-primary {
+        border: 1px solid var(--guest-border);
         border-left: none;
-        color: #667eea;
-        transition: all 0.3s ease;
+        background: var(--guest-bg);
+        color: var(--guest-text);
+        border-radius: 0 8px 8px 0;
+        transition: background 0.2s ease, color 0.2s ease;
     }
 
-    .form-section .input-group .btn-outline-light:hover {
-        background: white !important;
-        color: #764ba2;
-        transform: scale(1.05);
+    .form-section .input-group .btn-outline-light:hover,
+    .form-section .input-group .btn-outline-primary:hover {
+        background: var(--guest-border);
+        color: var(--guest-primary);
     }
 
     .form-section .input-group input[type="password"],
@@ -101,178 +122,230 @@
     }
 
     .btn-gradient {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        border: none;
-        color: white;
-        padding: 12px 30px;
-        border-radius: 25px;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
+        background: var(--guest-primary);
+        border: 1px solid var(--guest-primary);
+        color: #fff;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 500;
+        transition: background 0.2s ease, border-color 0.2s ease;
     }
 
     .btn-gradient:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(245, 87, 108, 0.6);
-        color: white;
+        background: var(--guest-primary-hover);
+        border-color: var(--guest-primary-hover);
+        color: #fff;
     }
 
     .btn-reset {
-        background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
-        border: none;
-        color: #333;
-        padding: 12px 30px;
-        border-radius: 25px;
-        font-weight: 600;
-        transition: all 0.3s ease;
+        background: #fff;
+        border: 1px solid var(--guest-border);
+        color: var(--guest-text);
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 500;
+        transition: background 0.2s ease, border-color 0.2s ease;
     }
 
     .btn-reset:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(168, 237, 234, 0.6);
+        background: var(--guest-bg);
+        border-color: #cbd5e1;
+        color: var(--guest-primary);
     }
 
     .table-section {
-        background: white;
-        border-radius: 15px;
-        padding: 30px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        background: #fff;
+        border: 1px solid var(--guest-border);
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
     }
 
     .table-section h5 {
-        color: #667eea;
-        font-weight: 700;
-        margin-bottom: 20px;
+        color: var(--guest-primary);
+        font-weight: 600;
+        font-size: 1.1rem;
+        margin-bottom: 16px;
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 8px;
     }
 
     .table {
-        border-radius: 10px;
+        border-radius: 8px;
         overflow: hidden;
+        border: 1px solid var(--guest-border);
     }
 
     .table thead th {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+        background: var(--guest-bg);
+        color: var(--guest-text);
         border: none;
-        padding: 15px;
+        border-bottom: 1px solid var(--guest-border);
+        padding: 12px 14px;
         font-weight: 600;
+        font-size: 0.75rem;
         text-transform: uppercase;
-        font-size: 0.85rem;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.04em;
     }
 
     .table tbody tr {
-        transition: all 0.3s ease;
+        transition: background 0.15s ease;
     }
 
     .table tbody tr:hover {
-        background-color: #f8f9fa;
-        transform: scale(1.01);
+        background: var(--guest-bg);
     }
 
     .table tbody td {
-        padding: 15px;
+        padding: 12px 14px;
         vertical-align: middle;
-        border-bottom: 1px solid #f0f0f0;
+        border-bottom: 1px solid var(--guest-border);
+        color: var(--guest-text);
+        font-size: 0.875rem;
     }
 
     .btn-icon {
-        width: 35px;
-        height: 35px;
+        width: 32px;
+        height: 32px;
         padding: 0;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        border-radius: 8px;
-        transition: all 0.3s ease;
+        border-radius: 6px;
+        transition: background 0.2s ease, color 0.2s ease;
     }
 
     .btn-icon:hover {
-        transform: scale(1.1);
+        background: var(--guest-bg);
     }
 
     .btn-primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border: none;
+        background: var(--guest-primary);
+        border: 1px solid var(--guest-primary);
+        color: #fff;
+    }
+
+    .btn-primary:hover {
+        background: var(--guest-primary-hover);
+        border-color: var(--guest-primary-hover);
+        color: #fff;
     }
 
     .btn-danger {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        border: none;
+        background: #dc2626;
+        border: 1px solid #dc2626;
+        color: #fff;
+    }
+
+    .btn-danger:hover {
+        background: #b91c1c;
+        border-color: #b91c1c;
+        color: #fff;
     }
 
     .alert {
-        border-radius: 10px;
-        border: none;
-        padding: 15px 20px;
-        margin-bottom: 20px;
-        animation: slideInDown 0.5s ease;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        padding: 12px 16px;
+        margin-bottom: 16px;
+        font-size: 0.875rem;
     }
 
     .alert-success {
-        background: linear-gradient(135deg, #81FBB8 0%, #28C76F 100%);
-        color: white;
+        background: #f0fdf4;
+        border-color: #bbf7d0;
+        color: #166534;
     }
 
     .alert-danger {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        color: white;
+        background: #fef2f2;
+        border-color: #fecaca;
+        color: #b91c1c;
     }
 
     .dataTables_wrapper .dataTables_paginate .paginate_button.current {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-        border: none !important;
-        color: white !important;
-        border-radius: 5px;
+        background: var(--guest-primary) !important;
+        border: 1px solid var(--guest-primary) !important;
+        color: #fff !important;
+        border-radius: 6px;
     }
 
     .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-        border: none !important;
-        color: white !important;
-        border-radius: 5px;
+        background: var(--guest-bg) !important;
+        border: 1px solid var(--guest-border) !important;
+        color: var(--guest-primary) !important;
+        border-radius: 6px;
     }
 
     .page-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 30px;
-        border-radius: 15px;
-        margin-bottom: 30px;
-        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+        background: #fff;
+        border: 1px solid var(--guest-border);
+        color: var(--guest-text);
+        padding: 24px;
+        border-radius: 12px;
+        margin-bottom: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
     }
 
     .page-header h4 {
         margin: 0;
-        font-weight: 700;
+        font-weight: 600;
+        font-size: 1.25rem;
         display: flex;
         align-items: center;
-        gap: 15px;
+        gap: 12px;
+        color: var(--guest-primary);
+    }
+
+    .page-header p {
+        color: var(--guest-text-muted);
+        font-size: 0.875rem;
+    }
+
+    .page-header .btn-light {
+        border: 1px solid var(--guest-border);
+        color: var(--guest-text);
+        background: #fff;
+    }
+
+    .page-header .btn-light:hover {
+        background: var(--guest-bg);
+        border-color: #cbd5e1;
+        color: var(--guest-primary);
     }
 
     .icon-box {
-        width: 50px;
-        height: 50px;
-        background: rgba(255, 255, 255, 0.2);
-        border-radius: 12px;
+        width: 44px;
+        height: 44px;
+        background: var(--guest-bg);
+        border: 1px solid var(--guest-border);
+        border-radius: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 24px;
+        font-size: 1.25rem;
+        color: var(--guest-primary);
     }
 
     .required {
-        color: #ff6b6b;
+        color: #dc2626;
     }
 
-    .badge-info {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 5px 12px;
-        border-radius: 20px;
-        font-weight: 600;
+    .badge-info, .badge.badge-info {
+        background: var(--guest-bg);
+        color: var(--guest-text-muted);
+        border: 1px solid var(--guest-border);
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-weight: 500;
+        font-size: 0.75rem;
+    }
+
+    .page-header .badge.bg-light {
+        background: var(--guest-bg) !important;
+        color: var(--guest-text-muted) !important;
+        border: 1px solid var(--guest-border);
     }
 </style>
 
@@ -292,7 +365,7 @@
                             <span class="badge bg-light text-dark ms-2">Tour ID: {{ $tourId }}</span>
                         @endif
                     </h4>
-                    <p class="mb-0 mt-2" style="opacity: 0.9;">Manage your tour guests efficiently with our beautiful interface</p>
+                    <p class="mb-0 mt-2">Manage your tour guests efficiently</p>
                 </div>
                 @if(isset($tourId) && $tourId)
                     <a href="{{ route('bookings.confirmed') }}" class="btn btn-light">
@@ -312,7 +385,7 @@
                     <i class="ri-file-list-3-line"></i>
                     <span id="formTitle">Add New Guest</span>
                 </h5>
-                <p class="mb-0" style="opacity: 0.9; font-size: 0.9rem;">Fill in the details below to add or update guest information</p>
+                <p class="mb-0">Fill in the details below to add or update guest information</p>
             </div>
             <form id="guestForm">
                 @csrf
@@ -425,12 +498,10 @@
                         <div class="input-group">
                             <input type="password" class="form-control" id="app_password" name="app_password" 
                                    placeholder="Enter app password" autocomplete="new-password">
-                            <button class="btn btn-outline-light" type="button" id="toggleAppPassword" 
-                                    style="border: 2px solid rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.95);">
+                            <button class="btn btn-outline-light" type="button" id="toggleAppPassword">
                                 <i class="ri-eye-off-line" id="appPasswordIcon"></i>
                             </button>
-                            <button class="btn btn-outline-primary" type="button" id="generatePassword"
-                                    style="border: 2px solid rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.95);">
+                            <button class="btn btn-outline-primary" type="button" id="generatePassword">
                                 <i class="ri-key-line me-1"></i> Generate
                             </button>
                         </div>

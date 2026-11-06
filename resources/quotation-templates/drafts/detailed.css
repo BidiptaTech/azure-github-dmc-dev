@@ -1,0 +1,54 @@
+/* Detailed Quotation draft CSS — validate with the matching HTML draft. */
+.q-wrap {
+  font-family: DejaVu Sans, Arial, sans-serif;
+  color: #0f172a;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.q-header {
+  border-bottom: 2px solid #1d4ed8;
+  padding-bottom: 8px;
+  margin-bottom: 16px;
+}
+
+.q-header h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.q-meta {
+  margin: 4px 0 0;
+  color: #64748b;
+}
+
+.q-section {
+  margin-bottom: 14px;
+}
+
+.q-section h2 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: #1e3a8a;
+}
+
+.q-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.q-table th,
+.q-table td {
+  border: 1px solid #cbd5e1;
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.q-table th {
+  background: #eff6ff;
+}
+
+.q-pricing .q-total {
+  font-size: 16px;
+  font-weight: 700;
+}

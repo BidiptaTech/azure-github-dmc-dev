@@ -39,4 +39,14 @@ class Room extends Model
     {
         return $this->hasMany(Bed::class, 'room_id');
     }
+
+    public function clonedFromRoom()
+    {
+        return $this->belongsTo(Room::class, 'cloned_from', 'room_id');
+    }
+
+    public function dmcClones()
+    {
+        return $this->hasMany(Room::class, 'cloned_from', 'room_id');
+    }
 }

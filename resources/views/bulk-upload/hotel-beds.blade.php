@@ -10,20 +10,33 @@
                 <div class="col-lg-12">
                     <div class="card gradient-header">
                         <div class="card-header border-0 pb-0">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div class="header-content">
-                                    <div class="d-flex align-items-center mb-2">
-                                        <div class="icon-wrapper me-3">
-                                            <i class="ri-hotel-bed-line"></i>
-                                        </div>
-                                        <div>
-                                            <h4 class="card-title mb-1 text-white">Bulk Upload Beds</h4>
-                                            <h6 class="text-white-50 mb-0">{{ $hotel->name }}</h6>
-                                        </div>
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                                <div class="header-content d-flex align-items-center gap-3">
+                                    <div class="hotel-image-container-header">
+                                        @if(!empty($hotel->main_image))
+                                            <img src="{{ $hotel->main_image }}"
+                                                 alt="{{ $hotel->name }}"
+                                                 class="hotel-thumbnail-header">
+                                        @else
+                                            <div class="hotel-thumbnail-header hotel-thumbnail-placeholder">
+                                                <i class="ri-hotel-line text-white" style="font-size: 2.5rem; opacity: 0.6;"></i>
+                                            </div>
+                                        @endif
                                     </div>
-                                    <p class="text-white-75 mb-0">
-                                        <i class="ri-map-pin-line me-1"></i>{{ $hotel->city }}, {{ $hotel->country }}
-                                    </p>
+                                    <div>
+                                        <div class="d-flex align-items-center mb-2">
+                                            <div class="icon-wrapper me-3">
+                                                <i class="ri-hotel-bed-line"></i>
+                                            </div>
+                                            <div>
+                                                <h4 class="card-title mb-1 text-white">Bulk Upload Beds</h4>
+                                                <h6 class="text-white-50 mb-0">{{ $hotel->name }}</h6>
+                                            </div>
+                                        </div>
+                                        <p class="text-white-75 mb-0">
+                                            <i class="ri-map-pin-line me-1"></i>{{ $hotel->city }}, {{ $hotel->country }}
+                                        </p>
+                                    </div>
                                 </div>
                                 <div class="d-flex gap-2 flex-wrap">
                                     <a href="{{ route('beds.template_for_hotel', $hotel->hotel_unique_id) }}" 
@@ -70,6 +83,10 @@
                                                     <span>Fill in your bed data (required fields marked with *)</span>
                                                 </div>
                                                 <div class="instruction-item">
+                                                    <i class="ri-refresh-line text-success"></i>
+                                                    <span><strong>Update vs Create:</strong> Same Room Type + Bed Type updates the existing bed. New Room Type + Bed Type creates a new bed.</span>
+                                                </div>
+                                                <div class="instruction-item">
                                                     <i class="ri-file-text-line text-warning"></i>
                                                     <span>Maximum file size: 10MB • Formats: CSV, TXT</span>
                                                 </div>
@@ -87,6 +104,10 @@
                                                 <div class="instruction-item">
                                                     <i class="ri-checkbox-circle-line text-danger"></i>
                                                     <span><strong>Required:</strong> Room Type, Bed Type, No. of Rooms, Adult Count, Extra Bed, Baby Cot, Status</span>
+                                                </div>
+                                                <div class="instruction-item">
+                                                    <i class="ri-money-dollar-circle-line text-info"></i>
+                                                    <span><strong>Sell & Cost prices:</strong> Extra Bed Price (Sell)/(Cost) and Baby Cot Price (Sell)/(Cost) — all required when Extra Bed / Baby Cot = Yes</span>
                                                 </div>
                                                 <div class="instruction-item">
                                                     <i class="ri-money-dollar-circle-line text-info"></i>
@@ -165,7 +186,7 @@
                                                 @else
                                                     <div class="alert alert-warning">
                                                         <i class="ri-alert-line me-2"></i>
-                                                        No room categories are configured for this hotel. Please add room categories first.
+                                                        No DMC room categories found for this hotel. Please create/import your DMC rooms first.
                                                     </div>
                                                 @endif
                                             </div>
@@ -328,6 +349,9 @@
                                                 <th class="border-0 py-3">
                                                     <i class="ri-shield-check-line text-primary me-1"></i>Status
                                                 </th>
+                                                <th class="border-0 py-3 text-center">
+                                                    <i class="ri-error-warning-line text-primary me-1"></i>Details
+                                                </th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -358,14 +382,23 @@
                                                         </div>
                                                     </td>
                                                     <td class="py-3">
-                                                        <div class="d-flex flex-wrap gap-2">
-                                                            <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1">
-                                                                <i class="ri-check-line me-1"></i>{{ $history->success_count }} success
-                                                            </span>
-                                                            @if($history->error_count > 0)
-                                                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1">
-                                                                    <i class="ri-close-line me-1"></i>{{ $history->error_count }} failed
+                                                        <div class="d-flex flex-column gap-1">
+                                                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                                                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1">
+                                                                    <i class="ri-check-line me-1"></i>{{ $history->success_count }} success
                                                                 </span>
+                                                                @if($history->error_count > 0)
+                                                                    <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1">
+                                                                        <i class="ri-close-line me-1"></i>{{ $history->error_count }} failed
+                                                                    </span>
+                                                                @endif
+                                                            </div>
+                                                            @if($history->created_count_meta !== null || $history->updated_count_meta !== null)
+                                                                <small class="text-muted">
+                                                                    <i class="ri-add-circle-line me-1"></i>{{ (int) ($history->created_count_meta ?? 0) }} created
+                                                                    <span class="mx-1">·</span>
+                                                                    <i class="ri-refresh-line me-1"></i>{{ (int) ($history->updated_count_meta ?? 0) }} updated
+                                                                </small>
                                                             @endif
                                                         </div>
                                                     </td>
@@ -384,7 +417,67 @@
                                                             </span>
                                                         @endif
                                                     </td>
+                                                    <td class="py-3 text-center">
+                                                        @if(($history->error_count ?? 0) > 0 && count($history->error_messages) > 0)
+                                                            <button type="button"
+                                                                    class="btn btn-sm btn-outline-danger view-errors-btn"
+                                                                    data-bs-toggle="modal"
+                                                                    data-bs-target="#errorModal{{ $history->id }}">
+                                                                <i class="ri-error-warning-line me-1"></i>View Errors
+                                                            </button>
+                                                        @else
+                                                            <span class="text-muted small">
+                                                                <i class="ri-checkbox-circle-line me-1"></i>No errors
+                                                            </span>
+                                                        @endif
+                                                    </td>
                                                 </tr>
+
+                                                @if(($history->error_count ?? 0) > 0 && count($history->error_messages) > 0)
+                                                <div class="modal fade" id="errorModal{{ $history->id }}" tabindex="-1" aria-hidden="true">
+                                                    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                                                        <div class="modal-content">
+                                                            <div class="modal-header bg-danger text-white">
+                                                                <h5 class="modal-title">
+                                                                    <i class="ri-error-warning-line me-2"></i>Error Details - {{ $history->original_file_name }}
+                                                                </h5>
+                                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                            </div>
+                                                            <div class="modal-body">
+                                                                <div class="alert alert-info mb-3">
+                                                                    <strong>Upload Summary:</strong><br>
+                                                                    <i class="ri-file-text-line me-1"></i> File: {{ $history->original_file_name }}<br>
+                                                                    <i class="ri-database-line me-1"></i> Total Records: {{ $history->total_records ?? 0 }}<br>
+                                                                    <i class="ri-check-line me-1"></i> Successful: {{ $history->success_count ?? 0 }}
+                                                                    @if($history->created_count_meta !== null || $history->updated_count_meta !== null)
+                                                                        ({{ $history->created_count_meta ?? 0 }} created, {{ $history->updated_count_meta ?? 0 }} updated)
+                                                                    @endif
+                                                                    <br>
+                                                                    <i class="ri-close-line me-1"></i> Failed: {{ $history->error_count ?? 0 }}
+                                                                </div>
+                                                                <h6 class="mb-3 text-danger">
+                                                                    <i class="ri-alert-line me-2"></i>Error Messages:
+                                                                </h6>
+                                                                <div class="error-details-list">
+                                                                    @foreach($history->error_messages as $index => $error)
+                                                                        <div class="error-detail-item mb-2 p-3 border-start border-danger border-3 bg-light">
+                                                                            <div class="d-flex align-items-start">
+                                                                                <span class="badge bg-danger me-2">{{ $index + 1 }}</span>
+                                                                                <div class="flex-grow-1">{{ $error }}</div>
+                                                                            </div>
+                                                                        </div>
+                                                                    @endforeach
+                                                                </div>
+                                                            </div>
+                                                            <div class="modal-footer">
+                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                                                    <i class="ri-close-line me-1"></i>Close
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                @endif
                                             @endforeach
                                         </tbody>
                                     </table>
@@ -416,23 +509,88 @@
                                                     </span>
                                                 @endif
                                             </div>
-                                            <div class="d-flex justify-content-between align-items-center">
-                                                <div class="d-flex gap-2">
-                                                    <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">
-                                                        {{ $history->total_records }} rows
-                                                    </span>
-                                                    <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25">
-                                                        {{ $history->success_count }} ✓
-                                                    </span>
-                                                    @if($history->error_count > 0)
-                                                        <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25">
-                                                            {{ $history->error_count }} ✗
+                                            <div class="d-flex justify-content-between align-items-start gap-2">
+                                                <div class="d-flex flex-column gap-1">
+                                                    <div class="d-flex flex-wrap gap-2">
+                                                        <span class="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25">
+                                                            {{ $history->total_records }} rows
                                                         </span>
+                                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25">
+                                                            {{ $history->success_count }} ✓
+                                                        </span>
+                                                        @if($history->error_count > 0)
+                                                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25">
+                                                                {{ $history->error_count }} ✗
+                                                            </span>
+                                                        @endif
+                                                    </div>
+                                                    @if($history->created_count_meta !== null || $history->updated_count_meta !== null)
+                                                        <small class="text-muted">
+                                                            {{ (int) ($history->created_count_meta ?? 0) }} created · {{ (int) ($history->updated_count_meta ?? 0) }} updated
+                                                        </small>
                                                     @endif
                                                 </div>
-                                                <small class="text-muted">{{ $history->relative_time }}</small>
+                                                <small class="text-muted text-nowrap">{{ $history->relative_time }}</small>
+                                            </div>
+                                            @if(($history->error_count ?? 0) > 0 && count($history->error_messages) > 0)
+                                                <div class="mt-2">
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-danger w-100"
+                                                            data-bs-toggle="modal"
+                                                            data-bs-target="#errorModalMobile{{ $history->id }}">
+                                                        <i class="ri-error-warning-line me-1"></i>View Error Details
+                                                    </button>
+                                                </div>
+                                            @endif
+                                        </div>
+
+                                        @if(($history->error_count ?? 0) > 0 && count($history->error_messages) > 0)
+                                        <div class="modal fade" id="errorModalMobile{{ $history->id }}" tabindex="-1" aria-hidden="true">
+                                            <div class="modal-dialog modal-fullscreen-sm-down modal-dialog-scrollable">
+                                                <div class="modal-content">
+                                                    <div class="modal-header bg-danger text-white">
+                                                        <h6 class="modal-title">
+                                                            <i class="ri-error-warning-line me-2"></i>Error Details
+                                                        </h6>
+                                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-body">
+                                                        <div class="alert alert-info mb-3">
+                                                            <strong>Upload Summary:</strong><br>
+                                                            <small>
+                                                                <i class="ri-file-text-line me-1"></i> {{ $history->original_file_name }}<br>
+                                                                <i class="ri-database-line me-1"></i> Total: {{ $history->total_records ?? 0 }}<br>
+                                                                <i class="ri-check-line me-1"></i> Success: {{ $history->success_count ?? 0 }}
+                                                                @if($history->created_count_meta !== null || $history->updated_count_meta !== null)
+                                                                    ({{ $history->created_count_meta ?? 0 }} created, {{ $history->updated_count_meta ?? 0 }} updated)
+                                                                @endif
+                                                                <br>
+                                                                <i class="ri-close-line me-1"></i> Failed: {{ $history->error_count ?? 0 }}
+                                                            </small>
+                                                        </div>
+                                                        <h6 class="mb-3 text-danger">
+                                                            <i class="ri-alert-line me-2"></i>Errors:
+                                                        </h6>
+                                                        <div class="error-details-list">
+                                                            @foreach($history->error_messages as $index => $error)
+                                                                <div class="error-detail-item mb-2 p-2 border-start border-danger border-3 bg-light">
+                                                                    <div class="d-flex align-items-start">
+                                                                        <span class="badge bg-danger me-2">{{ $index + 1 }}</span>
+                                                                        <div class="flex-grow-1 small">{{ $error }}</div>
+                                                                    </div>
+                                                                </div>
+                                                            @endforeach
+                                                        </div>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                                            <i class="ri-close-line me-1"></i>Close
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
+                                        @endif
                                     @endforeach
                                 </div>
                             @else
@@ -521,6 +679,34 @@
     justify-content: center;
     font-size: 1.5rem;
     color: white;
+}
+
+.hotel-image-container-header {
+    flex-shrink: 0;
+}
+
+.hotel-thumbnail-header {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 12px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+}
+
+.hotel-thumbnail-header:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.hotel-thumbnail-placeholder {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(10px);
 }
 
 .text-white-50 {
@@ -819,6 +1005,28 @@
     animation: fadeInUp 0.3s ease-out;
 }
 
+.view-errors-btn {
+    border-radius: 6px;
+    font-size: 0.875rem;
+    padding: 0.375rem 0.75rem;
+    transition: all 0.3s ease;
+}
+
+.view-errors-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
+}
+
+.error-detail-item {
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.error-detail-item:hover {
+    background-color: #fff !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
 @media (max-width: 768px) {
     .page-content {
         padding: 1rem 0;
@@ -832,6 +1040,11 @@
         width: 50px;
         height: 50px;
         font-size: 1.2rem;
+    }
+
+    .hotel-thumbnail-header {
+        width: 70px;
+        height: 70px;
     }
     
     .upload-section {
