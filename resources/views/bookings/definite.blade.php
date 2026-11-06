@@ -1397,8 +1397,10 @@
 
                                     $persons = ($tour->adult ?? 0) + ($tour->child ?? 0);
                                     $days = \App\Helpers\TaxHelper::calculateDays($tour->check_in_time, $tour->check_out_time);
-                                    $taxResult = \App\Helpers\TaxHelper::calculateTourTaxes($baseAmount, $tour->taxes, $persons, $days);
+                                    $taxResult = \App\Helpers\TaxHelper::calculateTourTaxesForTour($baseAmount, $tour->taxes, $persons, $days, $tour);
                                     $taxAmount = $taxResult['total_tax'];
+                                    $taxIncluded = ! empty($taxResult['tax_included']);
+                                    $onlineTaxIncluded = ! empty($taxResult['online_tax_included']);
                                     $finalAmount = $baseAmount + $taxAmount;
                                     $paymentData = is_string($tour->payment_details) ? json_decode($tour->payment_details, true) : $tour->payment_details;
                                     $totalPaid = 0;
@@ -3373,16 +3375,14 @@
         $netTourAmount = $baseAmount;
         $negotiationDiscount = max(0, $netPayableBase - $baseAmount);
 
-        // Calculate tax amount using TaxHelper
+        // Online: tax included. Mix: offline only. Offline: normal.
         $persons = ($tour->adult ?? 0) + ($tour->child ?? 0);
         $days = \App\Helpers\TaxHelper::calculateDays($tour->check_in_time, $tour->check_out_time);
-        
-        // Debug: Log the taxes data for this tour
-        \Log::info('Tour #' . $tour->tour_id . ' Taxes Data:', ['taxes' => $tour->taxes, 'persons' => $persons, 'days' => $days, 'baseAmount' => $baseAmount]);
-        
-        $taxResult = \App\Helpers\TaxHelper::calculateTourTaxes($baseAmount, $tour->taxes, $persons, $days);
+        $taxResult = \App\Helpers\TaxHelper::calculateTourTaxesForTour($baseAmount, $tour->taxes, $persons, $days, $tour);
         $taxAmount = $taxResult['total_tax'];
         $taxBreakdown = $taxResult['breakdown'];
+        $taxIncluded = ! empty($taxResult['tax_included']);
+        $onlineTaxIncluded = ! empty($taxResult['online_tax_included']);
         $finalAmount = $baseAmount + $taxAmount;
         
         $paymentData = is_string($tour->payment_details) ? json_decode($tour->payment_details, true) : $tour->payment_details;
@@ -3509,7 +3509,7 @@
                         </div>
                         <div class="row mt-2 g-1">
                             <div class="col"><div class="card bg-secondary text-white py-1 px-2" style="border-radius: 6px;"><small class="d-block" style="font-size: 0.65rem;">Base</small><strong style="font-size: 0.85rem;">{{ number_format($baseAmount, 2) }} {{ $tourCurrency }}</strong></div></div>
-                            <div class="col"><div class="card bg-info text-white py-1 px-2" style="border-radius: 6px;"><small class="d-block" style="font-size: 0.65rem;">Tax</small><strong style="font-size: 0.85rem;">{{ number_format($taxAmount, 2) }} {{ $tourCurrency }}</strong></div></div>
+                            <div class="col"><div class="card bg-info text-white py-1 px-2" style="border-radius: 6px;"><small class="d-block" style="font-size: 0.65rem;">{{ !empty($taxIncluded) ? 'Tax (included)' : (!empty($onlineTaxIncluded) ? 'Tax (offline)' : 'Tax') }}</small><strong style="font-size: 0.85rem;">{{ !empty($taxIncluded) ? 'Included' : (number_format($taxAmount, 2) . ' ' . $tourCurrency) }}</strong></div></div>
                             <div class="col"><div class="card bg-primary text-white py-1 px-2" style="border-radius: 6px;"><small class="d-block" style="font-size: 0.65rem;">Total</small><strong style="font-size: 0.85rem;">{{ number_format($finalAmount, 2) }} {{ $tourCurrency }}</strong></div></div>
                             <div class="col"><div class="card bg-success text-white py-1 px-2" style="border-radius: 6px;"><small class="d-block" style="font-size: 0.65rem;">Paid</small><strong style="font-size: 0.85rem;">{{ number_format($totalPaid, 2) }} {{ $tourCurrency }}</strong></div></div>
                             <div class="col"><div class="card bg-warning text-white py-1 px-2" style="border-radius: 6px;"><small class="d-block" style="font-size: 0.65rem;">Remaining</small><strong style="font-size: 0.85rem;">{{ number_format($remainingAmount, 2) }} {{ $tourCurrency }}</strong></div></div>
@@ -3633,8 +3633,8 @@
                                         <div class="fw-bold text-dark">{{ number_format(round($baseAmount), 2) }} {{ $tourCurrency }}</div>
                                     </div>
                                     <div class="col-4">
-                                        <small class="text-muted">Tax</small>
-                                        <div class="fw-bold text-warning">{{ number_format(round($taxAmount), 2) }} {{ $tourCurrency }}</div>
+                                        <small class="text-muted">{{ !empty($taxIncluded) ? 'Tax (included)' : (!empty($onlineTaxIncluded) ? 'Tax (offline)' : 'Tax') }}</small>
+                                        <div class="fw-bold text-warning">{{ !empty($taxIncluded) ? 'Included' : (number_format(round($taxAmount), 2) . ' ' . $tourCurrency) }}</div>
                                     </div>
                                     <div class="col-4">
                                         <small class="text-muted">Total Amount</small>

@@ -712,6 +712,14 @@
                                 </div>
                             </a>
                         </li>
+                        <li class="menu-item @if(Request::is('invoice-templates') || Request::is('invoice-templates/*')) active @endif">
+                            <a href="{{ route('invoice-templates.index') }}" class="menu-link" title="Invoice Template Studio">
+                                <div data-i18n="Invoice Templates" class="menu-tooltip">
+                                    <span class="menu-text-with-tooltip">Invoice Templates</span>
+                                    <span class="tooltip-text">Invoice Template Studio</span>
+                                </div>
+                            </a>
+                        </li>
                         @endif
                         @if(Auth::user()->role_id == 1 || Auth::user()->role_id == 2)
                         <!-- Show Port -->

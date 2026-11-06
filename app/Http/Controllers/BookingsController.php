@@ -102,6 +102,29 @@ class BookingsController extends Controller
     }
 
     /**
+     * Agents has duplicate physical rows for the same agent_id (sometimes same id too).
+     * A plain leftJoin on agent_id multiplies every tour in booking lists.
+     * DISTINCT ON keeps one agent row per agent_id (PostgreSQL).
+     */
+    private function leftJoinBookingAgents($query)
+    {
+        return $query->leftJoin(
+            DB::raw('(SELECT DISTINCT ON (agent_id) agent_id, name, company_name FROM agents ORDER BY agent_id, ctid) AS agents'),
+            'tours.agent_id',
+            '=',
+            'agents.agent_id'
+        );
+    }
+
+    /**
+     * Safety net: one list row per business tour_id (matches definiteBookings).
+     */
+    private function dedupeBookingListTours($tours)
+    {
+        return $tours->unique('tour_id')->values();
+    }
+
+    /**
      * Format display_id as company_code/user_code/ENQxxxx (strip DMC- prefix).
      * Expects tour items to have created_by_company_code and created_by_user_code, or dmc_company_code and created_by_user_code.
      */
@@ -1033,6 +1056,61 @@ class BookingsController extends Controller
     }
 
     /**
+     * TravClicks refund modal: DMC wallet currency + countries.current_rate factors
+     * so the UI can preview the converted credit (source → SGD → DMC currency).
+     *
+     * @param  \Illuminate\Support\Collection|array<int, mixed>  $tours
+     */
+    private function attachTravclicksDmcWalletFx($tours): void
+    {
+        if ($tours === null) {
+            return;
+        }
+
+        $walletQuery = app(WalletQueryService::class);
+        $dmcCache = [];
+        $sourceRateCache = [];
+
+        foreach ($tours as $tour) {
+            $dmcId = (int) ($tour->dmc_id ?? 0);
+            if ($dmcId > 0 && ! isset($dmcCache[$dmcId])) {
+                $configured = $walletQuery->getConfiguredCurrenciesForOwner('dmc', $dmcId);
+                $dmcCurrency = strtoupper(trim((string) (
+                    $configured['default']
+                    ?: ($configured['currencies'][0] ?? '')
+                    ?: $walletQuery->resolveCurrencyForOwner('dmc', $dmcId)
+                )));
+                $dmcCache[$dmcId] = [
+                    'currency' => $dmcCurrency,
+                    'rate' => ($dmcCurrency !== '' ? Country::sgdRateFor($dmcCurrency) : null),
+                ];
+            }
+
+            $dmcFx = $dmcCache[$dmcId] ?? ['currency' => '', 'rate' => null];
+            $tour->setAttribute('dmc_wallet_currency', $dmcFx['currency']);
+            $tour->setAttribute('dmc_wallet_sgd_rate', $dmcFx['rate']);
+
+            $orders = $tour->relationLoaded('booking') ? $tour->booking : collect();
+            foreach ($orders as $order) {
+                $sourceCurrency = strtoupper(trim((string) (
+                    $order->refund_price_currency
+                    ?: $order->currency
+                    ?: $tour->user_currency
+                    ?: 'SGD'
+                )));
+                if (! array_key_exists($sourceCurrency, $sourceRateCache)) {
+                    $sourceRateCache[$sourceCurrency] = Country::sgdRateFor($sourceCurrency);
+                }
+
+                $order->setAttribute('refund_source_currency', $sourceCurrency);
+                $order->setAttribute('refund_source_sgd_rate', $sourceRateCache[$sourceCurrency]);
+                $order->setAttribute('dmc_wallet_currency', $dmcFx['currency']);
+                $order->setAttribute('dmc_wallet_sgd_rate', $dmcFx['rate']);
+            }
+        }
+    }
+
+    /**
      * Full tour sell with markup: every booking order on the tour.
      *
      * @return array{amount: float, currency: string}
@@ -1306,11 +1384,15 @@ class BookingsController extends Controller
 
         $persons = (int) ($tour->adult ?? 0) + (int) ($tour->child ?? 0);
         $days = \App\Helpers\TaxHelper::calculateDays($tour->check_in_time ?? null, $tour->check_out_time ?? null);
-        $tax = \App\Helpers\TaxHelper::calculateTourTaxes($base, $tour->taxes ?? null, $persons, $days);
+        // Online: tax included (no add-on). Mix: tax offline only. Offline: unchanged.
+        $tax = \App\Helpers\TaxHelper::calculateTourTaxesForTour($base, $tour->taxes ?? null, $persons, $days, $tour);
 
         return [
             'total' => round($base + (float) ($tax['total_tax'] ?? 0), 2),
             'currency' => $tourCurrency,
+            'tax_amount' => (float) ($tax['total_tax'] ?? 0),
+            'tax_included' => (bool) ($tax['tax_included'] ?? false),
+            'online_tax_included' => (bool) ($tax['online_tax_included'] ?? false),
         ];
     }
 
@@ -1445,7 +1527,7 @@ class BookingsController extends Controller
         $tours = collect([]);
         if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
             $tours = Tour::where('tour_status', 'New Enquiry')
-            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
                             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                             ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
                             ->select([
@@ -1522,7 +1604,7 @@ class BookingsController extends Controller
         if($dmc_id){
             $tours = Tour::where('tour_status', 'New Enquiry')
                 ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
-                ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+                ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
                 ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                 ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
                 ->select([
@@ -1726,7 +1808,16 @@ class BookingsController extends Controller
                 $activeEnquiry->update(['status' => 3]);
             }
 
-            $newStatus = $tour->tour_status === 'Definite'
+            try {
+                // Paid online services → same TravClicks → DMC refund flow as per-service cancel
+                $onlineRefund = app(\App\Services\Payment\OnlineTourCancelRefundService::class)
+                    ->enqueuePaidOnlineServices($tour);
+            } catch (\RuntimeException $e) {
+                return back()->with('error', $e->getMessage());
+            }
+
+            $onlineQueued = (int) ($onlineRefund['queued'] ?? 0);
+            $newStatus = ($tour->tour_status === 'Definite' || $onlineQueued > 0)
                 ? 'Refund - Pending'
                 : 'Cancel - ' . $tour->tour_status;
 
@@ -2099,7 +2190,7 @@ class BookingsController extends Controller
 
     //     if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
     //         $tours = Tour::whereIn('tour_status', ['Prospect', 'Tentative'])
-    //         ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+    //         ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
     //         ->leftJoin('enquiry_comments', 'tours.tour_id', '=', 'enquiry_comments.tour_id')
     //         ->select([
     //             'tours.tour_id',
@@ -2149,7 +2240,7 @@ class BookingsController extends Controller
 
     //     if($dmc_id){
     //         $tours = Tour::whereIn('tour_status', ['Prospect', 'Tentative'])
-    //             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+    //             ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
     //             ->leftJoin('enquiry_comments', 'tours.tour_id', '=', 'enquiry_comments.tour_id')
     //             ->select([
     //                 'tours.tour_id',
@@ -2195,7 +2286,7 @@ class BookingsController extends Controller
 
         if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
             $tours = Tour::whereIn('tour_status', ['Prospect', 'Tentative'])
-            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
             ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->leftJoin('enquiry_comments', function($join) {
@@ -2269,7 +2360,7 @@ class BookingsController extends Controller
 
         if($dmc_id){
             $tours = Tour::whereIn('tour_status', ['Prospect', 'Tentative'])
-                ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+                ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
                 ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                 ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
                 ->leftJoin('enquiry_comments', function($join) {
@@ -2342,7 +2433,7 @@ class BookingsController extends Controller
     {
         $user = Auth::user();
         $tours = Tour::where('tour_status', 'Tentative')
-            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
             ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->select([
@@ -2399,7 +2490,7 @@ class BookingsController extends Controller
                 }
             ])
             ->where('tour_status', 'Confirmed')
-            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
             ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->select([
@@ -2468,7 +2559,7 @@ class BookingsController extends Controller
             ])
             ->where('tour_status', 'Confirmed')
             ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
-            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
             ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->select([
@@ -2713,7 +2804,7 @@ class BookingsController extends Controller
                 },
                 'agent'
             ])
-            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
             ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->select([
@@ -2805,7 +2896,7 @@ class BookingsController extends Controller
                     ->whereNull('orders.deleted_at');
             })
             ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
-            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
             ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->select([
@@ -2989,7 +3080,7 @@ class BookingsController extends Controller
                         ->where('orders.bookingType', 'booking')
                         ->whereNull('orders.deleted_at');
                 })
-                ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+                ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
                 ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                 ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
                 ->select([
@@ -3063,7 +3154,7 @@ class BookingsController extends Controller
                         ->whereNull('orders.deleted_at');
                 })
                 ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
-                ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+                ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
                 ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                 ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
                 ->select([
@@ -3242,7 +3333,7 @@ class BookingsController extends Controller
                 $query->where('tour_status', 'LIKE', 'Cancel%')
                       ->orWhere('tour_status', 'LIKE', '%Cancel%');
             })
-            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
             ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->select([
@@ -3303,7 +3394,7 @@ class BookingsController extends Controller
                       ->orWhere('tour_status', 'LIKE', '%Cancel%');
             })
             ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
-            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
             ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->select([
@@ -3387,7 +3478,7 @@ class BookingsController extends Controller
                     }
                 ])
                 ->whereIn('tours.tour_id', $refundTourIds)
-                ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+                ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
                 ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
                 ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
                 ->select([
@@ -3480,7 +3571,7 @@ class BookingsController extends Controller
                 }
             })
             ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
-            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
             ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->select([
@@ -3565,6 +3656,9 @@ class BookingsController extends Controller
         $this->attachTourMoneySummary($tours);
         $this->attachRefundPrices($tours);
         $this->attachTourRefundPrices($tours);
+        if (in_array((int) ($user->role_id ?? 0), [1, 2, 3, 4], true)) {
+            $this->attachTravclicksDmcWalletFx($tours);
+        }
         $this->hydrateDestinationCreatedAt($tours);
         return view('bookings.refunds', compact('tours', 'country_tax', 'currency'));
     }
@@ -3597,10 +3691,19 @@ class BookingsController extends Controller
 
     /**
      * Process refund for a tour (update tour_status from 'Refund - Pending' to 'Refunded')
+     * DMC / finance only — TravClicks refunds online services via processOrderRefundByOrder.
      */
     public function processRefund(Request $request)
     {
         try {
+            $roleId = (int) (Auth::user()->role_id ?? 0);
+            if (in_array($roleId, [1, 2, 3, 4], true)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'TravClicks can refund online cancelled services only, not the full tour.',
+                ], 403);
+            }
+
             $validator = Validator::make($request->all(), [
                 'tour_id' => 'required|integer|exists:tours,tour_id',
                 'refund_amount' => 'required|numeric|min:0',
@@ -4140,7 +4243,7 @@ class BookingsController extends Controller
     {
         $user = Auth::user();
         $tours = Tour::where('tour_status', 'Cancelled')
-            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
             ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
             ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->select([
@@ -4240,7 +4343,7 @@ class BookingsController extends Controller
     {
         try {
             $tour = Tour::where('tour_id', $tourId)
-                ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+                ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
                 ->select([
                     'tours.*',
                     'agents.name as agent_name'
@@ -4355,17 +4458,24 @@ class BookingsController extends Controller
             }
             
             // Check if tour is already cancelled
-            if ($tour->tour_status === 'Cancel') {
+            if ($tour->tour_status === 'Cancel' || str_starts_with((string) $tour->tour_status, 'Cancel')) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Tour is already cancelled'
                 ], 400);
             }
+
+            // Paid online services → same TravClicks → DMC refund flow as per-service cancel
+            // (works for New Enquiry / Confirmed after online pay, not only Definite).
+            $onlineRefund = app(\App\Services\Payment\OnlineTourCancelRefundService::class)
+                ->enqueuePaidOnlineServices($tour);
             
             // Update tour status to Cancel (and track history)
             $oldStatus = $tour->tour_status;
+            $onlineQueued = (int) ($onlineRefund['queued'] ?? 0);
 
-            if ($tour->tour_status == 'Definite') {
+            // Any paid-online cancel must land on Refunds (not Cancelled list)
+            if ($tour->tour_status == 'Definite' || $onlineQueued > 0) {
                 $tour->tour_status = 'Refund - Pending';
             } else {
                 $tour->tour_status = 'Cancel-' . $tour->tour_status;
@@ -4384,9 +4494,15 @@ class BookingsController extends Controller
                 'success' => true,
                 'message' => 'Tour cancelled successfully',
                 'tour_id' => $tour->display_id,
-                'new_status' => $tour->tour_status
+                'new_status' => $tour->tour_status,
+                'online_refunds_queued' => (int) ($onlineRefund['queued'] ?? 0),
             ]);
             
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

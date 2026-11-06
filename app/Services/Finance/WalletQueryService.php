@@ -1124,8 +1124,9 @@ class WalletQueryService
             })->get();
         }
 
-        if ((int) $user->role_id === 11) {
-            $dmcUserId = (int) $user->userId;
+        // DMC owner (11) or multi-role staff (138) viewing parent DMC wallet
+        $dmcUserId = \App\Helpers\CommonHelper::resolveDmcUserIdForStaff($user);
+        if ($dmcUserId && in_array((int) $user->role_id, [11, 138], true)) {
             $agentIds = $this->getAgentsForDmc($dmcUserId)->pluck('agent_id');
 
             return $query->where(function ($q) use ($dmcUserId, $agentIds) {
@@ -1651,6 +1652,11 @@ class WalletQueryService
         $isAdmin = in_array($user->role_id, [1, 2, 3, 4]);
         $isMasterDmc = (int) $user->role_id === 10;
         $isDmcOwner = (int) $user->role_id === 11;
+        // Multi-role 138: view parent DMC wallet (no allocate/top-up)
+        $isDmcViewer = (int) $user->role_id === 138;
+        $staffDmcId = ($isDmcOwner || $isDmcViewer)
+            ? \App\Helpers\CommonHelper::resolveDmcUserIdForStaff($user)
+            : null;
         $isAgent = (int) $user->role_id === 20 || ! empty($user->agent_id);
 
         $canTopUp = $isAdmin || $isMasterDmc
@@ -1666,9 +1672,16 @@ class WalletQueryService
                 $ownerId = (int) $user->agent_id;
                 $canTopUp = false;
                 $canSwitchWallet = false;
-            } elseif ($isDmcOwner) {
+            } elseif ($isDmcOwner || $isDmcViewer) {
+                if (! $staffDmcId) {
+                    abort(403, 'Parent DMC could not be resolved for this user.');
+                }
                 $ownerType = 'dmc';
-                $ownerId = (int) $user->userId;
+                $ownerId = $staffDmcId;
+                if ($isDmcViewer) {
+                    $canTopUp = false;
+                    $canSwitchWallet = false;
+                }
             } elseif ($isMasterDmc) {
                 $ownerType = 'master_dmc';
                 $ownerId = (int) $user->userId;
@@ -1676,7 +1689,7 @@ class WalletQueryService
         }
 
         if (! $ownerType || ! $ownerId) {
-            abort(403, 'Wallet management is available only to DMC owners, Master DMC, agents, and administrators.');
+            abort(403, 'Wallet management is available only to DMC owners, multi-role staff, Master DMC, agents, and administrators.');
         }
 
         if (! $this->canAccessWallet($user, $ownerType, $ownerId)) {
@@ -1708,14 +1721,14 @@ class WalletQueryService
             ? $this->resolveOwnerName($ownerType, $ownerId)
             : null;
 
-        $topUpTargets = $this->getTopUpTargets($user);
+        $topUpTargets = $isDmcViewer ? [] : $this->getTopUpTargets($user);
 
         return compact(
             'ownerType', 'ownerId', 'wallet', 'ledger', 'ledgerFilters', 'currency',
             'ledgerSummary', 'ledgerFilteredSummary',
             'canTopUp', 'canSwitchWallet', 'topUpTargets',
             'isAdmin', 'isAgent', 'ownerDisplayName'
-        ) + ['isDmc' => $isDmcOwner, 'isFinance' => false];
+        ) + ['isDmc' => $isDmcOwner || $isDmcViewer, 'isFinance' => false];
     }
 
     protected function resolveWalletCurrency(?string $ownerType, ?int $ownerId, ?string $requestedCurrency = null): string
@@ -1915,7 +1928,8 @@ class WalletQueryService
         }
 
         if ($ownerType === 'dmc') {
-            if ((int) $user->role_id === 11 && (int) $user->userId === $ownerId) {
+            $staffDmcId = \App\Helpers\CommonHelper::resolveDmcUserIdForStaff($user);
+            if ($staffDmcId && (int) $staffDmcId === $ownerId && in_array((int) $user->role_id, [11, 138], true)) {
                 return true;
             }
 
@@ -1931,9 +1945,7 @@ class WalletQueryService
         }
 
         if ($ownerType === 'agent') {
-            $dmcUserId = (int) $user->role_id === 11
-                ? (int) $user->userId
-                : \App\Helpers\CommonHelper::resolveDmcUserIdForStaff($user);
+            $dmcUserId = \App\Helpers\CommonHelper::resolveDmcUserIdForStaff($user);
 
             if ($dmcUserId) {
                 $agent = Agent::where('agent_id', $ownerId)->where('status', 1)->first();

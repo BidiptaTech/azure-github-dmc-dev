@@ -311,24 +311,30 @@
         modal.id = 'acceptancePayModal';
         modal.tabIndex = -1;
         modal.innerHTML = `
-            <div class="modal-dialog">
+            <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="acceptancePayTitle">Payment</h5>
+                        <div>
+                            <div class="small text-white-50 mb-1" style="opacity:.85;letter-spacing:.04em;text-transform:uppercase;font-weight:600;font-size:.68rem;">Online services</div>
+                            <h5 class="modal-title mb-0" id="acceptancePayTitle">Payment</h5>
+                        </div>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                        <p id="acceptancePayHint" class="text-muted small"></p>
-                        <label class="form-label">Amount</label>
-                        <input id="acceptancePayAmount" class="form-control mb-2" readonly>
-                        <label class="form-label">Method</label>
+                        <p id="acceptancePayHint" class="small mb-3"></p>
+                        <label class="form-label" for="acceptancePayAmount">Amount due</label>
+                        <input id="acceptancePayAmount" class="form-control mb-3" readonly>
+                        <label class="form-label" for="acceptancePayMethod">Payment method</label>
                         <select id="acceptancePayMethod" class="form-select"></select>
                         <label class="form-label mt-3" for="acceptancePayRemarks">Remarks</label>
                         <textarea id="acceptancePayRemarks" class="form-control" rows="2" maxlength="2000" placeholder="Optional note for this payment"></textarea>
                         <small id="acceptancePayHelp" class="text-muted d-block mt-2"></small>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-primary" id="acceptancePaySubmit">Pay</button>
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="acceptancePaySubmit">
+                            <i class="ri-secure-payment-line me-1"></i>Pay now
+                        </button>
                     </div>
                 </div>
             </div>`;
@@ -448,3 +454,64 @@
     };
 })();
 </script>
+<style>
+    #acceptancePayModal .modal-content {
+        border: 0;
+        border-radius: 1rem;
+        overflow: hidden;
+        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
+    }
+    #acceptancePayModal .modal-header {
+        background: linear-gradient(135deg, #0f766e 0%, #115e59 100%);
+        color: #fff;
+        border: 0;
+        padding: 1rem 1.25rem;
+    }
+    #acceptancePayModal .modal-header .btn-close {
+        filter: invert(1) grayscale(100%);
+        opacity: 0.85;
+    }
+    #acceptancePayModal .modal-title {
+        font-weight: 700;
+        font-size: 1.05rem;
+    }
+    #acceptancePayModal .modal-body {
+        padding: 1.15rem 1.25rem 0.5rem;
+    }
+    #acceptancePayModal #acceptancePayHint {
+        margin-bottom: 1rem;
+        padding: 0.65rem 0.75rem;
+        border-radius: 0.65rem;
+        background: #f0fdfa;
+        border: 1px solid #99f6e4;
+        color: #134e4a;
+        font-size: 0.82rem;
+        line-height: 1.4;
+    }
+    #acceptancePayModal #acceptancePayHint:empty {
+        display: none;
+    }
+    #acceptancePayModal .form-label {
+        font-size: 0.78rem;
+        font-weight: 650;
+        color: #334155;
+        margin-bottom: 0.3rem;
+    }
+    #acceptancePayModal #acceptancePayAmount {
+        font-weight: 700;
+        font-size: 1.05rem;
+        color: #0f766e;
+        background: #f8fafc;
+    }
+    #acceptancePayModal .modal-footer {
+        border: 0;
+        padding: 0.75rem 1.25rem 1.15rem;
+        gap: 0.5rem;
+    }
+    #acceptancePayModal #acceptancePaySubmit {
+        background: linear-gradient(135deg, #0f766e 0%, #115e59 100%);
+        border: 0;
+        font-weight: 650;
+        min-width: 7rem;
+    }
+</style>
