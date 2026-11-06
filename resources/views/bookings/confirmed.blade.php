@@ -20,6 +20,7 @@
 <script>
     window.bookingCurrency = @json($pageCurrency);
     window.tourNegotiationHistory = @json($tourNegotiationHistory ?? []);
+    window.rejectServicePageTourStatus = 'Confirmed';
 </script>
 
 <style>
@@ -7921,7 +7922,7 @@ function approveIndividualHotel(tourId, hotelOrderIndex, bookingIndex, autoCance
 function rejectIndividualHotel(tourId, hotelOrderIndex, bookingIndex, autoCancelDate=null) {
     showRejectServiceAlert('hotel', () => {
         createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'reject', autoCancelDate);
-    }, tourId);
+    }, tourId, !!window.__cancelWithoutRefund, { hotelOrderIndex: hotelOrderIndex });
 }
 
 // Override any previous definitions - this is the correct attraction approve function
@@ -19651,8 +19652,9 @@ function rejectIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
         setTimeout(() => {
             createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'reject');
         }, 300);
-    }, tourId);
+    }, tourId, !!window.__cancelWithoutRefund, { hotelOrderIndex: hotelOrderIndex });
 }
+window.rejectIndividualHotel = rejectIndividualHotel;
 
 function createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, action, autoCancelDate=null) {
     try {

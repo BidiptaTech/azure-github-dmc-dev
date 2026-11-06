@@ -46,6 +46,9 @@ class AttractionPriceMarkupApplier
             $this->syncLowHighFromTickets($item);
         }
 
+        // Stamp stack so approve-time commission can split admin vs DMC (same as hotels).
+        $item['markup'] = $context->toArray();
+
         return $item;
     }
 
@@ -73,6 +76,8 @@ class AttractionPriceMarkupApplier
                 $ticket[$scalar] = $this->markUp((float) $ticket[$scalar], $context);
             }
         }
+
+        $ticket['markup'] = $context->toArray();
 
         return $ticket;
     }

@@ -10,6 +10,7 @@ use App\Services\HotelSuppliers\OnlineHotelBookingServiceFactory;
 use App\Services\OnlinePricing\OnlinePricingService;
 use App\Services\SupplierConfigResolver;
 use App\Services\AttractionSuppliers\OnlineAttractionOrderService;
+use App\Services\Payment\OnlineServiceCommissionCreditService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -3012,6 +3013,14 @@ class HotelBookingController extends Controller
                 'online_booking' => $bookingDetails !== null,
             ]);
 
+            // Online hotel: credit admin + DMC markup commissions to wallets (tour_id on ledger)
+            $commissionCredit = null;
+            if ($isOnlineOrder) {
+                $freshHotelOrder = DB::table('orders')->where('id', $hotelOrder->id)->first() ?? $hotelOrder;
+                $commissionCredit = app(OnlineServiceCommissionCreditService::class)
+                    ->creditOnApprove($freshHotelOrder, Tour::where('tour_id', $tourId)->first());
+            }
+
             // Send confirmation email to hotel (hotels.email) using mail-preview style subject/body
             $emailResult = $this->sendHotelApprovalConfirmationEmail(
                 $tourId,
@@ -3029,6 +3038,7 @@ class HotelBookingController extends Controller
                 'email_message' => $emailResult['message'] ?? null,
                 'hotel_email' => $emailResult['hotel_email'] ?? null,
                 'online_booking' => $bookingDetails !== null,
+                'commission_credit' => $commissionCredit,
                 'data' => [
                     'tour_id' => $tourId,
                     'hotel_order_id' => $hotelOrder->id,
@@ -3846,6 +3856,14 @@ class HotelBookingController extends Controller
                 'display_due_date' => $displayDueDate
             ]);
 
+            // Online attraction: credit admin + DMC markup commissions to wallets (tour_id on ledger)
+            $commissionCredit = null;
+            if ($isOnline) {
+                $freshAttractionOrder = DB::table('orders')->where('id', $attractionOrder->id)->first() ?? $attractionOrder;
+                $commissionCredit = app(OnlineServiceCommissionCreditService::class)
+                    ->creditOnApprove($freshAttractionOrder, Tour::where('tour_id', $tourId)->first());
+            }
+
             // Prepare success message with upload information
             $message = 'Attraction booking approved successfully';
             if (!empty($uploadedFiles)) {
@@ -3858,6 +3876,7 @@ class HotelBookingController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => $message,
+                'commission_credit' => $commissionCredit,
                 'data' => [
                     'tour_id' => $tourId,
                     'attraction_order_id' => $attractionOrder->id,

@@ -1263,6 +1263,106 @@ class WalletLedgerService
     }
 
     /**
+     * True when this order already received a booking_credit for the owner
+     * (online approve-time markup commission — multi-service safe).
+     */
+    public function orderCommissionCreditExists(int $orderId, string $ownerType, int $ownerId, string $purpose = 'online_markup_commission'): bool
+    {
+        if ($orderId <= 0 || ! Schema::hasTable('wallet_ledger')) {
+            return false;
+        }
+
+        return DB::table('wallet_ledger as l')
+            ->join('wallet as w', 'w.id', '=', 'l.wallet_id')
+            ->where('l.ledger_entry_type', 'booking_credit')
+            ->where('w.wallet_owner_type', $ownerType)
+            ->where('w.wallet_owner_id', $ownerId)
+            ->whereRaw("COALESCE(l.ledger_metadata->>'purpose', '') = ?", [$purpose])
+            ->whereRaw("COALESCE(l.ledger_metadata->>'order_id', '') = ?", [(string) $orderId])
+            ->exists();
+    }
+
+    /**
+     * Actual wallet commission credit posted for a tour (home-currency amount + currency).
+     * Prefers credited_amount / credit_amount — never the order-currency source_amount.
+     *
+     * @return array{amount: float, currency: ?string}
+     */
+    public function tourCommissionWalletCredit(int $tourId, string $ownerType, int $ownerId): array
+    {
+        if ($tourId <= 0 || ! Schema::hasTable('wallet_ledger')) {
+            return ['amount' => 0.0, 'currency' => null];
+        }
+
+        $rows = DB::table('wallet_ledger as l')
+            ->join('wallet as w', 'w.id', '=', 'l.wallet_id')
+            ->where('l.tour_id', $tourId)
+            ->where('l.ledger_entry_type', 'booking_credit')
+            ->where('w.wallet_owner_type', $ownerType)
+            ->where('w.wallet_owner_id', $ownerId)
+            ->where(function ($q) {
+                $q->whereRaw("COALESCE(l.ledger_metadata->>'purpose', '') = ?", ['online_markup_commission'])
+                    ->orWhereRaw("COALESCE(l.ledger_metadata->>'purpose', '') = ?", ['commission'])
+                    ->orWhereRaw("COALESCE(l.ledger_metadata->>'purpose', '') = ?", ['commission_balance']);
+            })
+            ->get(['l.credit_amount', 'l.ledger_metadata', 'w.wallet_currency_code']);
+
+        $sum = 0.0;
+        $currency = null;
+        foreach ($rows as $row) {
+            $meta = is_string($row->ledger_metadata ?? null)
+                ? (json_decode((string) $row->ledger_metadata, true) ?: [])
+                : (is_array($row->ledger_metadata ?? null) ? $row->ledger_metadata : []);
+            if (isset($meta['credited_amount']) && is_numeric($meta['credited_amount']) && (float) $meta['credited_amount'] > 0) {
+                $sum += (float) $meta['credited_amount'];
+                $currency = $meta['credited_currency'] ?? $currency ?? $row->wallet_currency_code;
+            } else {
+                $sum += (float) ($row->credit_amount ?? 0);
+                $currency = $currency ?? $row->wallet_currency_code;
+            }
+        }
+
+        return [
+            'amount' => round($sum, 4),
+            'currency' => $currency ? strtoupper((string) $currency) : null,
+        ];
+    }
+
+    /**
+     * Sum of booking_credit amounts already posted for a tour + purpose (source currency in metadata preferred).
+     */
+    public function sumTourCommissionCredits(int $tourId, string $ownerType, int $ownerId, string $purpose = 'online_markup_commission'): float
+    {
+        if ($tourId <= 0 || ! Schema::hasTable('wallet_ledger')) {
+            return 0.0;
+        }
+
+        $rows = DB::table('wallet_ledger as l')
+            ->join('wallet as w', 'w.id', '=', 'l.wallet_id')
+            ->where('l.tour_id', $tourId)
+            ->where('l.ledger_entry_type', 'booking_credit')
+            ->where('w.wallet_owner_type', $ownerType)
+            ->where('w.wallet_owner_id', $ownerId)
+            ->whereRaw("COALESCE(l.ledger_metadata->>'purpose', '') = ?", [$purpose])
+            ->get(['l.credit_amount', 'l.ledger_metadata']);
+
+        $sum = 0.0;
+        foreach ($rows as $row) {
+            $meta = is_string($row->ledger_metadata ?? null)
+                ? (json_decode((string) $row->ledger_metadata, true) ?: [])
+                : (is_array($row->ledger_metadata ?? null) ? $row->ledger_metadata : []);
+            // Prefer original (pre-FX) amount so payment settlement can subtract correctly.
+            if (isset($meta['source_amount']) && is_numeric($meta['source_amount'])) {
+                $sum += (float) $meta['source_amount'];
+            } else {
+                $sum += (float) ($row->credit_amount ?? 0);
+            }
+        }
+
+        return round($sum, 4);
+    }
+
+    /**
      * Credit one owner's commission without debiting the payer again.
      *
      * @param  array<string, mixed>  $data
@@ -1282,24 +1382,28 @@ class WalletLedgerService
                 strtoupper((string) ($data['wallet_currency_code'] ?? 'USD')),
             );
             $ref = (string) ($data['finance_reference'] ?? $this->generateFinanceReference('COM'));
+            $tourId = isset($data['tour_id']) ? (int) $data['tour_id'] : null;
+            $metadata = array_merge([
+                'tour_id' => $tourId,
+                'purpose' => 'commission',
+                'order_reference' => $tourId ? 'Tour #'.$tourId : null,
+            ], is_array($data['metadata'] ?? null) ? $data['metadata'] : []);
+
             $ledger = $this->creditWallet(
                 $wallet,
                 $amount,
                 $ref,
                 'booking_credit',
                 (string) ($data['description'] ?? 'Commission credit'),
-                tourId: isset($data['tour_id']) ? (int) $data['tour_id'] : null,
-                metadata: [
-                    'tour_id' => $data['tour_id'] ?? null,
-                    'purpose' => 'commission',
-                    'order_reference' => isset($data['tour_id']) ? 'Tour #'.$data['tour_id'] : null,
-                ],
+                tourId: $tourId,
+                metadata: $metadata,
             );
 
             return $this->ok([
                 'finance_reference' => $ref,
                 'ledger_uuid' => $ledger->ledger_uuid,
                 'amount' => (string) $amount,
+                'wallet_currency_code' => (string) $wallet->wallet_currency_code,
             ]);
         });
     }
