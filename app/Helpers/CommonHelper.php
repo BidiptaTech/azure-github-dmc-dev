@@ -12746,11 +12746,13 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $base = (float) ceil(max(0, $negotiatedAmount));
         $persons = (int) (($tour->adult ?? 0) + ($tour->child ?? 0));
         $days = TaxHelper::calculateDays($tour->check_in_time, $tour->check_out_time);
-        $taxResult = TaxHelper::calculateTourTaxes($base, $tour->taxes, $persons, $days);
+        $taxResult = TaxHelper::calculateTourTaxesForTour($base, $tour->taxes, $persons, $days, $tour);
 
         return [
             'total_tax' => (float) ($taxResult['total_tax'] ?? 0),
             'breakdown' => $taxResult['breakdown'] ?? [],
+            'tax_included' => (bool) ($taxResult['tax_included'] ?? false),
+            'online_tax_included' => (bool) ($taxResult['online_tax_included'] ?? false),
         ];
     }
 

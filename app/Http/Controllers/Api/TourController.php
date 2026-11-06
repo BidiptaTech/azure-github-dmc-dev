@@ -3523,16 +3523,24 @@ class TourController extends Controller
                     $currentEnquiry->update(['status' => 3]);
                 }
                 if($tour){
-                    if($tour->tour_status == "Definite"){
-                        $tour = Tour::where('tour_id', $tour_id)->update([
-                            'tour_status' => "Refund - Pending",
-                        ]);
+                    try {
+                        $onlineRefund = app(\App\Services\Payment\OnlineTourCancelRefundService::class)
+                            ->enqueuePaidOnlineServices($tour);
+                    } catch (\RuntimeException $e) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => $e->getMessage(),
+                        ], 422);
                     }
-                    else{
-                        $tour = Tour::where('tour_id', $tour_id)->update([
-                            'tour_status' => "Cancel - " . $tour->tour_status,
-                        ]);
+
+                    $previousStatus = $tour->tour_status;
+                    $onlineQueued = (int) ($onlineRefund['queued'] ?? 0);
+                    if ($previousStatus == "Definite" || $onlineQueued > 0) {
+                        $tour->tour_status = "Refund - Pending";
+                    } else {
+                        $tour->tour_status = "Cancel - " . $previousStatus;
                     }
+                    $tour->save();
 
                     return response()->json([
                         'success' => true,
@@ -4143,11 +4151,21 @@ class TourController extends Controller
         $tour = Tour::where('tour_id', $tour_id)->first();
 
         if ($tour) {
-            $previous_status = $tour->tour_status;
-            if($previous_status == "Definite"){
-                $tour->tour_status = 'Refund - Pending';
+            try {
+                $onlineRefund = app(\App\Services\Payment\OnlineTourCancelRefundService::class)
+                    ->enqueuePaidOnlineServices($tour);
+            } catch (\RuntimeException $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ], 422);
             }
-            else{
+
+            $previous_status = $tour->tour_status;
+            $onlineQueued = (int) ($onlineRefund['queued'] ?? 0);
+            if ($previous_status == "Definite" || $onlineQueued > 0) {
+                $tour->tour_status = 'Refund - Pending';
+            } else {
                 $tour->tour_status = 'Cancel - ' . $previous_status;
             }
             $tour->save();

@@ -459,8 +459,15 @@
                     <tbody>
                         @forelse($tours as $key => $tour)
                         @php
-                            $rowRefundOrders = collect($tour->booking ?? [])->filter(function ($order) {
-                                return (int) ($order->is_refund ?? 0) === 1;
+                            $rowRefundOrders = collect($tour->booking ?? [])->filter(function ($order) use ($showDmcColumn) {
+                                if ((int) ($order->is_refund ?? 0) !== 1) {
+                                    return false;
+                                }
+                                // TravClicks: online services only
+                                if ($showDmcColumn) {
+                                    return strtolower(trim((string) ($order->order_type ?? ''))) === 'online';
+                                }
+                                return true;
                             });
                             // TravClicks tracks wallet credit to DMC; DMC tracks refund to agent.
                             $orderRefundDone = function ($order) use ($showDmcColumn) {
@@ -478,7 +485,7 @@
                                 $hasPendingRefund = $tour->tour_status === 'Refund - Pending';
                                 $hasRefunded = $tour->tour_status === 'Refunded';
                             } else {
-                                // Service cancel: unfinished for this viewer's refund layer keeps row Pending.
+                                // TravClicks / service cancel: unfinished online (or DMC service) refunds keep row Pending.
                                 $hasPendingRefund = $rowRefundOrders->contains(function ($order) use ($orderRefundDone) {
                                     return ! $orderRefundDone($order);
                                 });
@@ -593,7 +600,14 @@
                                     @endif
                                 </div>
                             </td>
-                            @if($tour->tour_status === 'Refund - Pending' || $tour->tour_status === 'Refunded')
+                            @php
+                                // TravClicks: always use per-service online refund UI (same as order cancel).
+                                // DMC: full-tour cancel badge when there are no service-level refund rows.
+                                $useDmcTourCancelRefundUi = ! $showDmcColumn
+                                    && in_array($tour->tour_status, ['Refund - Pending', 'Refunded'], true)
+                                    && $rowRefundOrders->isEmpty();
+                            @endphp
+                            @if($useDmcTourCancelRefundUi)
                             <td class="col-refund-status align-top">
                                 <div class="refund-status-stack">
                                 @if($tour->tour_status === 'Refund - Pending')
@@ -633,8 +647,15 @@
                                         'miscellaneous' => ['icon' => 'ri-list-check-2', 'label' => 'Miscellaneous'],
                                     ];
                                     $refundOrders = collect($tour->booking ?? [])
-                                        ->filter(function ($order) {
-                                            return (int)($order->is_refund ?? 0) === 1;
+                                        ->filter(function ($order) use ($showDmcColumn) {
+                                            if ((int) ($order->is_refund ?? 0) !== 1) {
+                                                return false;
+                                            }
+                                            // TravClicks: online cancelled services only (never full-tour / offline)
+                                            if ($showDmcColumn) {
+                                                return strtolower(trim((string) ($order->order_type ?? ''))) === 'online';
+                                            }
+                                            return true;
                                         })
                                         ->values();
 
@@ -767,7 +788,8 @@
                                        class="action-icon-badge" style="--action-color: #0369a1;" data-tooltip="Audit Trail">
                                         <i class="ri-eye-line"></i>
                                     </a>
-                                    @if($tour->tour_status === 'Refund - Pending')
+                                    {{-- TravClicks refunds online services only — never full-tour refund --}}
+                                    @if(! $showDmcColumn && $tour->tour_status === 'Refund - Pending')
                                         @php
                                             $tourRefundMax = (float) ($tour->tour_refund_max ?? 0);
                                             $tourRefundCurrency = trim((string) ($tour->tour_refund_currency ?? ($currency ?? '')));
@@ -780,8 +802,6 @@
                                                 data-tooltip="Process tour refund">
                                             <i class="ri-money-dollar-circle-line"></i>
                                         </button>
-                                    @else
-                                        <!-- <span class="badge bg-success" title="Already Refunded">✓ Refunded</span> -->
                                     @endif
                                 </div>
                             </td>

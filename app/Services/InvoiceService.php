@@ -1606,10 +1606,14 @@ class InvoiceService
             $taxBase = (float) ceil(max(0, $baseAmount));
             $persons = ($tour->adult ?? 0) + ($tour->child ?? 0);
             $days = \App\Helpers\TaxHelper::calculateDays($tour->check_in_time, $tour->check_out_time);
-            
-            $taxResult = \App\Helpers\TaxHelper::calculateTourTaxes($taxBase, $tour->taxes, $persons, $days);
+
+            // Online: tax included in sell — do not add. Mix: offline portion only.
+            $taxResult = \App\Helpers\TaxHelper::calculateTourTaxesForTour($taxBase, $tour->taxes, $persons, $days, $tour);
             $gstAmount = $taxResult['total_tax'] ?? 0;
             $taxBreakdown = $taxResult['breakdown'] ?? [];
+            if (! empty($taxResult['tax_included'])) {
+                $taxBreakdown = ['Tax' => 0]; // display: included
+            }
             $baseAmount = $taxBase;
         }
 
