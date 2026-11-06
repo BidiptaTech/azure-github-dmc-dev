@@ -39,17 +39,19 @@ class QuotationTemplateStudioController extends Controller
         $dmcsQuery = User::query()
             ->where('user_type', 2)
             ->where('role_id', 11)
-            ->orderBy('name');
+            ->orderBy('company_name');
 
         if ($search !== '') {
             $dmcsQuery->where(function ($q) use ($search) {
-                $q->where('name', 'like', '%'.$search.'%')
+                $q->where('company_name', 'like', '%'.$search.'%')
+                    ->orWhere('name', 'like', '%'.$search.'%')
+                    ->orWhere('country', 'like', '%'.$search.'%')
                     ->orWhere('email', 'like', '%'.$search.'%')
                     ->orWhere('userId', 'like', '%'.$search.'%');
             });
         }
 
-        $dmcs = $dmcsQuery->get(['userId', 'name', 'email']);
+        $dmcs = $dmcsQuery->get(['userId', 'name', 'company_name', 'country', 'email']);
 
         $templateSummary = QuotationTemplate::query()
             ->whereIn('dmc_id', $dmcs->pluck('userId'))
