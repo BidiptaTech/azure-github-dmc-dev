@@ -26,14 +26,14 @@
       <div class="card-datatable table-responsive pt-0">
             <div class="d-flex justify-content-between align-items-center" style="margin: 15px;">
                 <div class="d-flex align-items-center">
-                    <h5 class="card-title mb-0">Travel Agents</h5>
+                    <h5 class="card-title mb-0">TA Contacts</h5>
                 </div>
 
                 <div class="d-flex justify-content-between gap-3">
                     <!-- Add New User Button -->
                     @if(!in_array(auth()->user()->role_id, [1, 2, 3, 4]))
                       <a href="{{ route('agents.create') }}" class="btn btn-primary btn-sm d-flex align-items-center gap-2">
-                          <i class="fas fa-plus"></i> Add New Travel Agent
+                          <i class="fas fa-plus"></i> Add New TA Contact
                       </a>
                     @endif
                     <!-- Import Agents Button -->
@@ -76,6 +76,9 @@
               @php
                 $roleIds = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
               @endphp
+              @if(!empty($canCreateTourOnBehalf))
+                  <th>Wallet & Tour</th>
+              @endif
               @if(in_array($user->role_id, $roleIds))
                   <th>Action</th>
               @endif
@@ -167,7 +170,7 @@
                           </div>
                       @endif
                       
-                  @elseif($firstDmc && ($user->role_id == 11 || $user->role_id == 33 || $user->role_id == 37 || $user->role_id == 38 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138) && $dmc->userId == $user->dmcId)
+                  @elseif($firstDmc && ($user->role_id == 11 || $user->role_id == 33 || $user->role_id == 37 || $user->role_id == 38 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138) && $dmc && $dmc->userId == $user->dmcId)
                       <span class="badge bg-primary text-white me-1">
                           {{ $user->company_name }}
                       </span>
@@ -206,12 +209,22 @@
                   @endif
                 </td> --}}
                 {{-- @if(hasPermission('edit agents') || hasPermission('delete agents')) --}}
+                @if(!empty($canCreateTourOnBehalf))
+                <td>
+                  <a href="{{ route('finance.agent.dashboard', $agent->agent_id) }}"
+                     class="btn btn-info btn-sm d-flex align-items-center gap-1"
+                     title="View wallet & create tour on behalf of agent">
+                    <i class="fas fa-wallet"></i>
+                    <span class="d-none d-md-inline">Wallet & Tour</span>
+                  </a>
+                </td>
+                @endif
                 @if(in_array($user->role_id, $roleIds))
                 <td>
                   <div class="d-flex gap-2">
                     <!-- Edit Button -->
                     {{-- @if(hasPermission('edit agents')) --}}
-                    @if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4 || $user->role_id == 19 || $user->role_id == 20 || $dmc->userId == $user->dmcId)
+                    @if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4 || $user->role_id == 19 || $user->role_id == 20 || ($dmc && $dmc->userId == $user->dmcId))
                       <a href="{{ route('agents.edit', Crypt::encrypt($agent->agent_id)) }}"
                         class="btn btn-primary btn-sm d-flex align-items-center justify-content-center rounded-circle" 
                         style="width: 28px; height: 28px; padding: 0;">
@@ -225,8 +238,8 @@
                     <button type="button" 
                             class="btn btn-danger btn-sm d-flex align-items-center justify-content-center rounded-circle" 
                             style="width: 28px; height: 28px; padding: 0;" 
-                            data-toggle="modal" 
-                            data-target="#deleteModal"
+                            data-bs-toggle="modal"
+                            data-bs-target="#deleteModal"
                            
                             onclick="setDeleteForm('{{ route('agents.destroy', $agent->agent_id) }}')">
                       <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="#ffffff">
@@ -267,7 +280,7 @@
         Are you sure want to delete?
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
           <form id="deleteForm" action="" method="POST" style="display:inline">
               @csrf
               @method('DELETE')
@@ -295,7 +308,7 @@
                 </div>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 <button type="submit" class="btn btn-primary">Add Money</button>
             </div>
                 </form>
@@ -352,7 +365,7 @@
 </script>
 <!-- End DataTable JS -->
 
-<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+{{-- Do not load Bootstrap 4 here — it overwrites layout Bootstrap 5 and breaks Create Tour Pro (sidebar). --}}
 <script>
   function setDeleteForm(url) {
     document.getElementById('deleteForm').action = url;

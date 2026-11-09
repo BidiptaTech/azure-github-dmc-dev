@@ -17,9 +17,11 @@ class BankDetail extends Model
         'dmc_id',
         'terms_and_conditions',
         'payment_terms',
+        'india_bank_details',
         'account_name',
         'account_number',
         'bank_address',
+        'bank_type',
         'ifsc',
         'swift_bic_iban',
         'bank_code',
@@ -32,6 +34,7 @@ class BankDetail extends Model
 
     protected $casts = [
         'payment_terms' => 'array', // Cast JSON to array
+        'india_bank_details' => 'array',
         'is_active' => 'boolean',
     ];
 

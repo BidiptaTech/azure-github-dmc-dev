@@ -22,6 +22,18 @@ class Tour extends Model
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
         'taxes' => 'array',
+        'mainguest' => 'array',
+        'additionalguest' => 'array',
+        'gateway_response_json' => 'array',
+        'payment_gateway_response' => 'array',
+        'payment_received_datetime' => 'datetime',
+        'supplier_cost' => 'decimal:4',
+        'travclicks_markup' => 'decimal:4',
+        'dmc_commission' => 'decimal:4',
+        'selling_price' => 'decimal:4',
+        'payment_received_amount' => 'decimal:4',
+        'city_date_ranges' => 'array',
+        'currency_markups' => 'array',
     ];
 
     protected static $TourStatus = [
@@ -57,11 +69,11 @@ class Tour extends Model
 
     public function dmc()
     {
-        return $this->belongsTo(User::class, 'dmc_id', 'user_id');
+        return $this->belongsTo(User::class, 'dmc_id', 'userId');
     }
 
     public function masterDmc()
     {
-        return $this->belongsTo(User::class, 'master_dmc_id', 'user_id');
+        return $this->belongsTo(User::class, 'master_dmc_id', 'userId');
     }
 }

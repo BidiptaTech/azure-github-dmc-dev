@@ -4,6 +4,11 @@
 
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
+    @include('bookings.partials.booking-type-tabs', [
+        'type' => 'tours',
+        'toursUrl' => route('bookings.tentative'),
+        'packagesUrl' => route('package-bookings.follow-ups'),
+    ])
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>

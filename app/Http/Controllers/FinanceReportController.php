@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Agent;
 use App\Models\User;
+use App\Models\Order;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -12,6 +13,233 @@ use App\Models\Agency;
 
 class FinanceReportController extends Controller
 {
+    /**
+     * Redeemed restaurant vouchers report.
+     * orders: bookingType=booking, type=restaurant, is_redeemed=1
+     */
+    public function redeemedRestaurantVouchers(Request $request)
+    {
+        $search = trim((string) $request->input('search', ''));
+        $startDate = $request->input('start_date');
+        $endDate = $request->input('end_date');
+        $tourStatus = trim((string) $request->input('tour_status', ''));
+        $restaurantFilter = trim((string) $request->input('restaurant', ''));
+
+        $baseQuery = Order::query()
+            ->where('type', 'restaurant')
+            ->where('bookingType', 'booking')
+            ->where('is_redeemed', 1);
+
+        $tourStatuses = (clone $baseQuery)
+            ->join('tours', 'tours.tour_id', '=', 'orders.tour_id')
+            ->whereNotNull('tours.tour_status')
+            ->where('tours.tour_status', '!=', '')
+            ->distinct()
+            ->orderBy('tours.tour_status')
+            ->pluck('tours.tour_status')
+            ->values();
+
+        $query = (clone $baseQuery)
+            ->with(['tour' => function ($q) {
+                $q->select('tour_id', 'display_id', 'tour_status', 'agent_id', 'dmc_id');
+            }])
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id');
+
+        if ($startDate) {
+            $query->whereDate('updated_at', '>=', $startDate);
+        }
+        if ($endDate) {
+            $query->whereDate('updated_at', '<=', $endDate);
+        }
+        if ($tourStatus !== '') {
+            $query->whereHas('tour', function ($q) use ($tourStatus) {
+                $q->where('tour_status', $tourStatus);
+            });
+        }
+
+        $orders = $query->get();
+
+        $rows = $orders->map(function (Order $order) {
+            $payload = $order->data;
+            if (is_string($payload)) {
+                $payload = json_decode($payload, true);
+            }
+            if (!is_array($payload)) {
+                $payload = [];
+            }
+
+            // Pro form stores restaurant as [ {...} ]; support single object too (lite)
+            $item = $payload;
+            if (isset($payload[0]) && is_array($payload[0])) {
+                $item = $payload[0];
+            }
+
+            $restaurantName = $item['restaurantName']
+                ?? $item['restaurant_name']
+                ?? '—';
+            $guestName = $item['fullName'] ?? $item['guest_name'] ?? $item['name'] ?? '—';
+            $email = $item['email'] ?? null;
+            $phone = $item['phone'] ?? null;
+            $countryCode = $item['countryCode'] ?? $item['country_code'] ?? null;
+            $bookingDate = $item['bookingDate'] ?? $item['date'] ?? null;
+            $visitTime = trim((string) ($item['visitTime'] ?? $item['time'] ?? ''));
+
+            $mealTypeRaw = $item['mealTypeLabel'] ?? $item['meal_type_label'] ?? $item['mealType'] ?? $item['meal_type'] ?? null;
+            if (is_numeric((string) $mealTypeRaw)) {
+                $mealTypeRaw = $item['mealTypeLabel'] ?? $item['meal_type_label'] ?? $mealTypeRaw;
+            }
+            $mealType = $mealTypeRaw ? ucfirst((string) $mealTypeRaw) : null;
+
+            $mealDescName = $item['MealDescription'][0]['name'] ?? $item['meals'][0]['name'] ?? null;
+            $mealSpecificRaw = $item['mealSpecificType'] ?? $item['meal_specific_type'] ?? null;
+            $mealSpecific = $mealDescName
+                ?: ((!is_numeric((string) $mealSpecificRaw) && $mealSpecificRaw !== null && $mealSpecificRaw !== '')
+                    ? $mealSpecificRaw
+                    : null);
+            if (is_string($mealSpecific)) {
+                $mealSpecific = trim(preg_replace('/[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}]/u', '', $mealSpecific));
+            }
+
+            $mealName = $item['mealName'] ?? $item['meal_name'] ?? null;
+            if ($mealName === 'null' || $mealName === null || $mealName === '') {
+                $mealName = null;
+            }
+            $destination = $item['destination'] ?? $item['city'] ?? $item['country'] ?? null;
+            $currency = $item['currency'] ?? $order->currency ?? 'SGD';
+            $adults = (int) ($item['adultCount'] ?? $item['adultsQty'] ?? $item['adults'] ?? 0);
+            $children = (int) ($item['childCount'] ?? $item['childQty'] ?? $item['children'] ?? 0);
+            $infants = (int) ($item['infantCount'] ?? $item['infantQty'] ?? $item['infants'] ?? 0);
+            $totalPrice = (float) (
+                $item['totalPrice']
+                ?? $item['grand_total']
+                ?? $item['sell']
+                ?? $item['mealPrice']
+                ?? 0
+            );
+
+            $tour = $order->tour;
+            $tourStatusLabel = $tour?->tour_status ?? '—';
+
+            return [
+                'id' => $order->id,
+                'booking_id' => $order->booking_id,
+                'tour_id' => $order->tour_id,
+                'tour_display_id' => $tour?->display_id ?? ('#' . $order->tour_id),
+                'tour_status' => $tourStatusLabel,
+                'restaurant_name' => $restaurantName,
+                'guest_name' => $guestName,
+                'email' => $email,
+                'phone' => $phone,
+                'country_code' => $countryCode,
+                'booking_date' => $bookingDate,
+                'visit_time' => $visitTime !== '' ? $visitTime : null,
+                'meal_type' => $mealType,
+                'meal_specific' => $mealSpecific,
+                'meal_name' => $mealName,
+                'destination' => $destination,
+                'currency' => $currency,
+                'adults' => $adults,
+                'children' => $children,
+                'infants' => $infants,
+                'total_price' => $totalPrice,
+                'redeemed_by' => $order->reedem_by,
+                'remarks' => $order->remarks,
+                'redeemed_at' => $order->updated_at,
+            ];
+        });
+
+        $restaurantOptions = $rows
+            ->pluck('restaurant_name')
+            ->filter(fn ($n) => $n && $n !== '—')
+            ->unique()
+            ->sort()
+            ->values();
+
+        if ($restaurantFilter !== '') {
+            $needleRest = mb_strtolower($restaurantFilter);
+            $rows = $rows->filter(function (array $row) use ($needleRest) {
+                return mb_strtolower((string) $row['restaurant_name']) === $needleRest;
+            })->values();
+        }
+
+        if ($search !== '') {
+            $needle = mb_strtolower($search);
+            $rows = $rows->filter(function (array $row) use ($needle) {
+                $haystack = mb_strtolower(implode(' ', [
+                    $row['restaurant_name'],
+                    $row['guest_name'],
+                    $row['tour_display_id'],
+                    (string) $row['tour_id'],
+                    (string) $row['booking_id'],
+                    $row['email'] ?? '',
+                    $row['phone'] ?? '',
+                    $row['destination'] ?? '',
+                    $row['meal_type'] ?? '',
+                ]));
+                return str_contains($haystack, $needle);
+            })->values();
+        }
+
+        $totalCount = $rows->count();
+        $totalValue = $rows->sum('total_price');
+
+        // Group by tour for compact listing (multiple restaurants under one tour)
+        $tourGroups = $rows
+            ->groupBy('tour_id')
+            ->map(function ($tourRows) {
+                $first = $tourRows->first();
+                $latestRedeemed = $tourRows
+                    ->map(fn ($r) => $r['redeemed_at'])
+                    ->filter()
+                    ->sortDesc()
+                    ->first();
+
+                return [
+                    'tour_id' => $first['tour_id'],
+                    'tour_display_id' => $first['tour_display_id'],
+                    'tour_status' => $first['tour_status'],
+                    'voucher_count' => $tourRows->count(),
+                    'tour_total' => $tourRows->sum('total_price'),
+                    'latest_redeemed_at' => $latestRedeemed,
+                    'rows' => $tourRows
+                        ->sortByDesc(fn ($r) => $r['redeemed_at'] ? strtotime((string) $r['redeemed_at']) : 0)
+                        ->values()
+                        ->all(),
+                ];
+            })
+            ->sortByDesc(fn ($g) => $g['latest_redeemed_at'] ? strtotime((string) $g['latest_redeemed_at']) : 0)
+            ->values();
+
+        $tourCount = $tourGroups->count();
+        $perPage = 15;
+        $page = max(1, (int) $request->input('page', 1));
+        $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
+            $tourGroups->forPage($page, $perPage)->values(),
+            $tourCount,
+            $perPage,
+            $page,
+            [
+                'path' => $request->url(),
+                'query' => $request->query(),
+            ]
+        );
+
+        return view('reports.redeemed-restaurant-vouchers', [
+            'tourGroups' => $paginator,
+            'totalCount' => $totalCount,
+            'tourCount' => $tourCount,
+            'totalValue' => $totalValue,
+            'search' => $search,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'tourStatus' => $tourStatus,
+            'tourStatuses' => $tourStatuses,
+            'restaurantFilter' => $restaurantFilter,
+            'restaurantOptions' => $restaurantOptions,
+        ]);
+    }
+
     public function salesRevenue(Request $request)
     {
         $user = Auth::user();

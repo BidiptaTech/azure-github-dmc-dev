@@ -1,6 +1,6 @@
 @extends('layouts.layout')
-
 @section('title', 'Agency List')
+@extends('layouts.datatablecss')
 
 @section('content')
 <style>
@@ -162,26 +162,115 @@
         border-bottom: 1px solid #dee2e6;
     }
 
-    /* Table Styling */
-    .table thead th {
+    /* Compact Table Styling with visible borders */
+    .table.table-bordered {
+        border: 1px solid #dee2e6 !important;
+    }
+
+    .table.table-bordered thead th {
         background-color: #667eea;
         color: white;
-        border: none;
+        border-left: 1px solid #dee2e6 !important;
+        border-right: 1px solid #dee2e6 !important;
+        border-top: 1px solid #dee2e6 !important;
+        border-bottom: 2px solid #dee2e6 !important;
         font-weight: 600;
         text-transform: uppercase;
         font-size: 0.75rem;
         letter-spacing: 0.5px;
-        padding: 1rem 0.75rem;
+        padding: 0.5rem 0.75rem;
+    }
+
+    .table.table-bordered tbody td {
+        padding: 0.5rem 0.75rem;
+        vertical-align: middle;
+        border-left: 1px solid #dee2e6 !important;
+        border-right: 1px solid #dee2e6 !important;
+        border-top: 1px solid #dee2e6 !important;
+        border-bottom: 1px solid #dee2e6 !important;
+        font-size: 0.875rem;
     }
 
     .table tbody tr:hover {
         background-color: rgba(102, 126, 234, 0.05);
     }
 
-    .table tbody td {
-        padding: 0.75rem;
-        vertical-align: middle;
-        border-top: 1px solid #dee2e6;
+    /* DataTables specific border fixes - ensure all cells have borders */
+    #agenciesTable.table-bordered {
+        border-collapse: separate !important;
+        border-spacing: 0 !important;
+    }
+
+    #agenciesTable.table-bordered thead th,
+    #agenciesTable.table-bordered tbody td {
+        border-left: 1px solid #dee2e6 !important;
+        border-right: 1px solid #dee2e6 !important;
+        border-top: 1px solid #dee2e6 !important;
+        border-bottom: 1px solid #dee2e6 !important;
+    }
+
+    #agenciesTable.table-bordered thead th {
+        border-bottom: 2px solid #dee2e6 !important;
+    }
+
+    /* Ensure vertical lines are visible between columns for datatables-basic */
+    .datatables-basic.table-bordered th,
+    .datatables-basic.table-bordered td {
+        border-left: 1px solid #dee2e6 !important;
+        border-right: 1px solid #dee2e6 !important;
+        border-top: 1px solid #dee2e6 !important;
+        border-bottom: 1px solid #dee2e6 !important;
+    }
+
+    .datatables-basic.table-bordered thead th {
+        border-bottom: 2px solid #dee2e6 !important;
+    }
+
+    /* Override any DataTables inline styles that might remove borders */
+    table.dataTable thead th,
+    table.dataTable tbody td {
+        border-left: 1px solid #dee2e6 !important;
+        border-right: 1px solid #dee2e6 !important;
+    }
+
+    /* Toggle Button Styling */
+    .toggle-row {
+        cursor: pointer;
+        border: none;
+        background: none;
+        display: inline-flex;
+        align-items: center;
+        transition: all 0.2s ease;
+    }
+
+    .toggle-row:hover {
+        opacity: 0.7;
+    }
+
+    .toggle-icon {
+        transition: transform 0.2s ease;
+        font-size: 0.75rem;
+    }
+
+    .toggle-icon.expanded {
+        transform: rotate(90deg);
+    }
+
+    /* Child row styling */
+    .child-row-details {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-left: 3px solid #667eea;
+    }
+
+    .child-row-details .detail-item {
+        margin-bottom: 0.5rem;
+    }
+
+    .child-row-details .detail-label {
+        font-weight: 600;
+        color: #495057;
+        margin-right: 0.5rem;
     }
 
     /* Badge Styling */
@@ -443,29 +532,24 @@
         </div>
 
         <!-- Agencies List -->
-        <div class="table-container">
-            <div class="table-header">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="mb-1">All Agencies</h5>
-                        <small class="text-muted">Manage your agency network</small>
-                    </div>
+        <div class="card">
+            <div class="card-datatable table-responsive pt-0">
+                <div class="d-flex justify-content-between align-items-center" style="margin: 15px;">
                     <div class="d-flex align-items-center">
-                        <small class="text-muted">
-                            <i class="ri-database-line me-1"></i>
-                            {{ $agencies->count() }} agencies found
-                        </small>
+                        <h5 class="card-title mb-0">All Agencies</h5>
                     </div>
                 </div>
-            </div>
-            <div class="table-responsive">
-                <table id="agenciesTable" class="table table-hover">
+                <x-alert />
+                <hr>
+
+                <table class="datatables-basic table table-bordered" id="agenciesTable">
                     <thead>
                         <tr>
-                            <th>#</th>
-                            <th>AGENCY DETAILS</th>
-                            <th>CONTACT INFO</th>
-                            <th>LOCATION</th>
+                            <th>No</th>
+                            <th>Agency Name</th>
+                            <th>Contact No</th>
+                            <th>Email</th>
+                            <th>Location</th>
                             @php
                                 $roleId = auth()->user()->role_id;
                                 $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 77, 84, 139, 140];
@@ -473,51 +557,48 @@
                             @if($roleId == 10 || $roleId == 19)
                                 <th>DMC</th>
                             @elseif(!in_array($roleId, $hideRoles))
-                                <th>MASTER DMC</th>
+                                <th>Master Dmc</th>
                                 <th>DMC</th>
                             @endif
-                            <th>OFFICES</th>
-                            {{-- <th>STATUS</th>
-                            <th>CREATED BY</th> --}}
-                            <th>ACTIONS</th>
+                            <th>Offices</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                            <th>Created At</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($agencies as $key => $agency)
-                        <tr data-status="{{ $agency->status ? 'active' : 'inactive' }}" data-country="{{ $agency->country }}">
+                        <tr data-status="{{ $agency->status ? 'active' : 'inactive' }}" 
+                            data-country="{{ $agency->country }}"
+                            data-agency-name="{{ $agency->agency_name }}"
+                            data-phone="{{ $agency->phone }}"
+                            data-email="{{ $agency->email }}"
+                            data-location="{{ $agency->city }}, {{ $agency->country }}"
+                            data-offices="{{ $agency->total_branches }}"
+                            data-created-at="{{ $agency->created_at->format('D, M d, Y h:i A') }}">
                             <td>
-                                <span class="badge bg-primary">{{ ++$key}}</span>
+                                <!-- <button type="button" class="btn btn-sm btn-link p-0 toggle-row" style="text-decoration: none; color: inherit;"> -->
+                                    <!-- <i class="fas fa-chevron-right toggle-icon"></i> -->
+                                    <span class="ms-1">{{ ++$key }}</span>
+                                <!-- </button> -->
+                            </td>
+                            <td class="agency-name">{{ $agency->agency_name }}</td>
+                            <td>
+                                @if($agency->phone)
+                                    {{ $agency->phone }}
+                                @else
+                                    <span class="badge bg-danger">No details</span>
+                                @endif
                             </td>
                             <td>
-                                <div class="d-flex align-items-center">
-                                    <div class="avatar avatar-sm me-3">
-                                        <div class="avatar-initial bg-label-info rounded-circle">
-                                            {{ strtoupper(substr($agency->agency_name, 0, 2)) }}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <h6 class="mb-0">{{ $agency->agency_name }}</h6>
-                                        <small class="text-muted">{{ $agency->created_at->format('M d, Y') }}</small>
-                                    </div>
-                                </div>
+                                @if($agency->email)
+                                    <a href="mailto:{{ $agency->email }}">{{ $agency->email }}</a>
+                                @else
+                                    <span class="badge bg-danger">No details</span>
+                                @endif
                             </td>
                             <td>
-                                <div>
-                                    <small class="d-block">
-                                        <i class="ri-mail-line me-1 text-primary"></i>
-                                        <a href="mailto:{{ $agency->email }}" class="text-primary">{{ $agency->email }}</a>
-                                    </small>
-                                    <small class="d-block">
-                                        <i class="ri-phone-line me-1 text-success"></i>
-                                        {{ $agency->phone }}
-                                    </small>
-                                </div>
-                            </td>
-                            <td>
-                                <div>
-                                    <small class="d-block fw-semibold">{{ $agency->city }}</small>
-                                    <small class="text-muted">{{ $agency->country }}</small>
-                                </div>
+                                {{ $agency->city }}, {{ $agency->country }}
                             </td>
 
                             @php
@@ -525,7 +606,7 @@
                                 $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 77, 84, 139, 140];
                             @endphp
 
-                            @if($roleId == 10 || $roleId == 19) {{-- Master DMC or Virtual Master DMC --}}
+                            @if($roleId == 10 || $roleId == 19)
                                 @php
                                     $dmcIds = [];
                                     if (!empty($agency->dmc_id)) {
@@ -548,7 +629,7 @@
                                         N/A
                                     @endif
                                 </td>
-                            @elseif(!in_array($roleId, $hideRoles)) {{-- Not DMC or Virtual DMC --}}
+                            @elseif(!in_array($roleId, $hideRoles))
                                 @php
                                     $dmcIds = [];
                                     if (!empty($agency->dmc_id)) {
@@ -561,68 +642,82 @@
                                 @endphp
                                 <td>
                                     @if($masterDmcUsers->count() > 0)
-                                        <span class="text-primary">{{ $masterDmcUsers->first()->company_name }}</span>
+                                        {{ $masterDmcUsers->first()->company_name }}
                                         @if($masterDmcUsers->count() > 1)
                                             <br><a href="javascript:void(0)" 
-                                                   class="btn btn-primary btn-sm text-white" 
+                                                   class="text-primary" 
                                                    onclick="showDmcModal('{{ $agency->agency_id }}', 'master_dmc', {{ $masterDmcUsers->toJson() }})">
                                                 <small>+{{ $masterDmcUsers->count() - 1 }} More</small>
                                             </a>
                                         @endif
                                     @else
-                                        <span class="text-muted">No DMC assigned</span>
+                                        N/A
                                     @endif
                                 </td>
                                 <td>
                                     @if($dmcUsers->count() > 0)
-                                        <span class="text-primary">{{ $dmcUsers->first()->company_name }}</span>
+                                        {{ $dmcUsers->first()->company_name }}
                                         @if($dmcUsers->count() > 1)
                                             <br><a href="javascript:void(0)" 
-                                                   class="btn btn-primary btn-sm text-white" 
+                                                   class="text-primary" 
                                                    onclick="showDmcModal('{{ $agency->agency_id }}', 'dmc', {{ $dmcUsers->toJson() }})">
                                                 <small>+{{ $dmcUsers->count() - 1 }} More</small>
                                             </a>
                                         @endif
                                     @else
-                                        <span class="text-muted">No DMC assigned</span>
+                                        N/A
                                     @endif
                                 </td>
                             @endif
                             <td>
-                                <span class="badge bg-label-{{ $agency->hasBranches() ? 'success' : 'secondary' }} rounded-pill">
-                                    {{ $agency->total_branches }} 
-                                    {{ $agency->total_branches == 1 ? 'OFFICE' : 'OFFICES' }}
-                                </span>
+                                {{ $agency->total_branches }} {{ $agency->total_branches == 1 ? 'Office' : 'Offices' }}
                             </td>
-                            {{-- <td>
-                                <span class="badge bg-label-{{ $agency->status ? 'success' : 'danger' }}">
-                                    {{ $agency->status ? 'ACTIVE' : 'INACTIVE' }}
-                                </span>
-                            </td> --}}
-                            {{-- <td>
-                                <small class="text-muted">
-                                    <i class="ri-user-line me-1"></i>
-                                    {{ $agency->creator ? $agency->creator->name : 'System' }}
-                                </small>
-                            </td> --}}
                             <td>
-                                <div class="d-flex gap-1">
-                                    <a href="{{ route('agencies.show', Crypt::encrypt($agency->agency_id)) }}" class="btn btn-sm btn-info" title="View">
-                                        <i class="ri-eye-line"></i>
-                                    </a>
-                                    @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 2 || auth()->user()->role_id == 3 || auth()->user()->role_id == 4 || auth()->user()->role_id == 19 || auth()->user()->role_id == 20)
-                                    <a href="{{ route('agencies.edit', Crypt::encrypt($agency->agency_id)) }}" class="btn btn-sm btn-primary" title="Edit">
-                                        <i class="ri-pencil-line"></i>
-                                    </a>
-                                    <form action="{{ route('agencies.destroy', $agency->agency_id) }}" method="POST" class="d-inline">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-danger" title="Delete"
-                                                onclick="return confirm('Are you sure you want to delete this agency?')">
-                                            <i class="ri-delete-bin-7-line"></i>
-                                        </button>
-                                    </form>
-                                    @endif
+                                @if($agency->status == 1)
+                                    <span class="badge bg-success">Active</span>
+                                @else
+                                    <span class="badge bg-danger">Inactive</span>
+                                @endif
+                            </td>
+                            <td style="display: inline-block; white-space: nowrap;">
+                                <a href="{{ route('agencies.show', Crypt::encrypt($agency->agency_id)) }}"
+                                    class="btn btn-primary btn-sm rounded-circle waves-effect waves-light"
+                                    style="min-width: 28px; min-height: 28px; padding: 0;" title="View">
+                                    <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960"
+                                        width="16px" fill="#ffffff">
+                                        <path d="M480-320q75 0 127.5-52.5T660-500q0-75-52.5-127.5T480-680q-75 0-127.5 52.5T300-500q0 75 52.5 127.5T480-320Zm0-72q-42 0-71-29t-29-71q0-42 29-71t71-29q42 0 71 29t29 71q0 42-29 71t-71 29Zm0 192q-146 0-266-81.5T40-500q54-137 174-218.5T480-800q146 0 266 81.5T920-500q-54 137-174 218.5T480-200Zm0-300Zm0 220q113 0 207.5-59.5T840-500q-50-101-144.5-160.5T480-720q-113 0-207.5 59.5T128-500q50 101 144.5 160.5T480-280Z"/>
+                                    </svg>
+                                </a>
+                                @if(auth()->user()->role_id == 1 || auth()->user()->role_id == 2 || auth()->user()->role_id == 3 || auth()->user()->role_id == 4 || auth()->user()->role_id == 19 || auth()->user()->role_id == 20)
+                                <a href="{{ route('agencies.edit', Crypt::encrypt($agency->agency_id)) }}"
+                                    class="btn btn-primary btn-sm rounded-circle waves-effect waves-light"
+                                    style="min-width: 28px; min-height: 28px; padding: 0;" title="Edit">
+                                    <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960"
+                                        width="16px" fill="#ffffff">
+                                        <path
+                                            d="M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z">
+                                        </path>
+                                    </svg>
+                                </a>
+                                <button type="button"
+                                    class="btn btn-danger btn-sm rounded-circle waves-effect waves-light"
+                                    style="min-width: 28px; min-height: 28px; padding: 0;" data-bs-toggle="modal"
+                                    data-bs-target="#deleteModal"
+                                    onclick="setDeleteForm('{{ route('agencies.destroy', $agency->agency_id) }}')"
+                                    title="Delete">
+                                    <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960"
+                                        width="16px" fill="#ffffff">
+                                        <path
+                                            d="M280-120q-33 0-56.5-23.5T200-200v-520h-40v-80h200v-40h240v40h200v80h-40v520q0 33-23.5 56.5T680-120H280Zm400-600H280v520h400v-520ZM360-280h80v-360h-80v360Zm160 0h80v-360h-80v360ZM280-720v520-520Z">
+                                        </path>
+                                    </svg>
+                                </button>
+                                @endif
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span>{{ $agency->created_at->format('D,  M d, Y') }}</span>
+                                    <small class="text-muted">{{ $agency->created_at->format('h:i A') }}</small>
                                 </div>
                             </td>
                         </tr>
@@ -633,18 +728,41 @@
         </div>
 
         <!-- DMC Modal -->
-        <div class="modal fade" id="dmcModal" tabindex="-1" role="dialog" aria-labelledby="dmcModalLabel" aria-hidden="true">
-            <div class="modal-dialog" role="document">
+        <div class="modal fade" id="dmcModal" tabindex="-1" aria-labelledby="dmcModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="dmcModalLabel">DMC List</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" onclick="closeDmcModal()"></button>
                     </div>
                     <div class="modal-body">
                         <div id="dmcList"></div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="closeDmcModal()">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Agency Delete Modal -->
+        <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="deleteModalLabel">Confirmation</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" onclick="closeDeleteModal()"></button>
+                    </div>
+                    <div class="modal-body">
+                        Are you sure want to delete?
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" onclick="closeDeleteModal()">Close</button>
+                        <form id="deleteForm" action="" method="POST" style="display:inline">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="btn btn-danger">Delete</button>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -654,141 +772,251 @@
 @endsection
 
 @section('scripts')
+
+<!-- DataTable JS -->
+<script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
+<!-- DataTables Initialization Script -->
 <script>
-$(document).ready(function() {
-    // Initialize DataTable
-    @php
-        $roleId = auth()->user()->role_id;
-        $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 77, 84, 139, 140];
-        
-        // Determine column indices based on role
-        if ($roleId == 10 || $roleId == 19) {
-            $actionsColumnIndex = 6;
-            $officesColumnIndex = 5;
-        } elseif (!in_array($roleId, $hideRoles)) {
-            $actionsColumnIndex = 7;
-            $officesColumnIndex = 6;
-        } else {
-            $actionsColumnIndex = 5;
-            $officesColumnIndex = 4;
-        }
-    @endphp
-    
-    const table = $('#agenciesTable').DataTable({
-        responsive: true,
-        order: [[0, 'asc']],
-        pageLength: 10,
-        columnDefs: [
-            { targets: [{{ $actionsColumnIndex }}], orderable: false },
-            { targets: [0, {{ $officesColumnIndex }}, {{ $actionsColumnIndex }}], className: 'text-center' }
-        ],
-        language: {
-            search: "_INPUT_",
-            searchPlaceholder: "Search in table...",
-            lengthMenu: "Show _MENU_ entries",
-            info: "Showing _START_ to _END_ of _TOTAL_ entries",
-            infoEmpty: "Showing 0 to 0 of 0 entries",
-            infoFiltered: "(filtered from _MAX_ total entries)",
-            paginate: {
-                first: "First",
-                last: "Last",
-                next: "Next",
-                previous: "Previous"
+    $(document).ready(function() {
+        @php
+            $roleId = auth()->user()->role_id;
+            $hideRoles = [11, 20, 35, 130, 132, 133, 135, 136, 137, 138, 77, 84, 139, 140];
+            
+            // Determine column indices based on role
+            if ($roleId == 10 || $roleId == 19) {
+                $actionsColumnIndex = 9;
+            } elseif (!in_array($roleId, $hideRoles)) {
+                $actionsColumnIndex = 10;
+            } else {
+                $actionsColumnIndex = 8;
             }
-        },
-        dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
-             '<"row"<"col-sm-12"tr>>' +
-             '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
-        drawCallback: function(settings) {
-            // Ensure pagination is properly aligned
-            $('.dataTables_paginate').addClass('d-flex justify-content-end');
-            $('.dataTables_info').addClass('d-flex align-items-center');
-        }
-    });
+        @endphp
 
-    // Quick Search functionality
-    $('#quickSearch').on('keyup', function() {
-        table.search(this.value).draw();
-    });
+        // Initialize DataTable with compact settings
+        const table = $('#agenciesTable').DataTable({
+            responsive: true,
+            ordering: false,
+            language: {
+                search: "_INPUT_",
+                searchPlaceholder: "Search...",
+            },
+            lengthMenu: [10, 25, 50, 100],
+            columnDefs: [
+                { targets: [{{ $actionsColumnIndex }}], orderable: false }
+            ],
+            pageLength: 10,
+            drawCallback: function() {
+                // Ensure borders are visible after DataTables renders
+                $('#agenciesTable thead th, #agenciesTable tbody td').css({
+                    'border-left': '1px solid #dee2e6',
+                    'border-right': '1px solid #dee2e6',
+                    'border-top': '1px solid #dee2e6',
+                    'border-bottom': '1px solid #dee2e6'
+                });
+                $('#agenciesTable thead th').css('border-bottom', '2px solid #dee2e6');
+            }
+        });
 
-    // Status Filter (using data attributes since status column is hidden)
-    $('#statusFilter').on('change', function() {
-        const selectedStatus = this.value;
-        
-        if (selectedStatus === '') {
-            table.search('').draw();
-        } else {
-            // Filter by data-status attribute
-            $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
-                if (settings.nTable.id !== 'agenciesTable') {
+        // Toggle row details functionality
+        $('#agenciesTable tbody').on('click', '.toggle-row', function() {
+            const tr = $(this).closest('tr');
+            const icon = $(this).find('.toggle-icon');
+            const row = table.row(tr);
+
+            if (row.child.isShown()) {
+                // This row is already open - close it
+                row.child.hide();
+                tr.removeClass('shown');
+                icon.removeClass('expanded');
+            } else {
+                // Open this row - get data from data attributes
+                const agencyName = tr.data('agency-name') || tr.find('.agency-name').text().trim();
+                const phone = tr.data('phone') || 'N/A';
+                const email = tr.data('email') || 'N/A';
+                const location = tr.data('location') || 'N/A';
+                const offices = tr.data('offices') || '0';
+                const createdAt = tr.data('created-at') || tr.find('td:last').text().trim();
+                const status = tr.find('td').filter(function() {
+                    return $(this).find('.badge').length > 0 && ($(this).find('.badge').text().includes('Active') || $(this).find('.badge').text().includes('Inactive'));
+                }).first().find('.badge').text().trim() || 'N/A';
+                
+                // Create child row content with compact layout
+                let childContent = '<div class="child-row-details">';
+                childContent += '<div class="row">';
+                childContent += '<div class="col-md-6">';
+                childContent += '<div class="detail-item"><span class="detail-label">Agency Name:</span>' + (agencyName || 'N/A') + '</div>';
+                childContent += '<div class="detail-item"><span class="detail-label">Phone:</span>' + (phone || 'N/A') + '</div>';
+                childContent += '<div class="detail-item"><span class="detail-label">Email:</span>' + (email || 'N/A') + '</div>';
+                childContent += '</div>';
+                childContent += '<div class="col-md-6">';
+                childContent += '<div class="detail-item"><span class="detail-label">Location:</span>' + (location || 'N/A') + '</div>';
+                childContent += '<div class="detail-item"><span class="detail-label">Offices:</span>' + offices + ' ' + (offices == 1 ? 'Office' : 'Offices') + '</div>';
+                childContent += '<div class="detail-item"><span class="detail-label">Status:</span>' + (status || 'N/A') + '</div>';
+                childContent += '<div class="detail-item"><span class="detail-label">Created At:</span>' + (createdAt || 'N/A') + '</div>';
+                childContent += '</div>';
+                childContent += '</div>';
+                childContent += '</div>';
+
+                row.child(childContent).show();
+                tr.addClass('shown');
+                icon.addClass('expanded');
+            }
+        });
+
+        // Quick Search functionality
+        $('#quickSearch').on('keyup', function() {
+            table.search(this.value).draw();
+        });
+
+        // Status Filter
+        $('#statusFilter').on('change', function() {
+            const selectedStatus = this.value;
+            
+            if (selectedStatus === '') {
+                $.fn.dataTable.ext.search.pop();
+            } else {
+                $.fn.dataTable.ext.search.push(function(settings, data, dataIndex) {
+                    if (settings.nTable.id !== 'agenciesTable') {
+                        return true;
+                    }
+                    
+                    const row = table.row(dataIndex).node();
+                    const rowStatus = $(row).data('status');
+                    
+                    if (selectedStatus === 'active') {
+                        return rowStatus === 'active';
+                    } else if (selectedStatus === 'inactive') {
+                        return rowStatus === 'inactive';
+                    }
                     return true;
-                }
-                
-                const row = table.row(dataIndex).node();
-                const rowStatus = $(row).data('status');
-                
-                if (selectedStatus === 'active') {
-                    return rowStatus === 'active';
-                } else if (selectedStatus === 'inactive') {
-                    return rowStatus === 'inactive';
-                }
-                return true;
-            });
+                });
+            }
             table.draw();
+        });
+
+        // Country Filter
+        $('#countryFilter').on('change', function() {
+            const selectedCountry = this.value;
+            table.column(4).search(selectedCountry).draw();
+        });
+
+        // Clear Filters
+        $('#clearFilters').on('click', function() {
+            $('#quickSearch').val('');
+            $('#statusFilter').val('');
+            $('#countryFilter').val('');
+            
+            $.fn.dataTable.ext.search.pop();
+            table.search('').columns().search('').draw();
+        });
+
+        // Ensure modals close properly - handle both Bootstrap 4 and 5
+        $('#dmcModal, #deleteModal').on('hidden.bs.modal', function () {
+            $(this).removeData('bs.modal');
+        });
+    });
+
+    // Set delete form action
+    function setDeleteForm(action) {
+        document.getElementById('deleteForm').action = action;
+    }
+
+    // Close DMC Modal function
+    function closeDmcModal() {
+        const modalElement = document.getElementById('dmcModal');
+        if (modalElement) {
+            // Try Bootstrap 5 first
+            if (typeof bootstrap !== 'undefined') {
+                const modal = bootstrap.Modal.getInstance(modalElement);
+                if (modal) {
+                    modal.hide();
+                } else {
+                    const newModal = new bootstrap.Modal(modalElement);
+                    newModal.hide();
+                }
+            } 
+            // Fallback to jQuery/Bootstrap 4
+            else if (typeof $ !== 'undefined') {
+                $('#dmcModal').modal('hide');
+            }
+            // Last resort - manual hide
+            else {
+                modalElement.classList.remove('show');
+                modalElement.style.display = 'none';
+                document.body.classList.remove('modal-open');
+                const backdrop = document.querySelector('.modal-backdrop');
+                if (backdrop) backdrop.remove();
+            }
         }
-    });
+    }
 
-    // Country Filter (column index is always 3 for LOCATION)
-    $('#countryFilter').on('change', function() {
-        const selectedCountry = this.value;
-        table.column(3).search(selectedCountry).draw();
-    });
-
-    // Clear Filters
-    $('#clearFilters').on('click', function() {
-        $('#quickSearch').val('');
-        $('#statusFilter').val('');
-        $('#countryFilter').val('');
-        
-        // Clear custom search functions
-        $.fn.dataTable.ext.search.pop();
-        
-        table.search('').columns().search('').draw();
-    });
-
-    // Form submission confirmation
-    $('form[method="DELETE"]').on('submit', function(e) {
-        e.preventDefault();
-        const agencyName = $(this).closest('tr').find('h6').text();
-        
-        if (confirm(`Are you sure you want to delete "${agencyName}"? This action cannot be undone.`)) {
-            this.submit();
+    // Close Delete Modal function
+    function closeDeleteModal() {
+        const modalElement = document.getElementById('deleteModal');
+        if (modalElement) {
+            // Try Bootstrap 5 first
+            if (typeof bootstrap !== 'undefined') {
+                const modal = bootstrap.Modal.getInstance(modalElement);
+                if (modal) {
+                    modal.hide();
+                } else {
+                    const newModal = new bootstrap.Modal(modalElement);
+                    newModal.hide();
+                }
+            } 
+            // Fallback to jQuery/Bootstrap 4
+            else if (typeof $ !== 'undefined') {
+                $('#deleteModal').modal('hide');
+            }
+            // Last resort - manual hide
+            else {
+                modalElement.classList.remove('show');
+                modalElement.style.display = 'none';
+                document.body.classList.remove('modal-open');
+                const backdrop = document.querySelector('.modal-backdrop');
+                if (backdrop) backdrop.remove();
+            }
         }
-    });
-});
+    }
 
-// Show DMC modal with details
-function showDmcModal(agencyId, type, users) {
-    let listHtml = '<ul class="list-group">';
-    users.forEach(function(user) {
-        listHtml += `<li class="list-group-item">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <strong>${user.company_name}</strong>
-                    <br><small>${user.email || 'No email'}</small>
-                    ${user.phone ? `<br><small>${user.phone}</small>` : ''}
+    // Show DMC modal with details
+    function showDmcModal(agencyId, type, users) {
+        let listHtml = '<ul class="list-group">';
+        users.forEach(function(user) {
+            listHtml += `<li class="list-group-item">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>${user.company_name}</strong>
+                        <br><small>${user.email || 'No email'}</small>
+                        ${user.phone ? `<br><small>${user.phone}</small>` : ''}
+                    </div>
                 </div>
-            </div>
-        </li>`;
-    });
-    listHtml += '</ul>';
-    
-    $('#dmcList').html(listHtml);
-    $('#dmcModalLabel').text(type === 'dmc' ? 'DMC List' : 'Master DMC List');
-    
-    // Use Bootstrap 5 modal show method
-    var myModal = new bootstrap.Modal(document.getElementById('dmcModal'));
-    myModal.show();
-}
+            </li>`;
+        });
+        listHtml += '</ul>';
+        
+        $('#dmcList').html(listHtml);
+        $('#dmcModalLabel').text(type === 'dmc' ? 'DMC List' : 'Master DMC List');
+        
+        // Use Bootstrap 5 modal show method
+        if (typeof bootstrap !== 'undefined') {
+            var myModal = new bootstrap.Modal(document.getElementById('dmcModal'), {
+                backdrop: true,
+                keyboard: true
+            });
+            myModal.show();
+        } 
+        // Fallback to jQuery/Bootstrap 4
+        else if (typeof $ !== 'undefined') {
+            $('#dmcModal').modal('show');
+        }
+        
+        // Ensure modal closes properly when clicking backdrop or pressing ESC
+        $('#dmcModal').on('hidden.bs.modal', function () {
+            $(this).removeData('bs.modal');
+        });
+    }
 </script>
+<!-- End DataTable JS -->
+
 @endsection 

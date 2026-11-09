@@ -12,13 +12,16 @@
                         <h5 class="card-title mb-0">Hotel Rooms</h5>
                     </div>
 
-                    <div class="d-flex justify-content-between gap-3">
+                    <div class="d-flex justify-content-between gap-3 align-items-center flex-wrap">
                         <!-- Add New Room Button -->
-                        {{-- @if(hasPermission('create room')) --}}
-                            <a href="{{ route('hotels.createroom') }}" class="btn btn-primary btn-sm d-flex align-items-center gap-2">
-                                <i class="fas fa-plus"></i> Add New Room Category
-                            </a>
-                        {{-- @endif --}}
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            {{-- @if(hasPermission('create room')) --}}
+                                <a href="{{ route('hotels.createroom') }}" class="btn btn-primary btn-sm d-flex align-items-center gap-2">
+                                    <i class="fas fa-plus"></i> Add New Room Category
+                                </a>
+                            {{-- @endif --}}
+                            <x-currency-price-note />
+                        </div>
 
                         <!-- Export Dropdown Button -->
                         <div class="dropdown">

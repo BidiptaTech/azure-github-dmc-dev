@@ -10,7 +10,10 @@ use MicrosoftAzure\Storage\Blob\BlobRestProxy;
 use League\Flysystem\AzureBlobStorage\AzureBlobStorageAdapter;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\ActivityLog;
+use App\Models\Tour;
+use App\Observers\TourInvoiceObserver;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Pagination\Paginator;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -28,6 +31,9 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Schema::defaultStringLength(191);
+        Paginator::useBootstrapFive();
+
+        Tour::observe(TourInvoiceObserver::class);
 
         Storage::extend('azure', function($app, $config) {
             try {

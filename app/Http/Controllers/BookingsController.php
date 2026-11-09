@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Helpers\CommonHelper;
+use App\Helpers\CountryHelper;
+use App\Helpers\CurrencyHelper;
 use App\Models\Agent;
 use App\Models\Country;
 use App\Models\Enquiry;
@@ -11,13 +13,18 @@ use App\Models\EnquiryForm;
 use App\Models\Order;
 use App\Models\Tour;
 use App\Models\User;
+use App\Services\Finance\BookingFinanceOrchestrator;
+use App\Services\Finance\WalletQueryService;
+use App\Services\Finance\WalletService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 use Dompdf\Dompdf;
 use Illuminate\Support\Facades\Crypt;
+use RuntimeException;
 
 class BookingsController extends Controller
 {
@@ -95,6 +102,1424 @@ class BookingsController extends Controller
     }
 
     /**
+     * Agents has duplicate physical rows for the same agent_id (sometimes same id too).
+     * A plain leftJoin on agent_id multiplies every tour in booking lists.
+     * DISTINCT ON keeps one agent row per agent_id (PostgreSQL).
+     */
+    private function leftJoinBookingAgents($query)
+    {
+        return $query->leftJoin(
+            DB::raw('(SELECT DISTINCT ON (agent_id) agent_id, name, company_name FROM agents ORDER BY agent_id, ctid) AS agents'),
+            'tours.agent_id',
+            '=',
+            'agents.agent_id'
+        );
+    }
+
+    /**
+     * Safety net: one list row per business tour_id (matches definiteBookings).
+     */
+    private function dedupeBookingListTours($tours)
+    {
+        return $tours->unique('tour_id')->values();
+    }
+
+    /**
+     * Format display_id as company_code/user_code/ENQxxxx (strip DMC- prefix).
+     * Expects tour items to have created_by_company_code and created_by_user_code, or dmc_company_code and created_by_user_code.
+     */
+    private function formatToursDisplayId($tours)
+    {
+        $items = $tours instanceof \Illuminate\Pagination\LengthAwarePaginator ? $tours->getCollection() : $tours;
+        foreach ($items as $t) {
+            $rest = preg_replace('/^DMC\-/i', '', $t->display_id ?? '');
+            $companyCode = $t->dmc_company_code ?? $t->created_by_company_code ?? '';
+            $userCode = $t->created_by_user_code ?? '';
+            $prefixParts = array_filter([$companyCode, $userCode], 'strlen');
+            $t->display_id = $prefixParts ? implode('/', $prefixParts) . '/' . $rest : $rest;
+        }
+        return $tours;
+    }
+
+    /**
+     * Add each tour's UTC creation time converted to its destination country's timezone.
+     */
+    private function hydrateDestinationCreatedAt($tours): void
+    {
+        $items = $tours instanceof \Illuminate\Pagination\LengthAwarePaginator
+            ? $tours->getCollection()
+            : $tours;
+
+        $destinations = collect($items)
+            ->pluck('destination')
+            ->filter(fn ($destination) => is_string($destination) && trim($destination) !== '')
+            ->map(fn ($destination) => mb_strtolower(trim($destination)))
+            ->unique()
+            ->values()
+            ->all();
+
+        $countriesByName = empty($destinations)
+            ? collect()
+            : Country::query()
+                ->whereIn(DB::raw('LOWER(name)'), $destinations)
+                ->get(['id', 'name', 'timezone'])
+                ->keyBy(fn (Country $country) => mb_strtolower(trim($country->name)));
+
+        foreach ($items as $tour) {
+            $destination = is_string($tour->destination ?? null)
+                ? mb_strtolower(trim($tour->destination))
+                : '';
+            $country = $countriesByName->get($destination);
+
+            $tour->destination_created_at = CountryHelper::convertUtcToDestinationDateTime(
+                $tour->created_at,
+                $country
+            );
+            $tour->destination_timezone = $country?->timezone ?: 'UTC';
+        }
+    }
+
+    /**
+     * Ensure the tour markup / discount columns used by the negotiation modals are available on
+     * list rows. Join selects often omit them, which makes the modal show 0 for markup / discount.
+     * Missing columns are back-filled from the tours table in a single batched query.
+     */
+    private function hydrateTourNegotiationDiscounts($tours): void
+    {
+        $items = $tours instanceof \Illuminate\Pagination\LengthAwarePaginator
+            ? $tours->getCollection()
+            : $tours;
+
+        // Columns required for the negotiation markup/discount business calculation.
+        $negotiationColumns = ['discount', 'discount_type', 'discount_amount', 'markup', 'markup_type', 'markup_amount', 'currency_markups'];
+
+        // Collect tour ids that are missing any of these attributes on the loaded row.
+        $missingIds = [];
+        foreach ($items as $tour) {
+            if (empty($tour->tour_id)) {
+                continue;
+            }
+            $attrs = $tour->getAttributes();
+            foreach ($negotiationColumns as $col) {
+                if (!array_key_exists($col, $attrs)) {
+                    $missingIds[] = $tour->tour_id;
+                    break;
+                }
+            }
+        }
+
+        $fetched = collect();
+        if (!empty($missingIds)) {
+            $fetched = Tour::whereIn('tour_id', array_unique($missingIds))
+                ->get(array_merge(['tour_id'], $negotiationColumns))
+                ->keyBy('tour_id');
+        }
+
+        foreach ($items as $tour) {
+            $source = !empty($tour->tour_id) ? $fetched->get($tour->tour_id) : null;
+            if ($source) {
+                $sourceAttrs = $source->getAttributes();
+                foreach ($negotiationColumns as $col) {
+                    $tour->{$col} = $sourceAttrs[$col] ?? null;
+                }
+            }
+            // Normalise discount_amount for downstream display.
+            $tour->discount_amount = max(0, (float) ($tour->getAttributes()['discount_amount'] ?? $tour->discount_amount ?? 0));
+        }
+    }
+
+    /**
+     * Attach orders and per-country negotiation totals (native currency, no conversion).
+     * Groups order amounts by country/currency so the modal can show one offer field per country.
+     */
+    private function hydrateTourNegotiationCurrencyData($tours): void
+    {
+        $items = $tours instanceof \Illuminate\Pagination\LengthAwarePaginator
+            ? $tours->getCollection()
+            : $tours;
+
+        if ($items->isEmpty()) {
+            return;
+        }
+
+        $tourIds = $items->pluck('tour_id')->filter()->unique()->values()->all();
+        $orderColumns = ['id', 'booking_id', 'tour_id', 'type', 'status', 'bookingType', 'data', 'cost_price', 'country', 'currency', 'is_approve', 'deleted_at'];
+        if (Schema::hasColumn('orders', 'order_type')) {
+            $orderColumns[] = 'order_type';
+        }
+        if (Schema::hasColumn('orders', 'city')) {
+            $orderColumns[] = 'city';
+        }
+        $ordersByTour = Order::query()
+            ->whereIn('tour_id', $tourIds)
+            ->get($orderColumns)
+            ->groupBy('tour_id');
+
+        $destinationNames = [];
+        foreach ($items as $tour) {
+            foreach ($this->parseDestinationCountryNames($tour->destination ?? null) as $name) {
+                $destinationNames[mb_strtolower($name)] = $name;
+            }
+        }
+
+        foreach ($ordersByTour->flatten(1) as $order) {
+            if (is_string($order->country ?? null) && trim($order->country) !== '') {
+                $name = trim($order->country);
+                $destinationNames[mb_strtolower($name)] = $name;
+            }
+        }
+
+        $allowedCodes = CommonHelper::getPaymentAvailableCurrencies();
+        $countriesByName = empty($destinationNames)
+            ? collect()
+            : Country::query()
+                ->whereIn(DB::raw('LOWER(name)'), array_keys($destinationNames))
+                ->get(['id', 'name', 'currency'])
+                ->keyBy(fn (Country $country) => mb_strtolower(trim($country->name)));
+
+        $acceptanceFlow = app(\App\Services\Payment\AcceptanceFlowService::class);
+
+        foreach ($items as $tour) {
+            $tourOrders = $ordersByTour->get($tour->tour_id, collect());
+            $tour->setRelation('booking', $tourOrders);
+            $flow = $acceptanceFlow->forTour($tour);
+            $tour->acceptance_flow = $flow;
+
+            $groups = [];
+            foreach ($tourOrders as $order) {
+                if (! in_array((int) ($order->status ?? 0), [1, 3], true)) {
+                    continue;
+                }
+
+                $serviceChannel = strtolower(trim((string) ($order->order_type ?? '')));
+                if (! empty($flow['exclude_online_from_negotiation']) && $serviceChannel === 'online') {
+                    continue;
+                }
+
+                $amount = $this->extractOrderNegotiationAmount($order, (int) ($tour->is_pro ?? 0));
+                if ($amount <= 0) {
+                    continue;
+                }
+
+                $countryName = is_string($order->country ?? null) && trim($order->country) !== ''
+                    ? trim($order->country)
+                    : null;
+
+                $currency = CurrencyHelper::normalizeCurrencyToCode(
+                    is_string($order->currency ?? null) ? $order->currency : null,
+                    $allowedCodes,
+                    ''
+                );
+                if ($currency === '' && $countryName) {
+                    $country = $countriesByName->get(mb_strtolower($countryName));
+                    $currency = CurrencyHelper::normalizeCurrencyToCode(
+                        $country?->currency ?? null,
+                        $allowedCodes,
+                        ''
+                    );
+                    if (! $countryName && $country) {
+                        $countryName = $country->name;
+                    }
+                }
+                if ($currency === '') {
+                    $currency = 'SGD';
+                }
+                if (! $countryName) {
+                    $countryName = $currency;
+                }
+
+                $key = mb_strtolower($countryName) . '|' . $currency;
+                if (! isset($groups[$key])) {
+                    $groups[$key] = [
+                        'key' => $key,
+                        'country' => $countryName,
+                        'currency' => $currency,
+                        'gross' => 0.0,
+                        'hotel_gross' => 0.0,
+                        'other_gross' => 0.0,
+                        'order_count' => 0,
+                        'sell_total' => 0.0,
+                        'cost_total' => 0.0,
+                        'city_gross' => [],
+                        'services' => [],
+                    ];
+                }
+                $groups[$key]['gross'] += $amount;
+                $orderType = strtolower(trim((string) ($order->type ?? '')));
+                if ($orderType === 'hotel') {
+                    $groups[$key]['hotel_gross'] += $amount;
+                } else {
+                    $groups[$key]['other_gross'] += $amount;
+                }
+                $groups[$key]['order_count']++;
+                $orderCity = $this->extractOrderCityName($order);
+                $cityBucket = $orderCity !== '' ? $orderCity : '';
+                $groups[$key]['city_gross'][$cityBucket] = ($groups[$key]['city_gross'][$cityBucket] ?? 0) + $amount;
+
+                foreach ($this->extractOrderNegotiationServiceRows($order, (int) ($tour->is_pro ?? 0)) as $serviceRow) {
+                    $serviceKey = mb_strtolower(trim((string) ($serviceRow['service'] ?? '')));
+                    if ($serviceKey === '') {
+                        $serviceKey = 'service-' . count($groups[$key]['services']);
+                    }
+
+                    if (! isset($groups[$key]['services'][$serviceKey])) {
+                        $groups[$key]['services'][$serviceKey] = [
+                            'service' => $serviceRow['service'],
+                            'type' => $serviceRow['type'] ?? ($order->type ?? ''),
+                            'sell' => 0.0,
+                            'cost' => 0.0,
+                            'count' => 0,
+                        ];
+                    }
+
+                    $groups[$key]['services'][$serviceKey]['sell'] += (float) ($serviceRow['sell'] ?? 0);
+                    $groups[$key]['services'][$serviceKey]['cost'] += (float) ($serviceRow['cost'] ?? 0);
+                    $groups[$key]['services'][$serviceKey]['count'] += 1;
+                    $groups[$key]['sell_total'] += (float) ($serviceRow['sell'] ?? 0);
+                    $groups[$key]['cost_total'] += (float) ($serviceRow['cost'] ?? 0);
+                }
+            }
+
+            // Hotel/other markup from DMC profile markup_json (once, not country-wise).
+            // Discount from agencies.special_discount (once, editable in UI).
+            $dmcProfileMarkup = \App\Helpers\CommonHelper::getDmcProfileMarkupConfig(
+                auth()->user(),
+                $tour->userId ?? $tour->dmc_id ?? null
+            );
+            $profileHotelType = (string) ($dmcProfileMarkup['hotel']['markup_type'] ?? 'percentage');
+            $profileHotelRaw = (float) ($dmcProfileMarkup['hotel']['markup_value'] ?? 0);
+            $profileOtherType = (string) ($dmcProfileMarkup['other']['markup_type'] ?? 'percentage');
+            $profileOtherRaw = (float) ($dmcProfileMarkup['other']['markup_value'] ?? 0);
+
+            $discountType = 'percentage';
+            $discountRaw = 0.0;
+            if (! empty($tour->agent_id)) {
+                $agentForDiscount = Agent::with('agency')->where('agent_id', $tour->agent_id)->first();
+                $agencyForDiscount = $agentForDiscount?->agency;
+                if ($agencyForDiscount) {
+                    $agencyDiscountType = strtolower(trim((string) ($agencyForDiscount->special_discount_type ?? 'percentage')));
+                    if (! in_array($agencyDiscountType, ['percentage', 'flat'], true)) {
+                        $agencyDiscountType = 'percentage';
+                    }
+                    $discountType = $agencyDiscountType;
+                    $discountRaw = (float) ($agencyForDiscount->special_discount ?? 0);
+                }
+            }
+
+            $countryGroups = [];
+            foreach ($groups as $group) {
+                $serviceRows = [];
+                $hotelFromServices = 0.0;
+                $otherFromServices = 0.0;
+                $otherMarkupGross = 0.0;
+                $otherMarkupCount = 0;
+                foreach ($group['services'] as $service) {
+                    $sell = round((float) ($service['sell'] ?? 0), 2);
+                    $cost = round((float) ($service['cost'] ?? 0), 2);
+                    $profit = round($sell - $cost, 2);
+                    $margin = $sell > 0 ? round(($profit / $sell) * 100, 2) : 0.0;
+                    $serviceType = strtolower(trim((string) ($service['type'] ?? '')));
+                    $serviceCount = max(1, (int) ($service['count'] ?? 1));
+                    if ($serviceType === 'hotel') {
+                        $hotelFromServices += $sell;
+                    } else {
+                        $otherFromServices += $sell;
+                        if (! in_array($serviceType, ['miscellaneous', 'misc'], true)) {
+                            $otherMarkupGross += $sell;
+                            $otherMarkupCount += $serviceCount;
+                        }
+                    }
+                    $serviceRows[] = [
+                        'service' => $service['service'] ?? 'Service',
+                        'type' => $service['type'] ?? '',
+                        'sell' => $sell,
+                        'cost' => $cost,
+                        'profit' => $profit,
+                        'margin' => $margin,
+                        'count' => $serviceCount,
+                    ];
+                }
+
+                // Align left-panel hotel/other with right-panel service SELL (source of truth)
+                if ($hotelFromServices > 0.009 || $otherFromServices > 0.009) {
+                    $group['hotel_gross'] = $hotelFromServices;
+                    $group['other_gross'] = $otherFromServices;
+                    $group['other_markup_gross'] = $otherMarkupGross;
+                    $group['other_markup_count'] = $otherMarkupCount;
+                    $group['gross'] = $hotelFromServices + $otherFromServices;
+                }
+
+                $gross = (float) ceil((float) ($group['gross'] ?? 0));
+                $applied = $this->applyNegotiationMarkupDiscount(
+                    $gross,
+                    $group,
+                    $profileHotelType,
+                    $profileHotelRaw,
+                    $profileOtherType,
+                    $profileOtherRaw,
+                    $discountType,
+                    $discountRaw
+                );
+                $markupMoney = (float) ($applied['markup'] ?? 0);
+                $discountMoney = (float) ($applied['discount'] ?? 0);
+                $hotelMarkupMoney = (float) ($applied['hotel_markup'] ?? $markupMoney);
+                $otherMarkupMoney = (float) ($applied['other_markup'] ?? 0);
+                $markupTypeOut = $applied['markup_type'] ?? $profileHotelType;
+                $markupRawOut = (float) ($applied['markup_raw'] ?? ($profileHotelRaw + $profileOtherRaw));
+                $hotelMarkupRawOut = (float) ($applied['hotel_markup_raw'] ?? $profileHotelRaw);
+                $otherMarkupRawOut = (float) ($applied['other_markup_raw'] ?? $profileOtherRaw);
+                $hotelMarkupTypeOut = (string) ($applied['hotel_markup_type'] ?? $profileHotelType);
+                $otherMarkupTypeOut = (string) ($applied['other_markup_type'] ?? $profileOtherType);
+                $discountTypeOut = $applied['discount_type'] ?? $discountType;
+                $discountRawOut = (float) ($applied['discount_raw'] ?? $discountRaw);
+
+                $payable = max(0, ceil($gross - $discountMoney));
+
+                $sellTotal = round((float) ($group['sell_total'] ?? 0), 2);
+                $costTotal = round((float) ($group['cost_total'] ?? 0), 2);
+                $profitTotal = round($sellTotal - $costTotal, 2);
+
+                $countryGroups[] = [
+                    'key' => $group['key'],
+                    'country' => $group['country'],
+                    'currency' => $group['currency'],
+                    'gross' => $gross,
+                    'hotel_gross' => round((float) ($group['hotel_gross'] ?? 0), 2),
+                    'other_gross' => round((float) ($group['other_gross'] ?? 0), 2),
+                    'other_markup_gross' => round((float) ($group['other_markup_gross'] ?? 0), 2),
+                    'other_markup_count' => (int) ($group['other_markup_count'] ?? 0),
+                    'markup' => round($markupMoney, 2),
+                    'hotel_markup' => round($hotelMarkupMoney, 2),
+                    'other_markup' => round($otherMarkupMoney, 2),
+                    'discount' => round($discountMoney, 2),
+                    'payable' => $payable,
+                    'order_count' => $group['order_count'],
+                    'sell_total' => $sellTotal,
+                    'cost_total' => $costTotal,
+                    'profit_total' => $profitTotal,
+                    'margin_total' => $sellTotal > 0 ? round(($profitTotal / $sellTotal) * 100, 2) : 0.0,
+                    'services' => $serviceRows,
+                    'markup_type' => $markupTypeOut,
+                    'markup_raw' => $markupRawOut,
+                    'hotel_markup_raw' => $hotelMarkupRawOut,
+                    'other_markup_raw' => $otherMarkupRawOut,
+                    'hotel_markup_type' => $hotelMarkupTypeOut,
+                    'other_markup_type' => $otherMarkupTypeOut,
+                    'discount_type' => $discountTypeOut,
+                    'discount_raw' => $discountRawOut,
+                    'cities' => array_values(array_filter(array_keys($group['city_gross'] ?? []))),
+                ];
+            }
+
+            $tour->negotiation_country_groups = $countryGroups;
+        }
+    }
+
+    /**
+     * Normalize tours.currency_markups JSON into a list of city/currency rows.
+     *
+     * @return array<int, array{city:string,currency:string,country:string,markup_type:?string,markup_value:float,discount_type:?string,discount_value:float}>
+     */
+    private function parseTourCurrencyMarkups($tour): array
+    {
+        $raw = $tour->currency_markups ?? ($tour->getAttributes()['currency_markups'] ?? null);
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $raw = (json_last_error() === JSON_ERROR_NONE) ? $decoded : null;
+        }
+        if (! is_array($raw) || $raw === []) {
+            return [];
+        }
+
+        $rows = [];
+        foreach ($raw as $key => $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $city = trim((string) ($row['city'] ?? ''));
+            $currency = is_string($key) && ! is_numeric($key) && empty($row['currency'])
+                ? strtoupper(trim($key))
+                : strtoupper(trim((string) ($row['currency'] ?? '')));
+            if ($city === '' && $currency === '') {
+                continue;
+            }
+            $markupType = trim((string) ($row['markup_type'] ?? ''));
+            $discountType = trim((string) ($row['discount_type'] ?? ''));
+            if (! in_array($markupType, ['percentage', 'flat', ''], true)) {
+                $markupType = '';
+            }
+            if (! in_array($discountType, ['percentage', 'flat', 'foc', ''], true)) {
+                $discountType = '';
+            }
+            $rows[] = [
+                'city' => $city,
+                'currency' => $currency,
+                'country' => trim((string) ($row['country'] ?? '')),
+                'markup_type' => $markupType !== '' ? $markupType : null,
+                'markup_value' => (float) ($row['markup_value'] ?? 0),
+                'hotel_markup' => (float) ($row['hotel_markup'] ?? $row['markup_value'] ?? 0),
+                'other_markup' => (float) ($row['other_markup'] ?? 0),
+                'discount_type' => $discountType !== '' ? $discountType : null,
+                'discount_value' => (float) ($row['discount_value'] ?? 0),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Match a currency_markups row: city first, then country, then currency.
+     *
+     * @param  array<int, array<string, mixed>>  $markups
+     * @return array<string, mixed>|null
+     */
+    private function lookupCurrencyMarkupRow(array $markups, string $city = '', string $country = '', string $currency = ''): ?array
+    {
+        $city = trim($city);
+        if ($city !== '') {
+            foreach ($markups as $row) {
+                if (strcasecmp((string) ($row['city'] ?? ''), $city) === 0) {
+                    return $row;
+                }
+            }
+        }
+
+        $country = trim($country);
+        if ($country !== '') {
+            foreach ($markups as $row) {
+                if (strcasecmp((string) ($row['country'] ?? ''), $country) === 0) {
+                    return $row;
+                }
+            }
+        }
+
+        $currency = strtoupper(trim($currency));
+        if ($currency !== '') {
+            foreach ($markups as $row) {
+                if (strtoupper(trim((string) ($row['currency'] ?? ''))) === $currency) {
+                    return $row;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{markup:float,discount:float,markup_type:?string,markup_raw:float,discount_type:?string,discount_raw:float}
+     */
+    private function computeMarkupDiscountMoney(
+        float $gross,
+        ?string $markupType,
+        float $markupRaw,
+        ?string $discountType,
+        float $discountRaw
+    ): array {
+        $markupMoney = 0.0;
+        if ($markupType === 'percentage' && $markupRaw > 0) {
+            $markupMoney = $gross * $markupRaw / 100;
+        } elseif ($markupType === 'flat' && $markupRaw > 0) {
+            $markupMoney = $markupRaw;
+        }
+
+        $discountMoney = 0.0;
+        $discountBase = $gross + $markupMoney;
+        if ($discountType === 'percentage' && $discountRaw > 0) {
+            $discountMoney = $discountBase * $discountRaw / 100;
+        } elseif (in_array($discountType, ['flat', 'foc'], true) && $discountRaw > 0) {
+            $discountMoney = $discountRaw;
+        }
+
+        return [
+            'markup' => $markupMoney,
+            'discount' => $discountMoney,
+            'markup_type' => $markupType,
+            'markup_raw' => $markupRaw,
+            'discount_type' => $discountType,
+            'discount_raw' => $discountRaw,
+        ];
+    }
+
+    /**
+     * Profile markup is already baked into tour sell prices — do not add it again.
+     * Discount from agency special_discount applies on gross.
+     *
+     * @param  array<string, mixed>  $group
+     * @return array{markup:float,discount:float,hotel_markup:float,other_markup:float,hotel_markup_raw:float,other_markup_raw:float,hotel_markup_type:string,other_markup_type:string,markup_type:?string,markup_raw:float,discount_type:?string,discount_raw:float}
+     */
+    private function applyNegotiationMarkupDiscount(
+        float $gross,
+        array $group,
+        ?string $hotelMarkupType,
+        float $hotelRaw,
+        ?string $otherMarkupType,
+        float $otherRaw,
+        ?string $discountType,
+        float $discountRaw
+    ): array {
+        $hotelGross = (float) ($group['hotel_gross'] ?? 0);
+        $otherGross = (float) ($group['other_gross'] ?? 0);
+        $otherMarkupGross = (float) ($group['other_markup_gross'] ?? 0);
+        $otherCount = (int) ($group['other_markup_count'] ?? 0);
+        if ($hotelGross <= 0 && $otherGross <= 0) {
+            $otherGross = $gross;
+        }
+        if ($otherMarkupGross <= 0 && $otherGross > 0) {
+            $otherMarkupGross = $otherGross;
+        }
+
+        return $this->computeSplitHotelOtherMarkup(
+            $hotelGross,
+            $otherGross,
+            $hotelMarkupType,
+            $hotelRaw,
+            $otherMarkupType,
+            $otherRaw,
+            $discountType,
+            $discountRaw,
+            true,
+            $otherMarkupGross,
+            $otherCount
+        );
+    }
+
+    /**
+     * Tour sell already includes hotel/other markup. Keep profile rates for display
+     * but do not add markup money. Discount applies to gross.
+     *
+     * @return array{markup:float,discount:float,hotel_markup:float,other_markup:float,hotel_markup_raw:float,other_markup_raw:float,hotel_markup_type:string,other_markup_type:string,markup_type:?string,markup_raw:float,discount_type:?string,discount_raw:float}
+     */
+    private function computeSplitHotelOtherMarkup(
+        float $hotelGross,
+        float $otherGross,
+        ?string $hotelMarkupType,
+        float $hotelRaw,
+        ?string $otherMarkupType,
+        float $otherRaw,
+        ?string $discountType,
+        float $discountRaw,
+        bool $applyFlatDiscount = true,
+        float $otherMarkupGross = 0.0,
+        int $otherCount = 0
+    ): array {
+        $hotelType = strtolower(trim((string) ($hotelMarkupType ?? 'percentage')));
+        $otherType = strtolower(trim((string) ($otherMarkupType ?? 'percentage')));
+        if ($hotelType === 'fixed') {
+            $hotelType = 'flat';
+        }
+        if ($otherType === 'fixed') {
+            $otherType = 'flat';
+        }
+        if (! in_array($hotelType, ['percentage', 'flat'], true)) {
+            $hotelType = 'percentage';
+        }
+        if (! in_array($otherType, ['percentage', 'flat'], true)) {
+            $otherType = 'percentage';
+        }
+
+        if ($otherMarkupGross <= 0) {
+            $otherMarkupGross = $otherGross;
+        }
+
+        $hotelMoney = 0.0;
+        $otherMoney = 0.0;
+        if ($hotelGross > 0.009) {
+            $hotelMoney = (float) ($this->computeMarkupDiscountMoney($hotelGross, $hotelType, $hotelRaw, null, 0)['markup'] ?? 0);
+        }
+        if ($otherMarkupGross > 0.009 || $otherCount > 0) {
+            if ($otherType === 'percentage') {
+                $otherMoney = (float) ($this->computeMarkupDiscountMoney($otherMarkupGross, $otherType, $otherRaw, null, 0)['markup'] ?? 0);
+            } else {
+                $otherMoney = $otherRaw * max($otherCount, 1);
+            }
+        }
+        $markupMoney = $hotelMoney + $otherMoney;
+        $gross = $hotelGross + $otherGross;
+        $discountMoney = 0.0;
+        if ($discountType === 'percentage' && $discountRaw > 0) {
+            $discountMoney = $gross * $discountRaw / 100;
+        } elseif (in_array($discountType, ['flat', 'foc'], true) && $discountRaw > 0 && $applyFlatDiscount) {
+            $discountMoney = $discountRaw;
+        }
+
+        return [
+            'markup' => $markupMoney,
+            'discount' => $discountMoney,
+            'hotel_markup' => $hotelMoney,
+            'other_markup' => $otherMoney,
+            'hotel_markup_raw' => $hotelRaw,
+            'other_markup_raw' => $otherRaw,
+            'hotel_markup_type' => $hotelType,
+            'other_markup_type' => $otherType,
+            'markup_type' => $hotelType,
+            'markup_raw' => $hotelRaw + $otherRaw,
+            'discount_type' => $discountType,
+            'discount_raw' => $discountRaw,
+        ];
+    }
+
+    private function extractOrderCityName(Order $order): string
+    {
+        $city = trim((string) ($order->city ?? ''));
+        if ($city !== '') {
+            return $city;
+        }
+
+        $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+        $first = [];
+        if (is_array($data)) {
+            $first = isset($data[0]) && is_array($data[0]) ? $data[0] : $data;
+        }
+        if (! is_array($first)) {
+            return '';
+        }
+
+        $candidates = [
+            $first['city'] ?? null,
+            $first['destination'] ?? null,
+            $first['hotelCity'] ?? null,
+            $first['hotel_city'] ?? null,
+            $first['location'] ?? null,
+            $first['AttractionCity'] ?? null,
+            is_array($first['hotelDetails'] ?? null) ? ($first['hotelDetails']['location'] ?? null) : null,
+            is_array($first['hotelDetails'] ?? null) ? ($first['hotelDetails']['city'] ?? null) : null,
+        ];
+        foreach ($candidates as $candidate) {
+            $candidate = trim((string) ($candidate ?? ''));
+            if ($candidate === '') {
+                continue;
+            }
+            foreach (preg_split('/\s*,\s*/', $candidate) ?: [] as $part) {
+                $part = trim((string) $part);
+                if ($part === '' || preg_match('/^(Arrival|Departure)\s*:/i', $part)) {
+                    continue;
+                }
+
+                return $part;
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function parseDestinationCountryNames(?string $destination): array
+    {
+        if (! is_string($destination) || trim($destination) === '') {
+            return [];
+        }
+
+        $parts = preg_split('/\s*,\s*/', $destination) ?: [];
+        $names = [];
+        foreach ($parts as $part) {
+            $name = trim((string) $part);
+            if ($name !== '') {
+                $names[] = $name;
+            }
+        }
+
+        return array_values(array_unique($names));
+    }
+
+    /**
+     * Extract a single order's contribution to tour gross (mirrors blade / CommonHelper logic).
+     */
+    private function extractOrderNegotiationAmount(Order $order, int $isPro = 0): float
+    {
+        $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+        if (! is_array($data)) {
+            return 0.0;
+        }
+
+        $orderType = $order->type ?? '';
+        $total = 0.0;
+
+        foreach ($data as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+            $transferPrice = 0.0;
+            if ($orderType !== 'hotel' && isset($item['transfer_options']['cost']) && $item['transfer_options']['cost'] > 0) {
+                if ($isPro === 1 && isset($item['transfer_options']['totalPrice'])) {
+                    $transferPrice = (float) $item['transfer_options']['totalPrice'];
+                } else {
+                    $transferPrice = (float) $item['transfer_options']['cost'];
+                }
+            }
+
+            $guidePrice = 0.0;
+            if (isset($item['guide_options']) && is_array($item['guide_options'])) {
+                // Prefer sell (same as margin/service rows) — never pick cost into negotiation gross
+                $gv = $item['guide_options']['sell']
+                    ?? $item['guide_options']['Sell']
+                    ?? $item['guide_options']['total_price']
+                    ?? 0;
+                if ($gv > 0) {
+                    $guidePrice = (float) $gv;
+                }
+            }
+
+            $total += $itemPrice + $transferPrice + $guidePrice;
+        }
+
+        return $total;
+    }
+
+    /**
+     * Customer sell for one order, including markup already stored on the service.
+     * Markup is added only when the stored total is still the base price.
+     *
+     * @return array{amount: float, currency: string}
+     */
+    private function orderPriceWithMarkup(Order $order, int $isPro = 0): array
+    {
+        $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+        $items = [];
+        if (is_array($data)) {
+            $items = (isset($data[0]) && is_array($data[0])) ? $data : [$data];
+        }
+
+        $sell = 0.0;
+        $extraMarkup = 0.0;
+        $currency = trim((string) ($order->currency ?? ''));
+        $orderType = (string) ($order->type ?? '');
+
+        foreach ($items as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            if ($currency === '') {
+                $currency = trim((string) ($item['currency'] ?? ''));
+            }
+
+            $itemPrice = (float) ($item['totalPrice'] ?? $item['price'] ?? $item['grand_total'] ?? 0);
+            $transferPrice = 0.0;
+            if ($orderType !== 'hotel' && isset($item['transfer_options']) && is_array($item['transfer_options'])) {
+                $transfer = $item['transfer_options'];
+                if ($isPro === 1 && isset($transfer['totalPrice'])) {
+                    $transferPrice = (float) $transfer['totalPrice'];
+                } elseif (isset($transfer['cost']) && (float) $transfer['cost'] > 0) {
+                    $transferPrice = (float) $transfer['cost'];
+                }
+            }
+
+            $guidePrice = 0.0;
+            if (isset($item['guide_options']) && is_array($item['guide_options'])) {
+                $guidePrice = (float) (
+                    $item['guide_options']['sell']
+                    ?? $item['guide_options']['Sell']
+                    ?? $item['guide_options']['total_price']
+                    ?? 0
+                );
+            }
+
+            $sell += $itemPrice + $transferPrice + $guidePrice;
+
+            $payload = is_array($item['price_payload'] ?? null) ? $item['price_payload'] : [];
+            $markup = is_array($item['dmc_profile_markup'] ?? null)
+                ? $item['dmc_profile_markup']
+                : (is_array($payload['dmc_profile_markup'] ?? null) ? $payload['dmc_profile_markup'] : null);
+            if (! is_array($markup)) {
+                continue;
+            }
+
+            $markupAmount = (float) ($markup['markup_amount'] ?? 0);
+            $base = (float) (
+                $markup['base_price']
+                ?? $payload['base_grand_total']
+                ?? $item['base_grand_total']
+                ?? 0
+            );
+            if ($markupAmount > 0 && $base > 0 && abs($itemPrice - $base) < 0.02) {
+                $extraMarkup += $markupAmount;
+            }
+        }
+
+        return [
+            'amount' => round(max(0, $sell + $extraMarkup), 2),
+            'currency' => $currency,
+        ];
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection|array<int, mixed>  $tours
+     */
+    /**
+     * Scale service sell down to the tour payable (negotiated + tax) when sell is higher.
+     * Prevents refunding above what was billed/paid (e.g. hotel sell 36646 vs tour total 36281).
+     */
+    private function refundScaleToTourPayable(Tour $tour, float $tourPayable): float
+    {
+        if ($tourPayable <= 0) {
+            return 1.0;
+        }
+
+        $isPro = (int) ($tour->is_pro ?? 0);
+        $sellSum = 0.0;
+        $orders = Order::withTrashed()
+            ->where('tour_id', $tour->tour_id)
+            ->where('bookingType', 'booking')
+            ->get();
+        foreach ($orders as $order) {
+            $sellSum += $this->orderPriceWithMarkup($order, $isPro)['amount'];
+        }
+
+        if ($sellSum <= 0) {
+            return 1.0;
+        }
+
+        return min(1.0, $tourPayable / $sellSum);
+    }
+
+    /**
+     * Public wrapper for hotel cancel charge API (same cap as refunds initiate).
+     *
+     * @return array{amount: float, currency: string, scale: float}
+     */
+    public function resolveOrderRefundMaxForHotel(Tour $tour, Order $order): array
+    {
+        return $this->resolveOrderRefundMax($tour, $order);
+    }
+
+    /**
+     * @return array{amount: float, currency: string, scale: float}
+     */
+    private function resolveOrderRefundMax(Tour $tour, Order $order, ?float $tourPayable = null): array
+    {
+        $priced = $this->orderPriceWithMarkup($order, (int) ($tour->is_pro ?? 0));
+        $payable = $tourPayable;
+        if ($payable === null) {
+            $payable = (float) ($tour->money_total ?? 0);
+            if ($payable <= 0) {
+                $enquiry = Enquiry::where('tour_id', $tour->tour_id)
+                    ->orderByDesc('enquiry_id')
+                    ->get(['enquiry_id', 'tour_id', 'status', 'amount', 'gross_amount', 'currency', 'negotiation_details']);
+                $confirmed = $enquiry->first(fn ($row) => (int) ($row->status ?? 0) === 2);
+                $pricing = $confirmed ?: $enquiry->first();
+                $sellSum = 0.0;
+                foreach (
+                    Order::withTrashed()
+                        ->where('tour_id', $tour->tour_id)
+                        ->where('bookingType', 'booking')
+                        ->get() as $row
+                ) {
+                    $sellSum += $this->orderPriceWithMarkup($row, (int) ($tour->is_pro ?? 0))['amount'];
+                }
+                $payable = (float) ($this->paymentModalTotals($tour, $pricing, round($sellSum), $priced['currency'])['total'] ?? 0);
+            }
+        }
+
+        $scale = $this->refundScaleToTourPayable($tour, $payable);
+        $amount = round(max(0, $priced['amount'] * $scale), 2);
+
+        return [
+            'amount' => $amount,
+            'currency' => $priced['currency'],
+            'scale' => $scale,
+        ];
+    }
+
+    private function attachRefundPrices($tours): void
+    {
+        if ($tours === null) {
+            return;
+        }
+
+        foreach ($tours as $tour) {
+            $orders = $tour->relationLoaded('booking') ? $tour->booking : collect();
+            $tourPayable = (float) ($tour->money_total ?? 0);
+            foreach ($orders as $order) {
+                $priced = $this->resolveOrderRefundMax($tour, $order, $tourPayable > 0 ? $tourPayable : null);
+                $order->setAttribute('refund_price_with_markup', $priced['amount']);
+                $order->setAttribute('refund_price_currency', $priced['currency']);
+
+                if (($order->type ?? '') === 'hotel') {
+                    $calc = \App\Helpers\CommonHelper::calculateHotelCancellationCharge($order, $priced['amount']);
+                    $order->setAttribute('hotel_cancellation_charge', $calc['cancellation_charge']);
+                    $order->setAttribute('hotel_suggested_refund', $calc['suggested_refund']);
+                    $order->setAttribute('hotel_cancellation_summary', $calc['summary']);
+                    $order->setAttribute('hotel_cancellation_free', $calc['free'] ? 1 : 0);
+                    $order->setAttribute('hotel_refund_policy', (string) ($calc['refund_policy'] ?? ''));
+                    $order->setAttribute('hotel_refund_policy_name', (string) ($calc['hotel_name'] ?? ''));
+                    // Prefer policy suggested refund as the default initiate amount when lower.
+                    if (! $calc['free'] && $calc['suggested_refund'] >= 0 && $calc['suggested_refund'] <= $priced['amount']) {
+                        $order->setAttribute('refund_suggested_amount', $calc['suggested_refund']);
+                    } elseif ($calc['free']) {
+                        $order->setAttribute('refund_suggested_amount', $priced['amount']);
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * TravClicks refund modal: DMC wallet currency + countries.current_rate factors
+     * so the UI can preview the converted credit (source → SGD → DMC currency).
+     *
+     * @param  \Illuminate\Support\Collection|array<int, mixed>  $tours
+     */
+    private function attachTravclicksDmcWalletFx($tours): void
+    {
+        if ($tours === null) {
+            return;
+        }
+
+        $walletQuery = app(WalletQueryService::class);
+        $dmcCache = [];
+        $sourceRateCache = [];
+
+        foreach ($tours as $tour) {
+            $dmcId = (int) ($tour->dmc_id ?? 0);
+            if ($dmcId > 0 && ! isset($dmcCache[$dmcId])) {
+                $configured = $walletQuery->getConfiguredCurrenciesForOwner('dmc', $dmcId);
+                $dmcCurrency = strtoupper(trim((string) (
+                    $configured['default']
+                    ?: ($configured['currencies'][0] ?? '')
+                    ?: $walletQuery->resolveCurrencyForOwner('dmc', $dmcId)
+                )));
+                $dmcCache[$dmcId] = [
+                    'currency' => $dmcCurrency,
+                    'rate' => ($dmcCurrency !== '' ? Country::sgdRateFor($dmcCurrency) : null),
+                ];
+            }
+
+            $dmcFx = $dmcCache[$dmcId] ?? ['currency' => '', 'rate' => null];
+            $tour->setAttribute('dmc_wallet_currency', $dmcFx['currency']);
+            $tour->setAttribute('dmc_wallet_sgd_rate', $dmcFx['rate']);
+
+            $orders = $tour->relationLoaded('booking') ? $tour->booking : collect();
+            foreach ($orders as $order) {
+                $sourceCurrency = strtoupper(trim((string) (
+                    $order->refund_price_currency
+                    ?: $order->currency
+                    ?: $tour->user_currency
+                    ?: 'SGD'
+                )));
+                if (! array_key_exists($sourceCurrency, $sourceRateCache)) {
+                    $sourceRateCache[$sourceCurrency] = Country::sgdRateFor($sourceCurrency);
+                }
+
+                $order->setAttribute('refund_source_currency', $sourceCurrency);
+                $order->setAttribute('refund_source_sgd_rate', $sourceRateCache[$sourceCurrency]);
+                $order->setAttribute('dmc_wallet_currency', $dmcFx['currency']);
+                $order->setAttribute('dmc_wallet_sgd_rate', $dmcFx['rate']);
+            }
+        }
+    }
+
+    /**
+     * Full tour sell with markup: every booking order on the tour.
+     *
+     * @return array{amount: float, currency: string}
+     */
+    private function tourPriceWithMarkup(Tour $tour): array
+    {
+        $orders = Order::withTrashed()
+            ->where('tour_id', $tour->tour_id)
+            ->where('bookingType', 'booking')
+            ->get();
+
+        $sum = 0.0;
+        $currency = '';
+        $isPro = (int) ($tour->is_pro ?? 0);
+        foreach ($orders as $order) {
+            $priced = $this->orderPriceWithMarkup($order, $isPro);
+            $sum += $priced['amount'];
+            if ($currency === '' && $priced['currency'] !== '') {
+                $currency = $priced['currency'];
+            }
+        }
+
+        return [
+            'amount' => round(max(0, $sum), 2),
+            'currency' => $currency,
+        ];
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection|array<int, mixed>  $tours
+     */
+    private function attachTourRefundPrices($tours): void
+    {
+        if ($tours === null) {
+            return;
+        }
+
+        $tourIds = [];
+        foreach ($tours as $tour) {
+            if (! empty($tour->tour_id)) {
+                $tourIds[] = $tour->tour_id;
+            }
+        }
+        $savedAmounts = $tourIds === []
+            ? collect()
+            : Tour::whereIn('tour_id', $tourIds)->pluck('refund_amount', 'tour_id');
+
+        foreach ($tours as $tour) {
+            $saved = $savedAmounts[$tour->tour_id] ?? null;
+            $tour->setAttribute('saved_refund_amount', $saved !== null && $saved !== '' ? $saved : null);
+
+            if (($tour->tour_status ?? '') !== 'Refund - Pending') {
+                continue;
+            }
+            $priced = $this->tourPriceWithMarkup($tour);
+            $tourPayable = (float) ($tour->money_total ?? 0);
+            $max = $priced['amount'];
+            if ($tourPayable > 0) {
+                $max = min($max, $tourPayable);
+            }
+            $tour->setAttribute('tour_refund_max', round(max(0, $max), 2));
+            $tour->setAttribute('tour_refund_currency', $priced['currency'] !== '' ? $priced['currency'] : (string) ($tour->money_currency ?? ''));
+        }
+    }
+
+    /**
+     * Tour total, paid, and due for the refunds list.
+     * A cancelled tour uses every booking, including removed services.
+     * A partial refund uses the services still on the tour.
+     *
+     * @param  \Illuminate\Support\Collection|array<int, mixed>  $tours
+     */
+    private function attachTourMoneySummary($tours): void
+    {
+        if ($tours === null) {
+            return;
+        }
+
+        $tourIds = [];
+        foreach ($tours as $tour) {
+            if (! empty($tour->tour_id)) {
+                $tourIds[] = (int) $tour->tour_id;
+            }
+        }
+        $tourIds = array_values(array_unique($tourIds));
+        if ($tourIds === []) {
+            return;
+        }
+
+        $ordersByTour = Order::withTrashed()
+            ->whereIn('tour_id', $tourIds)
+            ->where('bookingType', 'booking')
+            ->get()
+            ->groupBy('tour_id');
+
+        $enquiriesByTour = Enquiry::whereIn('tour_id', $tourIds)
+            ->orderByDesc('enquiry_id')
+            ->get(['enquiry_id', 'tour_id', 'status', 'amount', 'gross_amount', 'currency', 'negotiation_details'])
+            ->groupBy('tour_id');
+
+        foreach ($tours as $tour) {
+            $isTourCancel = in_array($tour->tour_status ?? '', ['Refund - Pending', 'Refunded'], true);
+            $tourOrders = $ordersByTour->get($tour->tour_id, collect());
+            if (! $isTourCancel) {
+                // Keep live services + soft-deleted refund cancels. Otherwise the last
+                // online cancel on a Definite tour collapses Tour total to 0.
+                $tourOrders = $tourOrders->filter(function ($order) {
+                    return $order->deleted_at === null
+                        || (int) ($order->is_refund ?? 0) === 1;
+                });
+            }
+
+            $sell = 0.0;
+            $orderCurrency = '';
+            $isPro = (int) ($tour->is_pro ?? 0);
+            foreach ($tourOrders as $order) {
+                $priced = $this->orderPriceWithMarkup($order, $isPro);
+                $sell += $priced['amount'];
+                if ($orderCurrency === '' && $priced['currency'] !== '') {
+                    $orderCurrency = $priced['currency'];
+                }
+            }
+
+            $enquiryRows = $enquiriesByTour->get($tour->tour_id, collect());
+            $confirmed = $enquiryRows->first(function ($enquiry) {
+                return (int) ($enquiry->status ?? 0) === 2;
+            });
+            $latest = $enquiryRows->first();
+            $pricing = $confirmed ?: $latest;
+
+            $payments = is_string($tour->payment_details)
+                ? json_decode($tour->payment_details, true)
+                : $tour->payment_details;
+            $paid = 0.0;
+            $paymentCurrency = '';
+            if (is_array($payments)) {
+                foreach ($payments as $payment) {
+                    if (! is_array($payment) || (int) ($payment['status'] ?? 0) !== 1) {
+                        continue;
+                    }
+                    $paid += (float) ($payment['amount'] ?? 0);
+                    if ($paymentCurrency === '') {
+                        $paymentCurrency = strtoupper(trim((string) ($payment['currency'] ?? '')));
+                    }
+                }
+            }
+            $paid = round($paid, 2);
+
+            if ($orderCurrency === '' && $paymentCurrency !== '') {
+                $orderCurrency = $paymentCurrency;
+            }
+
+            // Online-only wallet tours usually have no enquiry negotiation. Use service
+            // sell directly so cancel/refund rows don't show 0 (or tax-inflated) totals.
+            if ($pricing) {
+                $totals = $this->paymentModalTotals($tour, $pricing, round($sell), $orderCurrency);
+                $moneyTotal = (float) ($totals['total'] ?? 0);
+                $moneyCurrency = (string) ($totals['currency'] ?? $orderCurrency);
+            } else {
+                $moneyTotal = round($sell, 2);
+                $moneyCurrency = $orderCurrency;
+            }
+
+            if ($moneyTotal <= 0 && $paid > 0) {
+                $moneyTotal = $paid;
+            }
+            if ($moneyCurrency === '' && $paymentCurrency !== '') {
+                $moneyCurrency = $paymentCurrency;
+            }
+
+            $tour->setAttribute('money_total', $moneyTotal);
+            $tour->setAttribute('money_paid', $paid);
+            $tour->setAttribute('money_due', max(0, round($moneyTotal - $paid, 2)));
+            $tour->setAttribute('money_currency', $moneyCurrency);
+        }
+    }
+
+    /**
+     * Same base, tax, and total as the Payment Details modal.
+     *
+     * @return array{total: float, currency: string}
+     */
+    private function paymentModalTotals($tour, $pricing, float $orderSell, string $orderCurrency): array
+    {
+        $enquiryCurrency = strtoupper(trim((string) ($pricing->currency ?? '')));
+        $userCurrency = strtoupper(trim((string) ($tour->user_currency ?? '')));
+        $tourCurrency = $enquiryCurrency !== ''
+            ? $enquiryCurrency
+            : ($userCurrency !== '' ? $userCurrency : strtoupper(trim($orderCurrency)));
+
+        $lastNegotiated = 0.0;
+        if ($pricing && (int) ($pricing->status ?? 0) === 2 && (float) ($pricing->amount ?? 0) > 0) {
+            $lastNegotiated = (float) $pricing->amount;
+        } elseif ($pricing && (float) ($pricing->amount ?? 0) > 0) {
+            $lastNegotiated = (float) $pricing->amount;
+        }
+
+        $convertedGross = 0.0;
+        $convertedPayable = 0.0;
+        $convertedNegotiated = 0.0;
+        $usableRows = 0;
+        $details = is_array($pricing?->negotiation_details ?? null) ? $pricing->negotiation_details : [];
+        foreach ($details as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $rowTarget = strtoupper(trim((string) ($row['target_currency'] ?? '')));
+            $rate = (float) ($row['conversion_rate'] ?? 0);
+            $fromCurrency = strtoupper(trim((string) ($row['currency'] ?? '')));
+            $rowNegotiated = isset($row['converted_amount']) ? (float) $row['converted_amount'] : null;
+            $rowPayable = isset($row['converted_actual_amount']) ? (float) $row['converted_actual_amount'] : null;
+            $rowGross = isset($row['converted_gross']) ? (float) $row['converted_gross'] : null;
+
+            if ($rate <= 0) {
+                if ($fromCurrency !== '' && $tourCurrency !== '' && $fromCurrency === $tourCurrency) {
+                    $rate = 1.0;
+                } elseif ($rowTarget !== '' && $rowTarget === $tourCurrency && $rowNegotiated !== null) {
+                    $rate = 1.0;
+                }
+            }
+            if ($rate <= 0 && $rowNegotiated === null) {
+                continue;
+            }
+            if ($rowTarget !== '' && $tourCurrency !== '' && $rowTarget !== $tourCurrency && $rate <= 0) {
+                continue;
+            }
+
+            $convertedGross += $rowGross !== null ? $rowGross : round(max(0, (float) ($row['gross'] ?? 0)) * $rate, 2);
+            $convertedPayable += $rowPayable !== null ? $rowPayable : round(max(0, (float) ($row['actual_amount'] ?? 0)) * $rate, 2);
+            $convertedNegotiated += $rowNegotiated !== null ? $rowNegotiated : round(max(0, (float) ($row['amount'] ?? 0)) * $rate, 2);
+            $usableRows++;
+        }
+
+        $hasConverted = $usableRows > 0 && ($convertedNegotiated > 0 || $convertedGross > 0);
+        if ($hasConverted) {
+            $gross = (float) ceil($convertedGross);
+            if ($convertedNegotiated > 0) {
+                $lastNegotiated = (float) ceil($convertedNegotiated);
+            }
+        } else {
+            $enquiryGross = (float) ($pricing?->gross_amount ?? 0);
+            $enquiryAmount = (float) ($pricing?->amount ?? 0);
+            $gross = ($enquiryGross > 0 && abs($enquiryGross - $enquiryAmount) > 0.009)
+                ? (float) ceil($enquiryGross)
+                : (float) ceil($orderSell);
+        }
+
+        $markupType = $tour->markup_type ?? null;
+        $markupRaw = (float) ($tour->markup_amount ?? 0);
+        $markupOn = ((int) ($tour->markup ?? 0) === 1)
+            && $markupRaw > 0
+            && in_array($markupType, ['percentage', 'flat'], true);
+        $markupMoney = $markupOn
+            ? ($markupType === 'percentage' ? ($gross * $markupRaw / 100) : $markupRaw)
+            : 0.0;
+        $markupMoney = max(0, $markupMoney);
+
+        $discountType = $tour->discount_type ?? null;
+        $discountRaw = (float) ($tour->discount_amount ?? 0);
+        $discountBase = $gross + $markupMoney;
+        $discountMoney = $discountType === 'percentage'
+            ? ($discountBase * $discountRaw / 100)
+            : $discountRaw;
+        $discountMoney = max(0, $discountMoney);
+
+        $netPayable = (int) ceil(max(0, $gross + $markupMoney - $discountMoney));
+        if ($hasConverted && $convertedPayable > 0) {
+            $netPayable = (int) ceil($convertedPayable);
+        }
+        $base = $lastNegotiated > 0 ? (float) ceil($lastNegotiated) : (float) $netPayable;
+
+        $persons = (int) ($tour->adult ?? 0) + (int) ($tour->child ?? 0);
+        $days = \App\Helpers\TaxHelper::calculateDays($tour->check_in_time ?? null, $tour->check_out_time ?? null);
+        // Online: tax included (no add-on). Mix: tax offline only. Offline: unchanged.
+        $tax = \App\Helpers\TaxHelper::calculateTourTaxesForTour($base, $tour->taxes ?? null, $persons, $days, $tour);
+
+        return [
+            'total' => round($base + (float) ($tax['total_tax'] ?? 0), 2),
+            'currency' => $tourCurrency,
+            'tax_amount' => (float) ($tax['total_tax'] ?? 0),
+            'tax_included' => (bool) ($tax['tax_included'] ?? false),
+            'online_tax_included' => (bool) ($tax['online_tax_included'] ?? false),
+        ];
+    }
+
+    /**
+     * Build service-wise sell/cost rows for country negotiation profit visibility.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function extractOrderNegotiationServiceRows(Order $order, int $isPro = 0): array
+    {
+        $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+        if (! is_array($data)) {
+            return [];
+        }
+
+        $rows = [];
+        $orderType = (string) ($order->type ?? '');
+
+        foreach (array_values($data) as $index => $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $baseSell = (float) ($item['totalPrice'] ?? $item['price'] ?? 0);
+            $transferSell = 0.0;
+            if ($orderType !== 'hotel' && isset($item['transfer_options']) && is_array($item['transfer_options'])) {
+                if ($isPro === 1 && isset($item['transfer_options']['totalPrice'])) {
+                    $transferSell = (float) $item['transfer_options']['totalPrice'];
+                } else {
+                    $transferSell = (float) ($item['transfer_options']['cost'] ?? 0);
+                }
+            }
+
+            $guideSell = 0.0;
+            if (isset($item['guide_options']) && is_array($item['guide_options'])) {
+                $guideValue = $item['guide_options']['sell']
+                    ?? $item['guide_options']['Sell']
+                    ?? $item['guide_options']['total_price']
+                    ?? 0;
+                $guideSell = (float) $guideValue;
+            }
+
+            $sell = $baseSell + $transferSell + $guideSell;
+            if ($sell <= 0) {
+                continue;
+            }
+
+            // Cost must come only from frozen orders.cost_price (applied after loop).
+            $rows[] = [
+                'service' => $this->resolveNegotiationServiceName($orderType, $item, $index + 1),
+                'type' => $orderType,
+                'sell' => round($sell, 2),
+                'cost' => 0.0,
+            ];
+        }
+
+        // Historical / safe cost from orders.cost_price JSON only (never live master prices).
+        $stored = \App\Helpers\OrderCostPriceHelper::storedCostPrice($order);
+        $storedCost = is_array($stored) && isset($stored['total_cost']) && is_numeric($stored['total_cost'])
+            ? round((float) $stored['total_cost'], 2)
+            : 0.0;
+
+        if ($storedCost > 0) {
+            if (count($rows) === 1) {
+                $rows[0]['cost'] = $storedCost;
+            } elseif (count($rows) === 0) {
+                $sellFallback = $this->extractOrderNegotiationAmount($order, $isPro);
+                if ($sellFallback > 0) {
+                    $firstItem = is_array($data[0] ?? null) ? $data[0] : (is_array($data) ? $data : []);
+                    $rows[] = [
+                        'service' => $this->resolveNegotiationServiceName($orderType, $firstItem, 1),
+                        'type' => $orderType,
+                        'sell' => round($sellFallback, 2),
+                        'cost' => $storedCost,
+                    ];
+                }
+            } else {
+                $sellSum = array_sum(array_column($rows, 'sell'));
+                if ($sellSum > 0) {
+                    foreach ($rows as $i => $row) {
+                        $rows[$i]['cost'] = round($storedCost * ((float) $row['sell'] / $sellSum), 2);
+                    }
+                } else {
+                    $rows[0]['cost'] = $storedCost;
+                }
+            }
+        }
+
+        return $rows;
+    }
+
+    private function extractNegotiationNumberByKeys(array $source, array $keys): float
+    {
+        foreach ($keys as $key) {
+            if (! array_key_exists($key, $source)) {
+                continue;
+            }
+            $value = $source[$key];
+            if (is_numeric($value)) {
+                return (float) $value;
+            }
+        }
+
+        return 0.0;
+    }
+
+    private function resolveNegotiationServiceName(string $orderType, array $item, int $position): string
+    {
+        $fallback = ucfirst(str_replace('_', ' ', $orderType ?: 'service')) . ' ' . $position;
+
+        $name = match ($orderType) {
+            'hotel' => trim((string) ($item['hotelDetails']['hotel_name'] ?? $item['hotel_name'] ?? $fallback)),
+            'attraction' => trim((string) ($item['AttractionName'] ?? $item['attraction_name'] ?? $fallback)),
+            'restaurant' => trim((string) ($item['restaurantName'] ?? $item['restaurant_name'] ?? $item['restaurantDetails']['restaurant_name'] ?? $fallback)),
+            'guide' => trim((string) ($item['guide_name'] ?? $item['guideName'] ?? $fallback)),
+            'entry_port', 'exit_port' => trim((string) ($item['port_name'] ?? $item['portName'] ?? $item['vehicles_name'] ?? $fallback)),
+            'travel_hourly', 'travel_point', 'local_transport' => trim((string) ($item['vehicles_name'] ?? $item['vehicle_name'] ?? $item['travel_type'] ?? $fallback)),
+            'miscellaneous' => trim((string) ($item['name'] ?? $item['title'] ?? $item['service_name'] ?? $fallback)),
+            default => trim((string) ($item['name'] ?? $item['title'] ?? $item['service_name'] ?? $item['hotel_name'] ?? $item['vehicles_name'] ?? $fallback)),
+        };
+
+        return $name !== '' ? $name : $fallback;
+    }
+
+    /**
      * Display New Enquiries (tour_status = 'New Enquiry')
      */
     public function newEnquiries()
@@ -103,12 +1528,16 @@ class BookingsController extends Controller
         $dmc_id = null;
         $tours = collect([]);
         if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
-        $tours = Tour::where('tour_status', 'New Enquiry')
-            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            $tours = Tour::where('tour_status', 'New Enquiry')
+            ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
+                            ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+                            ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
                             ->select([
                     'tours.tour_id',
                     'tours.display_id',
+                    'tours.reference_id',
                     'tours.multi_enq_id',
+                    'tours.tour_type',
                     'tours.adult',
                     'tours.child',
                     'tours.infant',
@@ -120,6 +1549,7 @@ class BookingsController extends Controller
                     'tours.port',
                     'tours.destination',
                     'tours.city',
+                    'tours.is_pro',
                     'tours.check_in_time',
                     'tours.check_out_time',
                     'tours.tour_status',
@@ -127,13 +1557,38 @@ class BookingsController extends Controller
                     'tours.updated_at',
                     'tours.auto_cancel_date',
                     'tours.agent_id',
+                    'tours.created_by',
+                    'tours.mainguest',
+                    'tours.discount_amount',
                     'agents.name as agent_name',
-                    'agents.company_name as agent_company_name'
+                    'agents.company_name as agent_company_name',
+                    'created_by_user.name as created_by_name',
+                    'dmc_user.company_code as dmc_company_code',
+                    'created_by_user.user_code as created_by_user_code'
                     ])
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
-        }
+            $this->hydrateTourNegotiationDiscounts($tours);
+            $this->hydrateTourNegotiationCurrencyData($tours);
 
+            foreach ($tours as $t) {
+                $rest = preg_replace('/^DMC\-/i', '', $t->display_id ?? '');
+                $prefixParts = array_filter([
+                    $t->dmc_company_code ?? '',
+                    $t->created_by_user_code ?? ''
+                ], 'strlen');
+                $t->display_id = $prefixParts ? implode('/', $prefixParts) . '/' . $rest : $rest;
+            }
+
+                foreach ($tours as $t) {
+                    \Log::info('New Enquiry guest debug', [
+                        'tour_id'        => $t->tour_id,
+                        'display_id'     => $t->display_id,
+                        'mainguest_raw'  => $t->mainguest,
+                        'customer_name'  => $t->customer_name ?? null,
+                    ]);
+                }
+        }
         
         if($user->role_id == 11){
             $dmc_id = $user->userId;
@@ -150,12 +1605,16 @@ class BookingsController extends Controller
 
         if($dmc_id){
             $tours = Tour::where('tour_status', 'New Enquiry')
-                ->where('tours.dmc_id', $dmc_id)
-                ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+                ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
+                ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
+                ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+                ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
                 ->select([
                     'tours.tour_id',
                     'tours.display_id',
+                    'tours.reference_id',
                     'tours.multi_enq_id',
+                    'tours.tour_type',
                     'tours.adult',
                     'tours.child',
                     'tours.infant',
@@ -167,6 +1626,7 @@ class BookingsController extends Controller
                     'tours.port',
                     'tours.destination',
                     'tours.city',
+                    'tours.is_pro',
                     'tours.check_in_time',
                     'tours.check_out_time',
                     'tours.tour_status',
@@ -174,21 +1634,51 @@ class BookingsController extends Controller
                     'tours.updated_at',
                     'tours.auto_cancel_date',
                     'tours.agent_id',
+                    'tours.created_by',
+                    'tours.mainguest',
+                    'tours.discount_amount',
                     'agents.name as agent_name',
-                    'agents.company_name as agent_company_name'
+                    'agents.company_name as agent_company_name',
+                    'created_by_user.name as created_by_name',
+                    'dmc_user.company_code as dmc_company_code',
+                    'created_by_user.user_code as created_by_user_code'
                     ])
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
+            $this->hydrateTourNegotiationDiscounts($tours);
+            $this->hydrateTourNegotiationCurrencyData($tours);
+
+            foreach ($tours as $t) {
+                $rest = preg_replace('/^DMC\-/i', '', $t->display_id ?? '');
+                $prefixParts = array_filter([
+                    $t->dmc_company_code ?? '',
+                    $t->created_by_user_code ?? ''
+                ], 'strlen');
+                $t->display_id = $prefixParts ? implode('/', $prefixParts) . '/' . $rest : $rest;
+            }
+
+            foreach ($tours as $t) {
+                \Log::info('New Enquiry guest debug (DMC scope)', [
+                    'tour_id'        => $t->tour_id,
+                    'display_id'     => $t->display_id,
+                    'mainguest_raw'  => $t->mainguest,
+                    'customer_name'  => $t->customer_name ?? null,
+                ]);
+            }
         }
 
         $enquary_comments = Enquiry::where('dmcId', $dmc_id)->get();
-        
-
+ 
         // Get filtered agents based on logged-in DMC user
         $filteredAgents = $this->getFilteredAgents();
-
+        $currency = Country::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower((string) ($user->country ?? ''))])
+            ->value('currency');
+        $currency = is_string($currency) && trim($currency) !== '' ? trim($currency) : (CommonHelper::getDmcCurrencyByCountry() ?: 'SGD');
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
-        return view('bookings.new-enquiries', compact('tours', 'filteredAgents', 'enquary_comments', 'country_tax'));
+        $this->hydrateDestinationCreatedAt($tours);
+        $serviceCountryScope = CommonHelper::resolveServiceCountryViewScope($user);
+        return view('bookings.new-enquiries', compact('tours', 'filteredAgents', 'enquary_comments', 'country_tax', 'currency', 'serviceCountryScope'));
     }
 
     public function agentNegotiation(Request $request)
@@ -196,14 +1686,76 @@ class BookingsController extends Controller
         $validated = $request->validate([
             'tour_id' => 'required|integer|exists:tours,tour_id',
             'action' => 'required|in:negotiate,cancel,confirm',
-            'amount' => 'required_if:action,negotiate|numeric|min:0.01',
             'comment' => 'nullable|string|max:1000',
+            'offers' => 'required_if:action,negotiate|array|min:1',
+            'offers.*.country' => 'required_with:offers|string|max:255',
+            'offers.*.currency' => 'required_with:offers|string|max:10',
+            'offers.*.amount' => 'required_with:offers|numeric|min:0.01',
+            'offers.*.actual_amount' => 'required_with:offers|numeric|min:0',
+            'offers.*.gross' => 'nullable|numeric|min:0',
+            'offers.*.hotel_markup' => 'nullable|numeric|min:0',
+            'offers.*.other_markup' => 'nullable|numeric|min:0',
+            'offers.*.discount_value' => 'nullable|numeric|min:0',
+            'offers.*.markup_type' => 'nullable|string|in:percentage,flat,fixed',
+            'offers.*.discount_type' => 'nullable|string|in:percentage,flat,foc,fixed',
+            'offers.*.cities' => 'nullable|string|max:1000',
+            // Legacy single-amount fields kept optional for older clients.
+            'amount' => 'nullable|numeric|min:0.01',
+            'currency' => 'required_if:action,confirm|nullable|string|max:10',
         ], [
-            'amount.required_if' => 'Please enter a negotiation amount.',
+            'offers.required_if' => 'Please enter a negotiation amount for each country.',
+            'offers.*.amount.required_with' => 'Please enter a negotiation amount for each country.',
+            'currency.required_if' => 'Please select a currency before confirming the tour.',
         ]);
 
         $tour = Tour::where('tour_id', $validated['tour_id'])->firstOrFail();
         $action = $validated['action'];
+        $acceptance = app(\App\Services\Payment\AcceptanceFlowService::class)->forTour($tour);
+
+        if (in_array($action, ['negotiate', 'confirm'], true) && empty($acceptance['allow_negotiate'])) {
+            $message = (string) ($acceptance['hint']
+                ?? 'This booking is not open for negotiation. Complete the required payment first.');
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'requires_payment' => ($acceptance['next_action'] ?? '') !== 'negotiate',
+                    'message' => $message,
+                    'acceptance' => $acceptance,
+                ], 422);
+            }
+
+            return back()->with('warning', $message);
+        }
+
+        if ($action === 'negotiate' && ($acceptance['classification'] ?? '') === \App\Services\Payment\OrderClassificationService::MIX) {
+            $this->hydrateTourNegotiationCurrencyData(collect([$tour]));
+            $caps = [];
+            foreach ((array) ($tour->negotiation_country_groups ?? []) as $group) {
+                $key = mb_strtolower(trim((string) ($group['country'] ?? ''))).'|'.strtoupper(trim((string) ($group['currency'] ?? '')));
+                $caps[$key] = (float) ($group['payable'] ?? $group['gross'] ?? 0);
+            }
+            foreach ((array) $request->input('offers', []) as $offer) {
+                if (! is_array($offer)) {
+                    continue;
+                }
+                $key = mb_strtolower(trim((string) ($offer['country'] ?? ''))).'|'.strtoupper(trim((string) ($offer['currency'] ?? '')));
+                $amount = (float) ($offer['amount'] ?? 0);
+                if (! array_key_exists($key, $caps)) {
+                    return back()->with('warning', 'Negotiation can only be done on offline services. Online services are already paid.');
+                }
+                if ($caps[$key] > 0 && $amount - $caps[$key] > 0.05) {
+                    return back()->with(
+                        'warning',
+                        'Offer for '.($offer['country'] ?? 'a country').' cannot exceed the offline total of '.number_format($caps[$key], 2).' '.($offer['currency'] ?? '').'.'
+                    );
+                }
+            }
+        }
+
+        $currentUser = auth()->user();
+        $changedByName = $currentUser ? ($currentUser->name ?? '') : null;
+        $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
 
         $latestEnquiry = Enquiry::where('tour_id', $tour->tour_id)->orderByDesc('created_at')->first();
         $activeEnquiry = Enquiry::where('tour_id', $tour->tour_id)
@@ -212,29 +1764,22 @@ class BookingsController extends Controller
             ->first();
 
         if ($action === 'negotiate') {
-            $actualAmount = (float) $request->input('actual_amount', 0);
-            if ($actualAmount <= 0) {
-                $actualAmount = $this->calculateOrdersTotalAmount($tour->tour_id);
-            }
-            $amountOffered = (float) $validated['amount'];
+            $rawOffers = is_array($request->input('offers')) ? $request->input('offers') : ($validated['offers'] ?? []);
+            $offers = \App\Helpers\CommonHelper::normalizeNegotiationOffers($rawOffers);
+            \App\Helpers\CommonHelper::applyNegotiationOffersToTourCurrencyMarkups($tour, $rawOffers);
 
-            if ($actualAmount > 0 && $amountOffered > $actualAmount) {
-                return back()
-                    ->withErrors(['amount' => 'Negotiated amount cannot exceed the current amount.'])
-                    ->withInput();
-            }
-
-            $lastEnquiryId = Enquiry::latest('created_at')->value('enquiry_id') ?? 1;
-            $newEnquiryId = CommonHelper::createId($lastEnquiryId);
-            while (Enquiry::where('enquiry_id', $newEnquiryId)->exists()) {
-                $newEnquiryId = CommonHelper::createId($newEnquiryId);
+            $primary = $offers[0] ?? null;
+            $amountOffered = (float) ($primary['amount'] ?? 0);
+            $actualAmount = (float) ($primary['actual_amount'] ?? 0);
+            $grossAtNegotiation = (float) ($primary['gross'] ?? 0);
+            if ($grossAtNegotiation <= 0) {
+                $grossAtNegotiation = \App\Helpers\CommonHelper::calculateTourGrossAmount($tour);
             }
 
             $enquiry = Enquiry::create([
                 'tour_id' => $tour->tour_id,
                 'status' => 1,
                 'dmcId' => $tour->dmc_id,
-                'enquiry_id' => $newEnquiryId,
                 'sender_id' => $tour->agent_id ?? 0,
                 'sender_type' => 'agent',
                 'receiver_id' => $latestEnquiry->sender_id ?? 0,
@@ -242,9 +1787,11 @@ class BookingsController extends Controller
                 'current_position' => 'OM',
                 'amount' => $amountOffered,
                 'actual_amount' => $actualAmount ?: ($latestEnquiry->actual_amount ?? 0),
+                'gross_amount' => $grossAtNegotiation,
                 'comment' => $validated['comment'] ?? '',
+                'negotiation_details' => $offers,
             ]);
-
+            $enquiry->refresh();
             if ($enquiry && $activeEnquiry && $activeEnquiry->id !== $enquiry->id) {
                 $activeEnquiry->update(['status' => 0]);
             }
@@ -257,13 +1804,37 @@ class BookingsController extends Controller
         }
 
         if ($action === 'cancel') {
+            $oldStatus = $tour->tour_status;
+
             if ($activeEnquiry) {
                 $activeEnquiry->update(['status' => 3]);
             }
 
-            $newStatus = $tour->tour_status === 'Definite'
+            try {
+                // Paid online services → same TravClicks → DMC refund flow as per-service cancel
+                $onlineRefund = app(\App\Services\Payment\OnlineTourCancelRefundService::class)
+                    ->enqueuePaidOnlineServices($tour);
+            } catch (\RuntimeException $e) {
+                return back()->with('error', $e->getMessage());
+            }
+
+            $onlineQueued = (int) ($onlineRefund['queued'] ?? 0);
+            $newStatus = ($tour->tour_status === 'Definite' || $onlineQueued > 0)
                 ? 'Refund - Pending'
                 : 'Cancel - ' . $tour->tour_status;
+
+            // Track status change (e.g. New Enquiry -> Cancel - New Enquiry, Definite -> Refund - Pending)
+            \App\Helpers\CommonHelper::appendTourStatusTrackById(
+                (int) $tour->tour_id,
+                $oldStatus,
+                $newStatus,
+                null,
+                null,
+                null,
+                null,
+                $changedByName,
+                $changedByUserId
+            );
 
             $tour->update(['tour_status' => $newStatus]);
 
@@ -271,14 +1842,182 @@ class BookingsController extends Controller
         }
 
         if ($action === 'confirm') {
+            // Online / Mix tours require supplier-initial payment before confirmation.
+            try {
+                $classificationService = app(\App\Services\Payment\OrderClassificationService::class);
+                $classification = $classificationService->persistClassification($tour);
+                $requiresSupplierPayment = in_array($classification, [
+                    \App\Services\Payment\OrderClassificationService::ONLINE,
+                    \App\Services\Payment\OrderClassificationService::MIX,
+                ], true);
+
+                if ($requiresSupplierPayment) {
+                    $paymentSatisfied = app(\App\Http\Controllers\PaymentServiceController::class)
+                        ->supplierInitialSatisfied((int) $tour->tour_id);
+                    $attemptUuid = (string) $request->input('payment_attempt_uuid', '');
+
+                    if (! $paymentSatisfied && $attemptUuid === '') {
+                        $eligibility = app(\App\Services\Payment\PaymentEligibilityService::class)->forTour($tour);
+
+                        if ($request->expectsJson() || $request->ajax()) {
+                            return response()->json([
+                                'success' => false,
+                                'requires_payment' => true,
+                                'message' => 'Payment for online items is required before confirmation.',
+                                'eligibility' => $eligibility,
+                            ], 422);
+                        }
+
+                        return back()->with(
+                            'warning',
+                            'Tour #'.$tour->tour_id.' requires payment for online items before confirmation. Open Add Payment / Accept payment to continue.'
+                        );
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::warning('tour_confirm_payment_gate_failed', [
+                    'tour_id' => $tour->tour_id ?? null,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            $confirmCurrency = strtoupper(trim((string) ($validated['currency'] ?? '')));
+            if ($confirmCurrency === '') {
+                return back()
+                    ->withErrors(['currency' => 'Please select a currency before confirming the tour.'])
+                    ->withInput();
+            }
+
+            $offerRows = [];
+            $rawConfirmOffers = is_array($request->input('offers')) ? $request->input('offers') : [];
+            if ($rawConfirmOffers !== []) {
+                $offerRows = \App\Helpers\CommonHelper::normalizeNegotiationOffers($rawConfirmOffers);
+                \App\Helpers\CommonHelper::applyNegotiationOffersToTourCurrencyMarkups($tour, $rawConfirmOffers);
+                $tour->refresh();
+            } elseif (is_array($activeEnquiry?->negotiation_details) && ! empty($activeEnquiry->negotiation_details)) {
+                $offerRows = \App\Helpers\CommonHelper::normalizeNegotiationOffers($activeEnquiry->negotiation_details);
+            } elseif (is_array($latestEnquiry?->negotiation_details) && ! empty($latestEnquiry->negotiation_details)) {
+                $offerRows = \App\Helpers\CommonHelper::normalizeNegotiationOffers($latestEnquiry->negotiation_details);
+            }
+
+            $converted = $this->convertNegotiationOffersToCurrency($offerRows, $confirmCurrency);
+            if ($converted['error'] !== null) {
+                return back()
+                    ->withErrors(['currency' => $converted['error']])
+                    ->withInput();
+            }
+
+            $convertedNegotiated = (float) ($converted['negotiated_amount'] ?? 0);
+            $convertedActual = (float) ($converted['actual_amount'] ?? 0);
+            $convertedGross = (float) ($converted['gross_amount'] ?? 0);
+            $convertedDetails = $converted['negotiation_details'];
+
+            // Fallback if payable/gross were missing on older offer rows.
+            if ($convertedActual <= 0) {
+                $convertedActual = $convertedNegotiated;
+            }
+            if ($convertedGross <= 0) {
+                $convertedGross = $convertedActual > 0 ? $convertedActual : $convertedNegotiated;
+            }
+
+            $enquiryPayload = [
+                'status' => 2,
+                'currency' => $confirmCurrency,
+                'comment' => $validated['comment'] ?? null,
+                'gross_amount' => $convertedGross,
+                'negotiation_details' => $convertedDetails,
+                'amount' => $convertedNegotiated,
+                'actual_amount' => $convertedActual,
+            ];
+
             if ($activeEnquiry) {
-                $activeEnquiry->update(['status' => 2]);
+                $enquiryPayload['comment'] = $validated['comment'] ?? $activeEnquiry->comment;
+                $activeEnquiry->update($enquiryPayload);
+                $confirmedEnquiry = $activeEnquiry->fresh();
+            } elseif ($latestEnquiry) {
+                $enquiryPayload['comment'] = $validated['comment'] ?? $latestEnquiry->comment;
+                $latestEnquiry->update($enquiryPayload);
+                $confirmedEnquiry = $latestEnquiry->fresh();
+            } else {
+                $confirmedEnquiry = Enquiry::create([
+                    'tour_id' => $tour->tour_id,
+                    'status' => 2,
+                    'dmcId' => $tour->dmc_id,
+                    'sender_id' => $tour->agent_id ?? ($currentUser->userId ?? 0),
+                    'sender_type' => 'agent',
+                    'receiver_id' => 0,
+                    'receiver_type' => 'OM',
+                    'current_position' => 'OM',
+                    'amount' => $convertedNegotiated,
+                    'actual_amount' => $convertedActual,
+                    'gross_amount' => $convertedGross,
+                    'comment' => $validated['comment'] ?? '',
+                    'currency' => $confirmCurrency,
+                    'negotiation_details' => $convertedDetails,
+                ]);
             }
 
             Order::where('tour_id', $tour->tour_id)->update(['bookingType' => 'booking']);
 
+            $actualAmount = 0;
+
             if ($tour->tour_status !== 'Confirmed') {
+                $oldStatus = $tour->tour_status;
+
+                $actualAmount = (float) ($confirmedEnquiry?->actual_amount ?? $convertedActual);
+                $amount = (float) ($confirmedEnquiry?->amount ?? $convertedNegotiated);
+                if ($actualAmount <= 0) {
+                    $actualAmount = $convertedActual > 0
+                        ? $convertedActual
+                        : ($convertedNegotiated > 0 ? $convertedNegotiated : $this->calculateOrdersTotalAmount($tour->tour_id));
+                }
+                if ($amount <= 0) {
+                    $amount = $convertedNegotiated > 0 ? $convertedNegotiated : $actualAmount;
+                }
+
+                \App\Helpers\CommonHelper::appendTourStatusTrackById(
+                    (int) $tour->tour_id,
+                    $oldStatus,
+                    'Confirmed',
+                    null,
+                    $amount,
+                    $validated['comment'] ?? ($confirmedEnquiry?->comment ?? null),
+                    $actualAmount,
+                    $changedByName,
+                    $changedByUserId,
+                    offers: $offerRows,
+                    confirmCurrency: $confirmCurrency
+                );
+
                 $tour->update(['tour_status' => 'Confirmed']);
+            } else {
+                $actualAmount = (float) ($tour->selling_price ?? 0);
+                if ($actualAmount <= 0) {
+                    $actualAmount = $this->calculateOrdersTotalAmount((int) $tour->tour_id);
+                }
+            }
+
+            $tour->refresh();
+
+            try {
+                $sellingPrice = (float) ($actualAmount ?? 0);
+                if ($sellingPrice <= 0) {
+                    $sellingPrice = $this->calculateOrdersTotalAmount((int) $tour->tour_id);
+                }
+
+                if ($sellingPrice > 0) {
+                    app(BookingFinanceOrchestrator::class)->processOnTourConfirmation($tour, $sellingPrice);
+                }
+            } catch (\RuntimeException $e) {
+                Log::warning('tour_confirm_finance_failed', [
+                    'tour_id' => $tour->tour_id,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return back()->with(
+                    'warning',
+                    'Tour #'.$tour->tour_id.' confirmed, but wallet settlement failed: '.$e->getMessage()
+                );
             }
 
             if (!empty($tour->multi_enq_id)) {
@@ -299,6 +2038,107 @@ class BookingsController extends Controller
         }
 
         return back()->with('error', 'Unsupported action requested.');
+    }
+
+    /**
+     * Convert each country's negotiated / payable / gross amounts into the selected currency,
+     * attach conversion_rate + date_of_conversion on every row, and return the summed totals.
+     *
+     * @param  array<int, array<string, mixed>>  $offers
+     * @return array{
+     *     negotiated_amount: float,
+     *     actual_amount: float,
+     *     gross_amount: float,
+     *     negotiation_details: array<int, array<string, mixed>>,
+     *     error: string|null
+     * }
+     */
+    private function convertNegotiationOffersToCurrency(array $offers, string $targetCurrency): array
+    {
+        $targetCurrency = strtoupper(trim($targetCurrency));
+        $conversionDate = now()->toDateTimeString();
+        $enriched = [];
+        $convertedNegotiatedTotal = 0.0;
+        $convertedActualTotal = 0.0;
+        $convertedGrossTotal = 0.0;
+        $rateCache = [];
+
+        $emptyError = static function (string $error) {
+            return [
+                'negotiated_amount' => 0.0,
+                'actual_amount' => 0.0,
+                'gross_amount' => 0.0,
+                'negotiation_details' => [],
+                'error' => $error,
+            ];
+        };
+
+        if ($targetCurrency === '') {
+            return $emptyError('Please select a currency before confirming the tour.');
+        }
+
+        if (empty($offers)) {
+            return $emptyError('No negotiated country amounts were found to convert.');
+        }
+
+        foreach ($offers as $offer) {
+            if (! is_array($offer)) {
+                continue;
+            }
+
+            $fromCurrency = strtoupper(trim((string) ($offer['currency'] ?? '')));
+            $country = trim((string) ($offer['country'] ?? ''));
+            $amount = round((float) ($offer['amount'] ?? 0), 2);
+            $actualAmount = round((float) ($offer['actual_amount'] ?? 0), 2);
+            $gross = round((float) ($offer['gross'] ?? 0), 2);
+
+            if ($fromCurrency === '' || $amount <= 0) {
+                return $emptyError('Each country must have a valid negotiated amount and currency before confirmation.');
+            }
+
+            if (! array_key_exists($fromCurrency, $rateCache)) {
+                $rate = CurrencyHelper::getExchangeRate($fromCurrency, $targetCurrency);
+                if ($rate === null || $rate <= 0) {
+                    return $emptyError('Unable to fetch exchange rate from ' . $fromCurrency . ' to ' . $targetCurrency . '.');
+                }
+                $rateCache[$fromCurrency] = (float) $rate;
+            }
+
+            $conversionRate = $rateCache[$fromCurrency];
+            $convertedAmount = round($amount * $conversionRate, 2);
+            $convertedActual = round(max(0, $actualAmount) * $conversionRate, 2);
+            $convertedGross = round(max(0, $gross) * $conversionRate, 2);
+
+            $convertedNegotiatedTotal += $convertedAmount;
+            $convertedActualTotal += $convertedActual;
+            $convertedGrossTotal += $convertedGross;
+
+            $enriched[] = [
+                'country' => $country !== '' ? $country : $fromCurrency,
+                'currency' => $fromCurrency,
+                'amount' => $amount,
+                'actual_amount' => $actualAmount,
+                'gross' => $gross,
+                'conversion_rate' => round($conversionRate, 8),
+                'date_of_conversion' => $conversionDate,
+                'converted_amount' => $convertedAmount,
+                'converted_actual_amount' => $convertedActual,
+                'converted_gross' => $convertedGross,
+                'target_currency' => $targetCurrency,
+            ];
+        }
+
+        if (empty($enriched)) {
+            return $emptyError('No negotiated country amounts were found to convert.');
+        }
+
+        return [
+            'negotiated_amount' => round($convertedNegotiatedTotal, 2),
+            'actual_amount' => round($convertedActualTotal, 2),
+            'gross_amount' => round($convertedGrossTotal, 2),
+            'negotiation_details' => $enriched,
+            'error' => null,
+        ];
     }
 
     private function calculateOrdersTotalAmount(int $tourId): float
@@ -352,7 +2192,7 @@ class BookingsController extends Controller
 
     //     if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
     //         $tours = Tour::whereIn('tour_status', ['Prospect', 'Tentative'])
-    //         ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+    //         ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
     //         ->leftJoin('enquiry_comments', 'tours.tour_id', '=', 'enquiry_comments.tour_id')
     //         ->select([
     //             'tours.tour_id',
@@ -402,7 +2242,7 @@ class BookingsController extends Controller
 
     //     if($dmc_id){
     //         $tours = Tour::whereIn('tour_status', ['Prospect', 'Tentative'])
-    //             ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+    //             ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
     //             ->leftJoin('enquiry_comments', 'tours.tour_id', '=', 'enquiry_comments.tour_id')
     //             ->select([
     //                 'tours.tour_id',
@@ -432,7 +2272,7 @@ class BookingsController extends Controller
     //                 'enquiry_comments.created_at as enquiry_comment_created_at',
     //                 'enquiry_comments.updated_at as enquiry_comment_updated_at',
     //             ])
-    //             ->where('tours.dmc_id', $dmc_id)
+    //             ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
     //             ->orderBy('tours.created_at', 'desc')
     //             ->paginate(15);
 
@@ -448,7 +2288,9 @@ class BookingsController extends Controller
 
         if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
             $tours = Tour::whereIn('tour_status', ['Prospect', 'Tentative'])
-            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
+            ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+            ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->leftJoin('enquiry_comments', function($join) {
                 $join->on('tours.tour_id', '=', 'enquiry_comments.tour_id')
                      ->whereRaw('enquiry_comments.enquiry_id = (
@@ -460,7 +2302,148 @@ class BookingsController extends Controller
             ->select([
                 'tours.tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
+                'tours.tour_type',
+                'tours.adult',
+                'tours.child',
+                'tours.infant',
+                'tours.hotel',
+                'tours.attraction',
+                'tours.travel',
+                'tours.restaurent',
+                'tours.guide',
+                'tours.port',
+                'tours.destination',
+                'tours.city',
+                'tours.mainguest',
+                'tours.check_in_time',
+                'tours.check_out_time',
+                'tours.tour_status',
+                'tours.is_pro',
+                'tours.created_at',
+                'tours.updated_at',
+                'tours.auto_cancel_date',
+                'tours.agent_id',
+                'tours.created_by',
+                'tours.discount_amount',
+                'agents.name as agent_name',
+                'agents.company_name as agent_company_name',
+                'created_by_user.name as created_by_name',
+                'enquiry_comments.enquiry_id as enquiry_id',
+                'enquiry_comments.comment as enquiry_comment',
+                'enquiry_comments.amount as enquiry_comment_amount',
+                'enquiry_comments.actual_amount as actual_amount',
+                'enquiry_comments.sender_type as enquiry_comment_sender_type',
+                'enquiry_comments.created_at as enquiry_comment_created_at',
+                'enquiry_comments.updated_at as enquiry_comment_updated_at',
+                'dmc_user.company_code as dmc_company_code',
+                'created_by_user.user_code as created_by_user_code',
+            ])
+            ->orderBy('tours.created_at', 'desc')
+            ->get();
+            $this->hydrateTourNegotiationDiscounts($tours);
+            $this->hydrateTourNegotiationCurrencyData($tours);
+            $this->formatToursDisplayId($tours);
+        }
+        
+        if($user->role_id == 11){
+            $dmc_id = $user->userId;
+        }else if($user->role_id == 33 || $user->role_id == 34 || $user->role_id == 36 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
+            $dmc_id = $user->created_by;
+        }else if($user->role_id == 37){
+            $sales_head = User::where('userId', $user->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }else if($user->role_id == 38){
+            $sales_manager = User::where('userId', $user->created_by)->first();
+            $sales_head = User::where('userId', $sales_manager->created_by)->first();
+            $dmc_id = $sales_head->created_by;
+        }
+
+        if($dmc_id){
+            $tours = Tour::whereIn('tour_status', ['Prospect', 'Tentative'])
+                ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
+                ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+                ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
+                ->leftJoin('enquiry_comments', function($join) {
+                    $join->on('tours.tour_id', '=', 'enquiry_comments.tour_id')
+                         ->whereRaw('enquiry_comments.enquiry_id = (
+                             SELECT MAX(ec2.enquiry_id) 
+                             FROM enquiry_comments ec2 
+                             WHERE ec2.tour_id = tours.tour_id
+                         )');
+                })
+                ->select([
+                    'tours.tour_id',
+                    'tours.display_id',
+                    'tours.reference_id',
+                    'tours.multi_enq_id',
+                    'tours.tour_type',
+                    'tours.adult',
+                    'tours.child',
+                    'tours.infant',
+                    'tours.hotel',
+                    'tours.attraction',
+                    'tours.travel',
+                    'tours.restaurent',
+                    'tours.guide',
+                    'tours.port',
+                    'tours.destination',
+                    'tours.city',
+                    'tours.mainguest',
+                    'tours.check_in_time',
+                    'tours.check_out_time',
+                    'tours.tour_status',
+                    'tours.is_pro',
+                    'tours.created_at',
+                    'tours.updated_at',
+                    'tours.auto_cancel_date',
+                    'tours.agent_id',
+                    'tours.created_by',
+                    'tours.discount_amount',
+                    'agents.name as agent_name',
+                    'agents.company_name as agent_company_name',
+                    'created_by_user.name as created_by_name',
+                    'enquiry_comments.enquiry_id as enquiry_id',
+                    'enquiry_comments.comment as enquiry_comment',
+                    'enquiry_comments.amount as enquiry_comment_amount',
+                    'enquiry_comments.actual_amount as actual_amount',
+                    'enquiry_comments.sender_type as enquiry_comment_sender_type',
+                    'enquiry_comments.created_at as enquiry_comment_created_at',
+                    'enquiry_comments.updated_at as enquiry_comment_updated_at',
+                    'dmc_user.company_code as dmc_company_code',
+                    'created_by_user.user_code as created_by_user_code',
+                ])
+                ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
+                ->orderBy('tours.created_at', 'desc')
+                ->get();
+            $this->hydrateTourNegotiationDiscounts($tours);
+            $this->hydrateTourNegotiationCurrencyData($tours);
+            $this->formatToursDisplayId($tours);
+        }
+        $country_tax = Country::where('name', $user->country)->value('tax_percentage');
+        $currency = CommonHelper::getDmcCurrencyByCountry();
+        $this->hydrateDestinationCreatedAt($tours);
+        $serviceCountryScope = CommonHelper::resolveServiceCountryViewScope($user);
+        return view('bookings.follow-ups', compact('tours', 'country_tax', 'currency', 'serviceCountryScope'));
+    }
+
+    /**
+     * Display Tentative Bookings (tour_status = 'Tentative')
+     */
+    public function tentative()
+    {
+        $user = Auth::user();
+        $tours = Tour::where('tour_status', 'Tentative')
+            ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
+            ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+            ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
+            ->select([
+                'tours.tour_id',
+                'tours.display_id',
+                'tours.reference_id',
+                'tours.multi_enq_id',
+                'tours.tour_type',
                 'tours.adult',
                 'tours.child',
                 'tours.infant',
@@ -480,120 +2463,17 @@ class BookingsController extends Controller
                 'tours.auto_cancel_date',
                 'tours.agent_id',
                 'agents.name as agent_name',
-                'agents.company_name as agent_company_name',
-                'enquiry_comments.enquiry_id as enquiry_id',
-                'enquiry_comments.comment as enquiry_comment',
-                'enquiry_comments.amount as enquiry_comment_amount',
-                'enquiry_comments.actual_amount as actual_amount',
-                'enquiry_comments.sender_type as enquiry_comment_sender_type',
-                'enquiry_comments.created_at as enquiry_comment_created_at',
-                'enquiry_comments.updated_at as enquiry_comment_updated_at',
-            ])
-            ->orderBy('tours.created_at', 'desc')
-            ->get();
-        }
-        
-        if($user->role_id == 11){
-            $dmc_id = $user->userId;
-        }else if($user->role_id == 33 || $user->role_id == 34 || $user->role_id == 36 || $user->role_id == 128 || $user->role_id == 129 || $user->role_id == 130 || $user->role_id == 134 || $user->role_id == 135 || $user->role_id == 136 || $user->role_id == 138){
-            $dmc_id = $user->created_by;
-        }else if($user->role_id == 37){
-            $sales_head = User::where('userId', $user->created_by)->first();
-            $dmc_id = $sales_head->created_by;
-        }else if($user->role_id == 38){
-            $sales_manager = User::where('userId', $user->created_by)->first();
-            $sales_head = User::where('userId', $sales_manager->created_by)->first();
-            $dmc_id = $sales_head->created_by;
-        }
-
-        if($dmc_id){
-            $tours = Tour::whereIn('tour_status', ['Prospect', 'Tentative'])
-                ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
-                ->leftJoin('enquiry_comments', function($join) {
-                    $join->on('tours.tour_id', '=', 'enquiry_comments.tour_id')
-                         ->whereRaw('enquiry_comments.enquiry_id = (
-                             SELECT MAX(ec2.enquiry_id) 
-                             FROM enquiry_comments ec2 
-                             WHERE ec2.tour_id = tours.tour_id
-                         )');
-                })
-                ->select([
-                    'tours.tour_id',
-                    'tours.display_id',
-                    'tours.multi_enq_id',
-                    'tours.adult',
-                    'tours.child',
-                    'tours.infant',
-                    'tours.hotel',
-                    'tours.attraction',
-                    'tours.travel',
-                    'tours.restaurent',
-                    'tours.guide',
-                    'tours.port',
-                    'tours.destination',
-                    'tours.city',
-                    'tours.check_in_time',
-                    'tours.check_out_time',
-                    'tours.tour_status',
-                    'tours.created_at',
-                    'tours.updated_at',
-                    'tours.auto_cancel_date',
-                    'tours.agent_id',
-                    'agents.name as agent_name',
-                    'agents.company_name as agent_company_name',
-                    'enquiry_comments.enquiry_id as enquiry_id',
-                    'enquiry_comments.comment as enquiry_comment',
-                    'enquiry_comments.amount as enquiry_comment_amount',
-                    'enquiry_comments.actual_amount as actual_amount',
-                    'enquiry_comments.sender_type as enquiry_comment_sender_type',
-                    'enquiry_comments.created_at as enquiry_comment_created_at',
-                    'enquiry_comments.updated_at as enquiry_comment_updated_at',
-                ])
-                ->where('tours.dmc_id', $dmc_id)
-                ->orderBy('tours.created_at', 'desc')
-                ->get();
-        }
-        $country_tax = Country::where('name', $user->country)->value('tax_percentage');
-        return view('bookings.follow-ups', compact('tours', 'country_tax'));
-    }
-
-    /**
-     * Display Tentative Bookings (tour_status = 'Tentative')
-     */
-    public function tentative()
-    {
-        $user = Auth::user();
-        $tours = Tour::where('tour_status', 'Tentative')
-            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
-            ->select([
-                'tours.tour_id',
-                'tours.display_id',
-                'tours.multi_enq_id',
-                'tours.adult',
-                'tours.child',
-                'tours.infant',
-                'tours.hotel',
-                'tours.attraction',
-                'tours.travel',
-                'tours.restaurent',
-                'tours.guide',
-                'tours.port',
-                'tours.destination',
-                'tours.city',
-                'tours.check_in_time',
-                'tours.check_out_time',
-                'tours.tour_status',
-                'tours.created_at',
-                'tours.updated_at',
-                'tours.auto_cancel_date',
-                'tours.agent_id',
-                'agents.name as agent_name'
+                'dmc_user.company_code as dmc_company_code',
+                'created_by_user.user_code as created_by_user_code',
+                'created_by_user.company_code as created_by_company_code'
             ])
             ->orderBy('tours.created_at', 'desc')
             ->paginate(15);
-
+        $this->formatToursDisplayId($tours);
+        $currency = CommonHelper::getDmcCurrencyByCountry();
         $country_tax = Country::where('name', optional($user)->country)->value('tax_percentage');
-        return view('bookings.tentative', compact('tours', 'country_tax'));
+        $this->hydrateDestinationCreatedAt($tours);
+        return view('bookings.tentative', compact('tours', 'country_tax', 'currency'));
     }
 
     /**
@@ -612,12 +2492,17 @@ class BookingsController extends Controller
                 }
             ])
             ->where('tour_status', 'Confirmed')
-            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
+            ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+            ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->select([
                 'tours.tour_id',
                 'tours.unique_tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
+                'tours.dmc_id',
+                'tours.tour_type',
                 'tours.adult',
                 'tours.child',
                 'tours.infant',
@@ -634,15 +2519,25 @@ class BookingsController extends Controller
                 'tours.tour_status',
                 'tours.payment_details',
                 'tours.taxes',
+                'tours.is_pro',
+                'tours.user_currency',
+                'tours.mainguest',
+                'tours.discount_amount',
                 'tours.created_at',
                 'tours.updated_at',
                 'tours.auto_cancel_date',
                 'tours.agent_id',
                 'agents.name as agent_name',
-                'agents.company_name as agent_company_name'
+                'agents.company_name as agent_company_name',
+                'created_by_user.name as created_by_name',
+                'dmc_user.company_code as dmc_company_code',
+                'dmc_user.auto_cancel_date as dmc_auto_cancel_day',
+                'created_by_user.user_code as created_by_user_code'
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
+            $this->hydrateTourNegotiationDiscounts($tours);
+            $this->formatToursDisplayId($tours);
         }
         
         if($user->role_id == 11){
@@ -665,13 +2560,18 @@ class BookingsController extends Controller
                 }
             ])
             ->where('tour_status', 'Confirmed')
-            ->where('tours.dmc_id', $dmc_id)
-            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
+            ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
+            ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+            ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->select([
                 'tours.tour_id',
                 'tours.unique_tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
+                'tours.dmc_id',
+                'tours.tour_type',
                 'tours.adult',
                 'tours.child',
                 'tours.infant',
@@ -688,17 +2588,204 @@ class BookingsController extends Controller
                 'tours.tour_status',
                 'tours.payment_details',
                 'tours.taxes',
+                'tours.is_pro',
+                'tours.user_currency',
+                'tours.mainguest',
+                'tours.discount_amount',
                 'tours.created_at',
                 'tours.updated_at',
                 'tours.auto_cancel_date',
                 'tours.agent_id',
                 'agents.name as agent_name',
-                'agents.company_name as agent_company_name'
+                'agents.company_name as agent_company_name',
+                'created_by_user.name as created_by_name',
+                'dmc_user.company_code as dmc_company_code',
+                'dmc_user.auto_cancel_date as dmc_auto_cancel_day',
+                'created_by_user.user_code as created_by_user_code'
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
+            $this->hydrateTourNegotiationDiscounts($tours);
+            $this->formatToursDisplayId($tours);
         }
-        return view('bookings.confirmed', compact('tours'));
+        $currency = CommonHelper::getDmcCurrencyByCountry();
+
+        // Prepare exchange-rate sources for the "Add Payment" modal:
+        // - DMC rate: countries.exchange_rate JSON keyed by tour.dmc_id
+        // - Previous rate: last entry in tours.payment_details JSON array
+        if ($tours && $tours->count() > 0) {
+            // Build a lightweight lookup of countries by normalized name for best-effort matching.
+            $destinations = $tours->pluck('destination')
+                ->filter(fn ($v) => is_string($v) && trim($v) !== '')
+                ->map(fn ($v) => mb_strtolower(trim($v)))
+                ->unique()
+                ->values()
+                ->all();
+
+            $countriesByName = [];
+            if (!empty($destinations)) {
+                Country::query()
+                    ->whereIn(DB::raw('LOWER(name)'), $destinations)
+                    ->get()
+                    ->each(function ($c) use (&$countriesByName) {
+                        $key = is_string($c->name) ? mb_strtolower(trim($c->name)) : '';
+                        if ($key !== '') {
+                            $countriesByName[$key] = $c;
+                        }
+                    });
+            }
+            
+
+            foreach ($tours as $tour) {
+                // Previous rate/currency from last payment_details entry (if any).
+                $prevRate = null;
+                $prevCurrency = null;
+                $isDefiniteTour = is_string($tour->tour_status) && strcasecmp($tour->tour_status, 'Definite') === 0;
+                if ($isDefiniteTour) {
+                    $paymentDetails = $tour->payment_details;
+                    if (is_string($paymentDetails) && trim($paymentDetails) !== '') {
+                        $decoded = json_decode($paymentDetails, true);
+                        $paymentDetails = is_array($decoded) ? $decoded : [];
+                    }
+                    if (is_array($paymentDetails) && !empty($paymentDetails)) {
+                        $last = end($paymentDetails);
+                        if (is_array($last)) {
+                            $prevRate = $last['exchange_rate'] ?? null;
+                            $prevCurrency = $last['currency'] ?? null;
+                        }
+                    }
+                }
+                $tour->previous_exchange_rate = is_scalar($prevRate) ? (string) $prevRate : null;
+                $tour->previous_payment_currency = is_scalar($prevCurrency) ? (string) $prevCurrency : null;
+
+                // DMC rate lookup: countries.exchange_rate[dmc_id].value
+                $dmcRate = null;
+                $destKey = is_string($tour->destination) ? mb_strtolower(trim($tour->destination)) : '';
+                $country = $destKey !== '' ? ($countriesByName[$destKey] ?? null) : null;
+                
+                if ($country && !empty($dmc_id)) {
+                    
+                    // countries.exchange_rate format is an array of objects, e.g.
+                    // [
+                    //   { "dmc_id": 4, "exchange_rate": 5 }
+                    // ]
+                    $exchangeRateRaw = $country->exchange_rate;
+                    
+                    if (is_string($exchangeRateRaw) && trim($exchangeRateRaw) !== '') {
+                        $decoded = json_decode($exchangeRateRaw, true);
+                        $exchangeRateRaw = is_array($decoded) ? $decoded : [];
+                    }
+                    $exchangeRateArr = is_array($exchangeRateRaw) ? $exchangeRateRaw : [];
+                    
+                    $match = collect($exchangeRateArr)->firstWhere('dmc_id', (int) $dmc_id);
+                    if (is_array($match)) {
+                        $dmcRate = $match['exchange_rate'] ?? null;
+                    }
+                }
+                
+                $tour->dmc_exchange_rate_value = is_scalar($dmcRate) ? (string) $dmcRate : null;
+            }
+        }
+
+        $tourIds = $tours->pluck('tour_id')->toArray();
+        $tourNegotiationHistory = [];
+        if (!empty($tourIds)) {
+            $withComments = DB::table('enquiry_comments')
+                ->whereIn('tour_id', $tourIds)
+                ->whereNull('deleted_at')
+                ->distinct()
+                ->pluck('tour_id')
+                ->flip()
+                ->toArray();
+            foreach ($tourIds as $tid) {
+                $tourNegotiationHistory[$tid] = isset($withComments[$tid]);
+            }
+
+            // Latest non-empty negotiation currency per tour (for Add Payment modal).
+            $enquiryCurrencies = DB::table('enquiry_comments')
+                ->whereIn('tour_id', $tourIds)
+                ->whereNull('deleted_at')
+                ->whereNotNull('currency')
+                ->where('currency', '!=', '')
+                ->orderByDesc('id')
+                ->get(['tour_id', 'currency'])
+                ->unique('tour_id')
+                ->pluck('currency', 'tour_id');
+
+            foreach ($tours as $tour) {
+                $enquiryCurrency = $enquiryCurrencies->get($tour->tour_id);
+                $tour->enquiry_currency = is_string($enquiryCurrency) && trim($enquiryCurrency) !== ''
+                    ? trim($enquiryCurrency)
+                    : null;
+            }
+        }
+
+        $this->hydrateDestinationCreatedAt($tours);
+        $serviceCountryScope = CommonHelper::resolveServiceCountryViewScope($user);
+        return view('bookings.confirmed', compact('tours', 'currency', 'tourNegotiationHistory', 'serviceCountryScope'));
+    }
+
+    /**
+     * Fetch DMC exchange rate for selected currency (AJAX).
+     */
+    public function getDmcExchangeRate(Request $request)
+    {
+        $tourId = $request->query('tour_id');
+        $currency = trim((string) $request->query('currency', ''));
+        $defaultRate = '1';
+
+        if (empty($tourId) || $currency === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'tour_id and currency are required.',
+            ], 422);
+        }
+
+        $tour = Tour::query()
+            ->select(['tour_id', 'dmc_id', 'destination'])
+            ->where('tour_id', $tourId)
+            ->first();
+
+        if (!$tour || empty($tour->dmc_id)) {
+            return response()->json([
+                'success' => true,
+                'dmc_rate' => $defaultRate,
+            ]);
+        }
+
+        // Primary lookup by currency selected in modal.
+        $country = Country::query()
+            ->whereRaw('LOWER(currency) = ?', [mb_strtolower($currency)])
+            ->first();
+
+        // Fallback to destination-country mapping if no direct currency country found.
+        if (!$country && is_string($tour->destination) && trim($tour->destination) !== '') {
+            $country = Country::query()
+                ->whereRaw('LOWER(name) = ?', [mb_strtolower(trim($tour->destination))])
+                ->first();
+        }
+
+        if (!$country) {
+            return response()->json([
+                'success' => true,
+                'dmc_rate' => $defaultRate,
+            ]);
+        }
+
+        $exchangeRateRaw = $country->exchange_rate;
+        if (is_string($exchangeRateRaw) && trim($exchangeRateRaw) !== '') {
+            $decoded = json_decode($exchangeRateRaw, true);
+            $exchangeRateRaw = is_array($decoded) ? $decoded : [];
+        }
+        $exchangeRateArr = is_array($exchangeRateRaw) ? $exchangeRateRaw : [];
+
+        $match = collect($exchangeRateArr)->firstWhere('dmc_id', (int) $tour->dmc_id);
+        $dmcRate = is_array($match) ? ($match['exchange_rate'] ?? null) : null;
+        
+        return response()->json([
+            'success' => true,
+            'dmc_rate' => is_scalar($dmcRate) ? (string) $dmcRate : $defaultRate,
+        ]);
     }
 
     /**
@@ -712,18 +2799,23 @@ class BookingsController extends Controller
         $tours = collect([]);
 
         if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
+
             $tours = Tour::with([
                 'booking' => function ($query) {
                     $query->where('bookingType', 'booking');
                 },
                 'agent'
             ])
-            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
+            ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+            ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->select([
                 'tours.tour_id',
                 'tours.unique_tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
+                'tours.tour_type',
                 'tours.adult',
                 'tours.child',
                 'tours.infant',
@@ -740,19 +2832,39 @@ class BookingsController extends Controller
                 'tours.tour_status',
                 'tours.payment_details',
                 'tours.taxes',
+                'tours.is_pro',
+                'tours.user_currency',
+                'tours.mainguest',
+                'tours.discount_amount',
                 'tours.created_at',
+                'tours.created_by',
                 'tours.updated_at',
                 'tours.auto_cancel_date',
                 'tours.agent_id',
                 'agents.name as agent_name',
-                'agents.company_name as agent_company_name'
+                'agents.company_name as agent_company_name',
+                'created_by_user.name as created_by_name',
+                'dmc_user.company_code as dmc_company_code',
+                'dmc_user.auto_cancel_date as dmc_auto_cancel_day',
+                'created_by_user.user_code as created_by_user_code'
             ])
             ->where(function ($query) use ($today) {
                 $query->where('tours.tour_status', 'Definite');
                     // ->orWhereDate('tours.updated_at', $today);
             })
+            ->whereExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('orders')
+                    ->whereColumn('orders.tour_id', 'tours.tour_id')
+                    ->where('orders.bookingType', 'booking')
+                    ->whereNull('orders.deleted_at');
+            })
             ->orderBy('tours.created_at', 'desc')
-            ->get();
+            ->get()
+            ->unique('tour_id')
+            ->values();
+            $this->hydrateTourNegotiationDiscounts($tours);
+            $this->formatToursDisplayId($tours);
         }
         
         if($user->role_id == 11){
@@ -767,7 +2879,6 @@ class BookingsController extends Controller
             $sales_head = User::where('userId', $sales_manager->created_by)->first();
             $dmc_id = $sales_head->created_by;
         }
-
         if($dmc_id){
             $tours = Tour::with([
                 'booking' => function ($query) {
@@ -779,13 +2890,24 @@ class BookingsController extends Controller
                 $query->where('tours.tour_status', 'Definite');
                     // ->orWhereDate('tours.updated_at', $today);
             })
-            ->where('tours.dmc_id', $dmc_id)
-            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->whereExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('orders')
+                    ->whereColumn('orders.tour_id', 'tours.tour_id')
+                    ->where('orders.bookingType', 'booking')
+                    ->whereNull('orders.deleted_at');
+            })
+            ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
+            ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
+            ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+            ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->select([
                 'tours.tour_id',
                 'tours.unique_tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
+                'tours.tour_type',
                 'tours.adult',
                 'tours.child',
                 'tours.infant',
@@ -802,19 +2924,139 @@ class BookingsController extends Controller
                 'tours.tour_status',
                 'tours.payment_details',
                 'tours.taxes',
+                'tours.is_pro',
+                'tours.user_currency',
+                'tours.mainguest',
+                'tours.discount_amount',
                 'tours.created_at',
+                'tours.created_by',
                 'tours.updated_at',
                 'tours.auto_cancel_date',
                 'tours.agent_id',
                 'agents.name as agent_name',
-                'agents.company_name as agent_company_name'
+                'agents.company_name as agent_company_name',
+                'created_by_user.name as created_by_name',
+                'dmc_user.company_code as dmc_company_code',
+                'dmc_user.auto_cancel_date as dmc_auto_cancel_day',
+                'created_by_user.user_code as created_by_user_code'
             ])
             ->orderBy('tours.created_at', 'desc')
-            ->get();
+            ->get()
+            ->unique('tour_id')
+            ->values();
+            $this->hydrateTourNegotiationDiscounts($tours);
+            $this->formatToursDisplayId($tours);
         }
 
+        $currency = Country::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower((string) ($user->country ?? ''))])
+            ->value('currency');
+        $currency = is_string($currency) && trim($currency) !== '' ? trim($currency) : (CommonHelper::getDmcCurrencyByCountry() ?: 'SGD');
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
-        return view('bookings.definite', compact('tours', 'country_tax'));
+
+        // Prepare exchange-rate sources for the "Add Payment" modal:
+        // - DMC rate: countries.exchange_rate JSON array of objects keyed by dmc_id
+        // - Previous rate: last entry in tours.payment_details JSON array (Definite tours only)
+        if ($tours && $tours->count() > 0) {
+            $destinations = $tours->pluck('destination')
+                ->filter(fn ($v) => is_string($v) && trim($v) !== '')
+                ->map(fn ($v) => mb_strtolower(trim($v)))
+                ->unique()
+                ->values()
+                ->all();
+
+            $countriesByName = [];
+            if (!empty($destinations)) {
+                Country::query()
+                    ->whereIn(DB::raw('LOWER(name)'), $destinations)
+                    ->get()
+                    ->each(function ($c) use (&$countriesByName) {
+                        $key = is_string($c->name) ? mb_strtolower(trim($c->name)) : '';
+                        if ($key !== '') {
+                            $countriesByName[$key] = $c;
+                        }
+                    });
+            }
+
+            foreach ($tours as $tour) {
+                // Previous rate/currency from last payment_details entry (if any).
+                $prevRate = null;
+                $prevCurrency = null;
+                $isDefiniteTour = is_string($tour->tour_status) && strcasecmp($tour->tour_status, 'Definite') === 0;
+                if ($isDefiniteTour) {
+                    $paymentDetails = $tour->payment_details;
+                    if (is_string($paymentDetails) && trim($paymentDetails) !== '') {
+                        $decoded = json_decode($paymentDetails, true);
+                        $paymentDetails = is_array($decoded) ? $decoded : [];
+                    }
+                    if (is_array($paymentDetails) && !empty($paymentDetails)) {
+                        $last = end($paymentDetails);
+                        if (is_array($last)) {
+                            $prevRate = $last['exchange_rate'] ?? null;
+                            $prevCurrency = $last['currency'] ?? null;
+                        }
+                    }
+                }
+                $tour->previous_exchange_rate = is_scalar($prevRate) ? (string) $prevRate : null;
+                $tour->previous_payment_currency = is_scalar($prevCurrency) ? (string) $prevCurrency : null;
+
+                // DMC rate lookup: countries.exchange_rate is an array of objects.
+                $dmcRate = null;
+                $destKey = is_string($tour->destination) ? mb_strtolower(trim($tour->destination)) : '';
+                $country = $destKey !== '' ? ($countriesByName[$destKey] ?? null) : null;
+                if ($country && $dmc_id) {
+                    $exchangeRateRaw = $country->exchange_rate;
+                    if (is_string($exchangeRateRaw) && trim($exchangeRateRaw) !== '') {
+                        $decoded = json_decode($exchangeRateRaw, true);
+                        $exchangeRateRaw = is_array($decoded) ? $decoded : [];
+                    }
+                    $exchangeRateArr = is_array($exchangeRateRaw) ? $exchangeRateRaw : [];
+
+                    $match = collect($exchangeRateArr)->firstWhere('dmc_id', (int) $dmc_id);
+                    if (is_array($match)) {
+                        $dmcRate = $match['exchange_rate'] ?? null;
+                    }
+                }
+                $tour->dmc_exchange_rate_value = is_scalar($dmcRate) ? (string) $dmcRate : null;
+            
+            }
+        }
+
+        $tourIds = $tours->pluck('tour_id')->toArray();
+        $tourNegotiationHistory = [];
+        if (!empty($tourIds)) {
+            $withComments = DB::table('enquiry_comments')
+                ->whereIn('tour_id', $tourIds)
+                ->whereNull('deleted_at')
+                ->distinct()
+                ->pluck('tour_id')
+                ->flip()
+                ->toArray();
+            foreach ($tourIds as $tid) {
+                $tourNegotiationHistory[$tid] = isset($withComments[$tid]);
+            }
+
+            // Latest non-empty negotiation currency per tour (for Add Payment modal).
+            $enquiryCurrencies = DB::table('enquiry_comments')
+                ->whereIn('tour_id', $tourIds)
+                ->whereNull('deleted_at')
+                ->whereNotNull('currency')
+                ->where('currency', '!=', '')
+                ->orderByDesc('id')
+                ->get(['tour_id', 'currency'])
+                ->unique('tour_id')
+                ->pluck('currency', 'tour_id');
+
+            foreach ($tours as $tour) {
+                $enquiryCurrency = $enquiryCurrencies->get($tour->tour_id);
+                $tour->enquiry_currency = is_string($enquiryCurrency) && trim($enquiryCurrency) !== ''
+                    ? trim($enquiryCurrency)
+                    : null;
+            }
+        }
+
+        $serviceCountryScope = CommonHelper::resolveServiceCountryViewScope($user);
+        return view('bookings.definite', compact('tours', 'country_tax', 'currency', 'tourNegotiationHistory', 'serviceCountryScope'));
     }
 
     /**
@@ -827,12 +3069,28 @@ class BookingsController extends Controller
         $tours = collect([]);
 
         if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
-            $tours = Tour::where('tour_status', 'Actual')
-                ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            $tours = Tour::with([
+                'booking' => function ($query) {
+                    $query->where('bookingType', 'booking');
+                }
+            ])
+                ->whereIn('tour_status', ['Actual', 'Complete'])
+                ->whereExists(function ($query) {
+                    $query->select(DB::raw(1))
+                        ->from('orders')
+                        ->whereColumn('orders.tour_id', 'tours.tour_id')
+                        ->where('orders.bookingType', 'booking')
+                        ->whereNull('orders.deleted_at');
+                })
+                ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
+                ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+                ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
                 ->select([
                     'tours.tour_id',
                     'tours.display_id',
+                    'tours.reference_id',
                     'tours.multi_enq_id',
+                    'tours.tour_type',
                     'tours.adult',
                     'tours.child',
                     'tours.infant',
@@ -849,15 +3107,25 @@ class BookingsController extends Controller
                     'tours.tour_status',
                     'tours.payment_details',
                     'tours.taxes',
+                    'tours.is_pro',
+                    'tours.user_currency',
+                    'tours.mainguest',
+                    'tours.discount_amount',
                     'tours.created_at',
                     'tours.updated_at',
                     'tours.auto_cancel_date',
                     'tours.agent_id',
                     'agents.name as agent_name',
-                    'agents.company_name as agent_company_name'
+                    'agents.company_name as agent_company_name',
+                    'created_by_user.name as created_by_name',
+                    'dmc_user.company_code as dmc_company_code',
+                    'dmc_user.auto_cancel_date as dmc_auto_cancel_day',
+                    'created_by_user.user_code as created_by_user_code'
                 ])
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
+            $this->hydrateTourNegotiationDiscounts($tours);
+            $this->formatToursDisplayId($tours);
         }
         
         if($user->role_id == 11){
@@ -874,13 +3142,29 @@ class BookingsController extends Controller
         }
 
         if($dmc_id){
-            $tours = Tour::where('tour_status', 'Actual')
-                ->where('tours.dmc_id', $dmc_id)
-                ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            $tours = Tour::with([
+                'booking' => function ($query) {
+                    $query->where('bookingType', 'booking');
+                }
+            ])
+                ->whereIn('tour_status', ['Actual', 'Complete'])
+                ->whereExists(function ($query) {
+                    $query->select(DB::raw(1))
+                        ->from('orders')
+                        ->whereColumn('orders.tour_id', 'tours.tour_id')
+                        ->where('orders.bookingType', 'booking')
+                        ->whereNull('orders.deleted_at');
+                })
+                ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
+                ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
+                ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+                ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
                 ->select([
                     'tours.tour_id',
                     'tours.display_id',
+                    'tours.reference_id',
                     'tours.multi_enq_id',
+                    'tours.tour_type',
                     'tours.adult',
                     'tours.child',
                     'tours.infant',
@@ -897,15 +3181,25 @@ class BookingsController extends Controller
                     'tours.tour_status',
                     'tours.payment_details',
                     'tours.taxes',
+                    'tours.is_pro',
+                    'tours.user_currency',
+                    'tours.mainguest',
+                    'tours.discount_amount',
                     'tours.created_at',
                     'tours.updated_at',
                     'tours.auto_cancel_date',
                     'tours.agent_id',
                     'agents.name as agent_name',
-                    'agents.company_name as agent_company_name'
+                    'agents.company_name as agent_company_name',
+                    'created_by_user.name as created_by_name',
+                    'dmc_user.company_code as dmc_company_code',
+                    'dmc_user.auto_cancel_date as dmc_auto_cancel_day',
+                    'created_by_user.user_code as created_by_user_code'
                 ])
                 ->orderBy('tours.created_at', 'desc')
                 ->get();
+            $this->hydrateTourNegotiationDiscounts($tours);
+            $this->formatToursDisplayId($tours);
         }
 
         // Parse payment details for each tour
@@ -922,8 +3216,109 @@ class BookingsController extends Controller
             return $tour;
         });
 
+        // Prepare exchange-rate sources for the "Add Payment" modal:
+        // - DMC rate: countries.exchange_rate JSON array of objects keyed by dmc_id
+        // - Previous rate: last entry in tours.payment_details JSON array
+        if ($tours && $tours->count() > 0) {
+            $destinations = $tours->pluck('destination')
+                ->filter(fn ($v) => is_string($v) && trim($v) !== '')
+                ->map(fn ($v) => mb_strtolower(trim($v)))
+                ->unique()
+                ->values()
+                ->all();
+
+            $countriesByName = [];
+            if (!empty($destinations)) {
+                Country::query()
+                    ->whereIn(DB::raw('LOWER(name)'), $destinations)
+                    ->get()
+                    ->each(function ($c) use (&$countriesByName) {
+                        $key = is_string($c->name) ? mb_strtolower(trim($c->name)) : '';
+                        if ($key !== '') {
+                            $countriesByName[$key] = $c;
+                        }
+                    });
+            }
+
+            foreach ($tours as $tour) {
+                $prevRate = null;
+                $prevCurrency = null;
+                $paymentDetails = $tour->payment_details;
+                if (is_string($paymentDetails) && trim($paymentDetails) !== '') {
+                    $decoded = json_decode($paymentDetails, true);
+                    $paymentDetails = is_array($decoded) ? $decoded : [];
+                }
+                if (is_array($paymentDetails) && !empty($paymentDetails)) {
+                    $last = end($paymentDetails);
+                    if (is_array($last)) {
+                        $prevRate = $last['exchange_rate'] ?? null;
+                        $prevCurrency = $last['currency'] ?? null;
+                    }
+                }
+                $tour->previous_exchange_rate = is_scalar($prevRate) ? (string) $prevRate : null;
+                $tour->previous_payment_currency = is_scalar($prevCurrency) ? (string) $prevCurrency : null;
+
+                $dmcRate = null;
+                $destKey = is_string($tour->destination) ? mb_strtolower(trim($tour->destination)) : '';
+                $country = $destKey !== '' ? ($countriesByName[$destKey] ?? null) : null;
+                if ($country && $dmc_id) {
+                    $exchangeRateRaw = $country->exchange_rate;
+                    if (is_string($exchangeRateRaw) && trim($exchangeRateRaw) !== '') {
+                        $decoded = json_decode($exchangeRateRaw, true);
+                        $exchangeRateRaw = is_array($decoded) ? $decoded : [];
+                    }
+                    $exchangeRateArr = is_array($exchangeRateRaw) ? $exchangeRateRaw : [];
+                    $match = collect($exchangeRateArr)->firstWhere('dmc_id', $dmc_id);
+                    if (is_array($match)) {
+                        $dmcRate = $match['exchange_rate'] ?? null;
+                    }
+                }
+                $tour->dmc_exchange_rate_value = is_scalar($dmcRate) ? (string) $dmcRate : null;
+            }
+        }
+
+        $currency = Country::query()
+            ->whereRaw('LOWER(name) = ?', [mb_strtolower((string) ($user->country ?? ''))])
+            ->value('currency');
+        $currency = is_string($currency) && trim($currency) !== '' ? trim($currency) : (CommonHelper::getDmcCurrencyByCountry() ?: 'SGD');
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
-        return view('bookings.actual', compact('tours', 'country_tax'));
+
+        $tourIds = $tours->pluck('tour_id')->toArray();
+        $tourNegotiationHistory = [];
+        if (!empty($tourIds)) {
+            $withComments = DB::table('enquiry_comments')
+                ->whereIn('tour_id', $tourIds)
+                ->whereNull('deleted_at')
+                ->distinct()
+                ->pluck('tour_id')
+                ->flip()
+                ->toArray();
+            foreach ($tourIds as $tid) {
+                $tourNegotiationHistory[$tid] = isset($withComments[$tid]);
+            }
+
+            // Latest non-empty negotiation currency per tour (for Add Payment modal).
+            $enquiryCurrencies = DB::table('enquiry_comments')
+                ->whereIn('tour_id', $tourIds)
+                ->whereNull('deleted_at')
+                ->whereNotNull('currency')
+                ->where('currency', '!=', '')
+                ->orderByDesc('id')
+                ->get(['tour_id', 'currency'])
+                ->unique('tour_id')
+                ->pluck('currency', 'tour_id');
+
+            foreach ($tours as $tour) {
+                $enquiryCurrency = $enquiryCurrencies->get($tour->tour_id);
+                $tour->enquiry_currency = is_string($enquiryCurrency) && trim($enquiryCurrency) !== ''
+                    ? trim($enquiryCurrency)
+                    : null;
+            }
+        }
+
+        $this->hydrateDestinationCreatedAt($tours);
+        $serviceCountryScope = CommonHelper::resolveServiceCountryViewScope($user);
+        return view('bookings.actual', compact('tours', 'country_tax', 'currency', 'tourNegotiationHistory', 'serviceCountryScope'));
     }
 
     /**
@@ -940,14 +3335,20 @@ class BookingsController extends Controller
                 $query->where('tour_status', 'LIKE', 'Cancel%')
                       ->orWhere('tour_status', 'LIKE', '%Cancel%');
             })
-            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
+            ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+            ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->select([
                 'tours.tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
+                'tours.tour_type',
+                'tours.is_pro',
                 'tours.adult',
                 'tours.child',
                 'tours.infant',
+                'tours.mainguest',
                 'tours.hotel',
                 'tours.attraction',
                 'tours.travel',
@@ -964,11 +3365,16 @@ class BookingsController extends Controller
                 'tours.updated_at',
                 'tours.auto_cancel_date',
                 'tours.agent_id',
+                'tours.created_by',
                 'agents.name as agent_name',
-                'agents.company_name as agent_company_name'
+                'agents.company_name as agent_company_name',
+                'created_by_user.name as created_by_name',
+                'dmc_user.company_code as dmc_company_code',
+                'created_by_user.user_code as created_by_user_code'
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
+            $this->formatToursDisplayId($tours);
         }
 
         if($user->role_id == 11){
@@ -989,15 +3395,21 @@ class BookingsController extends Controller
                 $query->where('tour_status', 'LIKE', 'Cancel%')
                       ->orWhere('tour_status', 'LIKE', '%Cancel%');
             })
-            ->where('tours.dmc_id', $dmc_id)
-            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
+            ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
+            ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+            ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->select([
                 'tours.tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
+                'tours.tour_type',
+                'tours.is_pro',
                 'tours.adult',
                 'tours.child',
                 'tours.infant',
+                'tours.mainguest',
                 'tours.destination',
                 'tours.city',
                 'tours.check_in_time',
@@ -1008,15 +3420,22 @@ class BookingsController extends Controller
                 'tours.updated_at',
                 'tours.auto_cancel_date',
                 'tours.agent_id',
+                'tours.created_by',
                 'agents.name as agent_name',
-                'agents.company_name as agent_company_name'
+                'agents.company_name as agent_company_name',
+                'created_by_user.name as created_by_name',
+                'dmc_user.company_code as dmc_company_code',
+                'created_by_user.user_code as created_by_user_code'
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
+            $this->formatToursDisplayId($tours);
         }
 
+        $currency = CommonHelper::getDmcCurrencyByCountry();
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
-        return view('bookings.cancelled', compact('tours', 'country_tax'));
+        $this->hydrateDestinationCreatedAt($tours);
+        return view('bookings.cancelled', compact('tours', 'country_tax', 'currency'));
     }
 
     /**
@@ -1028,44 +3447,90 @@ class BookingsController extends Controller
         $dmc_id = null;
         $tours = collect([]);
 
+        // TravClicks (roles 1–4): Refunds tab shows only tours with a cancelled ONLINE service.
         if($user->role_id == 1 || $user->role_id == 2 || $user->role_id == 3 || $user->role_id == 4){
-            $tours = Tour::with([
-                'booking' => function ($query) {
-                    $query->where('bookingType', 'booking');
-                }
-            ])
-            ->whereIn('tour_status', ['Refund - Pending', 'Refunded'])
-            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
-            ->select([
-                'tours.tour_id',
-                'tours.unique_tour_id',
-                'tours.display_id',
-                'tours.multi_enq_id',
-                'tours.adult',
-                'tours.child',
-                'tours.infant',
-                'tours.hotel',
-                'tours.attraction',
-                'tours.travel',
-                'tours.restaurent',
-                'tours.guide',
-                'tours.port',
-                'tours.destination',
-                'tours.city',
-                'tours.check_in_time',
-                'tours.check_out_time',
-                'tours.tour_status',
-                'tours.payment_details',
-                'tours.created_at',
-                'tours.updated_at',
-                'tours.auto_cancel_date',
-                'tours.agent_id',
-                'tours.dmc_id',
-                'agents.name as agent_name',
-                'agents.company_name as agent_company_name'
-            ])
-            ->orderBy('tours.created_at', 'desc')
-            ->get();
+            $onlineRefundQuery = Order::withTrashed()
+                ->where('bookingType', 'booking')
+                ->where('is_refund', 1);
+            if (Schema::hasColumn('orders', 'order_type')) {
+                $onlineRefundQuery->whereRaw("LOWER(TRIM(COALESCE(order_type, ''))) = ?", ['online']);
+            } else {
+                // No order_type column → TravClicks has no online-cancel tours to show.
+                $onlineRefundQuery->whereRaw('1 = 0');
+            }
+            $refundTourIds = $onlineRefundQuery
+                ->pluck('tour_id')
+                ->unique()
+                ->filter(fn ($id) => (int) $id > 0)
+                ->values()
+                ->toArray();
+
+            $tours = empty($refundTourIds)
+                ? collect([])
+                : Tour::with([
+                    'booking' => function ($query) {
+                        $query->withTrashed()
+                              ->where('bookingType', 'booking')
+                              ->where('is_refund', 1);
+                        if (Schema::hasColumn('orders', 'order_type')) {
+                            $query->whereRaw("LOWER(TRIM(COALESCE(order_type, ''))) = ?", ['online']);
+                        } else {
+                            $query->whereRaw('1 = 0');
+                        }
+                    }
+                ])
+                ->whereIn('tours.tour_id', $refundTourIds)
+                ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
+                ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+                ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
+                ->select([
+                    'tours.tour_id',
+                    'tours.unique_tour_id',
+                    'tours.display_id',
+                    'tours.reference_id',
+                    'tours.multi_enq_id',
+                    'tours.tour_type',
+                    'tours.is_pro',
+                    'tours.adult',
+                    'tours.child',
+                    'tours.infant',
+                    'tours.hotel',
+                    'tours.mainguest',
+                    'tours.attraction',
+                    'tours.travel',
+                    'tours.restaurent',
+                    'tours.guide',
+                    'tours.port',
+                    'tours.destination',
+                    'tours.city',
+                    'tours.check_in_time',
+                    'tours.check_out_time',
+                    'tours.tour_status',
+                    'tours.payment_details',
+                    'tours.taxes',
+                    'tours.user_currency',
+                    'tours.markup',
+                    'tours.markup_type',
+                    'tours.markup_amount',
+                    'tours.discount_type',
+                    'tours.discount_amount',
+                    'tours.created_at',
+                    'tours.updated_at',
+                    'tours.auto_cancel_date',
+                    'tours.agent_id',
+                    'tours.dmc_id',
+                    'tours.created_by',
+                    'agents.name as agent_name',
+                    'agents.company_name as agent_company_name',
+                    'created_by_user.name as created_by_name',
+                    'dmc_user.name as dmc_name',
+                    'dmc_user.company_name as dmc_company_name',
+                    'dmc_user.company_code as dmc_company_code',
+                    'created_by_user.user_code as created_by_user_code'
+                ])
+                ->orderBy('tours.created_at', 'desc')
+                ->get();
+            $this->formatToursDisplayId($tours);
         }
         
         if($user->role_id == 11){
@@ -1082,23 +3547,48 @@ class BookingsController extends Controller
         }
 
         if($dmc_id){
+            // DMC sees: offline cancels immediately; online cancels only AFTER TravClicks refunded to DMC.
+            $dmcRefundQuery = Order::withTrashed()
+                ->where('bookingType', 'booking')
+                ->where('is_refund', 1)
+                ->where('tour_id', '>', 0);
+            $this->constrainOrdersVisibleToDmcRefund($dmcRefundQuery);
+            $refundTourIds = $dmcRefundQuery
+                ->pluck('tour_id')
+                ->unique()
+                ->toArray();
+
             $tours = Tour::with([
                 'booking' => function ($query) {
-                    $query->where('bookingType', 'booking');
+                    $query->withTrashed()
+                          ->where('bookingType', 'booking')
+                          ->where('is_refund', 1);
+                    $this->constrainOrdersVisibleToDmcRefund($query);
                 }
             ])
-            ->whereIn('tour_status', ['Refund - Pending', 'Refunded'])
-            ->where('tours.dmc_id', $dmc_id)
-            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->where(function ($query) use ($refundTourIds) {
+                $query->whereIn('tour_status', ['Refund - Pending', 'Refunded']);
+                if (! empty($refundTourIds)) {
+                    $query->orWhereIn('tours.tour_id', $refundTourIds);
+                }
+            })
+            ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmc_id, Auth::user()))
+            ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
+            ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+            ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->select([
                 'tours.tour_id',
                 'tours.unique_tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
+                'tours.tour_type',
+                'tours.is_pro',
                 'tours.adult',
                 'tours.child',
                 'tours.infant',
                 'tours.hotel',
+                'tours.mainguest',
                 'tours.attraction',
                 'tours.travel',
                 'tours.restaurent',
@@ -1110,36 +3600,121 @@ class BookingsController extends Controller
                 'tours.check_out_time',
                 'tours.tour_status',
                 'tours.payment_details',
+                'tours.taxes',
+                'tours.user_currency',
+                'tours.markup',
+                'tours.markup_type',
+                'tours.markup_amount',
+                'tours.discount_type',
+                'tours.discount_amount',
                 'tours.created_at',
                 'tours.updated_at',
                 'tours.auto_cancel_date',
                 'tours.agent_id',
                 'tours.dmc_id',
+                'tours.created_by',
                 'agents.name as agent_name',
-                'agents.company_name as agent_company_name'
+                'agents.company_name as agent_company_name',
+                'created_by_user.name as created_by_name',
+                'dmc_user.name as dmc_name',
+                'dmc_user.company_name as dmc_company_name',
+                'dmc_user.company_code as dmc_company_code',
+                'created_by_user.user_code as created_by_user_code'
             ])
             ->orderBy('tours.created_at', 'desc')
-            ->get();
+            ->get()
+            ->filter(function ($tour) {
+                // Keep rows DMC can act on: visible refund services, or full-tour refund with no service rows.
+                if (collect($tour->booking ?? [])->isNotEmpty()) {
+                    return true;
+                }
+                if (! in_array($tour->tour_status ?? '', ['Refund - Pending', 'Refunded'], true)) {
+                    return false;
+                }
+                if (! Schema::hasColumn('orders', 'order_type') || ! Schema::hasColumn('orders', 'travclicks_refunded')) {
+                    return true;
+                }
+                $waitingOnlineOnly = Order::withTrashed()
+                    ->where('tour_id', $tour->tour_id)
+                    ->where('bookingType', 'booking')
+                    ->where('is_refund', 1)
+                    ->whereRaw("LOWER(TRIM(COALESCE(order_type, ''))) = ?", ['online'])
+                    ->where(function ($q) {
+                        $q->whereNull('travclicks_refunded')
+                            ->orWhere('travclicks_refunded', false)
+                            ->orWhere('travclicks_refunded', 0);
+                    })
+                    ->exists();
+
+                return ! $waitingOnlineOnly;
+            })
+            ->values();
+            $this->formatToursDisplayId($tours);
         }
         
+        $currency = CommonHelper::getDmcCurrencyByCountry();
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
-        return view('bookings.refunds', compact('tours', 'country_tax'));
+        // Money summary first so service refund max can cap to negotiated+tax (Tour total / Paid).
+        $this->attachTourMoneySummary($tours);
+        $this->attachRefundPrices($tours);
+        $this->attachTourRefundPrices($tours);
+        if (in_array((int) ($user->role_id ?? 0), [1, 2, 3, 4], true)) {
+            $this->attachTravclicksDmcWalletFx($tours);
+        }
+        $this->hydrateDestinationCreatedAt($tours);
+        return view('bookings.refunds', compact('tours', 'country_tax', 'currency'));
+    }
+
+    /**
+     * DMC refund visibility:
+     * - Offline cancelled services: visible immediately
+     * - Online cancelled services: visible only after TravClicks refunded to DMC wallet
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder  $query
+     */
+    private function constrainOrdersVisibleToDmcRefund($query): void
+    {
+        if (! Schema::hasColumn('orders', 'order_type')) {
+            return;
+        }
+
+        $query->where(function ($q) {
+            $q->whereRaw("LOWER(TRIM(COALESCE(order_type, ''))) <> ?", ['online'])
+                ->orWhere(function ($online) {
+                    $online->whereRaw("LOWER(TRIM(COALESCE(order_type, ''))) = ?", ['online']);
+                    if (Schema::hasColumn('orders', 'travclicks_refunded')) {
+                        $online->where('travclicks_refunded', true);
+                    } else {
+                        $online->whereRaw('1 = 0');
+                    }
+                });
+        });
     }
 
     /**
      * Process refund for a tour (update tour_status from 'Refund - Pending' to 'Refunded')
+     * DMC / finance only — TravClicks refunds online services via processOrderRefundByOrder.
      */
     public function processRefund(Request $request)
     {
         try {
+            $roleId = (int) (Auth::user()->role_id ?? 0);
+            if (in_array($roleId, [1, 2, 3, 4], true)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'TravClicks can refund online cancelled services only, not the full tour.',
+                ], 403);
+            }
+
             $validator = Validator::make($request->all(), [
-                'tour_id' => 'required|integer|exists:tours,tour_id'
+                'tour_id' => 'required|integer|exists:tours,tour_id',
+                'refund_amount' => 'required|numeric|min:0',
             ]);
 
             if ($validator->fails()) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Invalid tour ID provided'
+                    'message' => $validator->errors()->first() ?: 'Invalid tour ID provided'
                 ], 422);
             }
 
@@ -1157,16 +3732,49 @@ class BookingsController extends Controller
                 ], 404);
             }
 
-            // Update tour status to Refunded
+            $price = $this->tourPriceWithMarkup($tour);
+            $maxAmount = (float) $price['amount'];
+            // Cap to Payment Details total (negotiated + tax) when sell markup exceeds what was billed.
+            $enquiryRows = Enquiry::where('tour_id', $tourId)
+                ->orderByDesc('enquiry_id')
+                ->get(['enquiry_id', 'tour_id', 'status', 'amount', 'gross_amount', 'currency', 'negotiation_details']);
+            $confirmed = $enquiryRows->first(fn ($row) => (int) ($row->status ?? 0) === 2);
+            $pricing = $confirmed ?: $enquiryRows->first();
+            $payable = (float) ($this->paymentModalTotals($tour, $pricing, $maxAmount, $price['currency'])['total'] ?? 0);
+            if ($payable > 0) {
+                $maxAmount = min($maxAmount, $payable);
+            }
+            $refundAmount = round((float) $request->input('refund_amount'), 2);
+            if ($refundAmount - $maxAmount > 0.009) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Refund amount cannot be higher than the tour price with markup (' . number_format($maxAmount, 2, '.', '') . ').',
+                    'max_refund_amount' => $maxAmount,
+                ], 422);
+            }
+
+            // Update tour status to Refunded and track transition
+            $oldStatus = $tour->tour_status; // Should be 'Refund - Pending'
             $tour->tour_status = 'Refunded';
+            $tour->refund_amount = $refundAmount;
             $tour->updated_at = now();
+
+            // Append to track_details history: Refund - Pending -> Refunded
+            \App\Helpers\CommonHelper::appendTourStatusTrack(
+                $tour,
+                $oldStatus,
+                $tour->tour_status,
+                $tour->updated_at
+            );
+
             $tour->save();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Refund processed successfully',
                 'tour_id' => $tourId,
-                'new_status' => 'Refunded'
+                'new_status' => 'Refunded',
+                'refund_amount' => $refundAmount,
             ]);
 
         } catch (\Exception $e) {
@@ -1178,16 +3786,501 @@ class BookingsController extends Controller
     }
 
     /**
+     * Mark refund-eligible orders as refunded for a specific tour
+     */
+    public function processOrderRefund(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer|exists:tours,tour_id'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid tour ID provided'
+                ], 422);
+            }
+
+            $tourId = (int) $request->tour_id;
+            $roleId = (int) (Auth::user()->role_id ?? 0);
+            $holdRoles = [33, 12, 37, 38, 128, 129, 130, 131, 132, 134, 135, 137, 138];
+            $financeRoles = [36, 126, 127, 129, 130, 131, 133, 134, 136, 137, 138];
+
+            if (in_array($roleId, $holdRoles, true)) {
+                $updated = Order::withTrashed()
+                    ->where('tour_id', $tourId)
+                    ->where('bookingType', 'booking')
+                    ->where('is_refund', 1)
+                    ->update([
+                        'is_verify' => 2, // hold
+                        'updated_at' => now(),
+                    ]);
+
+                if ($updated === 0) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No refund-eligible services found for this tour.'
+                    ], 404);
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Services moved to hold for finance verification.',
+                    'tour_id' => $tourId,
+                    'updated_orders' => $updated,
+                    'is_verify' => 2
+                ]);
+            }
+
+            if (in_array($roleId, $financeRoles, true)) {
+                $updated = Order::withTrashed()
+                    ->where('tour_id', $tourId)
+                    ->where('bookingType', 'booking')
+                    ->where('is_refund', 1)
+                    ->update([
+                        'is_verify' => 1, // accepted
+                        'refunded' => true,
+                        'updated_at' => now(),
+                    ]);
+
+                if ($updated === 0) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'No refund services found for finance verification.'
+                    ], 404);
+                }
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Finance verification completed and services marked refunded.',
+                    'tour_id' => $tourId,
+                    'updated_orders' => $updated,
+                    'is_verify' => 1
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'You are not authorized to perform this action.'
+            ], 403);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while updating refunded status: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Mark a single refund-eligible order as refunded (by booking_id/id)
+     */
+    public function processOrderRefundByOrder(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer|exists:tours,tour_id',
+                'order_id' => 'required|integer',
+                'action' => 'required|in:initiate,verify',
+                'refund_amount' => 'required_if:action,initiate|nullable|numeric|min:0',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $validator->errors()->first() ?: 'Invalid input provided'
+                ], 422);
+            }
+
+            $tourId = (int) $request->tour_id;
+            $orderId = (int) $request->order_id;
+            $action = (string) $request->input('action');
+            $roleId = (int) (Auth::user()->role_id ?? 0);
+            $travclicksRoles = [1, 2, 3, 4];
+            $isTravclicks = in_array($roleId, $travclicksRoles, true);
+            // DMC (11), multi-role, and finance can initiate and later verify the same service.
+            // TravClicks can act only on online cancelled services (wallet credit to DMC).
+            $actorRoles = [11, 12, 33, 34, 36, 37, 38, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138];
+
+            $order = Order::withTrashed()
+                ->where('tour_id', $tourId)
+                ->where('bookingType', 'booking')
+                ->where('is_refund', 1)
+                ->where(function ($q) use ($orderId) {
+                    $q->where('booking_id', $orderId)
+                      ->orWhere('id', $orderId);
+                })
+                ->first();
+
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Refund order not found for this tour.'
+                ], 404);
+            }
+
+            $isOnlineOrder = strtolower(trim((string) ($order->order_type ?? ''))) === 'online';
+            if ($isTravclicks && ! $isOnlineOrder) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'TravClicks can refund online cancelled services only.'
+                ], 403);
+            }
+
+            if (! $isTravclicks && ! in_array($roleId, $actorRoles, true)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You are not authorized to perform this action.'
+                ], 403);
+            }
+
+            // Online cancel reaches DMC only after TravClicks has refunded to the DMC wallet.
+            if (! $isTravclicks && $isOnlineOrder && ! (bool) ($order->travclicks_refunded ?? false)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Wait for TravClicks to refund this online service to the DMC wallet first.'
+                ], 422);
+            }
+
+            // TravClicks→DMC and DMC→agent are separate:
+            // - TravClicks completion uses travclicks_refunded (wallet credit to DMC)
+            // - DMC completion uses refunded / is_verify (refund to agent)
+            if ($isTravclicks) {
+                if ((bool) ($order->travclicks_refunded ?? false)) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'TravClicks already refunded this service to the DMC wallet.'
+                    ], 422);
+                }
+            } elseif ((bool) ($order->refunded ?? false)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This service refund is already verified.'
+                ], 422);
+            }
+
+            $initiated = (int) ($order->is_verify ?? 0) === 2;
+            $tour = Tour::where('tour_id', $tourId)->first();
+
+            // TravClicks online: one-step refund to DMC wallet. Does not complete DMC→agent refund.
+            if ($isTravclicks && $isOnlineOrder) {
+                if ($action === 'verify') {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'TravClicks refunds to DMC in one step. Enter the amount to credit the DMC wallet.'
+                    ], 422);
+                }
+
+                $price = $this->resolveOrderRefundMax($tour, $order);
+                $maxAmount = (float) $price['amount'];
+                $refundAmount = round((float) $request->input('refund_amount'), 2);
+
+                if ($refundAmount - $maxAmount > 0.009) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Refund amount cannot be higher than the order price with markup (' . number_format($maxAmount, 2, '.', '') . ').',
+                        'max_refund_amount' => $maxAmount,
+                    ], 422);
+                }
+
+                $walletCredit = $this->creditDmcWalletForTravclicksOnlineRefund($tour, $order, $refundAmount);
+                if (Schema::hasColumn('orders', 'travclicks_refund_amount')) {
+                    $order->travclicks_refund_amount = $refundAmount;
+                }
+                if (Schema::hasColumn('orders', 'travclicks_refunded')) {
+                    $order->travclicks_refunded = true;
+                }
+                // Leave is_verify / refunded untouched so DMC can still refund the agent.
+                $order->updated_at = now();
+                $order->save();
+
+                $fromStatus = (string) ($tour->tour_status ?? 'Definite');
+                $this->appendServiceRefundStatusTrack(
+                    $tour,
+                    $order,
+                    $fromStatus,
+                    'Refund - Pending',
+                    'TravClicks Refunded',
+                    $refundAmount
+                );
+
+                return response()->json([
+                    'success' => true,
+                    'message' => (string) ($walletCredit['message'] ?? 'Refunded to DMC wallet. DMC can still refund the agent separately.'),
+                    'tour_id' => $tourId,
+                    'order_id' => $orderId,
+                    'travclicks_refunded' => true,
+                    'refund_amount' => $refundAmount,
+                    'max_refund_amount' => $maxAmount,
+                    'wallet_credit' => $walletCredit,
+                ]);
+            }
+
+            if ($action === 'verify') {
+                if (! $initiated) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Initiate the refund before verifying it.'
+                    ], 422);
+                }
+
+                $order->is_verify = 1;
+                $order->refunded = true;
+                $order->updated_at = now();
+                $order->save();
+
+                $this->appendServiceRefundStatusTrack(
+                    $tour,
+                    $order,
+                    'Refund - Pending',
+                    'Refunded',
+                    'Refund Verified',
+                    $order->refund_amount
+                );
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Refund verified.',
+                    'tour_id' => $tourId,
+                    'order_id' => $orderId,
+                    'is_verify' => 1,
+                    'refund_amount' => $order->refund_amount,
+                ]);
+            }
+
+            if ($initiated) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This refund is already initiated. Verify it instead of entering the amount again.'
+                ], 422);
+            }
+
+            $price = $this->resolveOrderRefundMax($tour, $order);
+            $maxAmount = (float) $price['amount'];
+            $refundAmount = round((float) $request->input('refund_amount'), 2);
+
+            if ($refundAmount - $maxAmount > 0.009) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Refund amount cannot be higher than the order price with markup (' . number_format($maxAmount, 2, '.', '') . ').',
+                    'max_refund_amount' => $maxAmount,
+                ], 422);
+            }
+
+            $order->refund_amount = $refundAmount;
+            $order->is_verify = 2;
+            $order->refunded = false;
+            $order->updated_at = now();
+            $order->save();
+
+            $fromStatus = (string) ($tour->tour_status ?? 'Definite');
+            $this->appendServiceRefundStatusTrack(
+                $tour,
+                $order,
+                $fromStatus,
+                'Refund - Pending',
+                'Refund Initiated',
+                $refundAmount
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Refund initiated. It is waiting for verification.',
+                'tour_id' => $tourId,
+                'order_id' => $orderId,
+                'is_verify' => 2,
+                'refund_amount' => $refundAmount,
+                'max_refund_amount' => $maxAmount,
+            ]);
+        } catch (RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while updating refunded status: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * TravClicks online-service refund: credit the tour's DMC wallet in the DMC's own currency.
+     * Converts refund amount → SGD → DMC currency using countries.current_rate (1 SGD = X).
+     *
+     * @return array{credited: bool, amount: float, currency: string, source_amount: float, source_currency: string, sgd_amount: float, finance_reference: ?string, message: string}
+     */
+    private function creditDmcWalletForTravclicksOnlineRefund(?Tour $tour, Order $order, float $amount): array
+    {
+        $amount = round(max(0, $amount), 2);
+        $sourceCurrency = strtoupper(trim((string) (
+            $order->currency
+            ?: $order->refund_price_currency
+            ?: $tour?->user_currency
+            ?: 'SGD'
+        )));
+        $dmcId = (int) ($tour->dmc_id ?? 0);
+
+        if ($amount <= 0) {
+            return [
+                'credited' => false,
+                'amount' => 0.0,
+                'currency' => $sourceCurrency,
+                'source_amount' => 0.0,
+                'source_currency' => $sourceCurrency,
+                'sgd_amount' => 0.0,
+                'finance_reference' => null,
+                'message' => 'Refund amount is zero — no wallet credit.',
+            ];
+        }
+
+        if ($dmcId <= 0) {
+            throw new RuntimeException('Tour has no DMC — cannot credit wallet.');
+        }
+
+        $walletQuery = app(WalletQueryService::class);
+        $configured = $walletQuery->getConfiguredCurrenciesForOwner('dmc', $dmcId);
+        $dmcCurrency = strtoupper(trim((string) (
+            $configured['default']
+            ?: ($configured['currencies'][0] ?? '')
+            ?: $walletQuery->resolveCurrencyForOwner('dmc', $dmcId)
+        )));
+        if ($dmcCurrency === '') {
+            throw new RuntimeException('DMC wallet currency is not configured.');
+        }
+
+        // countries.current_rate = 1 SGD in that currency.
+        $sourceRate = Country::sgdRateFor($sourceCurrency);
+        if ($sourceRate === null || $sourceRate <= 0) {
+            throw new RuntimeException(
+                "No countries.current_rate for {$sourceCurrency}. Sync currency rates before refunding."
+            );
+        }
+        $sgdAmount = $sourceCurrency === 'SGD'
+            ? $amount
+            : round($amount / $sourceRate, 4);
+
+        $dmcRate = Country::sgdRateFor($dmcCurrency);
+        if ($dmcRate === null || $dmcRate <= 0) {
+            throw new RuntimeException(
+                "No countries.current_rate for DMC currency {$dmcCurrency}. Sync currency rates before refunding."
+            );
+        }
+        $creditAmount = $dmcCurrency === 'SGD'
+            ? round($sgdAmount, 4)
+            : round($sgdAmount * $dmcRate, 4);
+
+        if ($creditAmount <= 0) {
+            throw new RuntimeException('Converted DMC credit amount is zero.');
+        }
+
+        if (Schema::hasTable('wallet_ledger')) {
+            $already = DB::table('wallet_ledger')
+                ->where('ledger_entry_type', 'allocation_credit')
+                ->where(function ($q) use ($order) {
+                    $orderKey = (string) ($order->id ?? '');
+                    if (DB::getDriverName() === 'pgsql') {
+                        $q->whereRaw("COALESCE(ledger_metadata->>'refund_order_id', '') = ?", [$orderKey]);
+                    } else {
+                        $q->where('ledger_metadata', 'like', '%"refund_order_id":"'.$orderKey.'"%')
+                            ->orWhere('ledger_metadata', 'like', '%"refund_order_id": '.$orderKey.'%');
+                    }
+                })
+                ->exists();
+            if ($already) {
+                return [
+                    'credited' => false,
+                    'amount' => $creditAmount,
+                    'currency' => $dmcCurrency,
+                    'source_amount' => $amount,
+                    'source_currency' => $sourceCurrency,
+                    'sgd_amount' => $sgdAmount,
+                    'finance_reference' => null,
+                    'message' => 'DMC wallet already credited for this refund.',
+                ];
+            }
+        }
+
+        $displayId = trim((string) ($tour->display_id ?? ''));
+        $tourLabel = $displayId !== '' ? $displayId : ('#'.(int) ($tour->tour_id ?? 0));
+        $fxSuffix = " ({$amount} {$sourceCurrency} → {$sgdAmount} SGD → {$creditAmount} {$dmcCurrency})";
+        $desc = 'TravClicks online refund → DMC wallet (tour '.$tourLabel.', order '.($order->booking_id ?? $order->id).')'.$fxSuffix;
+
+        // Same pattern as Send to DMC: TravClicks settles in SGD; DMC is credited in its currency.
+        $result = app(WalletService::class)->allocate([
+            'idempotency_key' => 'travclicks-online-refund-order-'.(int) $order->id,
+            'allocator_wallet_owner_type' => 'travclicks',
+            'allocator_wallet_owner_id' => 1,
+            'recipient_wallet_owner_type' => 'dmc',
+            'recipient_wallet_owner_id' => $dmcId,
+            'allocation_amount' => number_format($creditAmount, 4, '.', ''),
+            'wallet_currency_code' => $dmcCurrency,
+            'allocator_currency_code' => 'SGD',
+            'recipient_currency_code' => $dmcCurrency,
+            'allocator_amount' => number_format($sgdAmount, 4, '.', ''),
+            'recipient_amount' => number_format($creditAmount, 4, '.', ''),
+            'exchange_rate' => number_format($dmcRate, 8, '.', ''),
+            'platform_spend' => true,
+            'ledger_description' => $desc,
+            'debit_ledger_description' => $desc,
+            'credit_ledger_description' => $desc,
+            'metadata' => [
+                'transfer' => [
+                    'from_type' => 'travclicks',
+                    'from_id' => 1,
+                    'to_type' => 'dmc',
+                    'to_id' => $dmcId,
+                ],
+                'refund' => true,
+                'refund_order_id' => (string) $order->id,
+                'tour_id' => (int) ($tour->tour_id ?? 0),
+                'order_booking_id' => $order->booking_id ?? null,
+                'order_type' => 'online',
+                'fx' => [
+                    'source_currency' => $sourceCurrency,
+                    'source_amount' => number_format($amount, 4, '.', ''),
+                    'source_sgd_rate' => $sourceRate,
+                    'sgd_amount' => number_format($sgdAmount, 4, '.', ''),
+                    'target_currency' => $dmcCurrency,
+                    'target_amount' => number_format($creditAmount, 4, '.', ''),
+                    'target_sgd_rate' => $dmcRate,
+                    'rate_source' => 'countries.current_rate',
+                ],
+            ],
+        ]);
+
+        if (! ($result['success'] ?? false)) {
+            throw new RuntimeException((string) ($result['message'] ?? 'Failed to credit DMC wallet.'));
+        }
+
+        return [
+            'credited' => true,
+            'amount' => $creditAmount,
+            'currency' => $dmcCurrency,
+            'source_amount' => $amount,
+            'source_currency' => $sourceCurrency,
+            'sgd_amount' => $sgdAmount,
+            'finance_reference' => $result['data']['finance_reference'] ?? null,
+            'message' => 'Credited '.$dmcCurrency.' '.number_format($creditAmount, 2)
+                .' to DMC wallet (from '.$sourceCurrency.' '.number_format($amount, 2).').',
+        ];
+    }
+
+    /**
      * Display Cancellations & Refunds (tour_status = 'Cancelled')
      */
     public function cancellationsRefunds()
     {
         $user = Auth::user();
         $tours = Tour::where('tour_status', 'Cancelled')
-            ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+            ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
+            ->leftJoin('users as created_by_user', 'tours.created_by', '=', 'created_by_user.userId')
+            ->leftJoin('users as dmc_user', 'tours.dmc_id', '=', 'dmc_user.userId')
             ->select([
                 'tours.tour_id',
                 'tours.display_id',
+                'tours.reference_id',
                 'tours.multi_enq_id',
                 'tours.adult',
                 'tours.child',
@@ -1203,13 +4296,16 @@ class BookingsController extends Controller
                 'tours.auto_cancel_date',
                 'tours.agent_id',
                 'agents.name as agent_name',
-                'agents.company_name as agent_company_name'
+                'agents.company_name as agent_company_name',
+                'dmc_user.company_code as dmc_company_code',
+                'created_by_user.user_code as created_by_user_code'
             ])
             ->orderBy('tours.created_at', 'desc')
             ->get();
-
+        $this->formatToursDisplayId($tours);
+        $currency = CommonHelper::getDmcCurrencyByCountry();
         $country_tax = Country::where('name', optional($user)->country)->value('tax_percentage');
-        return view('bookings.cancellations-refunds', compact('tours', 'country_tax'));
+        return view('bookings.cancellations-refunds', compact('tours', 'country_tax', 'currency'));
     }
 
     /**
@@ -1217,14 +4313,33 @@ class BookingsController extends Controller
      */
     public function getBookingStats()
     {
+        $user = Auth::user();
+        $dmc_id = CommonHelper::getDmcId($user);
+        if (!$dmc_id && $user && (int) ($user->role_id ?? 0) === 11) {
+            $dmc_id = $user->userId;
+        }
+
+        $countStatus = function ($status) use ($dmc_id, $user) {
+            $query = Tour::query();
+            if (is_array($status)) {
+                $query->whereIn('tour_status', $status);
+            } else {
+                $query->where('tour_status', $status);
+            }
+            if ($dmc_id) {
+                CommonHelper::applyTourDmcCountryAccess($query, $dmc_id, $user, 'dmc_id', 'destination');
+            }
+            return $query->count();
+        };
+
         $stats = [
-            'new_enquiries' => Tour::where('tour_status', 'New Enquiry')->count(),
-            'follow_ups' => Tour::where('tour_status', 'Prospect')->count(),
-            'tentative' => Tour::where('tour_status', 'Tentative')->count(),
-            'confirmed' => Tour::where('tour_status', 'Confirmed')->count(),
-            'definite' => Tour::where('tour_status', 'Definite')->count(),
-            'actual' => Tour::where('tour_status', 'Actual')->count(),
-            'cancelled' => Tour::where('tour_status', 'Cancelled')->count(),
+            'new_enquiries' => $countStatus('New Enquiry'),
+            'follow_ups' => $countStatus('Prospect'),
+            'tentative' => $countStatus('Tentative'),
+            'confirmed' => $countStatus('Confirmed'),
+            'definite' => $countStatus('Definite'),
+            'actual' => $countStatus('Actual'),
+            'cancelled' => $countStatus('Cancelled'),
         ];
 
         return response()->json($stats);
@@ -1236,8 +4351,10 @@ class BookingsController extends Controller
     public function viewTour($encryptedId)
     {
         $tourId = Crypt::decrypt($encryptedId);
-        $tour = Tour::where('tour_id', $tourId)->firstOrFail();
-        
+        $tour = Tour::with('agent')
+            ->where('tour_id', $tourId)
+            ->firstOrFail();
+
         // Parse payment details if exists
         if ($tour->payment_details) {
             try {
@@ -1249,7 +4366,301 @@ class BookingsController extends Controller
             $tour->parsed_payment_details = [];
         }
 
-        return view('bookings.view-tour', compact('tour'));
+        // Ensure per-service remove → refund initiate → refunded appear in Status History
+        $history = [];
+        $rawTrack = $tour->track_details ?? null;
+        if (! empty($rawTrack)) {
+            $decoded = is_array($rawTrack) ? $rawTrack : json_decode($rawTrack, true);
+            if (is_array($decoded)) {
+                $history = $decoded;
+            }
+        }
+        $tour->track_details = json_encode($this->enrichTrackDetailsWithServiceRefunds($tour, $history));
+
+        $tourOrders = Order::withTrashed()
+            ->where('tour_id', $tourId)
+            ->orderByRaw('CASE WHEN deleted_at IS NULL THEN 0 ELSE 1 END')
+            ->orderBy('id')
+            ->get();
+
+        return view('bookings.view-tour', compact('tour', 'tourOrders'));
+    }
+
+    /**
+     * Resolve service type/id/name for status-history entries from an order payload.
+     *
+     * @return array{0:?string,1:?string,2:?string}
+     */
+    private function resolveOrderTrackServiceMeta(Order $order): array
+    {
+        $payload = is_array($order->data) && isset($order->data[0])
+            ? $order->data[0]
+            : (is_array($order->data) ? $order->data : []);
+        if (! is_array($payload)) {
+            $payload = [];
+        }
+
+        $serviceType = trim((string) ($order->type ?? '')) ?: null;
+        $serviceId = null;
+        $serviceName = null;
+
+        if ($serviceType === 'hotel') {
+            $serviceId = $payload['hotelDetails']['hotel_id'] ?? $payload['hotel_id'] ?? null;
+            $serviceName = $payload['hotelDetails']['hotel_name'] ?? $payload['hotel_name'] ?? null;
+        } elseif ($serviceType === 'guide') {
+            $serviceId = $payload['guide_id'] ?? null;
+            $serviceName = $payload['guide_name'] ?? $payload['guideName'] ?? null;
+        } elseif ($serviceType === 'restaurant') {
+            $serviceId = $payload['restaurant_id'] ?? null;
+            $serviceName = $payload['restaurantName'] ?? $payload['restaurant_name'] ?? null;
+        } elseif ($serviceType === 'attraction') {
+            $serviceId = $payload['attraction_id'] ?? null;
+            $serviceName = $payload['AttractionName'] ?? $payload['attraction_name'] ?? null;
+        } elseif (in_array($serviceType, ['entry_port', 'exit_port', 'travel_hourly', 'travel_point', 'local_transport'], true)) {
+            $serviceId = $payload['vehicle_id'] ?? $payload['vehicles_id'] ?? null;
+            $serviceName = $payload['vehicles_name'] ?? $payload['vehicle_name'] ?? $serviceType;
+        } else {
+            $serviceName = $this->resolveNegotiationServiceName((string) ($serviceType ?? 'service'), $payload, 1);
+        }
+
+        if ($serviceName === null || $serviceName === '') {
+            $serviceName = $this->resolveNegotiationServiceName((string) ($serviceType ?? 'service'), $payload, 1);
+        }
+
+        return [
+            $serviceType,
+            $serviceId !== null && $serviceId !== '' ? (string) $serviceId : null,
+            $serviceName !== null && $serviceName !== '' ? (string) $serviceName : null,
+        ];
+    }
+
+    /**
+     * Append a service refund lifecycle entry into tour track_details.
+     */
+    private function appendServiceRefundStatusTrack(
+        ?Tour $tour,
+        Order $order,
+        string $fromStatus,
+        string $toStatus,
+        string $action,
+        $refundAmount = null,
+        $changedAt = null
+    ): void {
+        if (! $tour) {
+            return;
+        }
+
+        [$serviceType, $serviceId, $serviceName] = $this->resolveOrderTrackServiceMeta($order);
+        $user = Auth::user();
+        $changedByName = $user ? ($user->name ?? null) : null;
+        $changedByUserId = $user ? ($user->userId ?? $user->id ?? null) : null;
+        $currency = strtoupper(trim((string) (
+            $order->currency
+            ?: $order->refund_price_currency
+            ?: $tour->user_currency
+            ?: ''
+        )));
+
+        CommonHelper::appendTourStatusTrack(
+            $tour,
+            $fromStatus,
+            $toStatus,
+            $changedAt ?? now(),
+            $refundAmount,
+            null,
+            null,
+            $changedByName,
+            $changedByUserId,
+            $action,
+            $serviceType,
+            $serviceId ?? (string) $order->id,
+            $serviceName,
+            $refundAmount,
+            $currency !== '' ? $currency : null,
+            null,
+            null
+        );
+    }
+
+    /**
+     * Merge missing service-removed / refund-initiated / refunded events from refund orders
+     * into track_details so Status History shows the full per-service refund lifecycle.
+     */
+    private function enrichTrackDetailsWithServiceRefunds(Tour $tour, array $history): array
+    {
+        $orders = Order::withTrashed()
+            ->where('tour_id', $tour->tour_id)
+            ->where('is_refund', 1)
+            ->get();
+
+        if ($orders->isEmpty()) {
+            return $history;
+        }
+
+        $tourStatus = (string) ($tour->tour_status ?? 'Definite');
+        // Per-service refunds keep the tour status (e.g. Definite); use that as the baseline.
+        $baselineStatus = in_array($tourStatus, ['Refund - Pending', 'Refunded'], true)
+            ? 'Definite'
+            : ($tourStatus !== '' ? $tourStatus : 'Definite');
+
+        foreach ($orders as $order) {
+            [$serviceType, $serviceId, $serviceName] = $this->resolveOrderTrackServiceMeta($order);
+            $currency = strtoupper(trim((string) ($order->currency ?: $tour->user_currency ?: '')));
+            $refundAmount = $order->refund_amount !== null && $order->refund_amount !== ''
+                ? (float) $order->refund_amount
+                : null;
+            $isVerified = (bool) ($order->refunded ?? false) || (int) ($order->is_verify ?? 0) === 1;
+            $isInitiated = $isVerified || (int) ($order->is_verify ?? 0) === 2;
+
+            if ($order->deleted_at && ! $this->historyHasServiceRefundEvent($history, $serviceName, $serviceId, ['deleted', 'Service Removed'])) {
+                $history[] = $this->makeServiceRefundHistoryEntry(
+                    $baselineStatus,
+                    $baselineStatus,
+                    $order->deleted_at,
+                    'deleted',
+                    $serviceType,
+                    $serviceId ?? (string) $order->id,
+                    $serviceName,
+                    null,
+                    $currency
+                );
+            }
+
+            if ($isInitiated && ! $this->historyHasServiceRefundEvent($history, $serviceName, $serviceId, ['Refund Initiated'])) {
+                $initiateAt = $isVerified
+                    ? Carbon::parse($order->updated_at ?? now())->subSecond()
+                    : ($order->updated_at ?? now());
+                if ($order->deleted_at && ! $isVerified) {
+                    $deletedAt = Carbon::parse($order->deleted_at);
+                    $candidate = Carbon::parse($initiateAt);
+                    if ($candidate->lte($deletedAt)) {
+                        $initiateAt = $deletedAt->copy()->addSecond();
+                    }
+                }
+
+                $history[] = $this->makeServiceRefundHistoryEntry(
+                    $baselineStatus,
+                    'Refund - Pending',
+                    $initiateAt,
+                    'Refund Initiated',
+                    $serviceType,
+                    $serviceId ?? (string) $order->id,
+                    $serviceName,
+                    $refundAmount,
+                    $currency
+                );
+            }
+
+            if ($isVerified && ! $this->historyHasServiceRefundEvent($history, $serviceName, $serviceId, ['Refund Verified'])) {
+                $history[] = $this->makeServiceRefundHistoryEntry(
+                    'Refund - Pending',
+                    'Refunded',
+                    $order->updated_at ?? now(),
+                    'Refund Verified',
+                    $serviceType,
+                    $serviceId ?? (string) $order->id,
+                    $serviceName,
+                    $refundAmount,
+                    $currency
+                );
+            }
+        }
+
+        usort($history, function ($a, $b) {
+            $ad = $a['date'] ?? null;
+            $bd = $b['date'] ?? null;
+            if ($ad === $bd) {
+                return 0;
+            }
+            if (! $ad) {
+                return -1;
+            }
+            if (! $bd) {
+                return 1;
+            }
+
+            return strtotime((string) $ad) <=> strtotime((string) $bd);
+        });
+
+        return $history;
+    }
+
+    /**
+     * @param  list<string>  $actions
+     */
+    private function historyHasServiceRefundEvent(array $history, ?string $serviceName, ?string $serviceId, array $actions): bool
+    {
+        foreach ($history as $entry) {
+            if (! is_array($entry)) {
+                continue;
+            }
+            $action = (string) ($entry['action'] ?? '');
+            if (! in_array($action, $actions, true)) {
+                // Also treat plain status moves without action when service matches
+                $to = (string) ($entry['to'] ?? '');
+                if (! (in_array('Refund Initiated', $actions, true) && $to === 'Refund - Pending')
+                    && ! (in_array('Refund Verified', $actions, true) && $to === 'Refunded')) {
+                    continue;
+                }
+            }
+
+            $entryName = (string) ($entry['service_name'] ?? $entry['hotel_name'] ?? '');
+            $entryId = (string) ($entry['service_id'] ?? $entry['hotel_id'] ?? '');
+            if ($serviceName && $entryName !== '' && strcasecmp($entryName, $serviceName) === 0) {
+                return true;
+            }
+            if ($serviceId && $entryId !== '' && $entryId === (string) $serviceId) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function makeServiceRefundHistoryEntry(
+        string $from,
+        string $to,
+        $date,
+        string $action,
+        ?string $serviceType,
+        ?string $serviceId,
+        ?string $serviceName,
+        $refundAmount,
+        ?string $currency
+    ): array {
+        $dateString = $date instanceof Carbon
+            ? $date->format('Y-m-d H:i:s')
+            : (string) $date;
+
+        $entry = [
+            'from' => $from,
+            'to' => $to,
+            'date' => $dateString,
+            'amount' => $refundAmount !== null ? (float) $refundAmount : null,
+            'comment' => null,
+            'actual_amount' => null,
+            'changed_by_name' => null,
+            'changed_by_user_id' => null,
+            'action' => $action,
+        ];
+
+        if ($serviceType) {
+            $entry['service_type'] = $serviceType;
+        }
+        if ($serviceId) {
+            $entry['service_id'] = (string) $serviceId;
+        }
+        if ($serviceName) {
+            $entry['service_name'] = $serviceName;
+        }
+        if ($refundAmount !== null) {
+            $entry['sgd_amount'] = (float) $refundAmount;
+        }
+        if ($currency) {
+            $entry['selected_currency'] = $currency;
+        }
+
+        return $entry;
     }
 
     /**
@@ -1259,7 +4670,7 @@ class BookingsController extends Controller
     {
         try {
             $tour = Tour::where('tour_id', $tourId)
-                ->leftJoin('agents', 'tours.agent_id', '=', 'agents.agent_id')
+                ->tap(fn ($q) => $this->leftJoinBookingAgents($q))
                 ->select([
                     'tours.*',
                     'agents.name as agent_name'
@@ -1374,33 +4785,560 @@ class BookingsController extends Controller
             }
             
             // Check if tour is already cancelled
-            if ($tour->tour_status === 'Cancel') {
+            if ($tour->tour_status === 'Cancel' || str_starts_with((string) $tour->tour_status, 'Cancel')) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Tour is already cancelled'
                 ], 400);
             }
+
+            // Paid online services → same TravClicks → DMC refund flow as per-service cancel
+            // (works for New Enquiry / Confirmed after online pay, not only Definite).
+            $onlineRefund = app(\App\Services\Payment\OnlineTourCancelRefundService::class)
+                ->enqueuePaidOnlineServices($tour);
             
-            // Update tour status to Cancel
-            if($tour->tour_status == 'Definite'){
+            // Update tour status to Cancel (and track history)
+            $oldStatus = $tour->tour_status;
+            $onlineQueued = (int) ($onlineRefund['queued'] ?? 0);
+
+            // Any paid-online cancel must land on Refunds (not Cancelled list)
+            if ($tour->tour_status == 'Definite' || $onlineQueued > 0) {
                 $tour->tour_status = 'Refund - Pending';
-            }else{
-                $tour->tour_status = 'Cancel-'.$tour->tour_status;
+            } else {
+                $tour->tour_status = 'Cancel-' . $tour->tour_status;
             }
+
+            // Track status change, e.g. Definite -> Refund - Pending, or X -> Cancel-X
+            \App\Helpers\CommonHelper::appendTourStatusTrack(
+                $tour,
+                $oldStatus,
+                $tour->tour_status
+            );
+
             $tour->save();
             
             return response()->json([
                 'success' => true,
                 'message' => 'Tour cancelled successfully',
                 'tour_id' => $tour->display_id,
-                'new_status' => $tour->tour_status
+                'new_status' => $tour->tour_status,
+                'online_refunds_queued' => (int) ($onlineRefund['queued'] ?? 0),
             ]);
             
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to cancel tour: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    public function saveQrCode(Request $request, $encryptedId)
+    {
+        try {
+            $qrCode = '';
+            if ($request->hasFile('qr_code')) {
+                $pathData = CommonHelper::image_path('file_storage', $request->file('qr_code'));
+                if (!empty($pathData['master_value'])) {
+                    $qrCode = $pathData['master_value'];
+                }
+            }
+            // Allow either an encrypted id or a plain numeric booking_id
+            $orderId = is_numeric($encryptedId) ? $encryptedId : Crypt::decrypt($encryptedId);
+            $order = Order::where('booking_id', $orderId)->first();
+            if (!$order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Order not found'
+                ], 404);
+            }
+
+            $order->qr_code = $qrCode;
+            $order->save();
+        }
+        catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to save QR code: ' . $e->getMessage()
+            ], 500);
+        }
+        return response()->json([
+            'success' => true,
+            'message' => 'QR code saved successfully',
+            'order_id' => $order->booking_id,
+            'qr_code' => $qrCode
+        ]);
+    }
+
+    public function confirmationVoucherPreview(Request $request, $tourId)
+    {
+        try {
+            $tourIdPlain = Crypt::decrypt($tourId);
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Invalid tour ID');
+        }
+
+        $tour = Tour::where('tour_id', $tourIdPlain)->first();
+        if (!$tour) {
+            return redirect()->back()->with('error', 'Tour not found');
+        }
+
+        $logoType = strtolower((string) $request->query('logo_type', 'dmc'));
+        if (!in_array($logoType, ['dmc', 'agency'], true)) {
+            $logoType = 'dmc';
+        }
+
+        $hasAgency = false;
+        if (!empty($tour->agent_id)) {
+            $agentForPreview = Agent::with('agency')->where('agent_id', $tour->agent_id)->first();
+            $hasAgency = (bool) ($agentForPreview && $agentForPreview->agency);
+        }
+        if ($logoType === 'agency' && !$hasAgency) {
+            $logoType = 'dmc';
+        }
+
+        return view('bookings.voucher-preview', [
+            'tour' => $tour,
+            'logoType' => $logoType,
+            'hasAgency' => $hasAgency,
+            'encryptedTourId' => $tourId,
+        ]);
+    }
+
+    public function confirmationVoucher(Request $request, $tourId)
+    {
+        try {
+            $tourIdPlain = Crypt::decrypt($tourId);
+        } catch (\Exception $e) {
+            if ($request->boolean('preview', false)) {
+                return $this->confirmationVoucherPreviewErrorResponse('Invalid tour ID');
+            }
+            abort(404, 'Invalid tour ID');
+        }
+
+        $tour = Tour::where('tour_id', $tourIdPlain)->first();
+        if (!$tour) {
+            if ($request->boolean('preview', false)) {
+                return $this->confirmationVoucherPreviewErrorResponse('Tour not found');
+            }
+            abort(404, 'Tour not found');
+        }
+
+        $payload = $this->computeConfirmationVoucherPayload($tour);
+        if ($payload === null) {
+            if ($request->boolean('preview', false)) {
+                return $this->confirmationVoucherPreviewErrorResponse('No approved services found for this tour.');
+            }
+            return back()->with('error', 'No approved services found for this tour.');
+        }
+
+        $preview = $request->boolean('preview', false);
+        $requestedLogo = strtolower(trim((string) $request->query('logo_type', 'dmc')));
+        if (!in_array($requestedLogo, ['dmc', 'agency'], true)) {
+            $requestedLogo = 'dmc';
+        }
+        $logoAttempts = $requestedLogo === 'agency' ? ['agency', 'dmc'] : ['dmc'];
+
+        foreach ($logoAttempts as $attemptLogo) {
+            try {
+                $voucherData = $this->applyConfirmationVoucherBranding($payload, $tour, $attemptLogo);
+                $dompdf = new Dompdf();
+                $dompdf->set_option('isRemoteEnabled', true);
+                $dompdf->set_option('isHtml5ParserEnabled', true);
+                $html = view('bookings.voucher-pdf', $voucherData)->render();
+                $dompdf->loadHtml($html);
+                $dompdf->setPaper('A4', 'portrait');
+                $dompdf->render();
+                $filename = 'Confirmation_Voucher_' . ($tour->display_id ?? $tourIdPlain) . '.pdf';
+                return $dompdf->stream($filename, ['Attachment' => !$preview]);
+            } catch (\Exception $e) {
+                Log::warning('Confirmation voucher PDF attempt failed', [
+                    'tour_id' => $tourIdPlain,
+                    'logo_type' => $attemptLogo,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        if ($preview) {
+            return $this->confirmationVoucherPreviewErrorResponse('Unable to generate confirmation voucher PDF.');
+        }
+
+        return back()->with('error', 'Failed to generate PDF.');
+    }
+
+    private function confirmationVoucherPreviewErrorResponse(string $message)
+    {
+        $safe = e($message);
+        return response(
+            '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Preview unavailable</title></head>'
+            . '<body style="margin:0;font-family:system-ui,sans-serif;padding:1.25rem;background:#f8f9fa;color:#333;">'
+            . '<p style="margin:0 0 0.5rem;font-weight:600;">Confirmation voucher preview could not be loaded</p>'
+            . '<p style="margin:0;font-size:0.9rem;">' . $safe . '</p>'
+            . '<p style="margin:1rem 0 0;font-size:0.8rem;color:#6c757d;">Use <strong>Download PDF</strong> on the outer page, or try the other company branding option.</p>'
+            . '</body></html>',
+            503
+        )->header('Content-Type', 'text/html; charset=UTF-8');
+    }
+
+    private function resolveVoucherRootDmcUser(?User $dmcUser): ?User
+    {
+        if (!$dmcUser) {
+            return null;
+        }
+        $rootDmc = $dmcUser;
+        $visited = [];
+        while ($rootDmc
+            && (int) $rootDmc->role_id !== 11
+            && $rootDmc->created_by
+            && !in_array($rootDmc->created_by, $visited, true)) {
+            $visited[] = $rootDmc->created_by;
+            $rootDmc = User::where('userId', $rootDmc->created_by)->first();
+        }
+        return $rootDmc ?: $dmcUser;
+    }
+
+    private function applyConfirmationVoucherBranding(array $payload, Tour $tour, string $logoType): array
+    {
+        $user_dmc = null;
+        if (!empty($tour->dmc_id)) {
+            $user_dmc = User::where('userId', $tour->dmc_id)->first();
+            if ($user_dmc && $user_dmc->logo && !str_starts_with((string) $user_dmc->logo, 'data:image')) {
+                try {
+                    $context = stream_context_create(['http' => ['method' => 'GET', 'timeout' => 10, 'ignore_errors' => true]]);
+                    $imageContent = @file_get_contents($user_dmc->logo, false, $context);
+                    if ($imageContent !== false) {
+                        $imageInfo = @getimagesizefromstring($imageContent);
+                        if ($imageInfo !== false) {
+                            $user_dmc->logo = 'data:' . $imageInfo['mime'] . ';base64,' . base64_encode($imageContent);
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Voucher header DMC logo base64 failed: ' . $e->getMessage());
+                }
+            }
+        }
+
+        $user_agency = null;
+        if (!empty($tour->agent_id)) {
+            $agentHeader = Agent::with('agency')->where('agent_id', $tour->agent_id)->first();
+            if ($agentHeader && $agentHeader->agency) {
+                $user_agency = $agentHeader->agency;
+            }
+        }
+
+        $normalizedLogo = strtolower((string) $logoType) === 'agency' ? 'agency' : 'dmc';
+        if ($normalizedLogo === 'agency' && !$user_agency) {
+            $normalizedLogo = 'dmc';
+        }
+
+        $voucherRootDmc = $this->resolveVoucherRootDmcUser($user_dmc);
+
+        return array_merge($payload, [
+            'user_dmc' => $user_dmc,
+            'user_agency' => $user_agency,
+            'logoType' => $normalizedLogo,
+            'voucherRootDmc' => $voucherRootDmc,
+        ]);
+    }
+
+    private function computeConfirmationVoucherPayload(Tour $tour): ?array
+    {
+        $orders = Order::where('tour_id', $tour->tour_id)
+            ->where('bookingType', 'booking')
+            ->whereNull('deleted_at')
+            ->where('is_approve', 1)
+            ->get();
+
+        if ($orders->isEmpty()) {
+            return null;
+        }
+
+        $dmcUser = User::where('userId', $tour->dmc_id)->first();
+
+        $hotels = [];
+        $inclusions = [];
+        $lowestDueDate = null;
+        $totalRooms = 0;
+        $confirmationNos = [];
+        $allMealPlans = [];
+        $childWithBedTotal = 0;
+        $childWithoutBedTotal = 0;
+
+        $str = function ($val, $default = '') {
+            if (is_array($val) || is_object($val)) return $default;
+            return (string) ($val ?? $default);
+        };
+
+        foreach ($orders as $order) {
+            $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+            if (!is_array($data)) continue;
+
+            foreach ($data as $booking) {
+                if (!is_array($booking)) continue;
+
+                switch ($order->type) {
+                    case 'hotel':
+                        $hotelName = $str($booking['hotelDetails']['hotel_name'] ?? ($booking['hotel_name'] ?? null), 'Hotel');
+
+                        $bookingDate = $booking['bookingDate'] ?? [];
+                        $checkIn = '';
+                        $checkOut = '';
+                        if (is_array($bookingDate) && count($bookingDate) >= 2) {
+                            $checkIn = $str($bookingDate[0]);
+                            $checkOut = $str($bookingDate[1]);
+                        } else {
+                            $checkIn = $str($booking['checkIn'] ?? ($booking['check_in_date'] ?? null));
+                            $checkOut = $str($booking['checkOut'] ?? ($booking['check_out_date'] ?? null));
+                        }
+
+                        $roomTypes = [];
+                        $hotelRooms = 0;
+                        $hotelMeals = [];
+                        $roomsArr = $booking['rooms'] ?? [];
+                        if (is_array($roomsArr)) {
+                            foreach ($roomsArr as $room) {
+                                if (!is_array($room)) continue;
+                                $rt = $str($room['room_type'] ?? null);
+                                $nr = (int) ($room['number_of_rooms'] ?? 1);
+                                $hotelRooms += $nr;
+                                if ($rt) $roomTypes[] = $rt;
+
+                                $beds = $room['beds'] ?? [];
+                                if (is_array($beds)) {
+                                    foreach ($beds as $bed) {
+                                        if (!is_array($bed)) continue;
+                                        if (isset($bed['selectedMeals']) && is_array($bed['selectedMeals'])) {
+                                            foreach ($bed['selectedMeals'] as $meal) {
+                                                if (is_array($meal) && isset($meal['type']) && is_string($meal['type'])) {
+                                                    $hotelMeals[] = $meal['type'];
+                                                }
+                                            }
+                                        } elseif (isset($bed['mealTypes']) && is_array($bed['mealTypes'])) {
+                                            foreach ($bed['mealTypes'] as $mt) {
+                                                if (is_string($mt)) $hotelMeals[] = $mt;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (empty($roomTypes)) {
+                            $rt = $str($booking['room_type'] ?? null);
+                            if ($rt) $roomTypes[] = $rt;
+                        }
+                        if ($hotelRooms === 0) {
+                            $hotelRooms = (int) ($booking['number_of_rooms'] ?? 1);
+                        }
+
+                        $cwb = $booking['child_with_bed'] ?? null;
+                        $cnb = $booking['child_without_bed'] ?? null;
+                        if (is_array($cwb) && isset($cwb['children'])) {
+                            $n = (int) $cwb['children'];
+                            if ($n > $childWithBedTotal) $childWithBedTotal = $n;
+                        }
+                        if (is_array($cnb) && isset($cnb['children'])) {
+                            $n = (int) $cnb['children'];
+                            if ($n > $childWithoutBedTotal) $childWithoutBedTotal = $n;
+                        }
+
+                        $totalRooms += $hotelRooms;
+                        $allMealPlans = array_merge($allMealPlans, $hotelMeals);
+
+                        $hotelDueDate = null;
+                        if ($order->display_due_date) {
+                            try {
+                                $hotelDueDate = Carbon::parse($order->display_due_date)->format('d/m/Y');
+                            } catch (\Exception $e) {}
+                        }
+
+                        $hotelMealFormatted = '';
+                        if (!empty($hotelMeals)) {
+                            $mealNames = [];
+                            foreach (array_unique($hotelMeals) as $mp) {
+                                $mp = preg_replace('/^room\s+with\s+/i', '', (string) $mp);
+                                $mp = preg_replace('/^room\s+only\s*/i', '', $mp);
+                                $mp = trim($mp);
+                                if (empty($mp)) continue;
+                                $parts = preg_split('/\s*\+\s*|\s+and\s+/i', $mp);
+                                foreach ($parts as $p) {
+                                    $p = trim($p);
+                                    if (!empty($p)) $mealNames[] = ucfirst(strtolower($p));
+                                }
+                            }
+                            $hotelMealFormatted = implode(', ', array_unique($mealNames));
+                        }
+
+                        $hotels[] = [
+                            'name' => $hotelName,
+                            'room_type' => implode(', ', array_filter($roomTypes)),
+                            'check_in' => $checkIn,
+                            'check_out' => $checkOut,
+                            'meal_plan' => $hotelMealFormatted,
+                            'rooms' => $hotelRooms,
+                            'due_date' => $hotelDueDate,
+                            'confirmation_no' => $order->reference_id ? $str($order->reference_id) : '',
+                        ];
+
+                        if ($order->reference_id) {
+                            $cn = $str($order->reference_id);
+                            if ($cn) $confirmationNos[] = $cn;
+                        }
+
+                        if ($order->display_due_date) {
+                            try {
+                                $dueDate = Carbon::parse($order->display_due_date);
+                                if (!$lowestDueDate || $dueDate->lt($lowestDueDate)) {
+                                    $lowestDueDate = $dueDate;
+                                }
+                            } catch (\Exception $e) {}
+                        }
+                        break;
+
+                    case 'attraction':
+                        $name = $str($booking['AttractionName'] ?? ($booking['attraction_name'] ?? null), 'Attraction');
+                        $ticketName = $str($booking['ticketName'] ?? ($booking['ticket_name'] ?? null));
+                        $inclusions[] = $ticketName ? $name . ' (' . $ticketName . ')' : $name;
+
+                        $tf = $booking['transfer_options'] ?? null;
+                        if (is_array($tf) && !empty($tf['transfer_required'])) {
+                            $tvName = $str($tf['vehicle_name'] ?? ($tf['vehicle_details']['vehicle_name'] ?? null));
+                            $tvType = $str($tf['type'] ?? null, 'Private');
+                            $tvWay = $str($tf['way'] ?? null, 'One Way');
+                            if ($tvName) {
+                                $inclusions[] = $name . ' Transfer (' . $tvName . ' - ' . $tvType . ' - ' . $tvWay . ')';
+                            }
+                        }
+                        break;
+
+                    case 'restaurant':
+                        $name = $str($booking['restaurantName'] ?? ($booking['restaurant_name'] ?? null), 'Restaurant');
+                        $mealType = $str($booking['mealType'] ?? ($booking['meal_type'] ?? null));
+                        $inclusions[] = $mealType ? $name . ' (' . $mealType . ')' : $name;
+
+                        $tf = $booking['transfer_options'] ?? null;
+                        if (is_array($tf) && !empty($tf['transfer_required'])) {
+                            $tvName = $str($tf['vehicle_name'] ?? ($tf['vehicle_details']['vehicle_name'] ?? null));
+                            $tvType = $str($tf['type'] ?? null, 'Private');
+                            $tvWay = $str($tf['way'] ?? null, 'One Way');
+                            if ($tvName) {
+                                $inclusions[] = $name . ' Transfer (' . $tvName . ' - ' . $tvType . ' - ' . $tvWay . ')';
+                            }
+                        }
+                        break;
+
+                    case 'guide':
+                        $name = $str($booking['guide_name'] ?? null, 'Guide');
+                        $hours = $str($booking['hours'] ?? ($booking['service_hours'] ?? null));
+                        $inclusions[] = $hours ? $name . ' - ' . $hours . 'H' : $name;
+                        break;
+
+                    case 'entry_port':
+                        $vehicle = $str($booking['vehicles_name'] ?? ($booking['vehicle_name'] ?? null), 'Transfer');
+                        $bType = $str($booking['type'] ?? null, 'Private');
+                        $pickup = $str($booking['entrypickup'] ?? null);
+                        $dropoff = $str($booking['entrydropoff'] ?? null);
+                        $label = 'Arrival Transfer (' . $vehicle . ' - ' . $bType . ' - One Way)';
+                        if ($pickup && $dropoff) $label .= "\n" . $pickup . ' to ' . $dropoff;
+                        $inclusions[] = $label;
+                        break;
+
+                    case 'exit_port':
+                        $vehicle = $str($booking['vehicles_name'] ?? ($booking['vehicle_name'] ?? null), 'Transfer');
+                        $bType = $str($booking['type'] ?? null, 'Private');
+                        $pickup = $str($booking['exitpickup'] ?? null);
+                        $dropoff = $str($booking['exitdropoff'] ?? null);
+                        $label = 'Departure Transfer (' . $vehicle . ' - ' . $bType . ' - One Way)';
+                        if ($pickup && $dropoff) $label .= "\n" . $pickup . ' to ' . $dropoff;
+                        $inclusions[] = $label;
+                        break;
+
+                    case 'local_transport':
+                    case 'travel_hourly':
+                    case 'travel_point':
+                        $vehicle = $str($booking['vehicles_name'] ?? ($booking['vehicle_name'] ?? null), 'Transport');
+                        $bType = $str($booking['type'] ?? null);
+                        $pickup = $str($booking['entrypickup'] ?? null);
+                        $dropoff = $str($booking['entrydropoff'] ?? ($booking['dropoffLocation'] ?? null));
+                        $label = $bType ? $vehicle . ' - ' . $bType : $vehicle;
+                        if ($pickup && $dropoff) $label .= "\n" . $pickup . ' to ' . $dropoff;
+                        $inclusions[] = $label;
+                        break;
+                }
+            }
+        }
+
+        $paxName = '';
+        if ($tour->mainguest) {
+            $guest = is_string($tour->mainguest) ? json_decode($tour->mainguest, true) : $tour->mainguest;
+            if (is_array($guest)) {
+                $paxName = $str($guest['salutation'] ?? null) . ' ' . $str($guest['first_name'] ?? null) . ' ' . $str($guest['last_name'] ?? null);
+                $paxName = trim($paxName);
+            }
+        }
+        if (empty($paxName)) {
+            $paxName = $str($tour->customer_name ?? null, 'Guest');
+        }
+
+        $travelDates = '';
+        if ($tour->check_in_time && $tour->check_out_time) {
+            $travelDates = Carbon::parse($tour->check_in_time)->format('d/m/Y') . ' - ' . Carbon::parse($tour->check_out_time)->format('d/m/Y');
+        }
+
+        $adultCount = (int) ($tour->adult ?? 0);
+        $childCount = (int) ($tour->child ?? 0);
+        $infantCount = (int) ($tour->infant ?? 0);
+        $noOfPax = sprintf('%02d', $adultCount) . ' Adults';
+        if ($childWithBedTotal > 0 || $childWithoutBedTotal > 0) {
+            if ($childWithBedTotal > 0) $noOfPax .= '+' . sprintf('%02d', $childWithBedTotal) . ' cwb';
+            if ($childWithoutBedTotal > 0) $noOfPax .= '+' . sprintf('%02d', $childWithoutBedTotal) . ' cnb';
+        } elseif ($childCount > 0) {
+            $noOfPax .= ', ' . $childCount . ' Children';
+        }
+        if ($infantCount > 0) $noOfPax .= ', ' . $infantCount . ' Infants';
+
+        $refId = $tour->reference_id ?? $tour->display_id ?? '';
+        $referenceId = is_array($refId) ? (string) ($refId[0] ?? '') : (string) $refId;
+
+        $mealPlanSummary = '';
+        if (!empty($allMealPlans)) {
+            $mealNames = [];
+            foreach (array_unique($allMealPlans) as $mp) {
+                $mp = preg_replace('/^room\s+with\s+/i', '', (string) $mp);
+                $mp = preg_replace('/^room\s+only\s*/i', '', $mp);
+                $mp = trim($mp);
+                if (empty($mp)) continue;
+                $parts = preg_split('/\s*\+\s*|\s+and\s+/i', $mp);
+                foreach ($parts as $p) {
+                    $p = trim($p);
+                    if (!empty($p)) {
+                        $mealNames[] = ucfirst(strtolower($p));
+                    }
+                }
+            }
+            $mealPlanSummary = implode(', ', array_unique($mealNames));
+        }
+        $confirmationNo = !empty($confirmationNos) ? implode(', ', $confirmationNos) : 'na';
+
+        return [
+            'tour' => $tour,
+            'dmcUser' => $dmcUser,
+            'hotels' => $hotels,
+            'inclusions' => $inclusions,
+            'lowestDueDate' => $lowestDueDate,
+            'paxName' => (string) $paxName,
+            'travelDates' => (string) $travelDates,
+            'noOfPax' => (string) $noOfPax,
+            'referenceId' => $referenceId,
+            'totalRooms' => $totalRooms > 0 ? (string) $totalRooms : 'na',
+            'confirmationNo' => (string) $confirmationNo,
+            'mealPlanSummary' => (string) $mealPlanSummary,
+        ];
     }
 }

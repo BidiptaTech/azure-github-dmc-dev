@@ -15,6 +15,7 @@ use App\Models\GuideLanguage;
 use App\Models\Agency;
 use App\Helpers\CommonHelper;
 use App\Models\Tax;
+use App\Models\Country;
 use App\Helpers\TaxHelper;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -584,6 +585,39 @@ class PackageController extends Controller
         $agent_name = $agent->name;
         $tour->agent_name = $agent_name;
         $dmc = User::where('userId', $tour->dmc_id)->first();
+
+        $cityWiseDates = [];
+        if (!empty($tour->city) && is_string($tour->city)) {
+            // Supports:
+            // Singapore [2026-10-11→2026-10-16], Batam [2026-10-18→2026-10-22]
+            // Batam (Indonesia) [2026-09-19→2026-09-21], Singapore (Singapore) [2026-09-22→2026-09-28]
+            if (preg_match_all(
+                '/([^,\[]+?)\s*(?:\([^)]*\))?\s*\[(\d{4}-\d{2}-\d{2})\s*(?:→|->|\x{2192})\s*(\d{4}-\d{2}-\d{2})\]/u',
+                $tour->city,
+                $matches,
+                PREG_SET_ORDER
+            )) {
+                foreach ($matches as $match) {
+                    $cityName = trim(preg_replace('/\s*\([^)]*\)\s*$/', '', trim($match[1])));
+                    $cityWiseDates[] = [
+                        'city' => $cityName,
+                        'checkIn' => Carbon::parse($match[2])->format('d/m/Y'),
+                        'checkOut' => Carbon::parse($match[3])->format('d/m/Y'),
+                    ];
+                }
+            }
+        }
+        $tour->setAttribute('cityWiseDates', $cityWiseDates);
+        $tour->makeHidden(['city']);
+
+        $countryArray = array_values(array_filter(array_map('trim', explode(',', (string) $tour->destination))));
+        $shortCodes = Country::whereIn('name', $countryArray)->pluck('short_code', 'name');
+        $short_code = collect($countryArray)
+            ->map(fn ($name) => $shortCodes[$name] ?? null)
+            ->filter()
+            ->implode(', ');
+        $tour->setAttribute('short_code', $short_code);
+
         return response()->json([
             'tour' => $tour,
             'customer_info' => $customer_info,

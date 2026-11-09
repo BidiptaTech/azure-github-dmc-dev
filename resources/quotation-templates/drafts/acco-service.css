@@ -1,0 +1,335 @@
+/* Acco+Service Quotation — DomPDF-safe CSS (allowlisted properties only) */
+body {
+  font-family: DejaVu Sans, Arial, Helvetica, sans-serif;
+  font-size: 11px;
+  color: #000000;
+  margin: 0;
+  padding: 0;
+  background: #ffffff;
+  line-height: 1.4;
+}
+
+.page {
+  padding: 0;
+  margin: 8px;
+}
+
+.bold {
+  font-weight: bold;
+}
+
+.muted {
+  color: #555555;
+}
+
+/* Header */
+.header {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.header-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.header-table td {
+  vertical-align: middle;
+  padding: 3px;
+  border: none;
+}
+
+.header-left {
+  width: 16%;
+  text-align: left;
+  vertical-align: top;
+}
+
+.header-center {
+  width: 66%;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.header-right {
+  width: 18%;
+  text-align: right;
+  vertical-align: top;
+}
+
+.dmc-logo {
+  max-width: 100px;
+  max-height: 85px;
+  width: auto;
+  height: auto;
+}
+
+.dmc-name {
+  font-size: 16px;
+  font-weight: bold;
+  color: #333333;
+  margin: 0 0 3px 0;
+}
+
+.dmc-address,
+.dmc-contact,
+.dmc-meta {
+  font-size: 9px;
+  color: #555555;
+  line-height: 1.35;
+  margin: 2px 0 0 0;
+}
+
+.doc-number {
+  font-size: 10px;
+  font-weight: bold;
+  color: #333333;
+  white-space: nowrap;
+}
+
+.header-doc-title {
+  text-align: center;
+  font-size: 15px;
+  font-weight: bold;
+  color: #2563eb;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 4px 0 6px 0;
+}
+
+/* Meta / booking block */
+.guest-meta {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 8px 0;
+}
+
+.guest-meta td {
+  vertical-align: top;
+  padding: 0;
+  border: none;
+}
+
+.meta-grid {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.meta-grid td {
+  width: 50%;
+  vertical-align: top;
+  padding: 0 6px 0 0;
+  border: none;
+}
+
+.top-line {
+  margin: 0 0 2px 0;
+  line-height: 1.4;
+  font-size: 11px;
+}
+
+/* Section panels */
+.panel-title,
+.country-box-title {
+  border: none;
+  border-bottom: 1px solid #000000;
+  padding: 5px 7px;
+  font-weight: bold;
+  text-align: center;
+  background: #f0f0f0;
+  margin: 0;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+.section-label {
+  font-weight: bold;
+  margin: 0 0 4px 0;
+  font-size: 11px;
+}
+
+.country-box,
+.overall-price-box,
+.info-box {
+  border: 1px solid #000000;
+  margin: 0 0 8px 0;
+}
+
+.share-block {
+  border: none;
+  border-top: 1px solid #222222;
+  margin: 0;
+}
+
+.country-box-body,
+.info-box-body {
+  padding: 5px 7px;
+}
+
+.country-box-inner,
+.price-split-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.country-box-inner td,
+.price-split-table > tbody > tr > td {
+  width: 50%;
+  vertical-align: top;
+  padding: 5px 7px;
+  border: none;
+}
+
+.country-box-inner td + td,
+.price-split-table > tbody > tr > td + td {
+  border-left: 1px solid #000000;
+}
+
+.country-col-label {
+  font-weight: bold;
+  margin: 0 0 4px 0;
+  padding-bottom: 2px;
+  border-bottom: 1px solid #cccccc;
+  text-transform: uppercase;
+  font-size: 10.5px;
+}
+
+.inclusion-list {
+  margin: 0;
+  padding-left: 16px;
+}
+
+.inclusion {
+  margin: 0 0 5px 0;
+  line-height: 1.4;
+  font-size: 11px;
+}
+
+.svc-inline {
+  font-size: 10px;
+}
+
+.svc-sub {
+  margin: 2px 0 2px 10px;
+  font-size: 9.5px;
+  line-height: 1.35;
+}
+
+.country-date-row {
+  padding: 4px 7px;
+  border-bottom: 1px solid #cccccc;
+  font-size: 10.5px;
+}
+
+/* Pricing grids */
+.price-grid,
+.totals-table,
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.price-grid {
+  border: 1px solid #000000;
+}
+
+.price-grid th,
+.price-grid td,
+.totals-table th,
+.totals-table td,
+.data-table th,
+.data-table td {
+  border: 1px solid #000000;
+  padding: 5px 6px;
+  vertical-align: middle;
+  font-size: 10.5px;
+  line-height: 1.35;
+  word-wrap: break-word;
+}
+
+.price-grid th,
+.totals-table th,
+.data-table th {
+  background: #f0f0f0;
+  font-weight: bold;
+  text-align: center;
+}
+
+.price-grid td {
+  text-align: center;
+  font-weight: bold;
+}
+
+.totals-table .city-cell {
+  font-weight: bold;
+  text-align: center;
+  background: #f7f7f7;
+  width: 20%;
+}
+
+.totals-table .svc-cell {
+  text-align: left;
+  width: 42%;
+}
+
+.totals-table .pax-cell {
+  text-align: center;
+  width: 12%;
+  white-space: nowrap;
+}
+
+.totals-table .amt-cell {
+  text-align: right;
+  font-weight: bold;
+  width: 26%;
+  white-space: nowrap;
+}
+
+.totals-row {
+  background: #f0f0f0;
+  font-weight: bold;
+}
+
+.subtotal-row {
+  background: #f7f7f7;
+}
+
+.kv-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.kv-table td {
+  border: none;
+  padding: 2px 4px 2px 0;
+  vertical-align: top;
+  font-size: 10.5px;
+}
+
+.kv-table .k {
+  font-weight: bold;
+  width: 32%;
+  white-space: nowrap;
+}
+
+.page-break {
+  margin-top: 24px;
+  padding-top: 12px;
+  border-top: 2px solid #000000;
+}
+
+.api-footnote {
+  margin-top: 8px;
+  font-size: 9px;
+  color: #444444;
+  line-height: 1.35;
+}
+
+.na {
+  color: #666666;
+  font-style: italic;
+}

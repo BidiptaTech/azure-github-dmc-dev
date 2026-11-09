@@ -205,15 +205,15 @@
                                             <div class="season-price-content">
                                                 <div class="season-price-item">
                                                     <i class="ri-sun-line text-warning me-2"></i>
-                                                    <span><strong>Weekday Price:</strong> Monday to Friday rates</span>
+                                                    <span><strong>Weekday Price (Sell/Cost):</strong> Monday to Friday sell and cost rates</span>
                                                 </div>
                                                 <div class="season-price-item">
                                                     <i class="ri-calendar-2-line text-success me-2"></i>
-                                                    <span><strong>Weekend Price:</strong> Saturday and Sunday rates</span>
+                                                    <span><strong>Weekend Price (Sell/Cost):</strong> Saturday and Sunday sell and cost rates</span>
                                                 </div>
                                                 <div class="season-price-example">
                                                     <small class="text-muted">
-                                                        <strong>Example:</strong> Weekday: $150.00, Weekend: $200.00
+                                                        <strong>Example:</strong> Weekday Sell: $150.00 / Cost: $120.00
                                                     </small>
                                                 </div>
                                             </div>
@@ -228,15 +228,15 @@
                                             <div class="season-price-content">
                                                 <div class="season-price-item">
                                                     <i class="ri-sun-line text-warning me-2"></i>
-                                                    <span><strong>Weekday Price:</strong> Monday to Friday rates for two guests</span>
+                                                    <span><strong>Weekday Price (Sell/Cost):</strong> Monday to Friday rates for two guests</span>
                                                 </div>
                                                 <div class="season-price-item">
                                                     <i class="ri-calendar-2-line text-success me-2"></i>
-                                                    <span><strong>Weekend Price:</strong> Saturday and Sunday rates for two guests</span>
+                                                    <span><strong>Weekend Price (Sell/Cost):</strong> Saturday and Sunday rates for two guests</span>
                                                 </div>
                                                 <div class="season-price-example">
                                                     <small class="text-muted">
-                                                        <strong>Example:</strong> Weekday: $250.00, Weekend: $300.00
+                                                        <strong>Example:</strong> Weekday Sell: $250.00 / Cost: $200.00
                                                     </small>
                                                 </div>
                                             </div>
@@ -256,7 +256,11 @@
                                             </div>
                                             <div class="instruction-item">
                                                 <i class="ri-money-dollar-line text-primary"></i>
-                                                <span><strong>All Price Fields:</strong> Single & Double, Weekday & Weekend</span>
+                                                <span><strong>Sell & Cost prices:</strong> Single/Double Weekday & Weekend (Sell + Cost required). Breakfast/Lunch/Dinner optional.</span>
+                                            </div>
+                                            <div class="instruction-item">
+                                                <i class="ri-refresh-line text-success"></i>
+                                                <span><strong>Update vs Create:</strong> Same Season Name updates existing season; new name creates a new season.</span>
                                             </div>
                                             <div class="instruction-item">
                                                 <i class="ri-calendar-line text-warning"></i>
@@ -451,14 +455,23 @@
                                                     </div>
                                                 </td>
                                                 <td class="py-3">
-                                                    <div class="d-flex flex-wrap gap-2">
-                                                        <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1">
-                                                            <i class="ri-check-line me-1"></i>{{ $history->success_count }} success
-                                                        </span>
-                                                        @if($history->error_count > 0)
-                                                            <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1">
-                                                                <i class="ri-close-line me-1"></i>{{ $history->error_count }} failed
+                                                    <div class="d-flex flex-column gap-1">
+                                                        <div class="d-flex flex-wrap gap-2">
+                                                            <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-25 px-2 py-1">
+                                                                <i class="ri-check-line me-1"></i>{{ $history->success_count }} success
                                                             </span>
+                                                            @if($history->error_count > 0)
+                                                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-2 py-1">
+                                                                    <i class="ri-close-line me-1"></i>{{ $history->error_count }} failed
+                                                                </span>
+                                                            @endif
+                                                        </div>
+                                                        @if($history->created_count_meta !== null || $history->updated_count_meta !== null)
+                                                            <small class="text-muted">
+                                                                <i class="ri-add-circle-line me-1"></i>{{ (int) ($history->created_count_meta ?? 0) }} created
+                                                                <span class="mx-1">·</span>
+                                                                <i class="ri-refresh-line me-1"></i>{{ (int) ($history->updated_count_meta ?? 0) }} updated
+                                                            </small>
                                                         @endif
                                                     </div>
                                                 </td>
@@ -478,7 +491,7 @@
                                                     @endif
                                                 </td>
                                                 <td class="py-3 text-center">
-                                                    @if(($history->error_count ?? 0) > 0 && !empty($history->errors))
+                                                    @if(($history->error_count ?? 0) > 0 && count($history->error_messages) > 0)
                                                         <button type="button" 
                                                                 class="btn btn-sm btn-outline-danger view-errors-btn" 
                                                                 data-bs-toggle="modal" 
@@ -494,7 +507,7 @@
                                             </tr>
 
                                             <!-- Error Details Modal -->
-                                            @if(($history->error_count ?? 0) > 0 && !empty($history->errors))
+                                            @if(($history->error_count ?? 0) > 0 && count($history->error_messages) > 0)
                                             <div class="modal fade" id="errorModal{{ $history->id }}" tabindex="-1" aria-hidden="true">
                                                 <div class="modal-dialog modal-lg modal-dialog-scrollable">
                                                     <div class="modal-content">
@@ -517,11 +530,7 @@
                                                                 <i class="ri-alert-line me-2"></i>Error Messages:
                                                             </h6>
                                                             <div class="error-details-list">
-                                                                @php
-                                                                    $errors = is_array($history->errors) ? $history->errors : json_decode($history->errors, true);
-                                                                @endphp
-                                                                @if(is_array($errors) && count($errors) > 0)
-                                                                    @foreach($errors as $index => $error)
+                                                                @foreach($history->error_messages as $index => $error)
                                                                         <div class="error-detail-item mb-2 p-3 border-start border-danger border-3 bg-light">
                                                                             <div class="d-flex align-items-start">
                                                                                 <span class="badge bg-danger me-2">{{ $index + 1 }}</span>
@@ -530,10 +539,7 @@
                                                                                 </div>
                                                                             </div>
                                                                         </div>
-                                                                    @endforeach
-                                                                @else
-                                                                    <p class="text-muted">No detailed error information available.</p>
-                                                                @endif
+                                                                @endforeach
                                                             </div>
                                                         </div>
                                                         <div class="modal-footer">
@@ -592,7 +598,7 @@
                                             </div>
                                             <small class="text-muted">{{ $history->relative_time }}</small>
                                         </div>
-                                        @if(($history->error_count ?? 0) > 0 && !empty($history->errors))
+                                        @if(($history->error_count ?? 0) > 0 && count($history->error_messages) > 0)
                                             <div class="mt-2">
                                                 <button type="button" 
                                                         class="btn btn-sm btn-outline-danger w-100" 
@@ -605,7 +611,7 @@
                                     </div>
                                     
                                     <!-- Mobile Error Details Modal -->
-                                    @if(($history->error_count ?? 0) > 0 && !empty($history->errors))
+                                    @if(($history->error_count ?? 0) > 0 && count($history->error_messages) > 0)
                                     <div class="modal fade" id="errorModalMobile{{ $history->id }}" tabindex="-1" aria-hidden="true">
                                         <div class="modal-dialog modal-fullscreen-sm-down modal-dialog-scrollable">
                                             <div class="modal-content">
@@ -630,11 +636,7 @@
                                                         <i class="ri-alert-line me-2"></i>Errors:
                                                     </h6>
                                                     <div class="error-details-list">
-                                                        @php
-                                                            $errors = is_array($history->errors) ? $history->errors : json_decode($history->errors, true);
-                                                        @endphp
-                                                        @if(is_array($errors) && count($errors) > 0)
-                                                            @foreach($errors as $index => $error)
+                                                        @foreach($history->error_messages as $index => $error)
                                                                 <div class="error-detail-item mb-2 p-2 border-start border-danger border-3 bg-light">
                                                                     <div class="d-flex align-items-start">
                                                                         <span class="badge bg-danger me-2">{{ $index + 1 }}</span>
@@ -643,10 +645,7 @@
                                                                         </div>
                                                                     </div>
                                                                 </div>
-                                                            @endforeach
-                                                        @else
-                                                            <p class="text-muted small">No error details available.</p>
-                                                        @endif
+                                                        @endforeach
                                                     </div>
                                                 </div>
                                                 <div class="modal-footer">

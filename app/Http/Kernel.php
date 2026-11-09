@@ -36,6 +36,7 @@ class Kernel extends HttpKernel
             \Illuminate\View\Middleware\ShareErrorsFromSession::class,
             \App\Http\Middleware\VerifyCsrfToken::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
+            \App\Http\Middleware\EnsureUserIsActive::class,
         ],
 
         'api' => [
@@ -69,6 +70,7 @@ class Kernel extends HttpKernel
         'manager' => \App\Http\Middleware\ManagerMiddleware::class,
         'salesman' => \App\Http\Middleware\SalesmanMiddleware::class,
         'impersonate' => \App\Http\Middleware\ImpersonateUser::class,
+        'active.user' => \App\Http\Middleware\EnsureUserIsActive::class,
         'hierarchy' => \App\Http\Middleware\HierarchyMiddleware::class,
         'no.cache' => \App\Http\Middleware\NoCacheHeaders::class,
         'auth.sanctum' => \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,

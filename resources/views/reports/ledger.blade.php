@@ -6,6 +6,9 @@ use Illuminate\Support\Facades\Auth;
 @endphp
 
 @section('content')
+@php
+    $dmcCurrency = \App\Helpers\CommonHelper::getDmcCurrencyByCountry();
+@endphp
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="row mb-4">
@@ -50,19 +53,18 @@ use Illuminate\Support\Facades\Auth;
                             <div class="fw-bold text-muted small">Total Amount</div>
                             <div class="fs-5 fw-semibold">
                                 @php
-                                    $selectedCurrency = request('currency', 'SGD');
+                                    $selectedCurrency = request('currency', $dmcCurrency);
                                     $totalAmount = is_array($results) ? array_sum(array_column($results, 'amount')) : 0;
                                     
                                     if ($selectedCurrency == 'INR') {
-                                        $defaultRate = request('currency', 'SGD') == 'INR' ? '67.50' : '1.00';
-                                        $exchangeRate = floatval(request('custom_exchange_rate', $defaultRate));
+                                        $exchangeRate = floatval(request('custom_exchange_rate', '67.50'));
                                         $totalAmount *= $exchangeRate;
-                                        $currencySymbol = '₹';
+                                        $currencySymbol = 'INR';
                                     } else {
-                                        $currencySymbol = '$';
+                                        $currencySymbol = $dmcCurrency;
                                     }
                                 @endphp
-                                {{ $currencySymbol }}{{ number_format($totalAmount, 2) }}
+                                {{ $currencySymbol }} {{ number_format($totalAmount, 2) }}
                             </div>
                         </div>
                     </div>
@@ -119,7 +121,7 @@ use Illuminate\Support\Facades\Auth;
         <div class="row mb-4">
             <div class="col-12">
                 <!-- Enhanced Filter Card -->
-                <div class="card shadow-sm border-0 mb-4">
+                <div class="card shadow-sm border-0 mb-4" id="advancedFiltersCard">
                     <div class="card-header bg-gradient-primary text-white">
                         <h6 class="mb-0 fw-bold">
                             <i class="ri-filter-3-line me-2"></i>Advanced Filters & Currency Settings
@@ -129,7 +131,7 @@ use Illuminate\Support\Facades\Auth;
                         <form method="GET" action="{{ route('reports.ledger') }}" id="ledgerFilterForm">
                             <!-- Hidden field for custom exchange rate -->
                             @php
-                                $defaultCustomRate = request('currency', 'SGD') == 'INR' ? '67.50' : '1.00';
+                                $defaultCustomRate = request('currency', $dmcCurrency) == 'INR' ? '67.50' : '1.00';
                             @endphp
                             <input type="hidden" id="customExchangeRateField" name="custom_exchange_rate" value="{{ request('custom_exchange_rate', $defaultCustomRate) }}">
                             <!-- First Row: Date Range & Currency -->
@@ -153,7 +155,7 @@ use Illuminate\Support\Facades\Auth;
                                     <div class="input-group">
                                         <span class="input-group-text"><i class="ri-money-dollar-circle-line"></i></span>
                                         <select name="currency" id="currency" class="form-select" aria-label="Currency" onchange="applyFilters()">
-                                            <option value="SGD" {{ request('currency', 'SGD') == 'SGD' ? 'selected' : '' }}>SGD</option>
+                                            <option value="{{ $dmcCurrency }}" {{ request('currency', $dmcCurrency) == $dmcCurrency ? 'selected' : '' }}>{{ $dmcCurrency }}</option>
                                             <option value="INR" {{ request('currency') == 'INR' ? 'selected' : '' }}>INR</option>
                                         </select>
                                     </div>
@@ -165,23 +167,23 @@ use Illuminate\Support\Facades\Auth;
                                             <i class="ri-exchange-line"></i>
                                         </span>
                                         @php
-                                            $currentCurrency = request('currency', 'SGD');
+                                            $currentCurrency = request('currency', $dmcCurrency);
                                             if ($currentCurrency == 'INR') {
                                                 $currentRate = request('custom_exchange_rate', '67.50');
-                                                $displayText = "1 SGD = {$currentRate} INR";
+                                                $displayText = "1 {$dmcCurrency} = {$currentRate} INR";
                                             } else {
-                                                $displayText = "1 SGD = 1.00 SGD";
+                                                $displayText = "1 {$dmcCurrency} = 1.00 {$dmcCurrency}";
                                             }
                                         @endphp
                                         <input type="text" class="form-control bg-light" id="exchangeRate" readonly value="{{ $displayText }}" placeholder="Loading...">
-                                        <button type="button" class="btn btn-outline-info btn-sm" id="editRateBtn" onclick="toggleRateEdit()" style="display: {{ request('currency', 'SGD') == 'INR' ? 'inline-block' : 'none' }};" title="Edit Exchange Rate">
+                                        <button type="button" class="btn btn-outline-info btn-sm" id="editRateBtn" onclick="toggleRateEdit()" style="display: {{ request('currency', $dmcCurrency) == 'INR' ? 'inline-block' : 'none' }};" title="Edit Exchange Rate">
                                             <i class="ri-edit-line"></i>
                                         </button>
                                     </div>
                                     <div id="rateEditSection" style="display: none;" class="mt-2">
                                         <div class="input-group input-group-sm">
-                                            <span class="input-group-text">1 SGD =</span>
-                                            <input type="number" class="form-control" id="customRate" step="0.01" min="0" value="{{ request('custom_exchange_rate', request('currency', 'SGD') == 'INR' ? '67.50' : '1.00') }}" placeholder="Enter rate">
+                                            <span class="input-group-text">1 {{ $dmcCurrency }} =</span>
+                                            <input type="number" class="form-control" id="customRate" step="0.01" min="0" value="{{ request('custom_exchange_rate', request('currency', $dmcCurrency) == 'INR' ? '67.50' : '1.00') }}" placeholder="Enter rate">
                                             <span class="input-group-text">INR</span>
                                             <button type="button" class="btn btn-success btn-sm" onclick="updateCustomRate()" title="Save Rate">
                                                 <i class="ri-check-line"></i>
@@ -371,8 +373,8 @@ use Illuminate\Support\Facades\Auth;
                                 <tbody class="table-border-bottom-0">
                                     @php 
                                         $runningBalance = 0;
-                                        $selectedCurrency = request('currency', 'SGD');
-                                        // Use custom exchange rate, default to 67.50 for INR, 1.00 for SGD
+                                        $selectedCurrency = request('currency', $dmcCurrency);
+                                        // Use custom exchange rate, default to 67.50 for INR, 1.00 for base currency
                                         $defaultRate = $selectedCurrency == 'INR' ? '67.50' : '1.00';
                                         $exchangeRate = floatval(request('custom_exchange_rate', $defaultRate));
                                     @endphp
@@ -389,9 +391,9 @@ use Illuminate\Support\Facades\Auth;
                                                 $openingBalance *= $exchangeRate;
                                                 $transactionAmount *= $exchangeRate;
                                                 $closingBalance *= $exchangeRate;
-                                                $currencySymbol = '₹';
+                                                $currencySymbol = 'INR';
                                             } else {
-                                                $currencySymbol = 'S$';
+                                                $currencySymbol = $dmcCurrency;
                                             }
                                         @endphp
                                         <tr>
@@ -444,27 +446,27 @@ use Illuminate\Support\Facades\Auth;
                                             </td>
                                             <td style="text-align: right;">
                                                 <div class="d-flex flex-column align-items-end">
-                                                    <span class="fw-bold text-secondary">{{ $currencySymbol }}{{ number_format($openingBalance, 2) }}</span>
+                                                    <span class="fw-bold text-secondary">{{ $currencySymbol }} {{ number_format($openingBalance, 2) }}</span>
                                                     @if($selectedCurrency == 'INR')
-                                                        <small class="text-muted">S${{ number_format($openingBalance / $exchangeRate, 2) }}</small>
+                                                        <small class="text-muted">{{ $dmcCurrency }} {{ number_format($openingBalance / $exchangeRate, 2) }}</small>
                                                     @endif
                                                 </div>
                                             </td>
                                             <td style="text-align: right;">
                                                 <div class="d-flex flex-column align-items-end">
                                                     <span class="fw-bold {{ $transactionAmount >= 0 ? 'text-success' : 'text-danger' }}">
-                                                        {{ $transactionAmount >= 0 ? '+' : '' }}{{ $currencySymbol }}{{ number_format($transactionAmount, 2) }}
+                                                        {{ $transactionAmount >= 0 ? '+' : '' }}{{ $currencySymbol }} {{ number_format($transactionAmount, 2) }}
                                                     </span>
                                                     @if($selectedCurrency == 'INR')
-                                                        <small class="text-muted">S${{ number_format($transactionAmount / $exchangeRate, 2) }}</small>
+                                                        <small class="text-muted">{{ $dmcCurrency }} {{ number_format($transactionAmount / $exchangeRate, 2) }}</small>
                                                     @endif
                                                 </div>
                                             </td>
                                             <td style="text-align: right;">
                                                 <div class="d-flex flex-column align-items-end">
-                                                    <span class="fw-bold text-primary">{{ $currencySymbol }}{{ number_format($closingBalance, 2) }}</span>
+                                                    <span class="fw-bold text-primary">{{ $currencySymbol }} {{ number_format($closingBalance, 2) }}</span>
                                                     @if($selectedCurrency == 'INR')
-                                                        <small class="text-muted">S${{ number_format($closingBalance / $exchangeRate, 2) }}</small>
+                                                        <small class="text-muted">{{ $dmcCurrency }} {{ number_format($closingBalance / $exchangeRate, 2) }}</small>
                                                     @endif
                                                 </div>
                                             </td>
@@ -512,14 +514,14 @@ use Illuminate\Support\Facades\Auth;
                                                 $totalAmount = isset($results) ? collect($results)->sum('amount') : 0;
                                                 if ($selectedCurrency == 'INR') {
                                                     $totalAmount *= $exchangeRate;
-                                                    $currencySymbol = '₹';
+                                                    $currencySymbol = 'INR';
                                                 } else {
-                                                    $currencySymbol = 'S$';
+                                                    $currencySymbol = $dmcCurrency;
                                                 }
                                             @endphp
-                                            {{ $currencySymbol }}{{ number_format($totalAmount, 2) }}
+                                            {{ $currencySymbol }} {{ number_format($totalAmount, 2) }}
                                         </th>
-                                        <th class="text-end fw-bold">{{ $currencySymbol }}{{ number_format((isset($runningBalance) ? $runningBalance : 0) * ($selectedCurrency == 'INR' ? $exchangeRate : 1), 2) }}</th>
+                                        <th class="text-end fw-bold">{{ $currencySymbol }} {{ number_format((isset($runningBalance) ? $runningBalance : 0) * ($selectedCurrency == 'INR' ? $exchangeRate : 1), 2) }}</th>
                                         <th></th> <!-- Actions column - empty -->
                                     </tr>
                                 </tfoot>
@@ -644,23 +646,25 @@ use Illuminate\Support\Facades\Auth;
                 var table = $('.datatables-basic').DataTable({
                     responsive: false, // Disable responsive to avoid column issues
                     autoWidth: false,
-                    scrollX: true, // Add horizontal scroll instead of responsive
+                    scrollX: false,
                     dom: 'frtip', // Remove 'B' to hide default buttons
                     buttons: [
                         'copy', 'csv', 'excel', 'pdf', 'print'
                     ],
                     columnDefs: [
-                        { width: "50px", targets: 0, className: "text-center" }, // # column
-                        { width: "120px", targets: 1 }, // Date & Time
-                        { width: "100px", targets: 2 }, // Booking ID
-                        { width: "150px", targets: 3 }, // Agent Name
-                        { width: "120px", targets: 4 }, // Service Type
-                        { width: "180px", targets: 5 }, // Customer Details
-                        { width: "120px", targets: 6, className: "text-end" }, // Opening Balance
-                        { width: "120px", targets: 7, className: "text-end" }, // Transaction Amount
-                        { width: "120px", targets: 8, className: "text-end" }, // Closing Balance
-                        { width: "100px", targets: 9, orderable: false, className: "text-center" } // Actions
-                    ],
+    { width: "30px",  targets: 0, className: "text-center" }, // #
+    { width: "75px",  targets: 1 },  // Date & Time
+    { width: "70px",  targets: 2 },  // Booking ID
+    { width: "110px", targets: 3 },  // Agency Name
+    { width: "75px",  targets: 4 },  // Service Type
+    { width: "120px", targets: 5 },  // Customer Details
+    { width: "85px",  targets: 6, className: "text-end" }, // Opening Balance
+    { width: "85px",  targets: 7, className: "text-end" }, // Transaction Amount
+    { width: "85px",  targets: 8, className: "text-end" }, // Closing Balance
+    { width: "55px",  targets: 9, orderable: false, className: "text-center" } // Actions
+],
+scrollX: false,
+autoWidth: false,
                     language: {
                         search: "_INPUT_",
                         searchPlaceholder: "Search...",
@@ -875,7 +879,7 @@ use Illuminate\Support\Facades\Auth;
                         ordering: true,
                         info: true,
                         autoWidth: false,
-                        scrollX: true,
+                        scrollX: false,
                         lengthMenu: [10, 25, 50, 100],
                         pageLength: 25,
                         order: [[1, 'desc']],
@@ -904,12 +908,14 @@ use Illuminate\Support\Facades\Auth;
 </script>
 <!-- End DataTable JS -->
 <script>
+    const dmcCurrency = @json($dmcCurrency);
+
     // Global variable to store custom exchange rate (must be outside DOMContentLoaded)
     // This always stores the INR rate (67.50 default), regardless of current currency
     @php
         $jsCustomRate = request('custom_exchange_rate', '67.50');
-        // If current currency is SGD, still keep the INR rate for when user switches back
-        if (request('currency', 'SGD') == 'SGD' && !request('custom_exchange_rate')) {
+        // If current currency is base DMC currency, still keep the INR rate for when user switches back
+        if (request('currency', $dmcCurrency) == $dmcCurrency && !request('custom_exchange_rate')) {
             $jsCustomRate = '67.50'; // Default INR rate
         }
     @endphp
@@ -917,7 +923,8 @@ use Illuminate\Support\Facades\Auth;
     
     // Debug: Log the initial values for troubleshooting
     console.log('Initial customExchangeRate:', customExchangeRate);
-    console.log('Current currency from URL:', '{{ request("currency", "SGD") }}');
+    console.log('Current currency from URL:', '{{ request("currency", $dmcCurrency) }}');
+    console.log('DMC base currency:', dmcCurrency);
     console.log('User role:', '{{ Auth::user()->role_id ?? "unknown" }}');
     
     // Immediate fix for exchange rate display based on URL parameters
@@ -930,7 +937,7 @@ use Illuminate\Support\Facades\Auth;
             
             if (exchangeRateInput) {
                 const currentRate = {{ request('custom_exchange_rate', '67.50') }};
-                exchangeRateInput.value = `1 SGD = ${currentRate} INR`;
+                exchangeRateInput.value = `1 ${dmcCurrency} = ${currentRate} INR`;
                 console.log('Immediate INR fix applied:', exchangeRateInput.value);
             }
             
@@ -962,7 +969,7 @@ use Illuminate\Support\Facades\Auth;
             if (!customExchangeRate || customExchangeRate <= 0) {
                 customExchangeRate = 67.50;
             }
-            const displayValue = `1 SGD = ${customExchangeRate.toFixed(2)} INR`;
+            const displayValue = `1 ${dmcCurrency} = ${customExchangeRate.toFixed(2)} INR`;
             exchangeRateInput.value = displayValue;
             
             if (editRateBtn) {
@@ -976,7 +983,7 @@ use Illuminate\Support\Facades\Auth;
             
             console.log('Forced INR display update:', displayValue);
         } else {
-            exchangeRateInput.value = '1 SGD = 1.00 SGD';
+            exchangeRateInput.value = `1 ${dmcCurrency} = 1.00 ${dmcCurrency}`;
             
             if (editRateBtn) {
                 editRateBtn.style.display = 'none';
@@ -987,7 +994,7 @@ use Illuminate\Support\Facades\Auth;
                 customExchangeRateField.value = '1.00';
             }
             
-            console.log('Forced SGD display update');
+            console.log('Forced base currency display update');
         }
     }
 
@@ -1278,7 +1285,7 @@ use Illuminate\Support\Facades\Auth;
                 currency = currencySelect.value;
             } else {
                 const currencyElement = document.getElementById('currency');
-                currency = currencyElement ? currencyElement.value : 'SGD';
+                currency = currencyElement ? currencyElement.value : dmcCurrency;
             }
             
             const exchangeRateInput = document.getElementById('exchangeRate');
@@ -1301,12 +1308,12 @@ use Illuminate\Support\Facades\Auth;
                     exchangeRateInput.value = 'Loading...';
                     
                     // Primary API: frankfurter.app (Free, no API key required)
-                    fetch('https://api.frankfurter.app/latest?from=SGD&to=INR')
+                    fetch(`https://api.frankfurter.app/latest?from=${dmcCurrency}&to=INR`)
                         .then(response => response.json())
                         .then(data => {
                             if (data.rates && data.rates.INR) {
                                 customExchangeRate = parseFloat(data.rates.INR);
-                                const displayValue = `1 SGD = ${customExchangeRate.toFixed(2)} INR`;
+                                const displayValue = `1 ${dmcCurrency} = ${customExchangeRate.toFixed(2)} INR`;
                                 exchangeRateInput.value = displayValue;
                                 
                                 const customExchangeRateField = document.getElementById('customExchangeRateField');
@@ -1314,7 +1321,7 @@ use Illuminate\Support\Facades\Auth;
                                     customExchangeRateField.value = customExchangeRate.toFixed(2);
                                 }
                                 
-                                console.log('Real-time exchange rate fetched:', customExchangeRate, 'SGD to INR');
+                                console.log('Real-time exchange rate fetched:', customExchangeRate, `${dmcCurrency} to INR`);
                             } else {
                                 throw new Error('Invalid API response');
                             }
@@ -1323,12 +1330,12 @@ use Illuminate\Support\Facades\Auth;
                             console.error('Error fetching from primary API:', error);
                             
                             // Fallback API: exchangerate-api.com (Free tier, no registration needed)
-                            fetch('https://open.er-api.com/v6/latest/SGD')
+                            fetch(`https://open.er-api.com/v6/latest/${dmcCurrency}`)
                                 .then(response => response.json())
                                 .then(data => {
                                     if (data.rates && data.rates.INR) {
                                         customExchangeRate = parseFloat(data.rates.INR);
-                const displayValue = `1 SGD = ${customExchangeRate.toFixed(2)} INR`;
+                const displayValue = `1 ${dmcCurrency} = ${customExchangeRate.toFixed(2)} INR`;
                 exchangeRateInput.value = displayValue;
                 
                                         const customExchangeRateField = document.getElementById('customExchangeRateField');
@@ -1344,7 +1351,7 @@ use Illuminate\Support\Facades\Auth;
                                 .catch(fallbackError => {
                                     console.error('Both APIs failed, using default:', fallbackError);
                                     customExchangeRate = 62.50;
-                                    exchangeRateInput.value = `1 SGD = ${customExchangeRate.toFixed(2)} INR (Offline)`;
+                                    exchangeRateInput.value = `1 ${dmcCurrency} = ${customExchangeRate.toFixed(2)} INR (Offline)`;
                 
                 const customExchangeRateField = document.getElementById('customExchangeRateField');
                 if (customExchangeRateField) {
@@ -1354,7 +1361,7 @@ use Illuminate\Support\Facades\Auth;
                         });
                 } else {
                     // Use existing rate
-                    const displayValue = `1 SGD = ${customExchangeRate.toFixed(2)} INR`;
+                    const displayValue = `1 ${dmcCurrency} = ${customExchangeRate.toFixed(2)} INR`;
                     exchangeRateInput.value = displayValue;
                     
                     const customExchangeRateField = document.getElementById('customExchangeRateField');
@@ -1371,7 +1378,7 @@ use Illuminate\Support\Facades\Auth;
                 
                 console.log('Set INR display');
             } else {
-                exchangeRateInput.value = '1 SGD = 1.00 SGD';
+                exchangeRateInput.value = `1 ${dmcCurrency} = 1.00 ${dmcCurrency}`;
                 
                 if (editRateBtn) {
                     editRateBtn.style.display = 'none';
@@ -1383,13 +1390,13 @@ use Illuminate\Support\Facades\Auth;
                     rateEditSection.style.display = 'none';
                 }
                 
-                // For SGD, set exchange rate to 1.00 (no conversion needed)
+                // For base currency, set exchange rate to 1.00 (no conversion needed)
                 const customExchangeRateField = document.getElementById('customExchangeRateField');
                 if (customExchangeRateField) {
                     customExchangeRateField.value = '1.00';
                 }
                 
-                console.log('Set SGD display: 1 SGD = 1.00 SGD');
+                console.log(`Set ${dmcCurrency} display: 1 ${dmcCurrency} = 1.00 ${dmcCurrency}`);
             }
         }
 
@@ -1552,12 +1559,12 @@ use Illuminate\Support\Facades\Auth;
         }
         document.getElementById('agent_id').value = '';
         document.getElementById('service_type').value = '';
-        document.getElementById('currency').value = 'SGD';
+        document.getElementById('currency').value = dmcCurrency;
         document.getElementById('view_type').value = 'summary';
         
         // Reset custom exchange rate to default
         customExchangeRate = 67.50;
-        document.getElementById('customExchangeRateField').value = '1.00'; // Default for SGD
+        document.getElementById('customExchangeRateField').value = '1.00'; // Default for base currency
         
         // Reset filters and submit
         setTimeout(() => {
@@ -1574,13 +1581,13 @@ use Illuminate\Support\Facades\Auth;
         
             if (currency === 'INR') {
             // Primary API: frankfurter.app (Free, no API key required, European Central Bank data)
-            fetch('https://api.frankfurter.app/latest?from=SGD&to=INR')
+            fetch(`https://api.frankfurter.app/latest?from=${dmcCurrency}&to=INR`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.rates && data.rates.INR) {
                         const rate = parseFloat(data.rates.INR);
                         customExchangeRate = rate;
-                exchangeRateInput.value = `1 SGD = ${customExchangeRate.toFixed(2)} INR`;
+                exchangeRateInput.value = `1 ${dmcCurrency} = ${customExchangeRate.toFixed(2)} INR`;
                 document.getElementById('customExchangeRateField').value = customExchangeRate.toFixed(2);
                         
                         // Apply filters to refresh data with new rate
@@ -1589,7 +1596,7 @@ use Illuminate\Support\Facades\Auth;
                             applyFilters();
                         }, 500);
                         
-                        console.log('Exchange rate fetched from API:', rate, 'SGD to INR');
+                        console.log('Exchange rate fetched from API:', rate, `${dmcCurrency} to INR`);
                     } else {
                         throw new Error('Invalid API response');
                     }
@@ -1598,13 +1605,13 @@ use Illuminate\Support\Facades\Auth;
                     console.error('Error fetching exchange rate:', error);
                     
                     // Fallback API: exchangerate-api.com (Free tier, no registration needed)
-                    fetch('https://open.er-api.com/v6/latest/SGD')
+                    fetch(`https://open.er-api.com/v6/latest/${dmcCurrency}`)
                         .then(response => response.json())
                         .then(data => {
                             if (data.rates && data.rates.INR) {
                                 const rate = parseFloat(data.rates.INR);
                                 customExchangeRate = rate;
-                                exchangeRateInput.value = `1 SGD = ${customExchangeRate.toFixed(2)} INR`;
+                                exchangeRateInput.value = `1 ${dmcCurrency} = ${customExchangeRate.toFixed(2)} INR`;
                                 document.getElementById('customExchangeRateField').value = customExchangeRate.toFixed(2);
                                 
                                 // Apply filters to refresh data with new rate
@@ -1613,7 +1620,7 @@ use Illuminate\Support\Facades\Auth;
                                     applyFilters();
                                 }, 500);
                                 
-                                console.log('Exchange rate fetched from fallback API:', rate, 'SGD to INR');
+                                console.log('Exchange rate fetched from fallback API:', rate, `${dmcCurrency} to INR`);
                             } else {
                                 throw new Error('Fallback API also failed');
                             }
@@ -1622,13 +1629,13 @@ use Illuminate\Support\Facades\Auth;
                             console.error('Both APIs failed:', fallbackError);
                             // Use a reasonable default rate if both APIs fail
                             customExchangeRate = 62.50;
-                            exchangeRateInput.value = `1 SGD = ${customExchangeRate.toFixed(2)} INR (Offline)`;
+                            exchangeRateInput.value = `1 ${dmcCurrency} = ${customExchangeRate.toFixed(2)} INR (Offline)`;
                             document.getElementById('customExchangeRateField').value = customExchangeRate.toFixed(2);
                             showRateUpdateMessage('Using default rate (API unavailable)', 'warning');
                         });
                 });
             } else {
-                exchangeRateInput.value = '1 SGD = 1.00 SGD';
+                exchangeRateInput.value = `1 ${dmcCurrency} = 1.00 ${dmcCurrency}`;
             }
     }
 
@@ -1662,7 +1669,7 @@ use Illuminate\Support\Facades\Auth;
         }
         
         customExchangeRate = newRate;
-        document.getElementById('exchangeRate').value = `1 SGD = ${customExchangeRate.toFixed(2)} INR`;
+        document.getElementById('exchangeRate').value = `1 ${dmcCurrency} = ${customExchangeRate.toFixed(2)} INR`;
         
         // Update the hidden field
         document.getElementById('customExchangeRateField').value = customExchangeRate.toFixed(2);
@@ -1804,13 +1811,13 @@ use Illuminate\Support\Facades\Auth;
     function displayTransactionDetails(transaction) {
         // Get current currency and exchange rate
         const currencyElement = document.getElementById('currency');
-        const currency = currencyElement ? currencyElement.value : 'SGD';
+        const currency = currencyElement ? currencyElement.value : dmcCurrency;
         const exchangeRate = currency === 'INR' ? (customExchangeRate || 67.50) : 1.00;
-        const currencySymbol = currency === 'INR' ? '₹' : 'S$';
+        const currencySymbol = currency === 'INR' ? 'INR' : dmcCurrency;
         
         // Calculate amounts
-        const amountSGD = parseFloat(transaction.amount || 0);
-        const amountConverted = amountSGD * exchangeRate;
+        const amountBase = parseFloat(transaction.amount || 0);
+        const amountConverted = amountBase * exchangeRate;
         
         // Format service type badge
         const serviceTypeBadges = {
@@ -1858,8 +1865,8 @@ use Illuminate\Support\Facades\Auth;
                             <div class="mb-3 pb-3 border-bottom">
                                 <small class="text-muted d-block mb-1">Transaction Amount</small>
                                 <div class="d-flex flex-column">
-                                    <h4 class="mb-1 text-success fw-bold">${currencySymbol}${amountConverted.toFixed(2)}</h4>
-                                    ${currency === 'INR' ? `<small class="text-muted">Original: S$${amountSGD.toFixed(2)} (Rate: 1 SGD = ${exchangeRate.toFixed(2)} INR)</small>` : ''}
+                                    <h4 class="mb-1 text-success fw-bold">${currencySymbol} ${amountConverted.toFixed(2)}</h4>
+                                    ${currency === 'INR' ? `<small class="text-muted">Original: ${dmcCurrency} ${amountBase.toFixed(2)} (Rate: 1 ${dmcCurrency} = ${exchangeRate.toFixed(2)} INR)</small>` : ''}
                 </div>
                             </div>
                             <div class="mb-0">
@@ -1909,8 +1916,8 @@ use Illuminate\Support\Facades\Auth;
                 <div class="d-flex align-items-center">
                     <i class="ri-information-line text-info me-2" style="font-size: 1.2rem;"></i>
                     <small class="text-muted mb-0">
-                        <strong>Note:</strong> Amounts are displayed in <strong>${currency === 'INR' ? 'Indian Rupees (INR)' : 'Singapore Dollars (SGD)'}</strong> based on your current currency selection.
-                        ${currency === 'INR' ? ` Exchange rate: 1 SGD = ${exchangeRate.toFixed(2)} INR` : ''}
+                        <strong>Note:</strong> Amounts are displayed in <strong>${currency === 'INR' ? 'INR' : dmcCurrency}</strong> based on your current currency selection.
+                        ${currency === 'INR' ? ` Exchange rate: 1 ${dmcCurrency} = ${exchangeRate.toFixed(2)} INR` : ''}
                     </small>
                 </div>
             </div>
@@ -1990,9 +1997,9 @@ use Illuminate\Support\Facades\Auth;
         
         // Get current currency and exchange rate
         const currencyElement = document.getElementById('currency');
-        const currency = currencyElement ? currencyElement.value : 'SGD';
+        const currency = currencyElement ? currencyElement.value : dmcCurrency;
         const exchangeRate = currency === 'INR' ? (customExchangeRate || 67.50) : 1.00;
-        const currencySymbol = currency === 'INR' ? '₹' : 'S$';
+        const currencySymbol = currency === 'INR' ? 'INR' : dmcCurrency;
         
         // Service type badge mapping
         const serviceTypeBadges = {
@@ -2043,15 +2050,15 @@ use Illuminate\Support\Facades\Auth;
                     <td><span class="badge bg-info text-white">${item.booking_id}</span></td>
                     <td>${serviceBadge}</td>
                     <td class="text-end">
-                        <span class="text-muted">${currencySymbol}${openingConverted.toFixed(2)}</span>
+                        <span class="text-muted">${currencySymbol} ${openingConverted.toFixed(2)}</span>
                     </td>
                     <td class="text-end">
                         <span class="fw-bold ${transactionAmount >= 0 ? 'text-success' : 'text-danger'}">
-                            ${transactionAmount >= 0 ? '+' : ''}${currencySymbol}${transactionConverted.toFixed(2)}
+                            ${transactionAmount >= 0 ? '+' : ''}${currencySymbol} ${transactionConverted.toFixed(2)}
                         </span>
                     </td>
                     <td class="text-end">
-                        <span class="fw-bold text-primary">${currencySymbol}${closingConverted.toFixed(2)}</span>
+                        <span class="fw-bold text-primary">${currencySymbol} ${closingConverted.toFixed(2)}</span>
                     </td>
                 </tr>
             `;
@@ -2100,8 +2107,8 @@ use Illuminate\Support\Facades\Auth;
                                 </div>
                                 <div class="col-md-4 text-md-end mt-3 mt-md-0">
                                     <small class="opacity-75 d-block mb-1">Final Balance</small>
-                                    <h3 class="mb-0 fw-bold">${currencySymbol}${finalBalanceConverted.toFixed(2)}</h3>
-                                    ${currency === 'INR' ? `<small class="opacity-75">S$${finalBalance.toFixed(2)}</small>` : ''}
+                                    <h3 class="mb-0 fw-bold">${currencySymbol} ${finalBalanceConverted.toFixed(2)}</h3>
+                                    ${currency === 'INR' ? `<small class="opacity-75">${dmcCurrency} ${finalBalance.toFixed(2)}</small>` : ''}
                                 </div>
                             </div>
                         </div>
@@ -2197,8 +2204,8 @@ use Illuminate\Support\Facades\Auth;
                 <div class="d-flex align-items-center">
                     <i class="ri-information-line text-success me-2" style="font-size: 1.2rem;"></i>
                     <small class="text-muted mb-0">
-                        <strong>Currency:</strong> All amounts are displayed in <strong>${currency === 'INR' ? 'Indian Rupees (INR)' : 'Singapore Dollars (SGD)'}</strong>.
-                        ${currency === 'INR' ? ` Exchange rate: 1 SGD = ${exchangeRate.toFixed(2)} INR` : ''}
+                        <strong>Currency:</strong> All amounts are displayed in <strong>${currency === 'INR' ? 'INR' : dmcCurrency}</strong>.
+                        ${currency === 'INR' ? ` Exchange rate: 1 ${dmcCurrency} = ${exchangeRate.toFixed(2)} INR` : ''}
                         <span class="ms-2">|</span> <strong class="ms-2">Total Transactions:</strong> ${totalItems}
                     </small>
                 </div>
@@ -2342,7 +2349,7 @@ use Illuminate\Support\Facades\Auth;
                     <style>
                         body { font-family: Arial, sans-serif; margin: 20px; }
                         .card { border: 1px solid #ddd; margin-bottom: 20px; }
-                        .card-header { background: #f8f9fa; padding: 10px; font-weight: bold; }
+                        .card-header { background: #f8f9fa; padding: 10px; font-weight: bold;}
                         .card-body { padding: 15px; }
                         .table { width: 100%; border-collapse: collapse; }
                         .table td { padding: 8px; border-bottom: 1px solid #eee; }
@@ -2378,7 +2385,7 @@ use Illuminate\Support\Facades\Auth;
 </script>
 @endsection
 
-@section('styles')
+@section('css')
 <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css">
 <style>
     .card .card-body .input-group-text {
@@ -2408,6 +2415,7 @@ use Illuminate\Support\Facades\Auth;
     
     .card-header {
         border-bottom: 2px solid rgba(0,0,0,0.05);
+        color: #ffffff ;
     }
     
     .form-label.fw-semibold {
@@ -2450,15 +2458,15 @@ use Illuminate\Support\Facades\Auth;
     }
     
     .table thead th {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        font-size: 0.85rem;
-    }
-    
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    font-size: 0.72rem;
+    padding: 0.3rem 0.4rem;
+}
     .table tbody tr:hover {
         background-color: rgba(102, 126, 234, 0.05);
         transform: scale(1.01);
@@ -2469,6 +2477,86 @@ use Illuminate\Support\Facades\Auth;
         background: #f8f9fa;
         border-top: 2px solid #dee2e6;
         font-weight: 700;
+    }
+
+    /* Compact ledger table */
+    #ledgerTable {
+        width: 100% !important;
+        table-layout: fixed;
+        font-size: 0.82rem;
+    }
+
+    #ledgerTable th,
+    #ledgerTable td {
+        padding: 0.36rem 0.48rem;
+        line-height: 1.25;
+        vertical-align: middle;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    #ledgerTable.table-bordered > :not(caption) > * > * {
+        border: 1px solid #dee2e6 !important;
+    }
+
+    #ledgerTable thead th {
+        background: #fff !important;
+        color: #495057 !important;
+        font-size: 0.76rem;
+        letter-spacing: 0.2px;
+        text-align: left !important;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: unset;
+        word-break: normal;
+        overflow-wrap: normal;
+        hyphens: none;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    /* Keep separate space for DataTables sort icons */
+    #ledgerTable.dataTable thead th.sorting,
+    #ledgerTable.dataTable thead th.sorting_asc,
+    #ledgerTable.dataTable thead th.sorting_desc {
+        text-align: left !important;
+        padding-right: 0.55rem !important;
+    }
+
+    #ledgerTable.dataTable thead th.sorting::before,
+    #ledgerTable.dataTable thead th.sorting_asc::before,
+    #ledgerTable.dataTable thead th.sorting_desc::before,
+    #ledgerTable.dataTable thead th.sorting::after,
+    #ledgerTable.dataTable thead th.sorting_asc::after,
+    #ledgerTable.dataTable thead th.sorting_desc::after {
+        right: 0.10rem !important;
+    }
+
+    #ledgerTable td small {
+        font-size: 0.72rem;
+        line-height: 1.15;
+        display: block;
+    }
+
+    #ledgerTable .badge {
+        font-size: 0.7rem;
+        padding: 0.24em 0.46em;
+    }
+
+    #ledgerTable tbody tr:hover {
+        transform: none;
+    }
+
+    #ledgerTable tbody tr,
+    #ledgerTable.table-striped > tbody > tr:nth-of-type(odd),
+    #ledgerTable.table-striped > tbody > tr:nth-of-type(even) {
+        background-color: #fff !important;
+        --bs-table-accent-bg: #fff !important;
+    }
+
+    #ledgerTable .btn-sm {
+        padding: 0.16rem 0.38rem;
+        font-size: 0.74rem;
     }
     
     .badge.bg-info {
@@ -2532,6 +2620,59 @@ use Illuminate\Support\Facades\Auth;
     
     #editRateBtn {
         border-left: 1px solid #dee2e6;
+    }
+
+    /* Compact advanced filters section */
+    #advancedFiltersCard .card-header {
+        padding: 0.6rem 0.9rem;
+        color:#fff !important;
+    }
+
+    #advancedFiltersCard .card-header h6 {
+        font-size: 0.9rem;
+        margin-bottom: 0;
+        color: #fff !important;
+    }
+
+    #advancedFiltersCard .card-body {
+        padding: 0.75rem 0.9rem;
+    }
+
+    #advancedFiltersCard #ledgerFilterForm .row.g-3 {
+        --bs-gutter-x: 0.7rem;
+        --bs-gutter-y: 0.55rem;
+    }
+
+    #advancedFiltersCard .form-label.fw-semibold {
+        font-size: 0.78rem;
+        margin-bottom: 0.2rem;
+    }
+
+    #advancedFiltersCard .input-group-text {
+        padding: 0.3rem 0.5rem;
+        font-size: 0.78rem;
+    }
+
+    #advancedFiltersCard .form-control,
+    #advancedFiltersCard .form-select {
+        min-height: calc(1.8rem + 2px);
+        padding: 0.26rem 0.5rem;
+        font-size: 0.78rem;
+    }
+
+    #advancedFiltersCard .btn {
+        padding: 0.28rem 0.56rem;
+        font-size: 0.76rem;
+    }
+
+    #advancedFiltersCard .btn-sm {
+        padding: 0.2rem 0.42rem;
+        font-size: 0.72rem;
+    }
+
+    #advancedFiltersCard #rateEditSection {
+        padding: 0.38rem;
+        margin-top: 0.32rem !important;
     }
     
     /* Hide DataTables default buttons */

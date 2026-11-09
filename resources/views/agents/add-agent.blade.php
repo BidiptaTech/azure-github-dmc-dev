@@ -13,6 +13,7 @@
         align-items: center;
     }
 
+
     /* Style each selected item (tag) */
     .select2-container--default .select2-selection--multiple .select2-selection__choice {
         background-color: #007bff;
@@ -551,8 +552,6 @@
         }
     });
 </script>
-
-<!-- Country and City Selection -->
 
 <script>
     $(document).ready(function() {
