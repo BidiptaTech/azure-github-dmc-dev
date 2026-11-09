@@ -127,16 +127,13 @@
                 </div>
             </div>
 
-            <div class="mb-3">
+            <div class="mb-3" id="referenceIdWrap_${tourId}_${hotelOrderIndex}_${bookingIndex}">
                 <label for="referenceId_${tourId}_${hotelOrderIndex}_${bookingIndex}" class="form-label fw-semibold" id="referenceIdLabel_${tourId}_${hotelOrderIndex}_${bookingIndex}">
                     <i class="ri-file-text-line me-2"></i>Reference ID <span class="text-danger reference-required-mark">*</span>
                 </label>
                 <input type="text" class="form-control form-control-lg" id="referenceId_${tourId}_${hotelOrderIndex}_${bookingIndex}" name="reference_id" required
                        placeholder="Enter booking reference or confirmation number"
                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text d-none" id="referenceIdHint_${tourId}_${hotelOrderIndex}_${bookingIndex}">
-                    Optional for online hotels — supplier confirmation is created on approve.
-                </div>
             </div>
 
             <div class="mb-3">
@@ -209,8 +206,8 @@
     window.freeCancelDateFromOnlinePolicies = freeCancelDateFromOnlinePolicies;
 
     function applyOnlineHotelApproveFormRules(tourId, hotelOrderIndex, bookingIndex, isOnline, freeCancelDate, tourAutoCancelDate) {
+        const refWrap = document.getElementById(`referenceIdWrap_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
         const refInput = document.getElementById(`referenceId_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
-        const refHint = document.getElementById(`referenceIdHint_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
         const refLabel = document.getElementById(`referenceIdLabel_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
         const dueInput = document.getElementById(`actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
         const dueHint = document.getElementById(`actualDueDateHint_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
@@ -227,17 +224,17 @@
             }
         }
 
+        if (refWrap) {
+            refWrap.classList.toggle('d-none', !!isOnline);
+        }
         if (refInput) {
             if (isOnline) {
                 refInput.removeAttribute('required');
-                refInput.placeholder = 'Optional — leave blank to auto-generate on book';
+                refInput.value = '';
             } else {
                 refInput.setAttribute('required', 'required');
                 refInput.placeholder = 'Enter booking reference or confirmation number';
             }
-        }
-        if (refHint) {
-            refHint.classList.toggle('d-none', !isOnline);
         }
         if (refLabel) {
             const star = refLabel.querySelector('.reference-required-mark');
