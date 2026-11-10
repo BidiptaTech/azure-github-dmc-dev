@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import PartnerTourBookings from "@/components/workspace/PartnerTourBookings";
-import { appPath } from "@/utils/appPaths";
+import { appPath, QUOTES_ENQUIRY_PATH } from "@/utils/appPaths";
 
 export default function Bookings() {
   const navigate = useNavigate();
@@ -12,22 +12,22 @@ export default function Bookings() {
   return (
     <div>
       {detailOpen ? null : (
-      <div className="partner-hero">
-        <div>
-          <div className="partner-kicker">Booking management</div>
-          <h1 className="partner-title">Every journey, under control.</h1>
-          <p className="partner-lede">
-            Manage services, traveller details, payments and trip documents.
-          </p>
+        <div className="partner-hero">
+          <div>
+            <div className="partner-kicker">Booking management</div>
+            <h1 className="partner-title">Every journey, under control.</h1>
+            <p className="partner-lede">
+              Manage services, traveller details, payments and trip documents.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="partner-btn partner-btn--primary"
+            onClick={() => navigate(appPath())}
+          >
+            + New booking
+          </button>
         </div>
-        <button
-          type="button"
-          className="partner-btn partner-btn--primary"
-          onClick={() => navigate(appPath("plan"))}
-        >
-          + New booking
-        </button>
-      </div>
       )}
 
       <section
@@ -40,6 +40,24 @@ export default function Bookings() {
           onDetailChange={setDetailOpen}
         />
       </section>
+
+      {detailOpen ? null : (
+        <section className="partner-quote-cta partner-quote-cta--block">
+          <h2 className="partner-quote-cta__title">
+            Prefer a tailor-made proposal?
+          </h2>
+          <p className="partner-quote-cta__sub">
+            Share your brief and let your DMC create the itinerary.
+          </p>
+          <button
+            type="button"
+            className="partner-btn partner-btn--primary"
+            onClick={() => navigate(QUOTES_ENQUIRY_PATH)}
+          >
+            Request a Custom Quote →
+          </button>
+        </section>
+      )}
     </div>
   );
 }

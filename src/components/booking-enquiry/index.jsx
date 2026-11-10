@@ -171,9 +171,9 @@ const Index = () => {
     return (
       <div className="partner-plan-hero">
         <Hero1
-          pageKicker="Quotations & enquiries"
-          pageTitle="Ask your DMC for a tailored quote."
-          pageSubtitle="Share destinations, dates and travellers — then choose hotels, transfers and experiences."
+          pageKicker="Let your DMC do the planning"
+          pageTitle="Tell us what your client has in mind."
+          pageSubtitle="A few essentials now. Your DMC can work out the details with you."
           kicker="Your client enquiry"
           title="Where are we taking them?"
           subtitle="Find stays, add experiences and build a complete trip with your DMC."

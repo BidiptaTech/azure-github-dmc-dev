@@ -3,10 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import Hero1 from "@/components/hero/hero-1";
 import SalesManagerDashboard from "@/components/dashboard/dashboard/db-dashboard/components/SalesManagerDashboard";
-import PartnerTourBookings from "@/components/workspace/PartnerTourBookings";
 import { fetchEnquiries } from "@/slice/enquiries/enquiryListSlice";
 import { fetchLists } from "@/slice/common/TourlistSlice";
-import { appPath } from "@/utils/appPaths";
+import {
+  appPath,
+  QUOTES_ENQUIRY_PATH,
+  PACKAGES_SEARCH_PATH,
+} from "@/utils/appPaths";
 
 const MANAGER_ROLES = [
   "Sales Head(DMC)",
@@ -22,15 +25,6 @@ function greetingForNow() {
   if (h < 12) return "Good morning";
   if (h < 17) return "Good afternoon";
   return "Good evening";
-}
-
-function tourTitle(tour, idx) {
-  return (
-    tour.customer_name ||
-    tour.tour_name ||
-    tour.destination ||
-    `Trip #${tour.id || idx + 1}`
-  );
 }
 
 export default function Overview() {
@@ -50,7 +44,6 @@ export default function Overview() {
   useEffect(() => {
     if (isManager) return;
     dispatch(fetchEnquiries({ reset: true, start: 0, limit: 30 }));
-    // Counts for summary cards; PartnerTourBookings loads its own tab data
     dispatch(fetchLists({ reset: true, type: "upcoming" }));
     dispatch(fetchLists({ reset: true, type: "ongoing" }));
   }, [dispatch, isManager]);
@@ -63,50 +56,6 @@ export default function Overview() {
   const upcomingCount = Array.isArray(upcomingTours) ? upcomingTours.length : 0;
   const pendingCount = Array.isArray(pendingTours) ? pendingTours.length : 0;
   const quoteCount = Array.isArray(enquiries) ? enquiries.length : 0;
-
-  const nextSteps = useMemo(() => {
-    const fromEnquiries = (Array.isArray(enquiries) ? enquiries : [])
-      .slice(0, 2)
-      .map((e, idx) => ({
-        id: e.id || e.enquiry_id || `enq-${idx}`,
-        badge: e.status || "Quote",
-        amber: true,
-        title: e.customer_name || e.title || e.destination || "Enquiry",
-        detail: e.destination || e.status || "Your DMC has shared a proposal.",
-        action: "Review quote →",
-        to: appPath("quotes"),
-      }));
-
-    const paymentDue =
-      pendingCount > 0
-        ? [
-            {
-              id: "payment-due",
-              badge: "Payment due",
-              amber: true,
-              title: tourTitle(pendingTours[0] || {}, 0),
-              detail: "A booking still needs payment or confirmation.",
-              action: "Review booking →",
-              to: appPath("bookings"),
-            },
-          ]
-        : [];
-
-    const steps = [...paymentDue, ...fromEnquiries].slice(0, 3);
-    if (steps.length) return steps;
-
-    return [
-      {
-        id: "need-hand",
-        badge: "New request",
-        amber: false,
-        title: "Need a hand?",
-        detail: "Send your requirements to a DMC.",
-        action: "Request a quote →",
-        to: appPath("quotes"),
-      },
-    ];
-  }, [enquiries, pendingCount, pendingTours]);
 
   if (isManager) {
     return <SalesManagerDashboard />;
@@ -124,13 +73,21 @@ export default function Overview() {
             A clearer view of your bookings. An easier way to plan the next one.
           </p>
         </div>
-        <button
-          type="button"
-          className="partner-btn partner-btn--secondary"
-          onClick={() => navigate(appPath("quotes"))}
-        >
-          Request a custom quote ↗
-        </button>
+        <section className="partner-quote-cta">
+          <h2 className="partner-quote-cta__title">
+            Prefer a tailor-made proposal?
+          </h2>
+          <p className="partner-quote-cta__sub">
+            Share your brief and let your DMC create the itinerary.
+          </p>
+          <button
+            type="button"
+            className="partner-btn partner-btn--primary"
+            onClick={() => navigate(QUOTES_ENQUIRY_PATH)}
+          >
+            Request a Custom Quote ↗
+          </button>
+        </section>
       </div>
 
       <div className="partner-plan-hero partner-plan-hero--overview">
@@ -171,7 +128,7 @@ export default function Overview() {
         <button
           type="button"
           className="partner-stat"
-          onClick={() => navigate(appPath("plan"))}
+          onClick={() => navigate(appPath("packages"))}
         >
           <span className="partner-stat__label">Saved itineraries</span>
           <strong className="partner-stat__value">0</strong>
@@ -179,60 +136,15 @@ export default function Overview() {
         </button>
       </div>
 
-      <div className="partner-columns">
-        <section className="partner-panel partner-overview-bookings">
-          <div className="partner-toolbar">
-            <h2>Your bookings</h2>
-            <button
-              type="button"
-              className="partner-link"
-              onClick={() => navigate(appPath("bookings"))}
-            >
-              View all →
-            </button>
-          </div>
-
-          <PartnerTourBookings
-            embedded
-            limit={5}
-            showFilters={false}
-          />
-        </section>
-
-        <aside className="partner-panel">
-          <h2>Next steps</h2>
-          {nextSteps.map((step) => (
-            <div className="partner-task" key={step.id}>
-              <span
-                className={`partner-badge${
-                  step.amber ? " partner-badge--amber" : ""
-                }`}
-              >
-                {step.badge}
-              </span>
-              <h3>{step.title}</h3>
-              <p>{step.detail}</p>
-              <button
-                type="button"
-                className="partner-link"
-                onClick={() => navigate(step.to)}
-              >
-                {step.action}
-              </button>
-            </div>
-          ))}
-        </aside>
-      </div>
-
-      <section className="partner-panel partner-packages-cta">
-        <h2>Ready-made journeys, made flexible.</h2>
-        <p className="partner-card__sub">
-          Explore fixed itineraries or build every service yourself.
-        </p>
+      <section className="partner-packages-banner">
+        <div className="partner-packages-banner__copy">
+          <h2>Ready-made journeys, made flexible.</h2>
+          <p>Explore fixed itineraries or build every service yourself.</p>
+        </div>
         <button
           type="button"
-          className="partner-btn partner-btn--primary"
-          onClick={() => navigate(appPath("packages"))}
+          className="partner-packages-banner__btn"
+          onClick={() => navigate(PACKAGES_SEARCH_PATH)}
         >
           Explore packages →
         </button>
