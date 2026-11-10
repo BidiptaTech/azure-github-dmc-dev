@@ -2,8 +2,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import { appPath } from "@/utils/appPaths";
 
 const NAV_ITEMS = [
-  { label: "Overview", to: appPath(), end: true },
-  { label: "Plan a trip", to: appPath("plan"), match: ["plan"] },
+  { label: "Dashboard", to: appPath(), end: true },
   { label: "My bookings", to: appPath("bookings"), match: ["bookings"] },
   {
     label: "Quotes & requests",
@@ -42,8 +41,6 @@ export default function PartnerNav() {
             key={item.to}
             to={item.to}
             end={Boolean(item.end)}
-            // Clear trip-builder state when opening Plan from nav
-            state={item.to === appPath("plan") ? {} : undefined}
             className={`partner-nav__link${active ? " is-active" : ""}`}
           >
             {item.label}

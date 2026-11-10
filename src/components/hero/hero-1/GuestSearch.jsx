@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import PersonIcon from '@mui/icons-material/Person';
+import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import ChildCareIcon from '@mui/icons-material/ChildCare';
 import MaleIcon from '@mui/icons-material/Male';
 import FemaleIcon from '@mui/icons-material/Female';
@@ -342,7 +342,27 @@ const Counter = ({
   );
 };
 
-const GuestSearch = ({ onGuestChange, guestCounts }) => {
+const GuestSearch = ({ onGuestChange, guestCounts, openSignal = 0 }) => {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (openSignal) setOpen(true);
+  }, [openSignal]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
   const handleCounterChange = (name, value) => {
     const updatedGuestCounts = { ...guestCounts, [name]: value };
                  
@@ -440,13 +460,23 @@ const GuestSearch = ({ onGuestChange, guestCounts }) => {
     (guestCounts.Infants || 0);
 
   return (
-    <div className="searchMenu-guests px-20 lg:px-0 js-form-dd js-form-counters position-relative" style={{ paddingTop: 10, paddingBottom: 10 }}>
-      <div
-        data-bs-toggle="dropdown"
-        data-bs-auto-close="outside"
-        aria-expanded="false"
-        data-bs-offset="0,22"
-        className="cursor-pointer"
+    <div
+      className="searchMenu-guests px-20 lg:px-0 js-form-dd js-form-counters position-relative"
+      style={{ paddingTop: 10, paddingBottom: 10 }}
+    >
+      <button
+        type="button"
+        className="guest-search-trigger cursor-pointer"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={() => setOpen(true)}
+        style={{
+          border: 0,
+          background: "transparent",
+          padding: 0,
+          textAlign: "left",
+          width: "100%",
+        }}
       >
         <div
           style={{
@@ -486,88 +516,141 @@ const GuestSearch = ({ onGuestChange, guestCounts }) => {
             </>
           )}
         </div>
-      </div>
+      </button>
 
-      <div
-        className="shadow-2 dropdown-menu min-width-400"
-        style={{
-          maxHeight: "min(600px, calc(100vh - 120px))",
-          overflowY: "auto",
-          border: "none",
-          borderRadius: "16px",
-          boxShadow: "0 20px 40px rgba(0,0,0,0.1)",
-          animation: "fadeIn 0.3s ease-in-out",
-          zIndex: 10040,
-        }}
-      >
-        <div
-          className="bg-white px-30 py-30 rounded-4 counter-box"
-          style={{
-            background: "linear-gradient(to bottom, #ffffff, #f8f9fa)",
-            borderRadius: "16px",
-            position: "relative",
-          }}
-        >
-          <style jsx>{`
-            .button.-outline-blue-1 {
-              transition: all 0.3s ease;
-              border: 2px solid #3554d1;
-            }
-            
-            .button.-outline-blue-1:hover {
-              background: #3554d1;
-              color: white !important;
-              transform: scale(1.05);
-            }
+      {open &&
+        createPortal(
+          <div
+            className="guest-search-modal-root"
+            role="presentation"
+            onClick={() => setOpen(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 10050,
+              background: "rgba(15, 23, 42, 0.45)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 16,
+            }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Travellers"
+              className="guest-search-modal"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: "100%",
+                maxWidth: 620,
+                maxHeight: "min(640px, calc(100vh - 48px))",
+                overflowY: "auto",
+                background: "linear-gradient(to bottom, #ffffff, #f8f9fa)",
+                borderRadius: 16,
+                boxShadow: "0 24px 48px rgba(15, 23, 42, 0.22)",
+                padding: "24px 28px 20px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  marginBottom: 18,
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      color: "#7788ad",
+                    }}
+                  >
+                    Travellers
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 20,
+                      fontWeight: 700,
+                      color: "#192944",
+                      marginTop: 4,
+                    }}
+                  >
+                    Who is travelling?
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Close travellers"
+                  onClick={() => setOpen(false)}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 8,
+                    border: "1px solid #e2e8f0",
+                    background: "#fff",
+                    color: "#64748b",
+                    cursor: "pointer",
+                    fontSize: 20,
+                    lineHeight: 1,
+                  }}
+                >
+                  ×
+                </button>
+              </div>
 
-            .form-select {
-              border-radius: 8px;
-              border: 2px solid #e9ecef;
-              padding: 8px 12px;
-              transition: all 0.3s ease;
-              background: white;
-              box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            }
+              {counters.map((counter) => (
+                <Counter
+                  key={counter.name}
+                  name={counter.name}
+                  defaultValue={guestCounts[counter.name] || counter.defaultValue}
+                  onCounterChange={handleCounterChange}
+                  onGenderCountChange={handleGenderCountChange}
+                  maleCount={guestCounts.maleCount || 0}
+                  femaleCount={guestCounts.femaleCount || 0}
+                  totalAdults={guestCounts.Adults || 1}
+                  ages={
+                    counter.name === "Children"
+                      ? guestCounts.ages || []
+                      : counter.name === "Infants"
+                        ? guestCounts.infantAges || []
+                        : []
+                  }
+                  onAgeChange={
+                    counter.name === "Children"
+                      ? handleAgeChange
+                      : handleInfantAgeChange
+                  }
+                />
+              ))}
 
-            .form-select:hover {
-              border-color: #3554d1;
-            }
-
-            .form-select:focus {
-              border-color: #3554d1;
-              box-shadow: 0 0 0 2px rgba(53,84,209,0.2);
-            }
-
-            @keyframes fadeIn {
-              from { opacity: 0; transform: translateY(-10px); }
-              to { opacity: 1; transform: translateY(0); }
-            }
-          `}</style>
-
-          {counters.map((counter) => (
-            <Counter
-              key={counter.name}
-              name={counter.name}
-              defaultValue={guestCounts[counter.name] || counter.defaultValue}
-              onCounterChange={handleCounterChange}
-              onGenderCountChange={handleGenderCountChange}
-              maleCount={guestCounts.maleCount || 0}
-              femaleCount={guestCounts.femaleCount || 0}
-              totalAdults={guestCounts.Adults || 1}
-              ages={counter.name === "Children" ? (guestCounts.ages || []) : 
-                    counter.name === "Infants" ? (guestCounts.infantAges || []) : []}
-              onAgeChange={counter.name === "Children" ? handleAgeChange : handleInfantAgeChange}
-            />
-          ))}
-        </div>
-      </div>
-      <style jsx>{`
-        :global(.searchMenu-guests .dropdown-menu) {
-          top: 100% !important;
-          bottom: auto !important;
-          transform: none !important;
-        }
-      `}</style>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                style={{
+                  width: "100%",
+                  marginTop: 8,
+                  border: 0,
+                  borderRadius: 10,
+                  background: "#234adc",
+                  color: "#fff",
+                  fontWeight: 700,
+                  fontSize: 14,
+                  padding: "14px 18px",
+                  cursor: "pointer",
+                }}
+              >
+                Done
+              </button>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };
