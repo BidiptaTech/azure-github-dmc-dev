@@ -101,7 +101,9 @@ const Counter = ({
         <div className="gender-counters mt-15">
           <div className="gender-counter-item">
             <div className="gender-counter-header">
-              <MaleIcon className="custom-icon male-icon" />
+              <span className="gender-icon-badge male-badge">
+                <MaleIcon className="custom-icon male-icon" />
+              </span>
               <span className="gender-label">Male</span>
             </div>
             <div className="d-flex items-center js-counter">
@@ -127,7 +129,9 @@ const Counter = ({
 
           <div className="gender-counter-item mt-15">
             <div className="gender-counter-header">
-              <FemaleIcon className="custom-icon female-icon" />
+              <span className="gender-icon-badge female-badge">
+                <FemaleIcon className="custom-icon female-icon" />
+              </span>
               <span className="gender-label">Female</span>
             </div>
             <div className="d-flex items-center js-counter">
@@ -250,12 +254,28 @@ const Counter = ({
           color: #3554d1;
         }
         
-        :global(.male-icon) {
-          color: #2563eb;
+        .gender-icon-badge {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          flex-shrink: 0;
         }
-        
+
+        .male-badge {
+          background: #42A5F5;
+        }
+
+        .female-badge {
+          background: #BA68C8;
+        }
+
+        :global(.male-icon),
         :global(.female-icon) {
-          color: #db2777;
+          color: #fff !important;
+          font-size: 16px !important;
         }
 
         .custom-select {

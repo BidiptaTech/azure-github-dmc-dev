@@ -14,6 +14,7 @@ import { setFilter, clearFilters, setPriceMode, setPriceBounds } from "@/slice/h
 import PriceModeFilter from "../sidebar/PriceModeFilter";
 import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 import DmcFilter from "../sidebar/dmcFilter";
+import StarCategoryFilter from "../sidebar/StarCategoryFilter";
 
 const Sidebar = () => {
   const dispatch = useDispatch();
@@ -348,6 +349,12 @@ const Sidebar = () => {
         <h5 className="text-18 fw-500 mb-10">DMC</h5>
         <div className="sidebar-checkbox">
           <DmcFilter showMode />
+        </div>
+      </div>
+
+      <div className="sidebar__item -no-border">
+        <div className="sidebar-checkbox">
+          <StarCategoryFilter />
         </div>
       </div>
       
