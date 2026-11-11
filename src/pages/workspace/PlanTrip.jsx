@@ -44,17 +44,17 @@ export default function PlanTrip() {
         <Hero1 />
       </div>
 
-      <section className="partner-card">
-        <h2 className="partner-card__title">Prefer a tailor-made proposal?</h2>
-        <p className="partner-card__sub">
-          Share your brief and let a DMC create the itinerary.
+      <section className="partner-quote-cta partner-quote-cta--block">
+        <h2 className="partner-quote-cta__title">Prefer a tailor-made proposal?</h2>
+        <p className="partner-quote-cta__sub">
+          Share your brief and let your DMC create the itinerary.
         </p>
         <button
           type="button"
-          className="partner-btn"
+          className="partner-btn partner-btn--primary"
           onClick={() => navigate(QUOTES_ENQUIRY_PATH)}
         >
-          Request a custom quote →
+          Request a Custom Quote →
         </button>
       </section>
     </div>

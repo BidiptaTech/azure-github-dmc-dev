@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   Box,
   Typography,
@@ -12,13 +13,12 @@ import {
   Avatar,
 } from "@mui/material";
 import {
-  Person as PersonIcon,
   ChildCare as ChildCareIcon,
   Male as MaleIcon,
   Female as FemaleIcon,
   Add as AddIcon,
   Remove as RemoveIcon,
-} from '@mui/icons-material';
+} from "@mui/icons-material";
 
 const counters = [
   { name: "Adults", defaultValue: 1 },
@@ -386,58 +386,25 @@ const Counter = ({
 };
 
 const GuestSearch = ({ onGuestChange, guestCounts, disabled = false }) => {
-  const dropdownRef = useRef(null);
+  const [open, setOpen] = useState(false);
 
-  // Close dropdown when location becomes invalid
   useEffect(() => {
-    if (disabled && dropdownRef.current) {
-      // Force close Bootstrap dropdown
-      const dropdownElement = dropdownRef.current.querySelector('[data-bs-toggle="dropdown"]');
-      if (dropdownElement) {
-        // Remove show class and reset aria-expanded
-        dropdownElement.classList.remove('show');
-        dropdownElement.setAttribute('aria-expanded', 'false');
-        
-        // Hide the dropdown menu
-        const dropdownMenu = dropdownRef.current.querySelector('.dropdown-menu');
-        if (dropdownMenu) {
-          dropdownMenu.classList.remove('show');
-        }
-      }
-      
-      // Also try to close any Bootstrap dropdown instances
-      try {
-        // Get Bootstrap dropdown instance and hide it
-        const bootstrap = window.bootstrap;
-        if (bootstrap && bootstrap.Dropdown) {
-          const dropdownInstance = bootstrap.Dropdown.getInstance(dropdownElement);
-          if (dropdownInstance) {
-            dropdownInstance.hide();
-          }
-        }
-      } catch (error) {
-        console.log('Bootstrap dropdown close error:', error);
-      }
-      
-      // Additional fallback: Force close all dropdowns
-      setTimeout(() => {
-        const allDropdowns = document.querySelectorAll('.dropdown-menu.show');
-        allDropdowns.forEach(menu => {
-          if (dropdownRef.current && dropdownRef.current.contains(menu)) {
-            menu.classList.remove('show');
-          }
-        });
-        
-        const allDropdownToggles = document.querySelectorAll('[data-bs-toggle="dropdown"].show');
-        allDropdownToggles.forEach(toggle => {
-          if (dropdownRef.current && dropdownRef.current.contains(toggle)) {
-            toggle.classList.remove('show');
-            toggle.setAttribute('aria-expanded', 'false');
-          }
-        });
-      }, 10);
-    }
+    if (disabled) setOpen(false);
   }, [disabled]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
   const handleCounterChange = (name, value) => {
     const updatedGuestCounts = { ...guestCounts, [name]: value };
@@ -530,36 +497,33 @@ const GuestSearch = ({ onGuestChange, guestCounts, disabled = false }) => {
     onGuestChange({ ...guestCounts, infantAges: updatedInfantAges });
   };
 
-  const handleDropdownClick = (e) => {
-    if (disabled) {
-      e.preventDefault();
-      e.stopPropagation();
-      return false;
-    }
-  };
-
   const totalPax =
     (guestCounts.Adults || 0) +
     (guestCounts.Children || 0) +
     (guestCounts.Infants || 0);
 
   return (
-    <Box 
-      ref={dropdownRef}
-      className="searchMenu-guests js-form-dd js-form-counters position-relative" 
+    <Box
+      className="searchMenu-guests js-form-dd js-form-counters position-relative"
       sx={{ zIndex: 1000, padding: "8px 14px" }}
     >
-      <Box
-        data-bs-toggle={disabled ? "" : "dropdown"}
-        data-bs-auto-close="outside"
-        aria-expanded="false"
-        data-bs-offset="0,22"
-        onClick={handleDropdownClick}
-        className="cursor-pointer"
-        sx={{
+      <button
+        type="button"
+        className="guest-search-trigger cursor-pointer"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        disabled={disabled}
+        onClick={() => {
+          if (!disabled) setOpen(true);
+        }}
+        style={{
+          border: 0,
+          background: "transparent",
+          padding: 0,
+          textAlign: "left",
+          width: "100%",
           opacity: disabled ? 0.6 : 1,
-          cursor: disabled ? 'not-allowed' : 'pointer',
-          pointerEvents: disabled ? 'none' : 'auto',
+          cursor: disabled ? "not-allowed" : "pointer",
         }}
       >
         <div
@@ -600,73 +564,142 @@ const GuestSearch = ({ onGuestChange, guestCounts, disabled = false }) => {
             </>
           )}
         </div>
-      </Box>
+      </button>
 
-      <Box
-        className="shadow-2 dropdown-menu min-width-400"
-        sx={{
-          maxHeight: { xs: '70vh', sm: '80vh' },
-          border: 'none',
-          borderRadius: { xs: '12px', sm: '16px' },
-          boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
-          zIndex: 1100, 
-          position: 'absolute !important',
-          width: { xs: 'calc(100vw - 32px)', sm: '400px' },
-          maxWidth: { xs: '350px', sm: '400px' },
-          left: { xs: '50%', sm: 'auto' },
-          transform: { xs: 'translateX(-50%)', sm: 'none' },
-        }}
-      >
-        <Box
-          className="bg-white px-30 py-30 rounded-4 counter-box"
-          sx={{
-            maxHeight: { xs: '60vh', sm: '80vh' },
-            overflowY: 'auto',
-            background: 'linear-gradient(to bottom, #ffffff, #f8f9fa)',
-            borderRadius: { xs: '12px', sm: '16px' },
-            position: 'relative',
-            py: { xs: 1, sm: 1.5 },
-            px: { xs: 1.5, sm: 2 },
-            '&::-webkit-scrollbar': {
-              width: '6px',
-            },
-            '&::-webkit-scrollbar-track': {
-              background: '#f1f1f1',
-              borderRadius: '10px',
-            },
-            '&::-webkit-scrollbar-thumb': {
-              background: '#888',
-              borderRadius: '10px',
-            },
-          }}
-        >
-          {counters.map((counter) => (
-            <Counter
-              key={counter.name}
-              name={counter.name}
-              defaultValue={guestCounts[counter.name] || counter.defaultValue}
-              onCounterChange={handleCounterChange}
-              onGenderCountChange={handleGenderCountChange}
-              disabled={disabled}
-              maleCount={guestCounts.maleCount || 0}
-              femaleCount={guestCounts.femaleCount || 0}
-              totalAdults={guestCounts.Adults || 1}
-              ages={counter.name === "Children" ? (guestCounts.ages || []) : 
-                    counter.name === "Infants" ? (guestCounts.infantAges || []) : []}
-              onAgeChange={counter.name === "Children" ? handleAgeChange : handleInfantAgeChange}
-            />
-          ))}
-        </Box>
-      </Box>
+      {open &&
+        createPortal(
+          <div
+            className="guest-search-modal-root"
+            role="presentation"
+            onClick={() => setOpen(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 10050,
+              background: "rgba(15, 23, 42, 0.45)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 16,
+            }}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Travellers"
+              className="guest-search-modal"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: "100%",
+                maxWidth: 620,
+                maxHeight: "min(640px, calc(100vh - 48px))",
+                overflowY: "auto",
+                background: "linear-gradient(to bottom, #ffffff, #f8f9fa)",
+                borderRadius: 16,
+                boxShadow: "0 24px 48px rgba(15, 23, 42, 0.22)",
+                padding: "24px 28px 20px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  marginBottom: 18,
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      color: "#7788ad",
+                    }}
+                  >
+                    Travellers
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 20,
+                      fontWeight: 700,
+                      color: "#192944",
+                      marginTop: 4,
+                    }}
+                  >
+                    Who is travelling?
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Close travellers"
+                  onClick={() => setOpen(false)}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 8,
+                    border: "1px solid #e2e8f0",
+                    background: "#fff",
+                    color: "#64748b",
+                    cursor: "pointer",
+                    fontSize: 20,
+                    lineHeight: 1,
+                  }}
+                >
+                  ×
+                </button>
+              </div>
 
-      <style jsx>{`
-        :global(.searchMenu-guests .dropdown-menu) {
-          top: 100% !important;
-          bottom: auto !important;
-          transform: none !important;
-          z-index: 9999 !important;
-        }
-      `}</style>
+              {counters.map((counter) => (
+                <Counter
+                  key={counter.name}
+                  name={counter.name}
+                  defaultValue={guestCounts[counter.name] || counter.defaultValue}
+                  onCounterChange={handleCounterChange}
+                  onGenderCountChange={handleGenderCountChange}
+                  disabled={disabled}
+                  maleCount={guestCounts.maleCount || 0}
+                  femaleCount={guestCounts.femaleCount || 0}
+                  totalAdults={guestCounts.Adults || 1}
+                  ages={
+                    counter.name === "Children"
+                      ? guestCounts.ages || []
+                      : counter.name === "Infants"
+                        ? guestCounts.infantAges || []
+                        : []
+                  }
+                  onAgeChange={
+                    counter.name === "Children"
+                      ? handleAgeChange
+                      : handleInfantAgeChange
+                  }
+                />
+              ))}
+
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                style={{
+                  width: "100%",
+                  marginTop: 8,
+                  border: 0,
+                  borderRadius: 10,
+                  background: "#234adc",
+                  color: "#fff",
+                  fontWeight: 700,
+                  fontSize: 14,
+                  padding: "14px 18px",
+                  cursor: "pointer",
+                }}
+              >
+                Done
+              </button>
+            </div>
+          </div>,
+          document.body
+        )}
     </Box>
   );
 };

@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
   FormControl,
-  FormLabel,
   RadioGroup,
   FormControlLabel,
   Radio,
@@ -11,11 +10,14 @@ import {
   CircularProgress,
   Alert,
   Paper,
+  TextField,
+  InputAdornment,
 } from '@mui/material';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchDMCsByCountry, setSelectedDmcId, setDmcDataMode, selectDmcDataMode } from '../../../slice/dmc/dmcSlice';
 import { triggerSearch } from '../../../slice/common/stepsSlice';
 import BusinessIcon from '@mui/icons-material/Business';
+import SearchIcon from '@mui/icons-material/Search';
 import { resetHotels } from '@/slice/hotel/hotelSlice';
 import { resetVehicles } from '@/slice/port/pickupDropSlice';
 import { clearAttractions } from '@/slice/attractions/attractionSlice';
@@ -135,6 +137,7 @@ const DmcFilter = ({ showMode = false }) => {
   const selectedDmcCompanyName = useSelector((state) => state.dmc?.selectedDmcCompanyName);
   
   const [localSelectedDmc, setLocalSelectedDmc] = useState('');
+  const [dmcQuery, setDmcQuery] = useState('');
   const dataMode = useSelector(selectDmcDataMode);
 
   // Fetch DMCs when destination changes (skip if booking/cart locks DMC)
@@ -342,6 +345,46 @@ const DmcFilter = ({ showMode = false }) => {
     dispatch(setSelectedDmcId({ dmcId: null, dmcData: null }));
   };
 
+  // Check if we have DMC data
+  const dmcList = dmcs?.data || [];
+
+  // When booking/cart locks DMC, show only the selected DMC
+  // Otherwise show all DMCs
+  const displayDmcList = lockDmcSelection && selectedDmcData
+    ? [{
+        ...(selectedDmcData?.originalData || {}),
+        userId: selectedDmcId,
+        company_name: selectedDmcCompanyName || selectedDmcData?.name,
+        name: selectedDmcData?.name,
+        logo: selectedDmcLogo || selectedDmcData?.logo,
+        country: selectedDmcData?.location,
+        price_hide: selectedDmcData?.originalData?.price_hide || 0,
+        zone_on: selectedDmcData?.originalData?.zone_on || 0
+      }]
+    : lockDmcSelection && selectedDmcId
+      ? [{
+          userId: selectedDmcId,
+          company_name: selectedDmcCompanyName || `DMC ${selectedDmcId}`,
+          name: selectedDmcCompanyName || `DMC ${selectedDmcId}`,
+          logo: selectedDmcLogo || '',
+          country: '',
+          price_hide: 0,
+          zone_on: 0,
+        }]
+    : dmcList;
+
+  const showDmcSearch = !lockDmcSelection && displayDmcList.length > 0;
+
+  const filteredDmcList = useMemo(() => {
+    const query = dmcQuery.trim().toLowerCase();
+    if (!showDmcSearch || !query) return displayDmcList;
+    return displayDmcList.filter((dmc) => {
+      const name = `${dmc.company_name || ""} ${dmc.name || ""}`.toLowerCase();
+      const country = String(dmc.country || "").toLowerCase();
+      return name.includes(query) || country.includes(query);
+    });
+  }, [displayDmcList, dmcQuery, showDmcSearch]);
+
   // Show loading state
   if (loading) {
     return (
@@ -365,34 +408,6 @@ const DmcFilter = ({ showMode = false }) => {
     );
   }
 
-  // Check if we have DMC data
-  const dmcList = dmcs?.data || [];
-  
-  // When booking/cart locks DMC, show only the selected DMC
-  // Otherwise show all DMCs
-  const displayDmcList = lockDmcSelection && selectedDmcData 
-    ? [{
-        ...(selectedDmcData?.originalData || {}),
-        userId: selectedDmcId,
-        company_name: selectedDmcCompanyName || selectedDmcData?.name,
-        name: selectedDmcData?.name,
-        logo: selectedDmcLogo || selectedDmcData?.logo,
-        country: selectedDmcData?.location,
-        price_hide: selectedDmcData?.originalData?.price_hide || 0,
-        zone_on: selectedDmcData?.originalData?.zone_on || 0
-      }]
-    : lockDmcSelection && selectedDmcId
-      ? [{
-          userId: selectedDmcId,
-          company_name: selectedDmcCompanyName || `DMC ${selectedDmcId}`,
-          name: selectedDmcCompanyName || `DMC ${selectedDmcId}`,
-          logo: selectedDmcLogo || '',
-          country: '',
-          price_hide: 0,
-          zone_on: 0,
-        }]
-    : dmcList;
-
   // Don't show filter if no DMCs available
   if (displayDmcList.length === 0) {
     return null;
@@ -412,14 +427,40 @@ const DmcFilter = ({ showMode = false }) => {
           </Typography>
         </Box>
 
+        {showDmcSearch ? (
+          <TextField
+            className="pw-dmc-filter__search"
+            size="small"
+            fullWidth
+            value={dmcQuery}
+            onChange={(event) => setDmcQuery(event.target.value)}
+            placeholder="Search DMC name"
+            inputProps={{ "aria-label": "Search DMC name" }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon sx={{ fontSize: 16, color: "#94a3b8" }} />
+                </InputAdornment>
+              ),
+            }}
+            sx={{ mb: 1.25 }}
+          />
+        ) : null}
+
         <FormControl component="fieldset" fullWidth sx={{ minWidth: 0 }}>
           <RadioGroup
+            className="pw-dmc-filter__list"
             value={localSelectedDmc}
             onChange={handleDmcChange}
             disabled={lockDmcSelection}
             sx={{ width: "100%" }}
           >
-            {displayDmcList.map((dmc) => (
+            {filteredDmcList.length === 0 ? (
+              <Typography variant="caption" sx={{ color: "text.secondary", px: 0.5, py: 1 }}>
+                No DMCs match “{dmcQuery.trim()}”.
+              </Typography>
+            ) : null}
+            {filteredDmcList.map((dmc) => (
               <FormControlLabel
                 key={dmc.userId}
                 className="pw-dmc-filter__option"

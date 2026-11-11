@@ -1,49 +1,39 @@
-import LandingHero from "@/components/hero/landing-hero";
-import LandingNavbar from "@/components/header/LandingNavbar";
-import AboutCompany from "@/components/home/AboutCompany";
-import PopularDestinations from "@/components/home/PopularDestinations";
-import PopularTours from "@/components/home/PopularTours";
-import {
-  SUPPORTED_COUNTRIES,
-  LANDING_HERO_SLIDES,
-  LANDING_DESTINATIONS,
-  LANDING_TOURS,
-} from "./landingCountries";
-import TestimonialsSection from "@/components/home/TestimonialsSection";
-import WhyChooseUs from "@/components/home/WhyChooseUs";
-import Footer from "@/components/common/Footer";
+import "@/styles/landing-concept.scss";
 import MetaComponent from "@/components/common/MetaComponent";
+import { LandingSymbols } from "@/components/landing/LandingIcons";
+import LandingHeader from "@/components/landing/LandingHeader";
+import LandingHero from "@/components/landing/LandingHero";
+import {
+  LandingJourney,
+  LandingPlatform,
+  LandingMobile,
+  LandingDestinations,
+  LandingProgrammes,
+  LandingEndCta,
+  LandingFooter,
+} from "@/components/landing/LandingSections";
 
 const metadata = {
-  title: "Travclicks — AI-Powered Travel Technology",
+  title: "Travclicks | Travel operations platform",
   description:
-    "AI-powered travel solutions for travel agencies. Automate operations, accelerate sales, and deliver real-time traveler experiences across Singapore, Malaysia, Thailand, Indonesia, Australia, New Zealand, Laos, Cambodia, and UAE.",
+    "Build a client trip, work with your DMC, and keep travellers informed as local teams deliver the itinerary. Travel operations technology for agents and DMCs.",
 };
 
 const LandingPage = () => {
   return (
-    <>
+    <div className="landing-concept">
       <MetaComponent meta={metadata} />
-
-      <LandingNavbar />
-
-      <LandingHero heroSlides={LANDING_HERO_SLIDES} />
-
-      <AboutCompany />
-
-      <PopularDestinations
-        countries={SUPPORTED_COUNTRIES}
-        destinations={LANDING_DESTINATIONS}
-      />
-
-      <PopularTours tours={LANDING_TOURS} />
-
-      <WhyChooseUs />
-
-      <TestimonialsSection />
-
-      <Footer />
-    </>
+      <LandingSymbols />
+      <LandingHeader />
+      <LandingHero />
+      <LandingJourney />
+      <LandingPlatform />
+      <LandingMobile />
+      <LandingDestinations />
+      <LandingProgrammes />
+      <LandingEndCta />
+      <LandingFooter />
+    </div>
   );
 };
 

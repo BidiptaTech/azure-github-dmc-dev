@@ -10,6 +10,65 @@ export const SUPPORTED_COUNTRIES = [
   "UAE",
 ];
 
+export const LANDING_MARKETS = {
+  Singapore:
+    "Combine city sightseeing, business travel and resort stays around Marina Bay and Sentosa.",
+  Malaysia:
+    "Plan city stays and regional excursions, including Kuala Lumpur and Genting.",
+  Thailand: "Combine city and beach stays in a Bangkok and Phuket programme.",
+  Indonesia: "Plan Bali stays, cultural visits and private transfers.",
+  Australia:
+    "Explore city stays, touring and ground services for longer itineraries.",
+  "New Zealand":
+    "Explore multi-stop programmes that combine scenic touring and accommodation.",
+  Laos: "Explore cultural visits, city stays and ground arrangements.",
+  Cambodia: "Explore heritage itineraries with accommodation and local touring.",
+  UAE: "Explore city stays, business travel and ground services.",
+};
+
+export const LANDING_PROGRAMMES = [
+  {
+    market: "Malaysia",
+    title: "Kuala Lumpur & Genting Highlights",
+    duration: "5 days / 4 nights",
+    image: "/Images/landingpage/destination/Malaysia/2.jpg",
+    stops: [
+      "Arrival and hotel check-in",
+      "Kuala Lumpur sightseeing",
+      "Genting Highlands excursion",
+      "Leisure time",
+      "Departure transfer",
+    ],
+  },
+  {
+    market: "Thailand",
+    title: "Bangkok & Phuket Combined Circuit",
+    duration: "6 days / 5 nights",
+    image: "/Images/landingpage/destination/Thailand/3.jpg",
+    stops: [
+      "Bangkok arrival",
+      "Bangkok sightseeing",
+      "Transfer to Phuket",
+      "Phuket touring",
+      "Leisure time",
+      "Departure transfer",
+    ],
+  },
+  {
+    market: "Indonesia",
+    title: "Bali Culture & Coast",
+    duration: "5 days / 4 nights",
+    image: "/Images/landingpage/destination/Bali/3.jpg",
+    stops: [
+      "Arrival and hotel check-in",
+      "Cultural touring",
+      "Coastal sightseeing",
+      "Leisure time",
+      "Departure transfer",
+    ],
+  },
+];
+
 export const LANDING_HERO_SLIDES = [
   {
     id: 1,

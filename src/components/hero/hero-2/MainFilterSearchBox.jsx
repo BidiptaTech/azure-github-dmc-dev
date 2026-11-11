@@ -2,6 +2,9 @@ import React, { useState, useCallback, useEffect } from "react";
 import DateSearch from "../DateSearch";
 import GuestSearch from "./GuestSearch";
 import CitySearch from "./CitySearch";
+import MultiCityLegs, {
+  defaultMultiLegs,
+} from "@/components/hero/hero-1/MultiCityLegs";
 import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
 import { useDispatch, useSelector } from "react-redux";
@@ -55,6 +58,7 @@ const MainFilterSearchBox = ({ onNext }) => {
   const [selectedDates, setSelectedDates] = useState([]);
   const [cityDates, setCityDates] = useState({});
   const [tripType, setTripType] = useState("single");
+  const [multiLegs, setMultiLegs] = useState(() => defaultMultiLegs());
   const [guestCounts, setGuestCounts] = useState({
     Adults: 1,
     Children: 0,
@@ -164,22 +168,34 @@ const MainFilterSearchBox = ({ onNext }) => {
     dispatch(clearEnquiryList());
   };
 
-  const validateForm = () => {
-    if (!selectedCities.length) {
+  const validateForm = (opts = {}) => {
+    const cities = opts.cities || selectedCities;
+    const dates = opts.selectedDates || selectedDates;
+    const perCityDates = opts.cityDates || cityDates;
+    const datesReady = Array.isArray(dates) && dates.length === 2;
+    const cityDatesReady =
+      cities.length <= 1 ||
+      cities.every(
+        (city) =>
+          Array.isArray(perCityDates[city.city_id]) &&
+          perCityDates[city.city_id].length === 2
+      );
+
+    if (!cities.length) {
       setSnackbarMessage("Please select at least one city.");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
       return false;
     }
 
-    if (!hasTotalDates) {
+    if (!datesReady) {
       setSnackbarMessage("Please select both check-in and check-out dates.");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
       return false;
     }
 
-    if (selectedCities.length > 1 && !allCityDatesFilled) {
+    if (cities.length > 1 && !cityDatesReady) {
       setSnackbarMessage("Please set stay dates for every city.");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
@@ -230,23 +246,36 @@ const MainFilterSearchBox = ({ onNext }) => {
   };
 
   const handleSearch = useCallback(
-    async (e) => {
-      e.preventDefault();
-      if (!validateForm()) return;
+    async (e, overrides = null) => {
+      e?.preventDefault?.();
 
-      const formattedCheckIn = formatDateValue(selectedDates[0]);
-      const formattedCheckOut = formatDateValue(selectedDates[1]);
+      const citiesForSearch = overrides?.cities || selectedCities;
+      const datesForSearch = overrides?.selectedDates || selectedDates;
+      const cityDatesForSearch = overrides?.cityDates || cityDates;
 
-      const cityNames = selectedCities.map((c) => c.city).filter(Boolean);
+      if (
+        !validateForm({
+          cities: citiesForSearch,
+          selectedDates: datesForSearch,
+          cityDates: cityDatesForSearch,
+        })
+      ) {
+        return;
+      }
+
+      const formattedCheckIn = formatDateValue(datesForSearch[0]);
+      const formattedCheckOut = formatDateValue(datesForSearch[1]);
+
+      const cityNames = citiesForSearch.map((c) => c.city).filter(Boolean);
       const countryNames = [
-        ...new Set(selectedCities.map((c) => c.country).filter(Boolean)),
+        ...new Set(citiesForSearch.map((c) => c.country).filter(Boolean)),
       ];
 
-      const cityWiseDatesPayload = selectedCities.map((city) => {
+      const cityWiseDatesPayload = citiesForSearch.map((city) => {
         const range =
-          selectedCities.length === 1
-            ? selectedDates
-            : cityDates[city.city_id] || [];
+          citiesForSearch.length === 1
+            ? datesForSearch
+            : cityDatesForSearch[city.city_id] || [];
         return {
           city: city.city,
           checkIn: formatDateValue(range[0]),
@@ -254,13 +283,16 @@ const MainFilterSearchBox = ({ onNext }) => {
         };
       });
 
-      const firstCity = selectedCities[0];
+      const firstCity = citiesForSearch[0];
+
+      dispatch(clearSelectedCities());
+      citiesForSearch.forEach((city) => dispatch(addSelectedCity(city)));
 
       dispatch(
         setSearchLocation({
           country: countryNames.join(", "),
           city: cityNames.join(", "),
-          cities: selectedCities.map((c) => ({
+          cities: citiesForSearch.map((c) => ({
             city: c.city,
             country: c.country,
             city_id: c.city_id,
@@ -326,8 +358,6 @@ const MainFilterSearchBox = ({ onNext }) => {
       guestCounts,
       dispatch,
       onNext,
-      allCityDatesFilled,
-      hasTotalDates,
     ]
   );
 
@@ -372,11 +402,72 @@ const MainFilterSearchBox = ({ onNext }) => {
 
   const setTripTypeMode = (id) => {
     setTripType(id);
-    if (id === "single" && selectedCities.length > 1) {
-      const keep = selectedCities[0];
-      dispatch(clearSelectedCities());
-      if (keep) dispatch(addSelectedCity(keep));
+    if (id === "single") {
+      if (selectedCities.length > 1) {
+        const keep = selectedCities[0];
+        dispatch(clearSelectedCities());
+        if (keep) dispatch(addSelectedCity(keep));
+      }
+      return;
     }
+
+    setMultiLegs((prev) => {
+      const base =
+        Array.isArray(prev) && prev.length >= 2
+          ? prev
+          : defaultMultiLegs(selectedDates);
+      if (selectedCities[0] && !base[0].city) {
+        return base.map((leg, idx) =>
+          idx === 0 ? { ...leg, city: selectedCities[0] } : leg
+        );
+      }
+      return base;
+    });
+  };
+
+  const canSearchMultiLegs =
+    tripType === "multi" &&
+    multiLegs.length >= 2 &&
+    multiLegs.every(
+      (leg) =>
+        leg.city?.city_id &&
+        Array.isArray(leg.dates) &&
+        leg.dates.length === 2
+    ) &&
+    guestCounts.Adults > 0;
+
+  const handleMultiSearch = async (e) => {
+    e?.preventDefault?.();
+    if (!canSearchMultiLegs) {
+      setSnackbarMessage("Please complete city and dates for each stop.");
+      setSnackbarSeverity("error");
+      setOpenSnackbar(true);
+      return;
+    }
+
+    const cities = multiLegs.map((leg) => leg.city).filter(Boolean);
+    const nextCityDates = {};
+    multiLegs.forEach((leg) => {
+      if (leg.city?.city_id && Array.isArray(leg.dates) && leg.dates.length === 2) {
+        nextCityDates[leg.city.city_id] = leg.dates;
+      }
+    });
+    const tripDates = [
+      multiLegs[0].dates[0],
+      multiLegs[multiLegs.length - 1].dates[1],
+    ];
+
+    setSelectedDates(tripDates);
+    setCityDates(nextCityDates);
+
+    await handleSearch(
+      { preventDefault() {} },
+      {
+        cities,
+        selectedDates: tripDates,
+        cityDates: nextCityDates,
+      }
+    );
   };
 
   return (
@@ -424,6 +515,17 @@ const MainFilterSearchBox = ({ onNext }) => {
         ))}
       </div>
 
+      {tripType === "multi" ? (
+        <MultiCityLegs
+          legs={multiLegs}
+          onLegsChange={setMultiLegs}
+          guestCounts={guestCounts}
+          onGuestChange={handleGuestChange}
+          onSearch={handleMultiSearch}
+          canSearch={canSearchMultiLegs}
+          ctaLabel="Continue to services →"
+        />
+      ) : (
       <div
         className="bg-white hero-search-bar"
         style={{
@@ -776,6 +878,7 @@ const MainFilterSearchBox = ({ onNext }) => {
             </div>
           )}
       </div>
+      )}
 
       <div className="hero-room-options">
         <button
@@ -783,7 +886,7 @@ const MainFilterSearchBox = ({ onNext }) => {
           className="hero-room-options__btn"
           onClick={() => {
             const guestToggle = document.querySelector(
-              ".hero-search-reserve .searchMenu-guests [data-bs-toggle='dropdown']"
+              ".hero-search-reserve .searchMenu-guests .guest-search-trigger"
             );
             if (guestToggle) guestToggle.click();
           }}

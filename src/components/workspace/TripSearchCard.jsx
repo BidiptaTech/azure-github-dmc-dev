@@ -63,6 +63,19 @@ export default function TripSearchCard({
   const [arrival, setArrival] = useState(defaultArrival);
   const [departure, setDeparture] = useState(defaultDeparture);
   const [travellers, setTravellers] = useState("2");
+  const [cityLegs, setCityLegs] = useState(() => {
+    const a = defaultArrival();
+    const b = defaultDeparture();
+    const c = (() => {
+      const d = new Date(b);
+      d.setDate(d.getDate() + 3);
+      return d.toISOString().slice(0, 10);
+    })();
+    return [
+      { key: "leg-1", destination: "Singapore", arrival: a, departure: b, travellers: "2" },
+      { key: "leg-2", destination: "Kuala Lumpur", arrival: b, departure: c, travellers: "2" },
+    ];
+  });
   const [rooms] = useState(1);
   const [children] = useState(0);
   const [infants] = useState(0);
@@ -100,47 +113,69 @@ export default function TripSearchCard({
     e.preventDefault();
     if (submitting) return;
 
-    if (!arrival || !departure) {
-      swal({
-        title: "Missing dates",
-        text: "Please select arrival and departure dates.",
-        icon: "warning",
-        button: "OK",
-      });
-      return;
-    }
+    const legs =
+      mode === "multi"
+        ? cityLegs
+        : [
+            {
+              destination,
+              arrival,
+              departure,
+              travellers,
+            },
+          ];
 
-    if (moment(departure).isSameOrBefore(moment(arrival), "day")) {
-      swal({
-        title: "Invalid dates",
-        text: "Departure must be after arrival.",
-        icon: "warning",
-        button: "OK",
-      });
-      return;
+    for (const leg of legs) {
+      if (!leg.arrival || !leg.departure) {
+        swal({
+          title: "Missing dates",
+          text: "Please select arrival and departure dates for each city.",
+          icon: "warning",
+          button: "OK",
+        });
+        return;
+      }
+      if (moment(leg.departure).isSameOrBefore(moment(leg.arrival), "day")) {
+        swal({
+          title: "Invalid dates",
+          text: "Departure must be after arrival for each city.",
+          icon: "warning",
+          button: "OK",
+        });
+        return;
+      }
     }
 
     setSubmitting(true);
 
     try {
-      const adults = Number(travellers) || 1;
-      const checkIn = moment(arrival).format("DD/MM/YYYY");
-      const checkOut = moment(departure).format("DD/MM/YYYY");
+      const adults = Number(legs[0].travellers || travellers) || 1;
+      const checkIn = moment(legs[0].arrival).format("DD/MM/YYYY");
+      const checkOut = moment(legs[legs.length - 1].departure).format(
+        "DD/MM/YYYY"
+      );
 
-      const resolved = await resolveCity(destination);
-      const destinationLocations = [
-        { city: resolved.city, country: resolved.country || "" },
+      const resolvedLegs = [];
+      for (const leg of legs) {
+        resolvedLegs.push({
+          ...(await resolveCity(leg.destination)),
+          arrival: leg.arrival,
+          departure: leg.departure,
+        });
+      }
+
+      const destinationLocations = resolvedLegs.map((r) => ({
+        city: r.city,
+        country: r.country || "",
+      }));
+      const destinationCountries = [
+        ...new Set(resolvedLegs.map((r) => r.country).filter(Boolean)),
       ];
-      const destinationCountries = resolved.country
-        ? [resolved.country]
-        : [];
-      const cityWiseDatesPayload = [
-        {
-          city: resolved.city,
-          checkIn,
-          checkOut,
-        },
-      ];
+      const cityWiseDatesPayload = resolvedLegs.map((r) => ({
+        city: r.city,
+        checkIn: moment(r.arrival).format("DD/MM/YYYY"),
+        checkOut: moment(r.departure).format("DD/MM/YYYY"),
+      }));
 
       // Same DMC availability check as MainFilterSearchBox
       if (destinationCountries.length) {
@@ -181,9 +216,9 @@ export default function TripSearchCard({
       dispatch(setHaveBooking(false));
       dispatch(clearSelectedDmc());
       dispatch(clearSelectedCities());
-      if (resolved.city_id) {
-        dispatch(addSelectedCity(resolved));
-      }
+      resolvedLegs.forEach((resolved) => {
+        if (resolved.city_id) dispatch(addSelectedCity(resolved));
+      });
 
       dispatch(resetHotels());
       dispatch(clearAttractions());
@@ -198,6 +233,8 @@ export default function TripSearchCard({
       clearBookingFlow(dispatch);
       dispatch(clearCart());
 
+      const primary = resolvedLegs[0];
+
       // Same Redux search fields as existing hotel search
       applyTourSearchToRedux(dispatch, {
         destination: destinationLocations,
@@ -208,9 +245,9 @@ export default function TripSearchCard({
         children,
         infants,
         city_type: mode === "multi" ? "multi" : "single",
-        country: resolved.country || "",
-        searchLocation: resolved.country_code
-          ? [resolved.country_code]
+        country: primary.country || "",
+        searchLocation: primary.country_code
+          ? [primary.country_code]
           : undefined,
       });
 
@@ -223,7 +260,7 @@ export default function TripSearchCard({
       };
 
       const searchParams = new URLSearchParams({
-        location: resolved.city,
+        location: resolvedLegs.map((r) => r.city).join(","),
         dates: [checkIn, checkOut].join(","),
         guests: JSON.stringify(guestCounts),
       });
@@ -260,67 +297,223 @@ export default function TripSearchCard({
         </div>
       )}
 
-      <form className="partner-searchbar" onSubmit={handleSubmit}>
-        <div className="partner-field">
-          <label htmlFor="pw-destination">Destination</label>
-          <select
-            id="pw-destination"
-            value={destination}
-            onChange={(e) => setDestination(e.target.value)}
+      {mode === "multi" ? (
+        <form className="partner-multicity" onSubmit={handleSubmit}>
+          {cityLegs.map((leg, index) => (
+            <div className="partner-searchbar partner-searchbar--leg" key={leg.key}>
+              <div className="partner-field">
+                <label htmlFor={`pw-city-${index}`}>City {index + 1}</label>
+                <select
+                  id={`pw-city-${index}`}
+                  value={leg.destination}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setCityLegs((prev) =>
+                      prev.map((row, i) =>
+                        i === index ? { ...row, destination: value } : row
+                      )
+                    );
+                  }}
+                  disabled={submitting}
+                >
+                  {DESTINATIONS.map((city) => (
+                    <option key={city} value={city}>
+                      {city}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="partner-field">
+                <label htmlFor={`pw-arrival-${index}`}>Arrival</label>
+                <input
+                  id={`pw-arrival-${index}`}
+                  type="date"
+                  required
+                  value={leg.arrival}
+                  min={index > 0 ? cityLegs[index - 1].departure : undefined}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setCityLegs((prev) => {
+                      const next = prev.map((row, i) =>
+                        i === index ? { ...row, arrival: value } : row
+                      );
+                      if (
+                        next[index + 1] &&
+                        moment(next[index].departure).isSameOrBefore(
+                          moment(value),
+                          "day"
+                        )
+                      ) {
+                        const dep = moment(value).add(3, "days").format("YYYY-MM-DD");
+                        next[index] = { ...next[index], departure: dep };
+                        next[index + 1] = {
+                          ...next[index + 1],
+                          arrival: dep,
+                        };
+                      }
+                      return next;
+                    });
+                  }}
+                  disabled={submitting}
+                />
+              </div>
+              <div className="partner-field">
+                <label htmlFor={`pw-departure-${index}`}>Departure</label>
+                <input
+                  id={`pw-departure-${index}`}
+                  type="date"
+                  required
+                  value={leg.departure}
+                  min={leg.arrival}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setCityLegs((prev) => {
+                      const next = prev.map((row, i) =>
+                        i === index ? { ...row, departure: value } : row
+                      );
+                      if (next[index + 1]) {
+                        next[index + 1] = {
+                          ...next[index + 1],
+                          arrival: value,
+                        };
+                      }
+                      return next;
+                    });
+                  }}
+                  disabled={submitting}
+                />
+              </div>
+              <button
+                type="button"
+                className="partner-btn partner-btn--secondary"
+                aria-label={`Remove city ${index + 1}`}
+                disabled={cityLegs.length <= 2 || submitting}
+                onClick={() => {
+                  if (cityLegs.length <= 2) return;
+                  setCityLegs((prev) => prev.filter((_, i) => i !== index));
+                }}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          <div className="partner-searchbar partner-searchbar--leg partner-searchbar--travellers">
+            <div className="partner-field">
+              <label htmlFor="pw-travellers-multi">Travellers</label>
+              <select
+                id="pw-travellers-multi"
+                value={travellers}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setTravellers(value);
+                  setCityLegs((prev) =>
+                    prev.map((row) => ({ ...row, travellers: value }))
+                  );
+                }}
+                disabled={submitting}
+              >
+                {[1, 2, 3, 4, 5, 6, 8, 10].map((n) => (
+                  <option key={n} value={n}>
+                    {n} adults
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              className="partner-btn partner-btn--secondary"
+              disabled={submitting}
+              onClick={() => {
+                const last = cityLegs[cityLegs.length - 1];
+                const nextDep = moment(last.departure)
+                  .add(3, "days")
+                  .format("YYYY-MM-DD");
+                setCityLegs((prev) => [
+                  ...prev,
+                  {
+                    key: `leg-${Date.now()}`,
+                    destination: DESTINATIONS[prev.length % DESTINATIONS.length],
+                    arrival: last.departure,
+                    departure: nextDep,
+                    travellers,
+                  },
+                ]);
+              }}
+            >
+              + Add city
+            </button>
+            <button
+              type="submit"
+              className="partner-btn partner-btn--primary"
+              disabled={submitting}
+            >
+              {submitting ? "Searching…" : "Build multi-city trip →"}
+            </button>
+          </div>
+        </form>
+      ) : (
+        <form className="partner-searchbar" onSubmit={handleSubmit}>
+          <div className="partner-field">
+            <label htmlFor="pw-destination">Destination</label>
+            <select
+              id="pw-destination"
+              value={destination}
+              onChange={(e) => setDestination(e.target.value)}
+              disabled={submitting}
+            >
+              {DESTINATIONS.map((city) => (
+                <option key={city} value={city}>
+                  {city}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="partner-field">
+            <label htmlFor="pw-arrival">Arrival</label>
+            <input
+              id="pw-arrival"
+              type="date"
+              required
+              value={arrival}
+              onChange={(e) => setArrival(e.target.value)}
+              disabled={submitting}
+            />
+          </div>
+          <div className="partner-field">
+            <label htmlFor="pw-departure">Departure</label>
+            <input
+              id="pw-departure"
+              type="date"
+              required
+              value={departure}
+              onChange={(e) => setDeparture(e.target.value)}
+              disabled={submitting}
+            />
+          </div>
+          <div className="partner-field">
+            <label htmlFor="pw-travellers">Travellers</label>
+            <select
+              id="pw-travellers"
+              value={travellers}
+              onChange={(e) => setTravellers(e.target.value)}
+              disabled={submitting}
+            >
+              {[1, 2, 3, 4, 5, 6, 8, 10].map((n) => (
+                <option key={n} value={n}>
+                  {n} adults
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            type="submit"
+            className="partner-btn partner-btn--primary"
             disabled={submitting}
           >
-            {DESTINATIONS.map((city) => (
-              <option key={city} value={city}>
-                {city}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="partner-field">
-          <label htmlFor="pw-arrival">Arrival</label>
-          <input
-            id="pw-arrival"
-            type="date"
-            required
-            value={arrival}
-            onChange={(e) => setArrival(e.target.value)}
-            disabled={submitting}
-          />
-        </div>
-        <div className="partner-field">
-          <label htmlFor="pw-departure">Departure</label>
-          <input
-            id="pw-departure"
-            type="date"
-            required
-            value={departure}
-            onChange={(e) => setDeparture(e.target.value)}
-            disabled={submitting}
-          />
-        </div>
-        <div className="partner-field">
-          <label htmlFor="pw-travellers">Travellers</label>
-          <select
-            id="pw-travellers"
-            value={travellers}
-            onChange={(e) => setTravellers(e.target.value)}
-            disabled={submitting}
-          >
-            {[1, 2, 3, 4, 5, 6, 8, 10].map((n) => (
-              <option key={n} value={n}>
-                {n} adults
-              </option>
-            ))}
-          </select>
-        </div>
-        <button
-          type="submit"
-          className="partner-btn partner-btn--primary"
-          disabled={submitting}
-        >
-          {submitting ? "Searching…" : "Find stays & services →"}
-        </button>
-      </form>
+            {submitting ? "Searching…" : "Find stays & services →"}
+          </button>
+        </form>
+      )}
 
       {showRoomOptions && (
         <div className="partner-trip-hero__options">

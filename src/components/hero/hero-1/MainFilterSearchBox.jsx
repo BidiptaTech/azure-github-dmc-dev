@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import DateSearch from "../DateSearch";
 import GuestSearch from "./GuestSearch";
 import LocationSearch from "./LocationSearch";
+import MultiCityLegs, { defaultMultiLegs } from "./MultiCityLegs";
 import Snackbar from "@mui/material/Snackbar";
 import MuiAlert from "@mui/material/Alert";
 import { useDispatch, useSelector } from "react-redux";
@@ -42,7 +43,30 @@ import { clearSelectedCities, addSelectedCity } from "@/slice/common/citiesSlice
 import { clearBookingFlow } from "@/utils/clearBookingFlow";
 import { clearViewDetails } from "@/slice/common/ViewDetails";
 import { clearCart } from "@/slice/cart/carSlice";
+import { appPath } from "@/utils/appPaths";
 import swal from "sweetalert";
+
+const toDdMmYyyy = (date) => {
+  if (!date) return "";
+  try {
+    if (typeof date?.format === "function") {
+      const iso = date.format("YYYY-MM-DD");
+      if (iso && moment(iso, "YYYY-MM-DD", true).isValid()) {
+        return moment(iso, "YYYY-MM-DD").format("DD/MM/YYYY");
+      }
+      const direct = date.format("DD/MM/YYYY");
+      if (direct) return direct;
+    }
+    if (date instanceof Date) return moment(date).format("DD/MM/YYYY");
+    if (typeof date === "string") {
+      const parsed = moment(date, ["DD/MM/YYYY", "YYYY-MM-DD", moment.ISO_8601], true);
+      return parsed.isValid() ? parsed.format("DD/MM/YYYY") : date;
+    }
+    return moment(date).format("DD/MM/YYYY");
+  } catch {
+    return moment(date).format("DD/MM/YYYY");
+  }
+};
 
 // Create a reusable alert component
 const Alert = React.forwardRef(function Alert(props, ref) {
@@ -64,13 +88,17 @@ const MainFilterSearchBox = () => {
     Adults: 1,
     Children: 0,
     Infants: 0,
+    maleCount: 1,
+    femaleCount: 0,
     genders: [""], // Store gender selections for adults
-    ages: [""], // Store age selections for children
+    ages: [], // Store age selections for children
   });
   const [openSnackbar, setOpenSnackbar] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("error");
+  const [guestModalSignal, setGuestModalSignal] = useState(0);
   const [tripType, setTripType] = useState("single"); // single | multi
+  const [multiLegs, setMultiLegs] = useState(() => defaultMultiLegs());
 
   const formatGoibiboDate = (date) => {
     if (!date) return { primary: "Select date", secondary: "Tap to choose" };
@@ -88,13 +116,7 @@ const MainFilterSearchBox = () => {
     }
   };
 
-  const formatDateValue = (date) => {
-    if (!date) return "";
-    if (typeof date.format === "function") return date.format("DD/MM/YYYY");
-    if (date instanceof Date) return moment(date).format("DD/MM/YYYY");
-    if (typeof date === "string") return date;
-    return moment(date).format("DD/MM/YYYY");
-  };
+  const formatDateValue = (date) => toDdMmYyyy(date);
 
   const handleLocationSelect = (location) => {
     console.log("Selected Location:", location);
@@ -253,15 +275,19 @@ const MainFilterSearchBox = () => {
     }
   }, [selectedCities, selectedDates, hasTotalDates]);
 
-  const validateForm = () => {
-    if (!selectedCities.length) {
+  const validateForm = (opts = {}) => {
+    const cities = opts.cities || selectedCities;
+    const dates = opts.selectedDates || selectedDates;
+    const perCityDates = opts.cityDates || cityDates;
+
+    if (!cities.length) {
       setSnackbarMessage("Please select at least one city.");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
       return false;
     }
 
-    if (selectedDates.length === 0) {
+    if (!dates || dates.length === 0) {
       setSnackbarMessage("Please select check-in and check-out dates.");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
@@ -269,14 +295,22 @@ const MainFilterSearchBox = () => {
     }
 
     // Validate that both check-in and check-out dates are selected
-    if (selectedDates.length !== 2) {
+    if (dates.length !== 2) {
       setSnackbarMessage("Please select both check-in and check-out dates.");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
       return false;
     }
 
-    if (selectedCities.length > 1 && !allCityDatesFilled) {
+    const cityDatesReady =
+      cities.length <= 1 ||
+      cities.every(
+        (city) =>
+          Array.isArray(perCityDates[city.city_id]) &&
+          perCityDates[city.city_id].length === 2
+      );
+
+    if (cities.length > 1 && !cityDatesReady) {
       setSnackbarMessage("Please select check-in and check-out dates for each city.");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
@@ -298,6 +332,7 @@ const MainFilterSearchBox = () => {
       setSnackbarMessage("Please specify male and female counts for adults.");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
+      setGuestModalSignal((n) => n + 1);
       return false;
     }
     
@@ -305,16 +340,18 @@ const MainFilterSearchBox = () => {
       setSnackbarMessage("Male and female count must equal the total adult count.");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
+      setGuestModalSignal((n) => n + 1);
       return false;
     }
 
     if (
       guestCounts.Children > 0 &&
-      !guestCounts.ages.every((age) => age.trim() !== "")
+      !(guestCounts.ages || []).every((age) => String(age ?? "").trim() !== "")
     ) {
       setSnackbarMessage("Please provide an age for all children.");
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
+      setGuestModalSignal((n) => n + 1);
       return false;
     }
 
@@ -325,58 +362,49 @@ const MainFilterSearchBox = () => {
     setOpenSnackbar(false);
   };
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
+  const handleSearch = async (e, overrides = null) => {
+    e?.preventDefault?.();
 
-    if (!validateForm()) return;
+    const citiesForSearch = overrides?.cities || selectedCities;
+    const datesForSearch = overrides?.selectedDates || selectedDates;
+    const cityDatesForSearch = overrides?.cityDates || cityDates;
 
-    // Format Dates - Handle different date formats safely
-    let formattedCheckIn, formattedCheckOut;
-    
-    if (selectedDates && selectedDates.length >= 2) {
-      // Check if selectedDates are DateObjects from react-multi-date-picker
-      if (typeof selectedDates[0].format === 'function') {
-        formattedCheckIn = selectedDates[0].format("DD/MM/YYYY");
-        formattedCheckOut = selectedDates[1].format("DD/MM/YYYY");
-      } 
-      // Check if they're moment objects
-      else if (selectedDates[0].format && typeof selectedDates[0].format === 'function') {
-        formattedCheckIn = moment(selectedDates[0]).format("DD/MM/YYYY");
-        formattedCheckOut = moment(selectedDates[1]).format("DD/MM/YYYY");
-      }
-      // If they're Date objects
-      else if (selectedDates[0] instanceof Date) {
-        formattedCheckIn = moment(selectedDates[0]).format("DD/MM/YYYY");
-        formattedCheckOut = moment(selectedDates[1]).format("DD/MM/YYYY");
-      }
-      // If they're strings
-      else if (typeof selectedDates[0] === 'string') {
-        formattedCheckIn = selectedDates[0];
-        formattedCheckOut = selectedDates[1];
-      }
-      else {
-        console.error("Unknown date format:", selectedDates);
-        return;
-      }
-    } else {
-      console.error("Invalid dates selected:", selectedDates);
+    if (
+      !validateForm({
+        cities: citiesForSearch,
+        selectedDates: datesForSearch,
+        cityDates: cityDatesForSearch,
+      })
+    ) {
       return;
     }
 
+    // Format Dates - Handle DateObject / moment / Date safely
+    const formattedCheckIn = toDdMmYyyy(datesForSearch?.[0]);
+    const formattedCheckOut = toDdMmYyyy(datesForSearch?.[1]);
+    if (!formattedCheckIn || !formattedCheckOut) {
+      setSnackbarMessage("Please select both check-in and check-out dates.");
+      setSnackbarSeverity("error");
+      setOpenSnackbar(true);
+      return;
+    }
+
+    try {
+
     // Multiple city names for DMC API and URL params
-    const destinationName = selectedCities
+    const destinationName = citiesForSearch
       .map((city) => city.city)
       .filter(Boolean);
  console.log(destinationName, "destinationName");
     // City + country pairs for search/tour state
-    const destinationLocations = selectedCities.map((city) => ({
+    const destinationLocations = citiesForSearch.map((city) => ({
       city: city.city,
       country: city.country || "",
     }));
     console.log(destinationLocations, "destinationLocations");
     const destinationCountries = [
       ...new Set(
-        selectedCities.map((city) => city.country).filter(Boolean)
+        citiesForSearch.map((city) => city.country).filter(Boolean)
       ),
     ];
 
@@ -413,11 +441,11 @@ const MainFilterSearchBox = () => {
     }
 
     // City-wise check-in / check-out as array of key-value objects
-    const cityWiseDatesPayload = selectedCities.map((city) => {
+    const cityWiseDatesPayload = citiesForSearch.map((city) => {
       const range =
-        selectedCities.length === 1
-          ? selectedDates
-          : cityDates[city.city_id] || [];
+        citiesForSearch.length === 1
+          ? datesForSearch
+          : cityDatesForSearch[city.city_id] || [];
       return {
         city: city.city,
         checkIn: formatDateValue(range[0]),
@@ -425,6 +453,10 @@ const MainFilterSearchBox = () => {
       };
     });
     dispatch(setCityWiseDates(cityWiseDatesPayload));
+
+    // Keep Redux selectedCities aligned with the search payload
+    dispatch(clearSelectedCities());
+    citiesForSearch.forEach((city) => dispatch(addSelectedCity(city)));
     
     // Step 2: Dispatch Redux actions to update the search state
     // Total trip check-in / check-out (unchanged)
@@ -526,7 +558,13 @@ const MainFilterSearchBox = () => {
     });
 
     // Use placeholder id since router expects an :id param; actual tour will be created on booking/enquiry
-    navigate(`/app/view-hotel-search/0?${searchParams}`);
+    navigate(`${appPath("view-hotel-search")}/0?${searchParams}`);
+    } catch (err) {
+      console.error("Search failed:", err);
+      setSnackbarMessage("Something went wrong starting the search. Please try again.");
+      setSnackbarSeverity("error");
+      setOpenSnackbar(true);
+    }
   };
 
   const canSearchSingle = selectedCities.length === 1 && hasTotalDates;
@@ -549,6 +587,36 @@ const MainFilterSearchBox = () => {
     return `${a} → ${b}`;
   };
 
+  const syncMultiLegsToSearchState = () => {
+    const cities = multiLegs.map((leg) => leg.city).filter(Boolean);
+    const nextCityDates = {};
+    multiLegs.forEach((leg) => {
+      if (leg.city?.city_id && Array.isArray(leg.dates) && leg.dates.length === 2) {
+        nextCityDates[leg.city.city_id] = leg.dates;
+      }
+    });
+
+    const firstDates = multiLegs[0]?.dates;
+    const lastDates = multiLegs[multiLegs.length - 1]?.dates;
+    if (
+      Array.isArray(firstDates) &&
+      firstDates.length === 2 &&
+      Array.isArray(lastDates) &&
+      lastDates.length === 2
+    ) {
+      setSelectedDates([firstDates[0], lastDates[1]]);
+    }
+
+    setCityDates(nextCityDates);
+    setShowCityDateRows(true);
+    dispatch(clearSelectedCities());
+    cities.forEach((city) => dispatch(addSelectedCity(city)));
+    if (cities[0]?.country) {
+      setSelectedLocation(cities[0].country);
+    }
+    return { cities, nextCityDates };
+  };
+
   const setTripTypeMode = (id) => {
     setTripType(id);
     if (id === "single") {
@@ -558,7 +626,59 @@ const MainFilterSearchBox = () => {
         dispatch(clearSelectedCities());
         if (keep) dispatch(addSelectedCity(keep));
       }
+      return;
     }
+
+    // Multi-city: open two stacked search rows (demo behaviour)
+    setMultiLegs((prev) => {
+      const base =
+        Array.isArray(prev) && prev.length >= 2
+          ? prev
+          : defaultMultiLegs(selectedDates);
+      if (selectedCities[0] && !base[0].city) {
+        return base.map((leg, idx) =>
+          idx === 0 ? { ...leg, city: selectedCities[0] } : leg
+        );
+      }
+      return base;
+    });
+    setShowCityDateRows(false);
+  };
+
+  const canSearchMultiLegs =
+    tripType === "multi" &&
+    multiLegs.length >= 2 &&
+    multiLegs.every(
+      (leg) =>
+        leg.city?.city_id &&
+        Array.isArray(leg.dates) &&
+        leg.dates.length === 2
+    ) &&
+    guestCounts.Adults > 0;
+
+  const handleMultiSearch = async (e) => {
+    e?.preventDefault?.();
+    if (!canSearchMultiLegs) {
+      setSnackbarMessage("Please complete city and dates for each stop.");
+      setSnackbarSeverity("error");
+      setOpenSnackbar(true);
+      return;
+    }
+
+    const { cities, nextCityDates } = syncMultiLegsToSearchState();
+    const tripDates = [
+      multiLegs[0].dates[0],
+      multiLegs[multiLegs.length - 1].dates[1],
+    ];
+
+    await handleSearch(
+      { preventDefault() {} },
+      {
+        cities,
+        selectedDates: tripDates,
+        cityDates: nextCityDates,
+      }
+    );
   };
 
   return (
@@ -606,6 +726,17 @@ const MainFilterSearchBox = () => {
         ))}
       </div>
 
+      {tripType === "multi" ? (
+        <MultiCityLegs
+          legs={multiLegs}
+          onLegsChange={setMultiLegs}
+          guestCounts={guestCounts}
+          onGuestChange={handleGuestChange}
+          onSearch={handleMultiSearch}
+          canSearch={canSearchMultiLegs}
+          guestOpenSignal={guestModalSignal}
+        />
+      ) : (
       <div
         className="bg-white hero-search-bar"
         style={{
@@ -718,6 +849,7 @@ const MainFilterSearchBox = () => {
           <GuestSearch
             onGuestChange={handleGuestChange}
             guestCounts={guestCounts}
+            openSignal={guestModalSignal}
           />
         </div>
 
@@ -952,6 +1084,7 @@ const MainFilterSearchBox = () => {
             </div>
           )}
       </div>
+      )}
 
       <div className="hero-room-options">
         <button
@@ -959,7 +1092,7 @@ const MainFilterSearchBox = () => {
           className="hero-room-options__btn"
           onClick={() => {
             const guestToggle = document.querySelector(
-              ".hero-search-reserve .searchMenu-guests [data-bs-toggle='dropdown']"
+              ".hero-search-reserve .searchMenu-guests .guest-search-trigger"
             );
             if (guestToggle) guestToggle.click();
           }}
@@ -975,7 +1108,7 @@ const MainFilterSearchBox = () => {
         autoHideDuration={6000}
         onClose={handleCloseSnackbar}
         anchorOrigin={{ vertical: "top", horizontal: "center" }}
-        sx={{ top: { xs: 16, sm: 24 } }}
+        sx={{ top: { xs: 16, sm: 24 }, zIndex: 20000 }}
       >
         <Alert
           onClose={handleCloseSnackbar}
