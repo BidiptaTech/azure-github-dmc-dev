@@ -1403,19 +1403,29 @@
                                     $onlineTaxIncluded = ! empty($taxResult['online_tax_included']);
                                     $finalAmount = $baseAmount + $taxAmount;
                                     $paymentData = is_string($tour->payment_details) ? json_decode($tour->payment_details, true) : $tour->payment_details;
-                                    $totalPaid = 0;
                                     $hasPendingPayments = false;
                                     if (is_array($paymentData) && !empty($paymentData)) {
                                         foreach ($paymentData as $payment) {
-                                            if (isset($payment['status']) && $payment['status'] == 1) {
-                                                $totalPaid += isset($payment['amount']) ? (float)$payment['amount'] : 0;
-                                            }
-                                            if (isset($payment['status']) && $payment['status'] == 0) {
+                                            if (isset($payment['status']) && (int) $payment['status'] === 0) {
                                                 $hasPendingPayments = true;
+                                                break;
                                             }
                                         }
                                     }
-                                    $remainingAmount = $finalAmount - $totalPaid;
+                                    $collection = \App\Helpers\CommonHelper::resolveOfflineCollectionAmounts(
+                                        (float) $baseAmount,
+                                        (float) $taxAmount,
+                                        (float) $finalAmount,
+                                        is_array($paymentData) ? $paymentData : null,
+                                        (string) ($tour->order_classification ?? ''),
+                                        (bool) $taxIncluded,
+                                        (bool) $onlineTaxIncluded
+                                    );
+                                    $baseAmount = $collection['base_amount'];
+                                    $taxAmount = $collection['tax_amount'];
+                                    $finalAmount = $collection['final_amount'];
+                                    $totalPaid = $collection['total_paid'];
+                                    $remainingAmount = $collection['remaining_amount'];
                                 @endphp
                                 <div class="status-wrap">
                                     <small class="text-muted d-block mb-1" style="font-size: 0.7rem; font-weight: 600;">Payment Status:</small>
@@ -1426,7 +1436,7 @@
                                     @elseif($remainingAmount > 0)
                                         <span class="payment-status-badge status-partial" title="Partial: {{ number_format($totalPaid, 2) }} paid{{ $hasPendingPayments ? ' + pending' : '' }}"><i class="ri-bank-card-line"></i> Partial{{ $hasPendingPayments ? '+' : '' }} ({{ number_format($totalPaid, 0) }})</span>
                                     @else
-                                        <span class="payment-status-badge status-paid" title="Fully paid: {{ number_format($totalPaid, 2) }}"><i class="ri-checkbox-circle-fill"></i> Paid ({{ number_format($totalPaid, 0) }})</span>
+                                        <span class="payment-status-badge status-paid" title="Fully paid"><i class="ri-checkbox-circle-fill"></i> Paid</span>
                                     @endif
 
                                     @if($earliestDueDate)
@@ -3386,147 +3396,30 @@
         $finalAmount = $baseAmount + $taxAmount;
         
         $paymentData = is_string($tour->payment_details) ? json_decode($tour->payment_details, true) : $tour->payment_details;
-        $totalPaid = 0;
         $hasPendingPayments = false;
         if (is_array($paymentData) && !empty($paymentData)) {
             foreach ($paymentData as $payment) {
-                if (isset($payment['status']) && $payment['status'] == 1) {
-                    $totalPaid += isset($payment['amount']) ? (float)$payment['amount'] : 0;
-                }
-                if (isset($payment['status']) && $payment['status'] == 0) {
+                if (isset($payment['status']) && (int) $payment['status'] === 0) {
                     $hasPendingPayments = true;
+                    break;
                 }
             }
         }
-        $remainingAmount = max(0, round($finalAmount - $totalPaid));
+        $collection = \App\Helpers\CommonHelper::resolveOfflineCollectionAmounts(
+            (float) $baseAmount,
+            (float) $taxAmount,
+            (float) $finalAmount,
+            is_array($paymentData) ? $paymentData : null,
+            (string) ($tour->order_classification ?? ''),
+            (bool) $taxIncluded,
+            (bool) $onlineTaxIncluded
+        );
+        $totalPaid = $collection['total_paid'];
+        $remainingAmount = $collection['remaining_amount'];
     @endphp
     <script>window.tourPaymentData = window.tourPaymentData || {}; window.tourPaymentData[{{ $tour->tour_id }}] = @json($paymentData ?? []);</script>
 
-    <!-- Payment Details Modal -->
-    <style>
-        #showPaymentModal{{ $tour->tour_id }} .modal-dialog { max-width: 980px; }
-        @media (max-width: 992px) {
-            #showPaymentModal{{ $tour->tour_id }} .modal-dialog { max-width: 98%; }
-        }
-        #showPaymentModal{{ $tour->tour_id }} .modal-body { overflow: visible; }
-        #showPaymentModal{{ $tour->tour_id }} .payment-table-wrap { overflow: visible; }
-        #showPaymentModal{{ $tour->tour_id }} .payment-table-wrap .table {
-            width: 100%;
-            margin-bottom: 0;
-            table-layout: fixed;
-            font-size: 0.7rem;
-        }
-        #showPaymentModal{{ $tour->tour_id }} .table th,
-        #showPaymentModal{{ $tour->tour_id }} .table td {
-            font-size: 0.7rem;
-            padding: 6px 10px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        #showPaymentModal{{ $tour->tour_id }} .table td.status-cell,
-        #showPaymentModal{{ $tour->tour_id }} .table td.actions-cell {
-            overflow: visible;
-        }
-        #showPaymentModal{{ $tour->tour_id }} .table td.actions-cell {
-            padding-left: 14px;
-        }
-        #showPaymentModal{{ $tour->tour_id }} .table td[title] { cursor: help; }
-    </style>
-    <div class="modal fade" id="showPaymentModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="showPaymentModalLabel{{ $tour->tour_id }}" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content shadow-sm rounded">
-                <div class="modal-header bg-primary text-white py-2 px-3" style="border-radius: 6px 6px 0 0;">
-                    <h6 class="modal-title d-flex align-items-center mb-0" id="showPaymentModalLabel{{ $tour->tour_id }}" style="font-weight: 600; font-size: 0.95rem;">
-                        <i class="fas fa-history me-2" style="color: #38ef7d; font-size: 1rem;"></i>
-                        Payment Details for Tour #{{ $tour->tour_id }}
-                    </h6>
-                    <button type="button" class="btn-close btn-close-white btn-sm" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1);"></button>
-                </div>
-                <div class="modal-body p-3">
-                    @if(!empty($paymentData))
-                        <div class="payment-table-wrap">
-                            <table class="table table-bordered table-hover table-sm mb-1">
-                                <thead class="table-light sticky-top">
-                                    <tr>
-                                        <th class="text-center" style="width: 8%;">Status</th>
-                                        @if(in_array(auth()->user()->role_id, [36, 33, 37, 38, 126, 127, 128, 129, 130, 131, 133, 134, 135, 136, 137, 138]))
-                                            <th class="text-center" style="width: 11%;">Actions</th>
-                                        @endif
-                                        <th class="text-center" style="width: 8%;">Date</th>
-                                        <th class="text-center" style="width: 9%;">Amount</th>
-                                        <th class="text-center" style="width: 8%;">Original</th>
-                                        <th class="text-center" style="width: 5%;">Curr</th>
-                                        <th class="text-center" style="width: 6%;">Rate</th>
-                                        <th class="text-center" style="width: 8%;">Mode</th>
-                                        <th class="text-center" style="width: 13%;">Trans ID</th>
-                                        <th class="text-center" style="width: 13%;">Remarks</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($paymentData as $index => $payment)
-                                        <tr style="font-size: 0.8rem;">
-                                            <td class="text-center status-cell">
-                                                @if(isset($payment['status']))
-                                                    @if($payment['status'] == 1)
-                                                        <span class="badge bg-success text-white" style="font-size: 0.7rem;"><i class="fas fa-check-circle me-1"></i>Verified</span>
-                                                    @elseif($payment['status'] == 2)
-                                                        <span class="badge bg-danger text-white" style="font-size: 0.7rem;"><i class="fas fa-times-circle me-1"></i>Declined</span>
-                                                    @else
-                                                        <span class="badge bg-warning text-dark" style="font-size: 0.7rem;"><i class="fas fa-clock me-1"></i>Pending</span>
-                                                    @endif
-                                                @else
-                                                    <span class="badge bg-secondary text-white" style="font-size: 0.7rem;">Unknown</span>
-                                                @endif
-                                            </td>
-                                            @php $financeRoles = [36, 33, 37, 38, 126, 127, 128, 129, 130, 131, 133, 134, 135, 136, 137, 138]; @endphp
-                                            @if(in_array(auth()->user()->role_id, $financeRoles))
-                                                <td class="text-center actions-cell">
-                                                    <div class="d-flex justify-content-center gap-1 flex-nowrap">
-                                                        @if(!isset($payment['status']) || $payment['status'] == 0)
-                                                            <button type="button" class="btn btn-xs btn-success p-0" style="font-size: 0.6rem; width: 22px; height: 22px;" onclick="verifyPayment({{ $tour->tour_id }}, {{ $index }})" title="Approve"><i class="fas fa-check"></i></button>
-                                                            <button type="button" class="btn btn-xs btn-danger p-0" style="font-size: 0.6rem; width: 22px; height: 22px;" onclick="declinePayment({{ $tour->tour_id }}, {{ $index }})" title="Reject"><i class="fas fa-times"></i></button>
-                                                        @endif
-                                                        @if(!isset($payment['status']) || (int) $payment['status'] !== 2)
-                                                            <button type="button" class="btn btn-xs btn-primary p-0" style="font-size: 0.6rem; width: 22px; height: 22px;" onclick="openEditPaymentModal({{ $tour->tour_id }}, {{ $index }})" title="Edit"><i class="fas fa-edit"></i></button>
-                                                        @endif
-                                                        <button type="button" class="btn btn-xs btn-outline-danger p-0" style="font-size: 0.6rem; width: 22px; height: 22px;" onclick="deletePayment({{ $tour->tour_id }}, {{ $index }})" title="Delete"><i class="fas fa-trash-alt"></i></button>
-                                                    </div>
-                                                </td>
-                                            @endif
-                                            <td class="text-center" title="{{ isset($payment['payment_date']) ? \Carbon\Carbon::parse($payment['payment_date'])->format('M d, Y') : 'N/A' }}">{{ isset($payment['payment_date']) ? \Carbon\Carbon::parse($payment['payment_date'])->format('M d, Y') : 'N/A' }}</td>
-                                            <td class="text-center fw-bold text-success">{{ isset($payment['amount']) ? number_format((float)$payment['amount'], 2) : '0.00' }}</td>
-                                            <td class="text-center">{{ isset($payment['original_amount']) ? number_format((float)$payment['original_amount'], 2) : number_format((float)($payment['amount'] ?? 0), 2) }}</td>
-                                            <td class="text-center">{{ $tourCurrency }}</td>
-                                            <td class="text-center">{{ isset($payment['exchange_rate']) ? number_format((float)$payment['exchange_rate'], 4) : '1.0000' }}</td>
-                                            <td class="text-center"><span class="badge bg-light text-dark" style="font-size: 0.65rem;">{{ ucfirst($payment['payment_type'] ?? 'N/A') }}</span></td>
-                                            <td class="text-center" title="{{ $payment['transaction_id'] ?? 'N/A' }}">{{ Str::limit($payment['transaction_id'] ?? 'N/A', 12, '…') }}</td>
-                                            <td class="text-center" title="{{ $payment['remarks'] ?? 'N/A' }}">{{ Str::limit($payment['remarks'] ?? 'N/A', 10, '…') }}</td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="row mt-2 g-1">
-                            <div class="col"><div class="card bg-secondary text-white py-1 px-2" style="border-radius: 6px;"><small class="d-block" style="font-size: 0.65rem;">Base</small><strong style="font-size: 0.85rem;">{{ number_format($baseAmount, 2) }} {{ $tourCurrency }}</strong></div></div>
-                            <div class="col"><div class="card bg-info text-white py-1 px-2" style="border-radius: 6px;"><small class="d-block" style="font-size: 0.65rem;">{{ !empty($taxIncluded) ? 'Tax (included)' : (!empty($onlineTaxIncluded) ? 'Tax (offline)' : 'Tax') }}</small><strong style="font-size: 0.85rem;">{{ !empty($taxIncluded) ? 'Included' : (number_format($taxAmount, 2) . ' ' . $tourCurrency) }}</strong></div></div>
-                            <div class="col"><div class="card bg-primary text-white py-1 px-2" style="border-radius: 6px;"><small class="d-block" style="font-size: 0.65rem;">Total</small><strong style="font-size: 0.85rem;">{{ number_format($finalAmount, 2) }} {{ $tourCurrency }}</strong></div></div>
-                            <div class="col"><div class="card bg-success text-white py-1 px-2" style="border-radius: 6px;"><small class="d-block" style="font-size: 0.65rem;">Paid</small><strong style="font-size: 0.85rem;">{{ number_format($totalPaid, 2) }} {{ $tourCurrency }}</strong></div></div>
-                            <div class="col"><div class="card bg-warning text-white py-1 px-2" style="border-radius: 6px;"><small class="d-block" style="font-size: 0.65rem;">Remaining</small><strong style="font-size: 0.85rem;">{{ number_format($remainingAmount, 2) }} {{ $tourCurrency }}</strong></div></div>
-                        </div>
-                    @else
-                        <div class="text-center py-4">
-                            <i class="fas fa-money-bill-wave fa-2x text-muted mb-2"></i>
-                            <p class="text-muted mb-0 small">No payments recorded for this tour yet.</p>
-                        </div>
-                    @endif
-                </div>
-                <div class="modal-footer bg-light py-2 px-3">
-                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" style="font-size: 0.8rem;"><i class="fas fa-times me-1"></i>Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
+    @include('bookings.partials.show-payment-details-modal')
     <!-- Edit Payment Modal -->
     <div class="modal fade" id="editPaymentModal{{ $tour->tour_id }}" tabindex="-1" aria-hidden="true" data-tour-id="{{ $tour->tour_id }}">
         <div class="modal-dialog modal-dialog-centered">
@@ -3590,160 +3483,14 @@
         </div>
     </div>
 
-    <!-- Add Payment Modal -->
-    <div
-        class="modal fade"
-        id="addPaymentModal{{ $tour->tour_id }}"
-        tabindex="-1"
-        aria-labelledby="addPaymentModalLabel{{ $tour->tour_id }}"
-        aria-hidden="true"
-        data-dmc-rate="{{ $tour->dmc_exchange_rate_value ?? '' }}"
-        data-previous-rate="{{ $tour->previous_exchange_rate ?? '' }}"
-        data-previous-currency="{{ $tour->previous_payment_currency ?? '' }}"
-        data-tour-currency="{{ $tourCurrency }}"
-    >
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content shadow-lg rounded">
-                <div class="modal-header bg-primary text-white d-flex align-items-center justify-content-start" style="padding: 15px; border-radius: 8px;">
-                    <h5 class="modal-title d-flex align-items-center" id="addPaymentModalLabel{{ $tour->tour_id }}" style="margin: 0; font-weight: bold; color: white;">
-                        <i class="fas fa-money-bill-wave me-2" style="color: #38ef7d; font-size: 1.4rem;"></i> 
-                        <span style="color: white;">Add Payment for Tour #{{ $tour->tour_id }}</span>
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white ms-auto" data-bs-dismiss="modal" aria-label="Close" style="filter: brightness(0) invert(1);"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <form id="paymentForm{{ $tour->tour_id }}" action="{{ route('tour.add-payment', $tour->tour_id) }}" method="POST">
-                        @csrf
-                        <input type="hidden" name="tour_id" value="{{ $tour->tour_id }}">
-                        
-                        <!-- Display Due Amount Info (Read-only) -->
-                        <div class="mb-4">
-                            <label class="form-label fw-bold">
-                                <i class="fas fa-info-circle text-info me-2"></i>Payment Information
-                            </label>
-                            <div class="mb-2">
-                                <small class="text-muted">Tour currency: <strong>{{ $tourCurrency }}</strong></small>
-                            </div>
-                            <div class="alert alert-info">
-                                <!-- Pricing Breakdown -->
-                                @include('bookings.partials.add-payment-pricing-breakdown', ['tourCurrency' => $tourCurrency])
-                                <div class="row text-center mb-2">
-                                    <div class="col-4">
-                                        <small class="text-muted">Base Amount</small>
-                                        <div class="fw-bold text-dark">{{ number_format(round($baseAmount), 2) }} {{ $tourCurrency }}</div>
-                                    </div>
-                                    <div class="col-4">
-                                        <small class="text-muted">{{ !empty($taxIncluded) ? 'Tax (included)' : (!empty($onlineTaxIncluded) ? 'Tax (offline)' : 'Tax') }}</small>
-                                        <div class="fw-bold text-warning">{{ !empty($taxIncluded) ? 'Included' : (number_format(round($taxAmount), 2) . ' ' . $tourCurrency) }}</div>
-                                    </div>
-                                    <div class="col-4">
-                                        <small class="text-muted">Total Amount</small>
-                                        <div class="fw-bold text-primary">{{ number_format(round($finalAmount), 2) }} {{ $tourCurrency }}</div>
-                                    </div>
-                                </div>
-                                <hr class="my-2">
-                                <div class="row text-center">
-                                    <div class="col-6">
-                                        <small class="text-muted">Paid Amount</small>
-                                        <div class="fw-bold text-success">{{ number_format(round($totalPaid), 2) }} {{ $tourCurrency }}</div>
-                                    </div>
-                                    <div class="col-6">
-                                        <small class="text-muted">Remaining</small>
-                                        <div class="fw-bold text-danger">{{ number_format(round($remainingAmount), 2) }} {{ $tourCurrency }}</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <input type="hidden" id="amount{{ $tour->tour_id }}" value="{{ $remainingAmount }}">
-                            <input type="hidden" name="currency" value="{{ $tourCurrency }}">
-                            <input type="hidden" name="exchange_rate" value="1">
-                        </div>
-                        
-                        <div class="mb-4">
-                            <label for="payment_amount{{ $tour->tour_id }}" class="form-label fw-bold">
-                                <i class="fas fa-money-bill-wave text-success me-2"></i>Payment Amount
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light">{{ $tourCurrency }}</span>
-                                <input type="number" 
-                                    class="form-control form-control-lg" 
-                                    id="payment_amount{{ $tour->tour_id }}" 
-                                    name="payment_amount" 
-                                    placeholder="Enter payment amount" 
-                                    required
-                                    min="0.01" 
-                                    max="{{ $remainingAmount }}"
-                                    step="0.01"
-                                    value="{{ $remainingAmount }}"
-                                    oninput="validatePaymentAmountInput({{ $tour->tour_id }})"
-                                    onblur="validatePaymentAmountInput({{ $tour->tour_id }})">
-                            </div>
-                            <div class="mt-2">
-                                <small class="text-muted">
-                                    Maximum: {{ number_format(ceil($remainingAmount), 2) }} {{ $tourCurrency }}
-                                </small>
-                            </div>
-                            <div class="mt-1">
-                                <small class="text-danger" id="paymentValidationError{{ $tour->tour_id }}" style="display: none;">
-                                    <i class="fas fa-exclamation-triangle me-1"></i>
-                                    <span id="validationMessage{{ $tour->tour_id }}"></span>
-                                </small>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <label for="payment_date{{ $tour->tour_id }}" class="form-label fw-bold">
-                                <i class="fas fa-calendar-alt text-primary me-2"></i>Payment Date
-                            </label>
-                            <input type="date" 
-                                class="form-control form-control-lg" 
-                                id="payment_date{{ $tour->tour_id }}" 
-                                name="payment_date" 
-                                value="{{ date('Y-m-d') }}"
-                                required>
-                        </div>
-
-                        <div class="mb-4">
-                            <label for="payment_type{{ $tour->tour_id }}" class="form-label fw-bold">
-                                <i class="fas fa-credit-card text-primary me-2"></i>Payment Type
-                            </label>
-                            <select class="form-select form-control-lg" 
-                                id="payment_type{{ $tour->tour_id }}" 
-                                name="payment_type" 
-                                required>
-                                <option value="">Select Payment Type</option>
-                                <option value="cash">Cash</option>
-                                <option value="card">Card</option>
-                                <option value="cheque">Cheque</option>
-                                <option value="online">Bank Transfer</option>
-                            </select>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <label for="transaction_id{{ $tour->tour_id }}" class="form-label fw-bold">
-                                <i class="fas fa-hashtag text-primary me-2"></i>Transaction ID (Optional)
-                            </label>
-                            <input type="text" class="form-control form-control-lg" id="transaction_id{{ $tour->tour_id }}" name="transaction_id">
-                        </div>
-                        
-                        <div class="mb-4">
-                            <label for="remarks{{ $tour->tour_id }}" class="form-label fw-bold">
-                                <i class="fas fa-comment-alt text-warning me-2"></i>Remarks (Optional)
-                            </label>
-                            <textarea class="form-control" id="remarks{{ $tour->tour_id }}" name="remarks" rows="3" placeholder="Enter payment remarks here..."></textarea>
-                        </div>                                       
-                    </form>
-                </div>
-                <div class="modal-footer bg-light d-flex justify-content-between" style="padding: 15px; border-radius: 8px;">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-2"></i>Cancel
-                    </button>
-                    <button type="button" class="btn btn-success" id="savePaymentBtn{{ $tour->tour_id }}" onclick="submitPaymentForm({{ $tour->tour_id }})">
-                        <i class="fas fa-save me-2"></i>Verify Payment
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
+    @php
+        $baseAmount = $collection['base_amount'];
+        $taxAmount = $collection['tax_amount'];
+        $finalAmount = $collection['final_amount'];
+        $totalPaid = $collection['total_paid'];
+        $remainingAmount = $collection['remaining_amount'];
+    @endphp
+    @include('bookings.partials.add-payment-modal')
 @endforeach
 
 <!-- Travel Hourly Service Modals -->
