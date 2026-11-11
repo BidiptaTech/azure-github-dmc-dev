@@ -12,8 +12,18 @@
     $refundedAmount = 0.0;
     $refundedCurrency = $moneyCurrency;
     $refundCurrencies = [];
+    $dmcMarkupTotal = 0.0;
+    $dmcMarkupLabels = [];
     foreach (collect($tour->booking ?? []) as $refundOrder) {
         if ($isTravclicksView) {
+            $markupVal = (float) ($refundOrder->online_dmc_markup ?? 0);
+            if ($markupVal > 0) {
+                $dmcMarkupTotal += $markupVal;
+                $ruleLabel = trim((string) ($refundOrder->online_dmc_markup_label ?? ''));
+                if ($ruleLabel !== '') {
+                    $dmcMarkupLabels[$ruleLabel] = true;
+                }
+            }
             // TravClicks→DMC wallet credit layer
             if (! ((bool) ($refundOrder->travclicks_refunded ?? false))) {
                 continue;
@@ -52,6 +62,12 @@
         $refundedAmount = $refundCap;
     }
     $refundedLabel = $isTravclicksView ? 'Refunded to DMC' : 'Refunded';
+    $dmcMarkupCurrency = $isTravclicksView && $dmcMarkupTotal > 0
+        ? ($refundedCurrency !== '' ? $refundedCurrency : 'SGD')
+        : '';
+    $dmcMarkupRuleText = count($dmcMarkupLabels) === 1
+        ? (string) array_key_first($dmcMarkupLabels)
+        : '';
 @endphp
 <div class="refund-money-summary mt-2">
     <span>Tour total</span>
@@ -60,6 +76,10 @@
     <span class="rms-paid">{{ $moneyCurrency }} {{ number_format($moneyPaid, 2) }}</span>
     <span>Due</span>
     <span class="{{ $moneyDue > 0 ? 'rms-due' : '' }}">{{ $moneyCurrency }} {{ number_format($moneyDue, 2) }}</span>
+    @if($isTravclicksView && $dmcMarkupTotal > 0)
+        <span title="DMC markup already paid to DMC — deducted from TravClicks refund">DMC markup{{ $dmcMarkupRuleText !== '' ? ' ('.$dmcMarkupRuleText.')' : '' }}</span>
+        <span class="rms-dmc-markup">−{{ $dmcMarkupCurrency }} {{ number_format($dmcMarkupTotal, 2) }}</span>
+    @endif
     <span>{{ $refundedLabel }}</span>
     <span class="rms-refunded">{{ $refundedCurrency }} {{ number_format($refundedAmount, 2) }}</span>
 </div>

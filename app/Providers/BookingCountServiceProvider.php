@@ -132,7 +132,7 @@ class BookingCountServiceProvider extends ServiceProvider
             });
 
         // TravClicks (roles 1–4): badge counts only cancelled ONLINE services.
-        // DMC: offline cancels + online cancels only after TravClicks refunded to DMC.
+        // DMC: offline + online cancels (online may still be waiting for admin refund).
         $roleId = (int) ($user->role_id ?? 0);
         if (in_array($roleId, [1, 2, 3, 4], true)) {
             if (Schema::hasColumn('orders', 'order_type')) {
@@ -140,18 +140,6 @@ class BookingCountServiceProvider extends ServiceProvider
             } else {
                 return 0;
             }
-        } elseif (Schema::hasColumn('orders', 'order_type')) {
-            $query->where(function ($q) {
-                $q->whereRaw("LOWER(TRIM(COALESCE(orders.order_type, ''))) <> ?", ['online'])
-                    ->orWhere(function ($online) {
-                        $online->whereRaw("LOWER(TRIM(COALESCE(orders.order_type, ''))) = ?", ['online']);
-                        if (Schema::hasColumn('orders', 'travclicks_refunded')) {
-                            $online->where('orders.travclicks_refunded', true);
-                        } else {
-                            $online->whereRaw('1 = 0');
-                        }
-                    });
-            });
         }
 
         $this->applySidebarDmcAccess($query, $dmc_id, $user, 'tours.dmc_id', 'tours.destination');

@@ -391,7 +391,8 @@ class PaymentEligibilityService
         $tax = TaxHelper::calculateTourTaxesForTour($base, $tour->taxes ?? null, $persons, $days, $tour);
         $final = $base + (float) ($tax['total_tax'] ?? 0);
 
-        return $this->outstandingBalance($tour, $final);
+        // Negotiated collection is offline-only — never subtract online-service payments.
+        return $this->outstandingBalance($tour, $final, true);
     }
 
     /**
@@ -443,7 +444,7 @@ class PaymentEligibilityService
         ];
     }
 
-    protected function outstandingBalance(Tour $tour, float $total): float
+    protected function outstandingBalance(Tour $tour, float $total, bool $excludeOnlineServicePayments = false): float
     {
         // Add Payment UI records collections in payment_details. Do not treat
         // finance payment_status=captured / selling_price alone as paid — that
@@ -460,6 +461,11 @@ class PaymentEligibilityService
             }
             if ((int) ($p['status'] ?? 0) === 2) {
                 continue; // declined
+            }
+            // negotiation / offline collection must not merge payment_for=online
+            if ($excludeOnlineServicePayments
+                && strtolower(trim((string) ($p['payment_for'] ?? ''))) === OrderClassificationService::ONLINE) {
+                continue;
             }
             $paid += (float) ($p['amount'] ?? 0);
         }

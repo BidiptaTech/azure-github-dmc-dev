@@ -80,7 +80,7 @@ class WalletAmountRegressionTest extends TestCase
     protected function orchestrator(?WalletService $wallet = null)
     {
         return Mockery::mock(PaymentOrchestrator::class, [
-            Mockery::mock(OrderClassificationService::class),
+            Mockery::mock(OrderClassificationService::class)->makePartial(),
             Mockery::mock(PaymentEligibilityService::class),
             Mockery::mock(PaymentSettingsService::class),
             Mockery::mock(CurrencySnapshotService::class),
@@ -100,17 +100,29 @@ class WalletAmountRegressionTest extends TestCase
 
     public function test_sgd_payment_records_the_exact_total_with_no_conversion(): void
     {
-        $row = $this->row($this->orchestrator(), 124.0, 'SGD', ['order_amount' => 124.0, 'order_currency' => 'SGD', 'exchange_rate' => 1.0], 124.0);
+        $row = $this->row($this->orchestrator(), 124.0, 'SGD', [
+            'order_amount' => 124.0,
+            'order_currency' => 'SGD',
+            'exchange_rate' => 1.0,
+            'payment_for' => 'online',
+        ], 124.0);
 
         $this->assertSame(124.0, $row['amount']);
         $this->assertSame('SGD', $row['currency']);
         $this->assertSame(1, $row['exchange_rate']);
+        $this->assertSame('online', $row['payment_for']);
         $this->assertArrayNotHasKey('wallet_amount', $row);
     }
 
     public function test_converted_payment_keeps_order_amount_rate_and_wallet_debit(): void
     {
-        $meta = ['order_amount' => 124.0, 'order_currency' => 'USD', 'exchange_rate' => 1.2810801878, 'conversion_charge' => 10.3255];
+        $meta = [
+            'order_amount' => 124.0,
+            'order_currency' => 'USD',
+            'exchange_rate' => 1.2810801878,
+            'conversion_charge' => 10.3255,
+            'payment_for' => 'online',
+        ];
         $row = $this->row($this->orchestrator(), 169.1794, 'SGD', $meta, 169.1794);
 
         $this->assertSame(124.0, $row['amount']);          // outstanding is measured in the order currency
@@ -119,6 +131,7 @@ class WalletAmountRegressionTest extends TestCase
         $this->assertSame(169.1794, $row['wallet_amount']);
         $this->assertSame('SGD', $row['wallet_currency']);
         $this->assertSame(10.3255, $row['conversion_charge']);
+        $this->assertSame('online', $row['payment_for']);
     }
 
     public function test_partial_commit_scales_the_order_amount(): void
