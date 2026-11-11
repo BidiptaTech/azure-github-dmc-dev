@@ -76,4 +76,13 @@ class OrderClassificationServiceTest extends TestCase
         $this->assertSame('travclicks', $this->service->resolvePaymentRecipient('supplier_initial'));
         $this->assertSame('dmc', $this->service->resolvePaymentRecipient('dmc_collection'));
     }
+
+    public function test_payment_for_online_vs_offline(): void
+    {
+        $this->assertSame('online', $this->service->resolvePaymentFor('online', 'supplier_initial'));
+        $this->assertSame('online', $this->service->resolvePaymentFor('online', 'dmc_collection'));
+        $this->assertSame('online', $this->service->resolvePaymentFor('mix', 'supplier_initial'));
+        $this->assertSame('offline', $this->service->resolvePaymentFor('mix', 'dmc_collection'));
+        $this->assertSame('offline', $this->service->resolvePaymentFor('offline', 'dmc_collection'));
+    }
 }
