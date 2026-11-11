@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import {
@@ -15,11 +15,18 @@ import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
 import { fetchLists, setTourType } from "@/slice/common/TourlistSlice";
 import { fetchViewDetails, clearViewDetails } from "@/slice/common/ViewDetails";
 import CustomPaymentTooltip from "@/components/dashboard/dashboard/db-dashboard/components/CustomTooltip";
+import PrintModal from "@/components/dashboard/dashboard/db-dashboard/components/PrintModal";
 import PartnerBookingDetail from "@/components/workspace/PartnerBookingDetail";
 import { appPath } from "@/utils/appPaths";
+import {
+  applyQuotationMarkupDiscount,
+  sumBookingServicePrices,
+} from "@/utils/quotationPricing";
 import {
   canAddMoreServices,
   canCancelTour,
@@ -187,6 +194,9 @@ export default function PartnerTourBookings({
   } = useSelector((state) => state.lists);
   const userCountry = useSelector((state) => state.auth.user_country);
   const userRole = useSelector((state) => state.auth.userRole);
+  const { bookings = {}, status: viewDetailsStatus } = useSelector(
+    (state) => state.viewDetails
+  );
   const [actionBusy, setActionBusy] = useState(false);
 
   const [tab, setTab] = useState("upcoming");
@@ -196,8 +206,13 @@ export default function PartnerTourBookings({
   const [detailTour, setDetailTour] = useState(initialTour);
   const [markupAmount, setMarkupAmount] = useState(0);
   const [discountAmount, setDiscountAmount] = useState(0);
+  const [modifiedPriceData, setModifiedPriceData] = useState(null);
+  const [isPrintModalVisible, setIsPrintModalVisible] = useState(false);
+  const [totalPrice, setTotalPrice] = useState(0);
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [menuTour, setMenuTour] = useState(null);
+  const contentRef = useRef(null);
+  const priceHideFromBookings = bookings?.tour?.price_hide;
 
   const load = useCallback(
     async (type = tab) => {
@@ -278,6 +293,10 @@ export default function PartnerTourBookings({
 
   const handleBackToList = () => {
     setDetailTour(null);
+    setIsPrintModalVisible(false);
+    setModifiedPriceData(null);
+    setMarkupAmount(0);
+    setDiscountAmount(0);
   };
 
   const handleAddMoreServices = async (tour) => {
@@ -324,11 +343,145 @@ export default function PartnerTourBookings({
     }
   };
 
+  useEffect(() => {
+    if (bookings && Object.keys(bookings).length > 0) {
+      setModifiedPriceData(
+        applyQuotationMarkupDiscount(bookings, markupAmount, discountAmount)
+      );
+      setTotalPrice(Math.ceil(sumBookingServicePrices(bookings)));
+    } else {
+      setModifiedPriceData(null);
+      setTotalPrice(0);
+    }
+  }, [bookings, markupAmount, discountAmount]);
+
   const handlePrint = () => {
-    window.print();
+    if (bookings && Object.keys(bookings).length > 0) {
+      setModifiedPriceData(
+        applyQuotationMarkupDiscount(bookings, markupAmount, discountAmount)
+      );
+    }
+    setIsPrintModalVisible(true);
   };
 
-  const viewStatus = useSelector((state) => state.viewDetails.status);
+  const handleCancelPrint = () => {
+    setIsPrintModalVisible(false);
+    setModifiedPriceData(null);
+  };
+
+  const handleDownloadPDF = () => {
+    setModifiedPriceData(
+      applyQuotationMarkupDiscount(bookings, markupAmount, discountAmount)
+    );
+
+    const input = contentRef.current;
+    if (!input) return;
+
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    });
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const marginLeft = 10;
+    const marginTop = 10;
+    const contentWidth = pageWidth - marginLeft * 2;
+    const contentHeight = pageHeight - marginTop * 2;
+
+    const contentSections = [
+      ...Array.from(input.children).filter((child) => child.tagName === "DIV"),
+    ];
+    if (contentSections.length === 0) {
+      contentSections.push(input);
+    }
+
+    Promise.all(
+      contentSections.map((section) =>
+        html2canvas(section, {
+          scale: 1.8,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#FFFFFF",
+        })
+      )
+    )
+      .then((canvases) => {
+        canvases.forEach((canvas, index) => {
+          if (index > 0) pdf.addPage();
+
+          const imgWidth = pageWidth;
+          const scaleFactor = imgWidth / canvas.width;
+          const imgHeight = canvas.height * scaleFactor;
+
+          if (imgHeight <= contentHeight) {
+            pdf.addImage(
+              canvas.toDataURL("image/png", 1.0),
+              "PNG",
+              marginLeft,
+              marginTop,
+              contentWidth,
+              imgHeight * (contentWidth / imgWidth),
+              `section-${index}`,
+              "FAST",
+              0
+            );
+          } else {
+            const pagesNeeded = Math.ceil(imgHeight / contentHeight);
+            for (let pageNum = 0; pageNum < pagesNeeded; pageNum++) {
+              if (pageNum > 0) pdf.addPage();
+
+              const tempCanvas = document.createElement("canvas");
+              const tempCtx = tempCanvas.getContext("2d");
+              const sourceHeight = Math.min(
+                canvas.height / pagesNeeded,
+                (contentHeight / imgHeight) * canvas.height
+              );
+              tempCanvas.width = canvas.width;
+              tempCanvas.height = sourceHeight;
+              tempCtx.drawImage(
+                canvas,
+                0,
+                pageNum * sourceHeight,
+                canvas.width,
+                sourceHeight,
+                0,
+                0,
+                canvas.width,
+                sourceHeight
+              );
+              pdf.addImage(
+                tempCanvas.toDataURL("image/png", 1.0),
+                "PNG",
+                marginLeft,
+                marginTop,
+                contentWidth,
+                pageHeight - marginTop * 2,
+                `section-${index}-page-${pageNum}`,
+                "FAST",
+                0
+              );
+            }
+          }
+        });
+
+        pdf.save(
+          `Tour_Details_${
+            bookings.display_id ||
+            bookings.data?.display_id ||
+            detailTour?.display_id ||
+            "booking"
+          }.pdf`
+        );
+        setIsPrintModalVisible(false);
+        setModifiedPriceData(null);
+      })
+      .catch((error) => {
+        console.error("Error generating PDF:", error);
+        setModifiedPriceData(null);
+      });
+  };
 
   if (detailTour && !embedded) {
     const checkIn = formatDate(detailTour.check_in_time || detailTour.check_in);
@@ -349,38 +502,60 @@ export default function PartnerTourBookings({
       .join(" · ");
     const paid = Number(detailTour.paidAmount ?? detailTour.paid_amount ?? 0);
     const outstanding = outstandingAmount(detailTour);
+    const displayId =
+      detailTour.display_id ||
+      bookings.display_id ||
+      bookings.data?.display_id ||
+      (detailTour.id ? `TC-${detailTour.id}` : null);
 
     return (
-      <PartnerBookingDetail
-        tour={detailTour}
-        badge={statusMeta(detailTour)}
-        reference={
-          detailTour.display_id ||
-          (detailTour.id ? `TC-${detailTour.id}` : "Booking")
-        }
-        title={
-          detailTour.customer_name ||
-          detailTour.tour_name ||
-          "Untitled booking"
-        }
-        meta={meta}
-        totalLabel={formatMoney(totalAmount(detailTour))}
-        paidLabel={formatMoney(Number.isFinite(paid) ? paid : 0)}
-        outstanding={outstanding}
-        outstandingLabel={formatMoney(outstanding)}
-        userRole={userRole}
-        markupAmount={markupAmount}
-        setMarkupAmount={setMarkupAmount}
-        discountAmount={discountAmount}
-        setDiscountAmount={setDiscountAmount}
-        onBack={handleBackToList}
-        onPrint={handlePrint}
-        onAddServices={() => handleAddMoreServices(detailTour)}
-        onUpdatePlan={() => handleUpdateTourPlan(detailTour)}
-        onCancel={() => handleCancelTour(detailTour)}
-        actionBusy={actionBusy}
-        loading={viewStatus === "loading"}
-      />
+      <>
+        <PartnerBookingDetail
+          tour={detailTour}
+          badge={statusMeta(detailTour)}
+          reference={
+            detailTour.display_id ||
+            (detailTour.id ? `TC-${detailTour.id}` : "Booking")
+          }
+          title={
+            detailTour.customer_name ||
+            detailTour.tour_name ||
+            "Untitled booking"
+          }
+          meta={meta}
+          totalLabel={formatMoney(totalAmount(detailTour))}
+          paidLabel={formatMoney(Number.isFinite(paid) ? paid : 0)}
+          outstanding={outstanding}
+          outstandingLabel={formatMoney(outstanding)}
+          userRole={userRole}
+          markupAmount={markupAmount}
+          setMarkupAmount={setMarkupAmount}
+          discountAmount={discountAmount}
+          setDiscountAmount={setDiscountAmount}
+          onBack={handleBackToList}
+          onPrint={handlePrint}
+          onAddServices={() => handleAddMoreServices(detailTour)}
+          onUpdatePlan={() => handleUpdateTourPlan(detailTour)}
+          onCancel={() => handleCancelTour(detailTour)}
+          actionBusy={actionBusy}
+          loading={viewDetailsStatus === "loading"}
+        />
+        <PrintModal
+          isPrintModalVisible={isPrintModalVisible}
+          handleCancelPrint={handleCancelPrint}
+          handleDownloadPDF={handleDownloadPDF}
+          contentRef={contentRef}
+          viewDetailsStatus={viewDetailsStatus}
+          displayId={displayId}
+          bookings={bookings}
+          modifiedPriceData={modifiedPriceData}
+          markupAmount={markupAmount}
+          discountAmount={discountAmount}
+          totalPrice={totalPrice}
+          tourId={detailTour.id}
+          pricehide={priceHideFromBookings}
+        />
+      </>
     );
   }
 

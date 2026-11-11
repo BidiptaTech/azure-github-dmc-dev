@@ -390,6 +390,24 @@ export default function HotelProperties() {
         return false;
       }
     }
+
+    // Star category filter (3 / 4 / 5 star) — hotel section only
+    if (filters.star1 || filters.star2 || filters.star3) {
+      const rating =
+        parseFloat(
+          String(
+            hotel?.category ?? hotel?.star_rating ?? hotel?.rating ?? ""
+          ).replace(/[^\d.]/g, "")
+        ) || 0;
+      const stars = Math.round(rating);
+      const match3 = filters.star1 && stars === 3;
+      const match4 = filters.star2 && stars === 4;
+      const match5 = filters.star3 && stars === 5;
+      if (!match3 && !match4 && !match5) {
+        return false;
+      }
+    }
+
     return true;
     
     /* Original filtering code - commented out for debugging
