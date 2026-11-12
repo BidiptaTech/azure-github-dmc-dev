@@ -13209,7 +13209,10 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
      */
     /**
      * Offline / mix Add Payment + Payment Details collection math.
-     * Online-service payments are excluded from offline invoice due when classification is not pure online.
+     *
+     * Online and offline are separate ledgers: never subtract online payments from the
+     * offline invoice. For mix tours, prefer TaxHelper's taxable_base (offline slice)
+     * when the passed base still includes online sell.
      *
      * @param  array<int, mixed>|null  $paymentData
      * @return array{
@@ -13230,7 +13233,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         ?array $paymentData,
         ?string $orderClassification,
         bool $taxIncluded = false,
-        bool $onlineTaxIncluded = false
+        bool $onlineTaxIncluded = false,
+        ?float $taxableBase = null
     ): array {
         $excludeOnline = strtolower(trim((string) $orderClassification)) !== 'online';
         $onlinePaid = 0.0;
@@ -13257,13 +13261,18 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $final = round($finalAmount, 2);
         $paid = $excludeOnline ? $offlinePaid : round($onlinePaid + $offlinePaid, 2);
 
-        if ($excludeOnline && $onlinePaid > 0.009) {
-            $final = max(0, round($final - $onlinePaid, 2));
-            if ($taxIncluded) {
-                $base = $final;
-                $tax = 0.0;
-            } else {
-                $base = max(0, round($final - $tax, 2));
+        // Mix: invoice the offline taxable base only (online stay on the online panel).
+        if ($excludeOnline && $onlineTaxIncluded && $taxableBase !== null && $taxableBase > 0.009) {
+            $offlineBase = round($taxableBase, 2);
+            // Replace only when taxable base is a clear offline slice of a larger tour base.
+            if ($offlineBase + 0.009 < $base) {
+                $base = $offlineBase;
+                if ($taxIncluded) {
+                    $tax = 0.0;
+                    $final = $base;
+                } else {
+                    $final = round($base + $tax, 2);
+                }
             }
         }
 

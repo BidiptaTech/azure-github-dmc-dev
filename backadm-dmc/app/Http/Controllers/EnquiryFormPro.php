@@ -5304,22 +5304,38 @@ class EnquiryFormPro extends Controller
         $cancelService = app(\App\Services\AttractionSuppliers\OnlineAttractionCancellationService::class);
         foreach ($orphans as $orphan) {
             try {
-                $cancelService->cancelIfApplicable(
+                $cancelResult = $cancelService->cancelIfApplicable(
                     $orphan,
-                    'Removed from Pro enquiry edit form'
+                    'Removed from Pro enquiry edit form',
+                    true
                 );
+                if (is_array($cancelResult) && ! empty($cancelResult['soft_failed'])) {
+                    \Log::warning('Pro edit: online attraction voucher cancel soft-failed during orphan soft-delete', [
+                        'tour_id' => $tour->tour_id,
+                        'order_id' => $orphan->id,
+                        'booking_id' => $orphan->booking_id,
+                        'message' => $cancelResult['message'] ?? null,
+                    ]);
+                }
             } catch (\Throwable $e) {
-                \Log::error('Pro edit: online attraction voucher cancel failed during orphan soft-delete', [
+                \Log::error('Pro edit: online attraction voucher cancel unexpected error during orphan soft-delete', [
                     'tour_id' => $tour->tour_id,
                     'order_id' => $orphan->id,
                     'booking_id' => $orphan->booking_id,
                     'error' => $e->getMessage(),
                 ]);
 
-                throw new \RuntimeException(
-                    'Cannot remove online attraction "' . ($orphan->booking_id ?? $orphan->id)
-                    . '": voucher cancel failed — ' . $e->getMessage()
-                );
+                try {
+                    app(\App\Services\Payment\SupplierCancellationStatusService::class)->markFailed(
+                        $orphan,
+                        $e->getMessage() ?: 'Unexpected supplier cancellation error.'
+                    );
+                } catch (\Throwable $statusError) {
+                    \Log::warning('Could not persist supplier cancellation failed status', [
+                        'order_id' => $orphan->id,
+                        'error' => $statusError->getMessage(),
+                    ]);
+                }
             }
 
             $refundPayload = \App\Helpers\CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tour->tour_id, []);

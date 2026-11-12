@@ -151,6 +151,35 @@ class OnlineHotelCancellationServiceTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_soft_fail_persists_failed_status_without_throwing(): void
+    {
+        $order = $this->makeOrder([
+            'type' => 'hotel',
+            'order_type' => 'online',
+            'booking_details' => json_encode([
+                'supplier_code' => 'hotelbeds',
+                'api_environment' => 'demo',
+                'supplier_booking_reference' => '322-4697792',
+                'book_response' => [
+                    'booking' => [
+                        'reference' => '322-4697792',
+                        'status' => 'CONFIRMED',
+                    ],
+                ],
+            ]),
+        ]);
+
+        $result = app(OnlineHotelCancellationService::class)->cancelIfApplicable($order, true);
+
+        $this->assertIsArray($result);
+        $this->assertTrue($result['soft_failed'] ?? false);
+        $this->assertSame('failed', $result['status'] ?? null);
+
+        $stored = json_decode((string) $order->booking_details, true);
+        $this->assertSame('failed', $stored['supplier_cancellation']['status'] ?? null);
+        Http::assertNothingSent();
+    }
+
     /**
      * @param  array<string, mixed>  $attrs
      */
