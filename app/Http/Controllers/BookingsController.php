@@ -16,7 +16,10 @@ use App\Models\User;
 use App\Services\Finance\BookingFinanceOrchestrator;
 use App\Services\Finance\WalletQueryService;
 use App\Services\Finance\WalletService;
+use App\Services\AttractionSuppliers\OnlineAttractionCancellationService;
+use App\Services\HotelSuppliers\OnlineHotelCancellationService;
 use App\Services\Payment\CommissionBreakdownService;
+use App\Services\Payment\SupplierCancellationStatusService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -997,21 +1000,10 @@ class BookingsController extends Controller
         if ($payable === null) {
             $payable = (float) ($tour->money_total ?? 0);
             if ($payable <= 0) {
-                $enquiry = Enquiry::where('tour_id', $tour->tour_id)
-                    ->orderByDesc('enquiry_id')
-                    ->get(['enquiry_id', 'tour_id', 'status', 'amount', 'gross_amount', 'currency', 'negotiation_details']);
-                $confirmed = $enquiry->first(fn ($row) => (int) ($row->status ?? 0) === 2);
-                $pricing = $confirmed ?: $enquiry->first();
-                $sellSum = 0.0;
-                foreach (
-                    Order::withTrashed()
-                        ->where('tour_id', $tour->tour_id)
-                        ->where('bookingType', 'booking')
-                        ->get() as $row
-                ) {
-                    $sellSum += $this->orderPriceWithMarkup($row, (int) ($tour->is_pro ?? 0))['amount'];
-                }
-                $payable = (float) ($this->paymentModalTotals($tour, $pricing, round($sellSum), $priced['currency'])['total'] ?? 0);
+                // Match attachTourMoneySummary: mix tours must include online sell in
+                // payable. paymentModalTotals alone is offline-only and under-scales
+                // DMC/TravClicks refund max on submit (UI shows full; API rejects).
+                $payable = $this->resolveTourRefundPayable($tour, (string) ($priced['currency'] ?? ''));
             }
         }
 
@@ -1023,6 +1015,75 @@ class BookingsController extends Controller
             'currency' => $priced['currency'],
             'scale' => $scale,
         ];
+    }
+
+    /**
+     * Tour payable used to scale service refunds — same mix-tour rules as Refunds money summary.
+     */
+    private function resolveTourRefundPayable(Tour $tour, string $fallbackCurrency = ''): float
+    {
+        $isPro = (int) ($tour->is_pro ?? 0);
+        $orders = Order::withTrashed()
+            ->where('tour_id', $tour->tour_id)
+            ->where('bookingType', 'booking')
+            ->get();
+
+        $sellSum = 0.0;
+        $onlineSell = 0.0;
+        $orderCurrency = trim($fallbackCurrency);
+        foreach ($orders as $row) {
+            $rowPriced = $this->orderPriceWithMarkup($row, $isPro);
+            $sellSum += $rowPriced['amount'];
+            if ($orderCurrency === '' && $rowPriced['currency'] !== '') {
+                $orderCurrency = $rowPriced['currency'];
+            }
+            if (strtolower(trim((string) ($row->order_type ?? ''))) === 'online') {
+                $onlineSell += $rowPriced['amount'];
+            }
+        }
+        $sellSum = round($sellSum, 2);
+        $onlineSell = round($onlineSell, 2);
+
+        $enquiry = Enquiry::where('tour_id', $tour->tour_id)
+            ->orderByDesc('enquiry_id')
+            ->get(['enquiry_id', 'tour_id', 'status', 'amount', 'gross_amount', 'currency', 'negotiation_details']);
+        $confirmed = $enquiry->first(fn ($row) => (int) ($row->status ?? 0) === 2);
+        $pricing = $confirmed ?: $enquiry->first();
+
+        if ($pricing) {
+            $moneyTotal = (float) ($this->paymentModalTotals($tour, $pricing, round($sellSum), $orderCurrency)['total'] ?? 0);
+        } else {
+            $moneyTotal = $sellSum;
+        }
+
+        if ($onlineSell > 0.009) {
+            $offlineSell = max(0, round($sellSum - $onlineSell, 2));
+            $alreadyIncludesOnline = ($moneyTotal + 0.009) >= ($onlineSell + ($offlineSell * 0.9))
+                || ($sellSum > 0.009 && ($moneyTotal + 0.009) >= ($sellSum * 0.95));
+            if (! $alreadyIncludesOnline) {
+                $moneyTotal = round($moneyTotal + $onlineSell, 2);
+            }
+        }
+
+        if ($moneyTotal <= 0) {
+            $payments = is_string($tour->payment_details)
+                ? json_decode($tour->payment_details, true)
+                : $tour->payment_details;
+            $paid = 0.0;
+            if (is_array($payments)) {
+                foreach ($payments as $payment) {
+                    if (! is_array($payment) || (int) ($payment['status'] ?? 0) !== 1) {
+                        continue;
+                    }
+                    $paid += (float) ($payment['amount'] ?? 0);
+                }
+            }
+            if ($paid > 0) {
+                $moneyTotal = round($paid, 2);
+            }
+        }
+
+        return max(0.0, round($moneyTotal, 2));
     }
 
     private function attachRefundPrices($tours): void
@@ -1037,7 +1098,16 @@ class BookingsController extends Controller
             foreach ($orders as $order) {
                 $priced = $this->resolveOrderRefundMax($tour, $order, $tourPayable > 0 ? $tourPayable : null);
                 $order->setAttribute('refund_price_with_markup', $priced['amount']);
-                $order->setAttribute('refund_price_currency', $priced['currency']);
+                $pricedCurrency = strtoupper(trim((string) ($priced['currency'] ?? '')));
+                if ($pricedCurrency === '') {
+                    $pricedCurrency = strtoupper(trim((string) (
+                        $order->currency
+                        ?: $tour->user_currency
+                        ?: $tour->money_currency
+                        ?: ''
+                    )));
+                }
+                $order->setAttribute('refund_price_currency', $pricedCurrency);
 
                 if (($order->type ?? '') === 'hotel') {
                     $calc = \App\Helpers\CommonHelper::calculateHotelCancellationCharge($order, $priced['amount']);
@@ -1060,6 +1130,19 @@ class BookingsController extends Controller
                     $order->setAttribute('online_dmc_markup', $dmcMarkup['amount']);
                     $order->setAttribute('online_dmc_markup_label', $dmcMarkup['label']);
                     $order->setAttribute('online_dmc_markup_currency', $priced['currency']);
+                }
+
+                if (strtolower(trim((string) ($order->order_type ?? ''))) === 'online') {
+                    $cancelStatus = app(SupplierCancellationStatusService::class)->read($order);
+                    $order->setAttribute('supplier_cancel_status', $cancelStatus['status']);
+                    $order->setAttribute('supplier_cancel_message', $cancelStatus['message']);
+                    $order->setAttribute('supplier_cancel_last_error', $cancelStatus['last_error']);
+                    $order->setAttribute('supplier_cancel_attempts', $cancelStatus['attempts']);
+                    $order->setAttribute('supplier_cancel_resolved_reason', $cancelStatus['resolved_reason']);
+                    $order->setAttribute(
+                        'supplier_cancel_blocks_wallet',
+                        app(SupplierCancellationStatusService::class)->isBlockingWalletCredit($order) ? 1 : 0
+                    );
                 }
             }
         }
@@ -1128,6 +1211,107 @@ class BookingsController extends Controller
         }
 
         return round($amount / $sgdRate, 2);
+    }
+
+    /**
+     * Convert amount between currencies via SGD (countries.current_rate: 1 SGD = rate units).
+     */
+    private function convertAmountViaSgd(float $amount, string $fromCurrency, string $toCurrency): float
+    {
+        $amount = max(0, $amount);
+        $from = strtoupper(trim($fromCurrency));
+        $to = strtoupper(trim($toCurrency));
+        if ($amount <= 0 || $from === '' || $to === '' || $from === $to) {
+            return round($amount, 2);
+        }
+
+        $fromRate = $from === 'SGD' ? 1.0 : Country::sgdRateFor($from);
+        $toRate = $to === 'SGD' ? 1.0 : Country::sgdRateFor($to);
+        if ($fromRate === null || $fromRate <= 0 || $toRate === null || $toRate <= 0) {
+            return round($amount, 2);
+        }
+
+        $sgd = $from === 'SGD' ? $amount : ($amount / $fromRate);
+
+        return round($to === 'SGD' ? $sgd : ($sgd * $toRate), 2);
+    }
+
+    /**
+     * DMC agent-refund modal: keep order price in order currency, enter refund in DMC base currency.
+     *
+     * @param  \Illuminate\Support\Collection|array<int, mixed>  $tours
+     */
+    private function attachDmcAgentRefundCurrency($tours, string $dmcCurrency): void
+    {
+        if ($tours === null) {
+            return;
+        }
+
+        $dmcCurrency = strtoupper(trim($dmcCurrency));
+        if ($dmcCurrency === '') {
+            return;
+        }
+
+        foreach ($tours as $tour) {
+            $orders = $tour->relationLoaded('booking') ? $tour->booking : collect();
+            foreach ($orders as $order) {
+                $orderCurrency = strtoupper(trim((string) (
+                    $order->refund_price_currency
+                    ?: $order->currency
+                    ?: $tour->user_currency
+                    ?: $tour->money_currency
+                    ?: ''
+                )));
+                if ($orderCurrency === '') {
+                    $orderCurrency = $dmcCurrency;
+                }
+
+                $nativeMax = (float) ($order->refund_price_with_markup ?? 0);
+                $order->setAttribute('refund_order_currency', $orderCurrency);
+                $order->setAttribute('refund_order_amount', $nativeMax);
+                $order->setAttribute(
+                    'refund_order_suggested',
+                    $order->refund_suggested_amount !== null && $order->refund_suggested_amount !== ''
+                        ? (float) $order->refund_suggested_amount
+                        : null
+                );
+                $order->setAttribute(
+                    'refund_order_cancel_charge',
+                    $order->hotel_cancellation_charge !== null && $order->hotel_cancellation_charge !== ''
+                        ? (float) $order->hotel_cancellation_charge
+                        : null
+                );
+
+                if ($orderCurrency === $dmcCurrency) {
+                    $order->setAttribute('refund_price_currency', $dmcCurrency);
+                    continue;
+                }
+
+                $convertedMax = $this->convertAmountViaSgd($nativeMax, $orderCurrency, $dmcCurrency);
+                $order->setAttribute('refund_price_with_markup', $convertedMax);
+                $order->setAttribute('refund_price_currency', $dmcCurrency);
+                $order->setAttribute('refund_full_price_with_markup', $convertedMax);
+
+                if ($order->refund_suggested_amount !== null && $order->refund_suggested_amount !== '') {
+                    $order->setAttribute(
+                        'refund_suggested_amount',
+                        $this->convertAmountViaSgd((float) $order->refund_suggested_amount, $orderCurrency, $dmcCurrency)
+                    );
+                }
+                if ($order->hotel_cancellation_charge !== null && $order->hotel_cancellation_charge !== '') {
+                    $order->setAttribute(
+                        'hotel_cancellation_charge',
+                        $this->convertAmountViaSgd((float) $order->hotel_cancellation_charge, $orderCurrency, $dmcCurrency)
+                    );
+                }
+                if ($order->hotel_suggested_refund !== null && $order->hotel_suggested_refund !== '') {
+                    $order->setAttribute(
+                        'hotel_suggested_refund',
+                        $this->convertAmountViaSgd((float) $order->hotel_suggested_refund, $orderCurrency, $dmcCurrency)
+                    );
+                }
+            }
+        }
     }
 
     /**
@@ -1430,6 +1614,15 @@ class BookingsController extends Controller
                 $orderCurrency = $paymentCurrency;
             }
 
+            $onlineSell = 0.0;
+            foreach ($tourOrders as $order) {
+                if (strtolower(trim((string) ($order->order_type ?? ''))) !== 'online') {
+                    continue;
+                }
+                $onlineSell += $this->orderPriceWithMarkup($order, $isPro)['amount'];
+            }
+            $onlineSell = round($onlineSell, 2);
+
             // Online-only wallet tours usually have no enquiry negotiation. Use service
             // sell directly so cancel/refund rows don't show 0 (or tax-inflated) totals.
             if ($pricing) {
@@ -1439,6 +1632,17 @@ class BookingsController extends Controller
             } else {
                 $moneyTotal = round($sell, 2);
                 $moneyCurrency = $orderCurrency;
+            }
+
+            // Mix tours: payment/negotiation total is offline-only. Tour total on Refunds
+            // must include every service (offline invoice + online sell), e.g. 570 + 319 = 889.
+            if ($onlineSell > 0.009) {
+                $offlineSell = max(0, round($sell - $onlineSell, 2));
+                $alreadyIncludesOnline = ($moneyTotal + 0.009) >= ($onlineSell + ($offlineSell * 0.9))
+                    || ($sell > 0.009 && ($moneyTotal + 0.009) >= ($sell * 0.95));
+                if (! $alreadyIncludesOnline) {
+                    $moneyTotal = round($moneyTotal + $onlineSell, 2);
+                }
             }
 
             if ($moneyTotal <= 0 && $paid > 0) {
@@ -3813,6 +4017,9 @@ class BookingsController extends Controller
         $this->attachTourRefundPrices($tours);
         if (in_array((int) ($user->role_id ?? 0), [1, 2, 3, 4], true)) {
             $this->attachTravclicksDmcWalletFx($tours);
+        } else {
+            // DMC / finance: enter refund in DMC base currency; order price stays in order currency.
+            $this->attachDmcAgentRefundCurrency($tours, (string) $currency);
         }
         $this->hydrateDestinationCreatedAt($tours);
         return view('bookings.refunds', compact('tours', 'country_tax', 'currency'));
@@ -4144,9 +4351,40 @@ class BookingsController extends Controller
                     ], 422);
                 }
 
-                $price = $this->resolveOrderRefundMax($tour, $order);
+                $cancelStatusService = app(SupplierCancellationStatusService::class);
+                if ($cancelStatusService->isBlockingWalletCredit($order)) {
+                    $forceWallet = filter_var($request->input('force_wallet_credit'), FILTER_VALIDATE_BOOLEAN);
+                    $overrideReason = trim((string) $request->input('override_reason', ''));
+                    $cancelInfo = $cancelStatusService->read($order);
+
+                    if ($forceWallet && $overrideReason !== '') {
+                        $cancelStatusService->markResolvedManual(
+                            $order,
+                            'Wallet credit override: '.$overrideReason
+                        );
+                    } else {
+                        $statusLabel = strtoupper((string) ($cancelInfo['status'] ?? 'pending'));
+                        $detail = trim((string) ($cancelInfo['last_error'] ?: $cancelInfo['message'] ?? ''));
+
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Supplier cancellation is '.$statusLabel
+                                .'. Retry cancel or mark resolved with a reason before crediting the DMC wallet'
+                                .($detail !== '' ? (' — '.$detail) : '.')
+                                .' Or submit force_wallet_credit with override_reason.',
+                            'supplier_cancellation' => $cancelInfo,
+                            'blocks_wallet' => true,
+                        ], 422);
+                    }
+                }
+
+                // Online wallet credit uses the full online sell (already paid separately).
+                // Do NOT scale to offline negotiation/invoice via resolveOrderRefundMax —
+                // that under-caps mix tours on submit (UI money_total includes online; raw
+                // Tour model does not), e.g. modal max 290 vs server max 188.
+                $priced = $this->orderPriceWithMarkup($order, (int) ($tour->is_pro ?? 0));
                 // TravClicks refund amount is always SGD (order sell may be IDR/etc.).
-                $nativeCurrency = strtoupper(trim((string) ($price['currency'] ?: $order->currency ?: 'SGD')));
+                $nativeCurrency = strtoupper(trim((string) ($priced['currency'] ?: $order->currency ?: 'SGD')));
                 $nativeRate = Country::sgdRateFor($nativeCurrency);
                 if ($nativeCurrency !== 'SGD' && ($nativeRate === null || $nativeRate <= 0)) {
                     return response()->json([
@@ -4154,7 +4392,7 @@ class BookingsController extends Controller
                         'message' => "No countries.current_rate for {$nativeCurrency}. Sync currency rates before refunding.",
                     ], 422);
                 }
-                $nativeMax = (float) $price['amount'];
+                $nativeMax = (float) $priced['amount'];
                 $dmcMarkupNative = $this->onlineOrderDmcMarkup($order, $tour)['amount'];
                 if ($dmcMarkupNative > 0) {
                     $nativeMax = max(0, round($nativeMax - $dmcMarkupNative, 2));
@@ -4252,14 +4490,24 @@ class BookingsController extends Controller
             }
 
             $price = $this->resolveOrderRefundMax($tour, $order);
-            $maxAmount = (float) $price['amount'];
+            $orderCurrency = strtoupper(trim((string) ($price['currency'] ?: $order->currency ?: $tour->user_currency ?: '')));
+            $dmcCurrency = strtoupper(trim((string) (CommonHelper::getDmcCurrencyByCountry() ?: $orderCurrency)));
+            $nativeMax = (float) $price['amount'];
+            // DMC enters refund in their base currency; convert the order-currency cap to match.
+            $maxAmount = ($dmcCurrency !== '' && $orderCurrency !== '' && $dmcCurrency !== $orderCurrency)
+                ? $this->convertAmountViaSgd($nativeMax, $orderCurrency, $dmcCurrency)
+                : $nativeMax;
             $refundAmount = round((float) $request->input('refund_amount'), 2);
+            $maxCurrency = ($dmcCurrency !== '' ? $dmcCurrency : $orderCurrency);
 
             if ($refundAmount - $maxAmount > 0.009) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Refund amount cannot be higher than the order price with markup (' . number_format($maxAmount, 2, '.', '') . ').',
+                    'message' => 'Refund amount cannot be higher than the order price with markup ('
+                        . ($maxCurrency !== '' ? $maxCurrency.' ' : '')
+                        . number_format($maxAmount, 2, '.', '') . ').',
                     'max_refund_amount' => $maxAmount,
+                    'max_refund_currency' => $maxCurrency,
                 ], 422);
             }
 
@@ -4303,18 +4551,177 @@ class BookingsController extends Controller
     }
 
     /**
+     * TravClicks admin: retry supplier cancel for a refund-queued online order.
+     */
+    public function retrySupplierCancellation(Request $request)
+    {
+        try {
+            $roleId = (int) (Auth::user()->role_id ?? 0);
+            if (! in_array($roleId, [1, 2, 3, 4], true)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Only TravClicks can retry supplier cancellation.',
+                ], 403);
+            }
+
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer|exists:tours,tour_id',
+                'order_id' => 'required|integer',
+            ]);
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $validator->errors()->first() ?: 'Invalid input provided',
+                ], 422);
+            }
+
+            $tourId = (int) $request->tour_id;
+            $orderId = (int) $request->order_id;
+            $order = $this->findRefundOnlineOrder($tourId, $orderId);
+            if (! $order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Online refund order not found for this tour.',
+                ], 404);
+            }
+
+            if ((bool) ($order->travclicks_refunded ?? false)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'TravClicks already refunded this service — supplier retry is not needed.',
+                ], 422);
+            }
+
+            $statusService = app(SupplierCancellationStatusService::class);
+            $cancelReason = trim((string) $request->input('cancel_reason', 'Admin retry supplier cancellation'));
+            $type = strtolower(trim((string) ($order->type ?? '')));
+
+            $result = null;
+            if ($type === 'attraction') {
+                $result = app(OnlineAttractionCancellationService::class)
+                    ->cancelIfApplicable($order, $cancelReason !== '' ? $cancelReason : null, true);
+            } else {
+                $result = app(OnlineHotelCancellationService::class)
+                    ->cancelIfApplicable($order, true);
+            }
+
+            $status = $statusService->read($order);
+            $softFailed = is_array($result) && ! empty($result['soft_failed']);
+            $allowsWallet = $statusService->allowsWalletCredit($order);
+
+            return response()->json([
+                'success' => ! $softFailed && $allowsWallet,
+                'message' => $allowsWallet
+                    ? 'Supplier cancellation confirmed. You can now credit the DMC wallet.'
+                    : ('Supplier cancellation still '.strtoupper((string) ($status['status'] ?? 'failed'))
+                        .'. '.trim((string) ($status['last_error'] ?: $status['message'] ?? 'Retry again or mark resolved.'))),
+                'supplier_cancellation' => $status,
+                'blocks_wallet' => ! $allowsWallet,
+                'result' => $result,
+            ], $allowsWallet ? 200 : 422);
+        } catch (\Exception $e) {
+            Log::error('retrySupplierCancellation failed', [
+                'error' => $e->getMessage(),
+                'tour_id' => $request->input('tour_id'),
+                'order_id' => $request->input('order_id'),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retry supplier cancellation: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * TravClicks admin: force-resolve supplier cancel with audit reason (allows wallet credit).
+     */
+    public function resolveSupplierCancellation(Request $request)
+    {
+        try {
+            $roleId = (int) (Auth::user()->role_id ?? 0);
+            if (! in_array($roleId, [1, 2, 3, 4], true)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Only TravClicks can mark supplier cancellation as resolved.',
+                ], 403);
+            }
+
+            $validator = Validator::make($request->all(), [
+                'tour_id' => 'required|integer|exists:tours,tour_id',
+                'order_id' => 'required|integer',
+                'reason' => 'required|string|min:5|max:2000',
+            ]);
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $validator->errors()->first() ?: 'Invalid input provided',
+                ], 422);
+            }
+
+            $tourId = (int) $request->tour_id;
+            $orderId = (int) $request->order_id;
+            $order = $this->findRefundOnlineOrder($tourId, $orderId);
+            if (! $order) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Online refund order not found for this tour.',
+                ], 404);
+            }
+
+            $reason = trim((string) $request->input('reason'));
+            $statusService = app(SupplierCancellationStatusService::class);
+            $statusService->markResolvedManual($order, $reason);
+            $status = $statusService->read($order);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Supplier cancellation marked resolved. Wallet credit is now allowed.',
+                'supplier_cancellation' => $status,
+                'blocks_wallet' => false,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to resolve supplier cancellation: '.$e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * @return Order|null
+     */
+    private function findRefundOnlineOrder(int $tourId, int $orderId): ?Order
+    {
+        $query = Order::withTrashed()
+            ->where('tour_id', $tourId)
+            ->where('bookingType', 'booking')
+            ->where('is_refund', 1)
+            ->where(function ($q) use ($orderId) {
+                $q->where('booking_id', $orderId)->orWhere('id', $orderId);
+            });
+
+        if (Schema::hasColumn('orders', 'order_type')) {
+            $query->whereRaw("LOWER(TRIM(COALESCE(order_type, ''))) = ?", ['online']);
+        }
+
+        return $query->first();
+    }
+
+    /**
      * Persist optional refund transaction id + remarks onto an order when columns exist.
      */
     private function applyRefundMetaFields(Order $order, Request $request): void
     {
-        $transactionId = trim((string) $request->input('transaction_id', ''));
-        $remarks = trim((string) $request->input('remarks', ''));
-
-        if (Schema::hasColumn('orders', 'refund_transaction_id') && $transactionId !== '') {
-            $order->refund_transaction_id = $transactionId;
+        // Always persist when the modal sends these fields so Verify can keep/update
+        // values entered at Initiate time.
+        if ($request->exists('transaction_id') && Schema::hasColumn('orders', 'refund_transaction_id')) {
+            $transactionId = trim((string) $request->input('transaction_id', ''));
+            $order->refund_transaction_id = $transactionId !== '' ? $transactionId : null;
         }
-        if (Schema::hasColumn('orders', 'refund_remarks') && $remarks !== '') {
-            $order->refund_remarks = $remarks;
+        if ($request->exists('remarks') && Schema::hasColumn('orders', 'refund_remarks')) {
+            $remarks = trim((string) $request->input('remarks', ''));
+            $order->refund_remarks = $remarks !== '' ? $remarks : null;
         }
     }
 

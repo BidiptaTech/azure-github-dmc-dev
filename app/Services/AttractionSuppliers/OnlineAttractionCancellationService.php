@@ -3,6 +3,7 @@
 namespace App\Services\AttractionSuppliers;
 
 use App\Models\Order;
+use App\Services\Payment\SupplierCancellationStatusService;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
@@ -15,15 +16,16 @@ class OnlineAttractionCancellationService
 {
     public function __construct(
         private OnlineAttractionOrderService $orderService,
+        private SupplierCancellationStatusService $cancellationStatus,
     ) {}
 
     /**
      * Call the supplier cancel-voucher API when this is an online attraction with a voucher.
      * Returns null when no supplier cancel is needed (offline / not yet paid).
      *
-     * @return array{success: bool, message: ?string, provider_status: ?int, provider: mixed, voucher_code: ?string}|null
+     * @return array{success: bool, message: ?string, provider_status: ?int, provider: mixed, voucher_code: ?string, soft_failed?: bool, status?: string}|null
      */
-    public function cancelIfApplicable(Order $order, ?string $cancelReason = null): ?array
+    public function cancelIfApplicable(Order $order, ?string $cancelReason = null, bool $softFailOnError = false): ?array
     {
         if (($order->type ?? '') !== 'attraction') {
             return null;
@@ -34,22 +36,29 @@ class OnlineAttractionCancellationService
             || OnlineAttractionOrderService::isOnlineAttraction($booking);
 
         if (! $isOnline) {
+            $this->cancellationStatus->markNotRequired($order, 'Not an online attraction.');
+
             return null;
         }
 
         if (! empty($booking['voucher_cancelled'])) {
+            $this->cancellationStatus->markConfirmed($order, 'Voucher was already cancelled.');
+
             return [
                 'success' => true,
                 'message' => 'Voucher was already cancelled.',
                 'provider_status' => null,
                 'provider' => null,
                 'voucher_code' => OnlineAttractionOrderService::extractPrimaryVoucherCode($booking),
+                'status' => 'confirmed',
             ];
         }
 
         $voucherCode = OnlineAttractionOrderService::extractPrimaryVoucherCode($booking);
         if ($voucherCode === null || $voucherCode === '') {
             // Online but not yet paid / no voucher — local soft-delete only.
+            $this->cancellationStatus->markNotRequired($order, 'No voucher code — supplier cancel not required.');
+
             return null;
         }
 
@@ -58,12 +67,27 @@ class OnlineAttractionCancellationService
             $reason = 'Removed from tour edit form';
         }
 
+        $this->cancellationStatus->markPending($order, 'Calling supplier cancel-voucher API…');
+
         $result = $this->orderService->cancelVoucher($voucherCode, $reason, $booking);
 
         if (empty($result['success'])) {
-            throw new RuntimeException(
-                $result['message'] ?: 'Failed to cancel the online attraction voucher with the supplier.'
-            );
+            $message = (string) ($result['message'] ?: 'Failed to cancel the online attraction voucher with the supplier.');
+            $this->cancellationStatus->markFailed($order, $message);
+
+            if ($softFailOnError) {
+                return [
+                    'success' => false,
+                    'message' => $message,
+                    'provider_status' => $result['provider_status'] ?? null,
+                    'provider' => $result['provider'] ?? null,
+                    'voucher_code' => $voucherCode,
+                    'soft_failed' => true,
+                    'status' => 'failed',
+                ];
+            }
+
+            throw new RuntimeException($message);
         }
 
         $booking['voucher_cancelled'] = true;
@@ -75,6 +99,7 @@ class OnlineAttractionCancellationService
         ];
 
         $this->writeBookingPayload($order, $booking);
+        $this->cancellationStatus->markConfirmed($order, (string) ($result['message'] ?? 'Supplier voucher cancellation confirmed.'));
 
         Log::info('Online attraction voucher cancelled with supplier (edit remove)', [
             'order_id' => $order->id,
@@ -83,7 +108,7 @@ class OnlineAttractionCancellationService
             'message' => $result['message'] ?? null,
         ]);
 
-        return array_merge($result, ['voucher_code' => $voucherCode]);
+        return array_merge($result, ['voucher_code' => $voucherCode, 'status' => 'confirmed']);
     }
 
     /**

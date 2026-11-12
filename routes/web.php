@@ -1083,6 +1083,8 @@ Route::get('/clear', function () {
             Route::post('/bookings/process-refund', [BookingsController::class, 'processRefund'])->name('bookings.process-refund');
             Route::post('/bookings/process-order-refund', [BookingsController::class, 'processOrderRefund'])->name('bookings.process-order-refund');
             Route::post('/bookings/process-order-refund-by-order', [BookingsController::class, 'processOrderRefundByOrder'])->name('bookings.process-order-refund-by-order');
+            Route::post('/bookings/retry-supplier-cancellation', [BookingsController::class, 'retrySupplierCancellation'])->name('bookings.retry-supplier-cancellation');
+            Route::post('/bookings/resolve-supplier-cancellation', [BookingsController::class, 'resolveSupplierCancellation'])->name('bookings.resolve-supplier-cancellation');
             Route::get('/bookings/cancellations-refunds', [BookingsController::class, 'cancellationsRefunds'])->name('bookings.cancellations-refunds');
             Route::get('/bookings/stats', [BookingsController::class, 'getBookingStats'])->name('bookings.stats');
             Route::get('/bookings/view-tour/{tourId}', [BookingsController::class, 'viewTour'])->name('bookings.view-tour');

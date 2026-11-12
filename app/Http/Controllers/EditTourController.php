@@ -259,28 +259,42 @@ class EditTourController extends Controller
                 $toDelete[] = $order;
             }
 
-            // Supplier cancel cannot roll back — run before local soft-deletes.
+            // Supplier cancel cannot roll back — soft-fail so local clear still proceeds;
+            // failed/pending blocks TravClicks wallet until retry or manual resolve.
             foreach ($toDelete as $order) {
                 if (($order->type ?? '') !== 'hotel') {
                     continue;
                 }
 
                 try {
-                    $cancellation->cancelIfApplicable($order);
+                    $cancelResult = $cancellation->cancelIfApplicable($order, true);
+                    if (is_array($cancelResult) && ! empty($cancelResult['soft_failed'])) {
+                        Log::warning('Online hotel supplier cancellation soft-failed during clear services', [
+                            'tour_id' => $tour->tour_id,
+                            'order_id' => $order->id,
+                            'booking_id' => $order->booking_id,
+                            'message' => $cancelResult['message'] ?? null,
+                        ]);
+                    }
                 } catch (\Throwable $cancelError) {
-                    Log::error('Online hotel supplier cancellation failed during clear services', [
+                    Log::error('Online hotel supplier cancellation unexpected error during clear services', [
                         'tour_id' => $tour->tour_id,
                         'order_id' => $order->id,
                         'booking_id' => $order->booking_id,
                         'error' => $cancelError->getMessage(),
                     ]);
 
-                    return response()->json([
-                        'success' => false,
-                        'message' => $cancelError instanceof \RuntimeException
-                            ? $cancelError->getMessage()
-                            : 'Failed to cancel an online hotel reservation with the supplier. Services were not cleared.',
-                    ], 422);
+                    try {
+                        app(\App\Services\Payment\SupplierCancellationStatusService::class)->markFailed(
+                            $order,
+                            $cancelError->getMessage() ?: 'Unexpected supplier cancellation error.'
+                        );
+                    } catch (\Throwable $statusError) {
+                        Log::warning('Could not persist supplier cancellation failed status', [
+                            'order_id' => $order->id,
+                            'error' => $statusError->getMessage(),
+                        ]);
+                    }
                 }
             }
 

@@ -1244,6 +1244,7 @@
                                     $taxRow = \App\Helpers\TaxHelper::calculateTourTaxesForTour($baseAmount, $tour->taxes ?? null, $personsRow, $daysRow, $tour);
                                     $taxAmount = (float) ($taxRow['total_tax'] ?? 0);
                                     $taxIncluded = ! empty($taxRow['tax_included']);
+                                    $onlineTaxIncluded = ! empty($taxRow['online_tax_included']);
                                     $finalAmount = $baseAmount + $taxAmount;
                                     $paymentData = is_string($tour->payment_details) ? json_decode($tour->payment_details, true) : $tour->payment_details;
                                     $hasPendingPayments = false;
@@ -1262,7 +1263,8 @@
                                         is_array($paymentData) ? $paymentData : null,
                                         (string) ($tour->order_classification ?? ''),
                                         (bool) $taxIncluded,
-                                        false
+                                        (bool) $onlineTaxIncluded,
+                                        isset($taxRow['taxable_base']) ? (float) $taxRow['taxable_base'] : null
                                     );
                                     $baseAmount = $collection['base_amount'];
                                     $taxAmount = $collection['tax_amount'];
@@ -3379,6 +3381,7 @@
         $finalAmount = $baseAmount + $taxAmount;
         
         $paymentData = is_string($tour->payment_details) ? json_decode($tour->payment_details, true) : $tour->payment_details;
+        $taxableBase = isset($taxResult['taxable_base']) ? (float) $taxResult['taxable_base'] : null;
         $collection = \App\Helpers\CommonHelper::resolveOfflineCollectionAmounts(
             (float) $baseAmount,
             (float) $taxAmount,
@@ -3386,9 +3389,13 @@
             is_array($paymentData) ? $paymentData : null,
             (string) ($tour->order_classification ?? ''),
             (bool) $taxIncluded,
-            (bool) $onlineTaxIncluded
+            (bool) $onlineTaxIncluded,
+            $taxableBase
         );
-        // Add Payment / list due uses offline-excl-online remaining.
+        // Add Payment / Payment Details: offline ledger only (online is separate).
+        $baseAmount = $collection['base_amount'];
+        $taxAmount = $collection['tax_amount'];
+        $finalAmount = $collection['final_amount'];
         $totalPaid = $collection['total_paid'];
         $remainingAmount = $collection['remaining_amount'];
     @endphp
@@ -3458,7 +3465,7 @@
         </div>
     </div>
     @php
-        // Add Payment left panel must match offline remaining (online already collected separately).
+        // Add Payment left panel: offline ledger only (online settled separately, not deducted).
         $baseAmount = $collection['base_amount'];
         $taxAmount = $collection['tax_amount'];
         $finalAmount = $collection['final_amount'];
