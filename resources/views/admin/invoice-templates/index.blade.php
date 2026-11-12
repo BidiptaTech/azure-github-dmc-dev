@@ -1,6 +1,6 @@
 @extends('layouts.layout')
 @section('title', 'Invoice Template Studio')
-
+ 
 @section('css')
 <style>
     .qts-wrap { max-width: 1100px; margin: 0 auto; }
