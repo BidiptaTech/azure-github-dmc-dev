@@ -55,6 +55,7 @@ import {
   updateCalculatedPrice, 
   clearServiceDetails, 
   clearSpecificService,
+  setCustomerName,
   fetchBookingid
 } from "@/slice/common/EnquirySlice";
 import { fetchEnquiryList } from "@/slice/common/enquiryListSlice";
@@ -245,6 +246,7 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
   const [showFloatingPrice, setShowFloatingPrice] = useState(false);
   
   const bookingDetails = useSelector((state) => state.enquiry);
+  const customerName = bookingDetails.customer_name || "";
   const serviceDetails = useSelector((state) => state.enquiry.serviceDetails || {});
   const selectedServices = useSelector((state) => state.enquiry.selectedServices || Object.keys(bookingOptions || {}).filter(key => bookingOptions[key]));
   
@@ -1649,6 +1651,8 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
       selectedServices,
       serviceDetails
     });
+
+    const trimmedClientName = (customerName || "").trim();
     
     // Build the payload for create-enquiry API
     const buildEnquiryPayload = () => {
@@ -1656,6 +1660,7 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
       
       const payload = {
         approx_price: totalPrice,
+        customer_name: trimmedClientName,
         // Hotel service
         hotel: selectedServices.includes("hotel"),
         hotel_ids: [],
@@ -2089,6 +2094,22 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
         <p className="partner-card__sub">
           Destination, dates and travellers for this enquiry.
         </p>
+        <div className="enquiry-review__client">
+          <div className="partner-field">
+            <label htmlFor="enquiry-client-name">Client / group name</label>
+            <input
+              id="enquiry-client-name"
+              type="text"
+              value={customerName}
+              placeholder="e.g. Smith family / ABC Corp incentive"
+              disabled={submitting || enquiryStatus === "submitted"}
+              onChange={(e) => {
+                dispatch(setCustomerName(e.target.value));
+                if (submitError) setSubmitError(null);
+              }}
+            />
+          </div>
+        </div>
         <div className="enquiry-review__trip-body">
           <TripDetailsComponent mode="view" />
         </div>

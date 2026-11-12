@@ -25,6 +25,7 @@ import {
   setCheckIn,
   setCheckOut,
   setGuest,
+  setCustomerName,
   clearServiceDetails,
   clearSpecificService,
 } from "../../../slice/common/EnquirySlice";
@@ -55,6 +56,9 @@ const MainFilterSearchBox = ({ onNext }) => {
   const selectedCities = useSelector(
     (state) => state.cities?.selectedCities || []
   );
+  const customerName = useSelector(
+    (state) => state.enquiry?.customer_name || ""
+  );
   const [selectedDates, setSelectedDates] = useState([]);
   const [cityDates, setCityDates] = useState({});
   const [tripType, setTripType] = useState("single");
@@ -79,6 +83,7 @@ const MainFilterSearchBox = ({ onNext }) => {
     dispatch(clearUserInfo());
     dispatch(clearSelectedDmc());
     dispatch(clearSelectedCities());
+    dispatch(setCustomerName(""));
   }, [dispatch]);
 
   useEffect(() => {
@@ -879,6 +884,19 @@ const MainFilterSearchBox = ({ onNext }) => {
           )}
       </div>
       )}
+
+      <div className="hero-client-name">
+        <label htmlFor="hero-enquiry-client-name">Client / group name</label>
+        <input
+          id="hero-enquiry-client-name"
+          type="text"
+          value={customerName}
+          placeholder="Name this trip"
+          onChange={(e) => {
+            dispatch(setCustomerName(e.target.value));
+          }}
+        />
+      </div>
 
       <div className="hero-room-options">
         <button

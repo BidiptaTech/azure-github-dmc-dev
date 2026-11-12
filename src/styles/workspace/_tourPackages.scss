@@ -50,8 +50,15 @@
   box-shadow: none !important;
 }
 
+/* Hero1 forces .hero-search-bar into a 5-col grid for Plan a trip —
+   package SearchForm nests MUI Grid inside that bar, so reset it. */
+.tp-hero-search .hero-search-bar,
 .tp-plan-search__bar,
+.hero1-trip__search .tp-hero-search .hero-search-bar,
+.hero1-trip__search .tp-plan-search__bar,
 .pp-hero-search__bar {
+  display: block !important;
+  grid-template-columns: none !important;
   width: 100% !important;
   max-width: none !important;
   background: #fff !important;
@@ -59,6 +66,8 @@
   box-shadow: none !important;
   border: 0 !important;
   padding: 8px !important;
+  gap: 0 !important;
+  align-items: stretch !important;
 }
 
 .tp-plan-search__toolbar {
@@ -67,7 +76,8 @@
 
 .tp-plan-search__row {
   display: flex !important;
-  flex-wrap: wrap !important;
+  flex-wrap: nowrap !important;
+  align-items: stretch !important;
   border: 0 !important;
   border-radius: 0 !important;
   overflow: visible;
@@ -80,6 +90,22 @@
   padding: 0 !important;
   border-right: 1px solid #e2e8f0;
   margin: 0 !important;
+  min-width: 0 !important;
+  flex: 1 1 0 !important;
+  max-width: none !important;
+}
+
+.tp-plan-search__cell:nth-child(1) {
+  flex: 1.35 1 0 !important;
+}
+
+.tp-plan-search__cell:nth-child(2),
+.tp-plan-search__cell:nth-child(3) {
+  flex: 1.1 1 0 !important;
+}
+
+.tp-plan-search__cell:nth-child(4) {
+  flex: 0.9 1 0 !important;
 }
 
 .tp-plan-search__cell:last-child {
@@ -104,6 +130,8 @@
   box-shadow: none !important;
   padding-top: 8px !important;
   padding-bottom: 8px !important;
+  box-sizing: border-box;
+  overflow: visible;
 }
 
 .tp-plan-search__cell > .MuiBox-root:hover {
@@ -123,6 +151,67 @@
 
 .tp-plan-search .MuiTypography-caption .MuiSvgIcon-root {
   display: none;
+}
+
+/* Date / travellers / agent values must stay on one readable line */
+.tp-plan-search .custom_dual_datepicker,
+.tp-plan-search .custom_container-picker,
+.tp-plan-search .rmdp-container {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.tp-plan-search .custom_input-picker {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: auto !important;
+  min-height: 28px !important;
+  border: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  box-shadow: none !important;
+}
+
+.tp-plan-search__cell .tp-pax-summary,
+.tp-plan-search__cell [class*="cursor-pointer"],
+.tp-plan-search__cell .MuiTypography-body1,
+.tp-plan-search__cell .MuiTypography-body2 {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 100%;
+  line-height: 1.35 !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+}
+
+.tp-plan-search__cell input[readonly] {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  padding: 0 !important;
+  height: auto !important;
+  min-height: 28px !important;
+}
+
+.tp-plan-search .hero-search-bar__cta {
+  justify-content: flex-end !important;
+  width: 100%;
+}
+
+.tp-plan-search__city-dates {
+  margin-top: 8px;
+  width: 100%;
 }
 
 /* Inline CTA — match Plan a trip */
@@ -252,15 +341,25 @@
     margin: 0 0 10px;
   }
 
+  .tp-plan-search__row {
+    flex-wrap: wrap !important;
+  }
+
   .tp-plan-search__cell {
     border-right: 0;
     border-bottom: 1px solid #e2e8f0;
-    flex-basis: 100% !important;
+    flex: 1 1 100% !important;
     max-width: 100% !important;
   }
 
   .tp-plan-search__cell:last-child {
     border-bottom: 0;
+  }
+
+  .hero1-trip__search .tp-hero-search .hero-search-bar,
+  .tp-plan-search__bar {
+    display: block !important;
+    grid-template-columns: none !important;
   }
 
   .pp-hero-search__bar {

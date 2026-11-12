@@ -11,9 +11,9 @@ export default function BookingEnquiryEmbed() {
       <button
         type="button"
         className="partner-back"
-        onClick={() => navigate(appPath())}
+        onClick={() => navigate(appPath("quotes"))}
       >
-        ← Dashboard
+        ← Quotes &amp; requests
       </button>
       <BookingEnquiry />
     </div>

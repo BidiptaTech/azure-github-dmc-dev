@@ -48,6 +48,7 @@ import { resetAllServiceResponses } from "@/slice/common/stepperButtonSlice";
 import { resetguide } from "@/slice/tourguide/guideslice";
 import { resetVehicles1, setSelectedPort } from "@/slice/localtour/Localslice";
 import { resetVehicles } from "@/slice/port/pickupDropSlice";
+import { appPath } from "@/utils/appPaths";
 
 dayjs.extend(customParseFormat);
 
@@ -316,7 +317,10 @@ export async function startUpdateTourPlan({ tour, dispatch, navigate }) {
     })
   );
   dispatch(resetPackages());
-  navigate("/app/packages/tour-packages-page");
+  // Normal booking update — Plan a trip builder, not Packages
+  navigate(appPath("plan"), {
+    state: { startTrip: true, from: "bookings" },
+  });
   return response;
 }
 

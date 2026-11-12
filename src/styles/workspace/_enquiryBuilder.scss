@@ -154,6 +154,27 @@
   margin-bottom: 18px;
 }
 
+.enquiry-review__client {
+  margin-bottom: 14px;
+  max-width: 420px;
+}
+
+.enquiry-review__client .partner-field {
+  width: 100%;
+}
+
+.enquiry-review__client .partner-field input {
+  width: 100%;
+}
+
+.enquiry-review__field-error {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #b42318;
+}
+
 .enquiry-review__trip-body .enquiry-summary-bar-wrap {
   margin-bottom: 0;
 }

@@ -394,11 +394,28 @@ const PaxSelector = ({ onGuestChange, guestCounts = { Adults: 1, Children: 0, In
           }
         }}
       >
-        <Typography variant="body2" color="text.secondary">
-          {guestCounts.Adults} adults
-          ({guestCounts.maleCount || 0} male, {guestCounts.femaleCount || 0} female) -
-          {guestCounts.Children} children -
-          {guestCounts.Infants} infants
+        <Typography
+          className="tp-pax-summary"
+          variant="body2"
+          color="text.secondary"
+          sx={{
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            fontWeight: 700,
+            color: "#0f172a",
+            fontSize: 14,
+            lineHeight: 1.35,
+          }}
+        >
+          {guestCounts.Adults} adult{guestCounts.Adults === 1 ? "" : "s"}
+          {` (${guestCounts.maleCount || 0}M / ${guestCounts.femaleCount || 0}F)`}
+          {guestCounts.Children
+            ? ` · ${guestCounts.Children} child${guestCounts.Children === 1 ? "" : "ren"}`
+            : ""}
+          {guestCounts.Infants
+            ? ` · ${guestCounts.Infants} infant${guestCounts.Infants === 1 ? "" : "s"}`
+            : ""}
         </Typography>
       </Box>
 

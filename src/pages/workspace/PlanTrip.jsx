@@ -4,7 +4,7 @@ import { useDispatch } from "react-redux";
 import Hero1 from "@/components/hero/hero-1";
 import TourPackages from "@/components/Tour-Packages";
 import { setSearchCriteria } from "@/slice/tour-packages/tourPackageSlice";
-import { QUOTES_ENQUIRY_PATH } from "@/utils/appPaths";
+import { appPath, QUOTES_ENQUIRY_PATH } from "@/utils/appPaths";
 
 export default function PlanTrip() {
   const navigate = useNavigate();
@@ -40,21 +40,33 @@ export default function PlanTrip() {
 
   return (
     <div>
+      <button
+        type="button"
+        className="partner-back"
+        onClick={() => navigate(appPath("bookings"))}
+      >
+        ← My bookings
+      </button>
+
       <div className="partner-plan-hero">
         <Hero1 />
       </div>
 
-      <section className="partner-quote-cta partner-quote-cta--block">
-        <h2 className="partner-quote-cta__title">Prefer a tailor-made proposal?</h2>
-        <p className="partner-quote-cta__sub">
-          Share your brief and let your DMC create the itinerary.
-        </p>
+      <section className="partner-quote-cta partner-quote-cta--row">
+        <div className="partner-quote-cta__copy">
+          <h2 className="partner-quote-cta__title">
+            Prefer a tailor-made proposal?
+          </h2>
+          <p className="partner-quote-cta__sub">
+            Share your brief and let your DMC create the itinerary.
+          </p>
+        </div>
         <button
           type="button"
-          className="partner-btn partner-btn--primary"
+          className="partner-btn partner-btn--secondary"
           onClick={() => navigate(QUOTES_ENQUIRY_PATH)}
         >
-          Request a Custom Quote →
+          Request a custom quote →
         </button>
       </section>
     </div>
