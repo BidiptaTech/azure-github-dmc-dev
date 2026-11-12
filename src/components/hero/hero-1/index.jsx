@@ -137,6 +137,47 @@ const index = ({
           font-size: 13px;
           color: #64748b;
         }
+        .hero1-trip .hero-client-name {
+          margin: 12px 0 0;
+          position: relative;
+          z-index: 2;
+          max-width: 100%;
+        }
+        .hero1-trip .hero-client-name label {
+          display: block;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: rgba(255, 255, 255, 0.85);
+          margin-bottom: 6px;
+        }
+        .hero1-trip .hero-client-name input {
+          width: 100%;
+          box-sizing: border-box;
+          border: 0;
+          border-radius: 10px;
+          background: #fff;
+          color: #0f172a;
+          font-size: 15px;
+          font-weight: 500;
+          padding: 12px 14px;
+          outline: none;
+        }
+        .hero1-trip .hero-client-name input::placeholder {
+          color: #94a3b8;
+          font-weight: 500;
+        }
+        .hero1-trip .hero-client-name input:focus {
+          box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35);
+        }
+        .hero1-trip .hero-client-name__error {
+          display: block;
+          margin-top: 6px;
+          font-size: 12px;
+          font-weight: 600;
+          color: #fecaca;
+        }
         .hero1-trip .hero-room-options {
           margin: 10px 0 0 !important;
           padding: 0 !important;

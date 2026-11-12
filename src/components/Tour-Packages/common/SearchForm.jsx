@@ -1851,7 +1851,7 @@ dispatch(fetchHotels());
       </div>
 
       <div
-        className="bg-white hero-search-bar tp-plan-search__bar"
+        className="bg-white tp-plan-search__bar"
         style={{
           borderRadius: 12,
           padding: 8,
@@ -2044,16 +2044,24 @@ dispatch(fetchHotels());
                     // Show readonly input when agent comes from packageData
                     <input
                       type="text"
-                      value={`${selectedAgentName}`}
+                      value={selectedAgentName || ""}
                       readOnly
+                      title={selectedAgentName || ""}
                       style={{
-                        width: '100%',
-                        height: '32px',
-                        border: 'none',
-                        background: 'transparent',
-                        fontSize: '0.8rem',
-                        padding: '0 8px',
-                        cursor: 'default'
+                        width: "100%",
+                        minWidth: 0,
+                        height: "auto",
+                        minHeight: 28,
+                        border: "none",
+                        background: "transparent",
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: "#0f172a",
+                        padding: 0,
+                        cursor: "default",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
                       }}
                     />
                   ) : (
@@ -2267,17 +2275,17 @@ dispatch(fetchHotels());
           </Grid>
         </Grid>
 
-        {/* City-wise travel dates */}
-        {cityWiseDateRanges.length > 0 && (
-          <Grid item xs={12}>
+        {/* City-wise travel dates — only for multi-city (single city uses Travel dates above) */}
+        {tripType === "multi" && cityWiseDateRanges.length > 1 && (
+          <Grid item xs={12} className="tp-plan-search__city-dates">
             <Grid container spacing={1.5}>
               {cityWiseDateRanges.map((cityDate, index) => (
                 <Grid item xs={12} sm={6} md={4} key={`${cityDate.city}-${index}`}>
                   <Box
                     sx={{
-                      p: 1,
+                      p: 1.5,
                       borderRadius: 1.5,
-                      bgcolor: isDateGuestLocked ? '#f5f5f5' : 'white',
+                      bgcolor: isDateGuestLocked ? '#f8fafc' : 'white',
                       border: '1px solid #e2e8f0',
                       height: '100%',
                       minHeight: '60px',
