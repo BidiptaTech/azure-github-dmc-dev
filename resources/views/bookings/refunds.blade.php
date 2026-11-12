@@ -165,16 +165,6 @@
         background: #fff7ed;
         border-color: #fed7aa;
     }
-    #toursTable .col-refund-status .refund-status-badge.is-waiting-admin {
-        color: #92400e;
-        background: #fffbeb;
-        border-color: #fde68a;
-    }
-    #toursTable .col-refund-status .refund-status-badge.is-admin-ready {
-        color: #1d4ed8;
-        background: #eff6ff;
-        border-color: #bfdbfe;
-    }
     #toursTable .action-icon-badge.is-waiting-admin {
         background: #fef3c7 !important;
         border-color: #fcd34d !important;
@@ -182,6 +172,13 @@
         opacity: 0.9;
     }
     #toursTable .action-icon-badge.is-waiting-admin i { color: #b45309 !important; }
+    #toursTable .action-icon-badge.is-supplier-cancel-blocked {
+        background: #fef2f2 !important;
+        border-color: #fca5a5 !important;
+        cursor: not-allowed;
+        opacity: 0.95;
+    }
+    #toursTable .action-icon-badge.is-supplier-cancel-blocked i { color: #b91c1c !important; }
     #toursTable .action-icon-badge.is-admin-ready {
         background: #dbeafe !important;
         border-color: #93c5fd !important;
@@ -706,42 +703,12 @@
                                         return ! ((bool) ($order->refunded ?? false));
                                     });
                                     $serviceRefundCompleted = $refundOrders->isNotEmpty() && ! $hasPendingOrderRefund;
-                                    $hasWaitingAdminApproval = ! $showDmcColumn && $refundOrders->contains(function ($order) use ($isOnlineRefundOrder) {
-                                        return $isOnlineRefundOrder($order)
-                                            && ! ((bool) ($order->travclicks_refunded ?? false));
-                                    });
-                                    $hasAdminRefundedReady = ! $showDmcColumn && $refundOrders->contains(function ($order) use ($isOnlineRefundOrder) {
-                                        return $isOnlineRefundOrder($order)
-                                            && (bool) ($order->travclicks_refunded ?? false)
-                                            && ! ((bool) ($order->refunded ?? false));
-                                    });
                                 @endphp
                                 <div class="refund-status-stack">
-                                @if($showDmcColumn && $serviceRefundCompleted)
+                                @if($serviceRefundCompleted)
                                     <span class="refund-status-badge is-completed">
                                         <i class="ri-check-circle-line"></i>
-                                        Refunded to DMC
-                                    </span>
-                                @elseif(! $showDmcColumn && $serviceRefundCompleted)
-                                    <span class="refund-status-badge is-completed">
-                                        <i class="ri-check-circle-line"></i>
-                                        Refund completed
-                                    </span>
-                                @elseif($hasWaitingAdminApproval)
-                                    <span class="refund-status-badge is-waiting-admin text-start">
-                                        <i class="ri-time-line"></i>
-                                        <span>
-                                            <span class="d-block">Admin not refunded yet</span>
-                                            <span class="d-block">Waiting for admin approval</span>
-                                        </span>
-                                    </span>
-                                @elseif($hasAdminRefundedReady)
-                                    <span class="refund-status-badge is-admin-ready text-start">
-                                        <i class="ri-checkbox-circle-line"></i>
-                                        <span>
-                                            <span class="d-block">Admin refunded</span>
-                                            <span class="d-block">You may proceed</span>
-                                        </span>
+                                        {{ $showDmcColumn ? 'Refunded to DMC' : 'Refund completed' }}
                                     </span>
                                 @endif
                                 <div class="d-flex flex-wrap gap-2">
@@ -771,6 +738,19 @@
                                             $orderIdentifier = $refundOrder->booking_id ?? $refundOrder->id ?? null;
                                             $refundPriceMax = (float) ($refundOrder->refund_price_with_markup ?? 0);
                                             $refundPriceCurrency = trim((string) ($refundOrder->refund_price_currency ?? ($currency ?? '')));
+                                            // DMC view: order price stays in order currency; refund input uses DMC base currency.
+                                            $refundOrderCurrency = ! $showDmcColumn
+                                                ? strtoupper(trim((string) (
+                                                    $refundOrder->refund_order_currency
+                                                    ?? $refundOrder->currency
+                                                    ?? $tour->user_currency
+                                                    ?? $tour->money_currency
+                                                    ?? ''
+                                                )))
+                                                : '';
+                                            $refundOrderAmount = ! $showDmcColumn && isset($refundOrder->refund_order_amount)
+                                                ? (float) $refundOrder->refund_order_amount
+                                                : null;
                                             $savedRefundAmount = $showDmcColumn
                                                 ? ($refundOrder->travclicks_refund_amount ?? null)
                                                 : ($refundOrder->refund_amount ?? null);
@@ -808,7 +788,20 @@
                                             $sourceSgdRate = $showDmcColumn && $refundOrder->refund_source_sgd_rate !== null
                                                 ? (float) $refundOrder->refund_source_sgd_rate
                                                 : null;
-                                            if ($isWaitingAdminApproval) {
+                                            $supplierCancelStatus = strtolower(trim((string) ($refundOrder->supplier_cancel_status ?? '')));
+                                            $supplierCancelBlocksWallet = $showDmcColumn
+                                                && ! $adminRefundedToDmc
+                                                && (int) ($refundOrder->supplier_cancel_blocks_wallet ?? 0) === 1;
+                                            $supplierCancelError = trim((string) (
+                                                $refundOrder->supplier_cancel_last_error
+                                                ?? $refundOrder->supplier_cancel_message
+                                                ?? ''
+                                            ));
+                                            if ($supplierCancelBlocksWallet) {
+                                                $statusPhrase = 'Supplier cancel '
+                                                    . ($supplierCancelStatus !== '' ? strtoupper($supplierCancelStatus) : 'PENDING')
+                                                    . ' — retry or mark resolved before wallet credit';
+                                            } elseif ($isWaitingAdminApproval) {
                                                 $statusPhrase = 'Admin not refunded yet — waiting for admin approval';
                                             } elseif ($isAdminReadyForDmc) {
                                                 $statusPhrase = 'Admin refunded — you may proceed';
@@ -834,21 +827,28 @@
                                                     : '')
                                                 . (!empty($refundOrder->refund_transaction_id) ? (' · Txn: ' . $refundOrder->refund_transaction_id) : '')
                                                 . (!empty($refundOrder->refund_remarks) ? (' · ' . \Illuminate\Support\Str::limit((string) $refundOrder->refund_remarks, 80)) : '')
-                                                . ($hotelSummary !== '' ? (' · ' . $hotelSummary) : '');
+                                                . ($hotelSummary !== '' ? (' · ' . $hotelSummary) : '')
+                                                . ($supplierCancelBlocksWallet && $supplierCancelError !== ''
+                                                    ? (' · ' . \Illuminate\Support\Str::limit($supplierCancelError, 100))
+                                                    : '');
                                             $iconStateClass = $isRefundCompleteForOrder
                                                 ? 'is-refunded'
-                                                : ($isWaitingAdminApproval
-                                                    ? 'is-waiting-admin'
-                                                    : ($isAdminReadyForDmc
-                                                        ? 'is-admin-ready'
-                                                        : ($isRefundInitiated ? 'is-refund-initiated' : '')));
+                                                : ($supplierCancelBlocksWallet
+                                                    ? 'is-supplier-cancel-blocked'
+                                                    : ($isWaitingAdminApproval
+                                                        ? 'is-waiting-admin'
+                                                        : ($isAdminReadyForDmc
+                                                            ? 'is-admin-ready'
+                                                            : ($isRefundInitiated ? 'is-refund-initiated' : ''))));
                                             $iconColor = ($isRefundCompleteForOrder || $isRefundInitiated)
                                                 ? '#ffffff'
-                                                : ($isWaitingAdminApproval
-                                                    ? '#b45309'
-                                                    : ($isAdminReadyForDmc ? '#1d4ed8' : '#7c3aed'));
+                                                : ($supplierCancelBlocksWallet
+                                                    ? '#b91c1c'
+                                                    : ($isWaitingAdminApproval
+                                                        ? '#b45309'
+                                                        : ($isAdminReadyForDmc ? '#1d4ed8' : '#7c3aed')));
                                         @endphp
-                                        <div class="d-flex flex-column align-items-center">
+                                        <div class="d-flex flex-column align-items-center gap-1">
                                         <button type="button"
                                                 class="action-icon-badge {{ $iconStateClass }}"
                                                 style="--action-color: {{ $iconColor }};"
@@ -858,10 +858,18 @@
                                                 data-order-id="{{ $orderActionId }}"
                                                 data-refund-initiated="{{ $isRefundInitiated ? '1' : '0' }}"
                                                 data-waiting-admin="{{ $isWaitingAdminApproval ? '1' : '0' }}"
+                                                data-supplier-cancel-blocked="{{ $supplierCancelBlocksWallet ? '1' : '0' }}"
+                                                data-supplier-cancel-status="{{ e($supplierCancelStatus) }}"
                                                 data-refund-max="{{ number_format($refundPriceMax, 2, '.', '') }}"
                                                 data-refund-full="{{ number_format($fullOrderPrice, 2, '.', '') }}"
                                                 data-refund-currency="{{ $refundPriceCurrency }}"
+                                                @if(! $showDmcColumn && $refundOrderCurrency !== '')
+                                                    data-order-currency="{{ $refundOrderCurrency }}"
+                                                    data-order-amount="{{ number_format($refundOrderAmount !== null ? $refundOrderAmount : $refundPriceMax, 2, '.', '') }}"
+                                                @endif
                                                 data-refund-current="{{ ($savedRefundAmount !== null && $savedRefundAmount !== '') ? number_format((float) $savedRefundAmount, 2, '.', '') : '' }}"
+                                                data-refund-txn="{{ e(trim((string) ($refundOrder->refund_transaction_id ?? ''))) }}"
+                                                data-refund-remarks="{{ e(preg_replace('/\s+/u', ' ', trim((string) ($refundOrder->refund_remarks ?? '')))) }}"
                                                 data-refund-suggested="{{ $hotelSuggested !== null ? number_format($hotelSuggested, 2, '.', '') : '' }}"
                                                 data-cancel-charge="{{ $hotelCharge !== null ? number_format($hotelCharge, 2, '.', '') : '' }}"
                                                 data-cancel-summary="{{ e($hotelSummary) }}"
@@ -874,7 +882,7 @@
                                                     data-dmc-wallet-sgd-rate="{{ $dmcWalletSgdRate !== null ? number_format($dmcWalletSgdRate, 8, '.', '') : '' }}"
                                                     data-source-sgd-rate="{{ $sourceSgdRate !== null ? number_format($sourceSgdRate, 8, '.', '') : '' }}"
                                                 @endif
-                                                @if($isRefundCompleteForOrder || $isWaitingAdminApproval)
+                                                @if($isRefundCompleteForOrder || $isWaitingAdminApproval || $supplierCancelBlocksWallet)
                                                     disabled
                                                     aria-disabled="true"
                                                 @else
@@ -882,6 +890,25 @@
                                                 @endif>
                                             <i class="{{ $serviceMeta['icon'] }}"></i>
                                         </button>
+                                        @if($supplierCancelBlocksWallet)
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle" style="font-size: 0.65rem;">
+                                                {{ strtoupper($supplierCancelStatus !== '' ? $supplierCancelStatus : 'pending') }}
+                                            </span>
+                                            <div class="d-flex gap-1">
+                                                <button type="button"
+                                                        class="btn btn-xs btn-outline-primary py-0 px-1"
+                                                        style="font-size: 0.65rem; line-height: 1.2;"
+                                                        onclick="retrySupplierCancellation({{ $tour->tour_id }}, {{ (int)($orderActionId ?? 0) }})">
+                                                    Retry
+                                                </button>
+                                                <button type="button"
+                                                        class="btn btn-xs btn-outline-secondary py-0 px-1"
+                                                        style="font-size: 0.65rem; line-height: 1.2;"
+                                                        onclick="resolveSupplierCancellation({{ $tour->tour_id }}, {{ (int)($orderActionId ?? 0) }})">
+                                                    Resolve
+                                                </button>
+                                            </div>
+                                        @endif
                                         </div>
                                     @empty
                                         <span class="text-muted small">N/A</span>
@@ -1532,6 +1559,94 @@ function processOrderRefund(tourId, event) {
     );
 }
 
+function retrySupplierCancellation(tourId, orderId) {
+    if (!tourId || !orderId) return;
+    if (!window.confirm('Retry supplier cancellation for this online service? Wallet credit stays blocked until cancel is confirmed.')) {
+        return;
+    }
+
+    showLoadingModal('Retrying Supplier Cancel', 'Please wait...');
+    $.ajax({
+        url: '{{ route("bookings.retry-supplier-cancellation") }}',
+        method: 'POST',
+        data: {
+            tour_id: tourId,
+            order_id: orderId,
+            _token: $('meta[name="csrf-token"]').attr('content')
+        },
+        success: function(response) {
+            hideModal();
+            if (response.success) {
+                showSuccessModal('Supplier Cancel Updated', response.message || 'Cancellation confirmed.', function() {
+                    location.reload();
+                });
+            } else {
+                showErrorModal('Supplier Cancel Still Pending', response.message || 'Retry failed. You can try again or mark resolved.');
+            }
+        },
+        error: function(xhr) {
+            hideModal();
+            let errorMessage = 'Failed to retry supplier cancellation.';
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                errorMessage = xhr.responseJSON.message;
+            }
+            // 422 soft-fail still returns useful status — treat like still pending.
+            if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.message) {
+                showErrorModal('Supplier Cancel Still Pending', errorMessage);
+                return;
+            }
+            showErrorModal('Supplier Cancel Retry Failed', errorMessage);
+        }
+    });
+}
+
+function resolveSupplierCancellation(tourId, orderId) {
+    if (!tourId || !orderId) return;
+
+    const reason = window.prompt(
+        'Enter the audit reason for marking supplier cancellation as resolved (required). This unlocks TravClicks wallet credit.',
+        ''
+    );
+    if (reason === null) {
+        return;
+    }
+    const trimmed = String(reason || '').trim();
+    if (trimmed.length < 5) {
+        showErrorModal('Reason Required', 'Please enter at least 5 characters explaining why this is resolved.');
+        return;
+    }
+
+    showLoadingModal('Marking Resolved', 'Please wait...');
+    $.ajax({
+        url: '{{ route("bookings.resolve-supplier-cancellation") }}',
+        method: 'POST',
+        data: {
+            tour_id: tourId,
+            order_id: orderId,
+            reason: trimmed,
+            _token: $('meta[name="csrf-token"]').attr('content')
+        },
+        success: function(response) {
+            hideModal();
+            if (response.success) {
+                showSuccessModal('Supplier Cancel Resolved', response.message || 'Wallet credit is now allowed.', function() {
+                    location.reload();
+                });
+            } else {
+                showErrorModal('Resolve Failed', response.message || 'Unable to mark supplier cancellation as resolved.');
+            }
+        },
+        error: function(xhr) {
+            hideModal();
+            let errorMessage = 'Failed to resolve supplier cancellation.';
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                errorMessage = xhr.responseJSON.message;
+            }
+            showErrorModal('Resolve Failed', errorMessage);
+        }
+    });
+}
+
 // Mark a single refund order as refunded (orders.refunded = 1 for that order only)
 function processSingleOrderRefund(tourId, orderId, event) {
     if (!orderId) return;
@@ -1544,11 +1659,22 @@ function processSingleOrderRefund(tourId, orderId, event) {
         );
         return;
     }
+    if (button?.dataset.supplierCancelBlocked === '1') {
+        showErrorModal(
+            'Supplier Cancellation Pending',
+            'Supplier cancel is '
+                + String(button.dataset.supplierCancelStatus || 'pending').toUpperCase()
+                + '. Use Retry or Resolve before crediting the DMC wallet.'
+        );
+        return;
+    }
     const initiated = button?.dataset.refundInitiated === '1';
     const isTravclicksRefund = {{ in_array((int) (auth()->user()->role_id ?? 0), [1, 2, 3, 4], true) ? 'true' : 'false' }};
     const maxAmount = parseFloat(button?.dataset.refundMax || '0');
     const fullOrderPrice = parseFloat(button?.dataset.refundFull || maxAmount || '0');
     const currency = button?.dataset.refundCurrency || '';
+    const orderCurrency = (button?.dataset.orderCurrency || '').toUpperCase();
+    const orderAmountRaw = parseFloat(button?.dataset.orderAmount || '');
     const savedAmount = button?.dataset.refundCurrent;
     const suggestedRaw = button?.dataset.refundSuggested;
     const cancelCharge = button?.dataset.cancelCharge;
@@ -1579,20 +1705,34 @@ function processSingleOrderRefund(tourId, orderId, event) {
             : (isFinite(maxAmount) ? maxAmount : 0));
 
     // TravClicks: refund amount is always SGD; convert to DMC wallet currency below.
+    // DMC: refund amount is DMC base currency; order price stays in order currency.
     const refundCurrency = isTravclicksRefund ? 'SGD' : currency;
+    const displayOrderCurrency = (!isTravclicksRefund && orderCurrency)
+        ? orderCurrency
+        : refundCurrency;
+    const displayOrderAmount = (!isTravclicksRefund && isFinite(orderAmountRaw))
+        ? orderAmountRaw
+        : (isFinite(fullOrderPrice) ? fullOrderPrice : maxAmount);
     const refundSourceSgdRate = isTravclicksRefund ? 1 : sourceSgdRate;
     const hasDmcMarkup = isTravclicksRefund && isFinite(dmcMarkupAmount) && dmcMarkupAmount > 0;
+    const dmcCurrencyDiffers = !isTravclicksRefund
+        && !!displayOrderCurrency
+        && !!refundCurrency
+        && displayOrderCurrency !== refundCurrency;
 
     let initiateMessage = isTravclicksRefund
         ? 'Enter the refund amount in <strong>SGD</strong>. The converted DMC-currency amount below is credited to the DMC wallet.'
-        : 'Enter the refund amount for this service. You can use the full price or a lower amount.';
-    if (!initiated && (cancelSummary || hasDmcMarkup)) {
+        : (dmcCurrencyDiffers
+            ? ('Order price is in <strong>' + displayOrderCurrency + '</strong>. Enter the refund amount in your DMC currency (<strong>'
+                + refundCurrency + '</strong>).')
+            : 'Enter the refund amount for this service. You can use the full price or a lower amount.');
+    if (!initiated && (cancelSummary || hasDmcMarkup || dmcCurrencyDiffers)) {
         const chargeVal = isFinite(parseFloat(cancelCharge)) ? Number(cancelCharge).toFixed(2) : '0.00';
         const suggestedVal = isFinite(suggestedAmount) ? suggestedAmount.toFixed(2) : startingAmount.toFixed(2);
-        initiateMessage = (cancelSummary ? 'Hotel cancellation policy applied.' : 'Online hotel refund breakdown.')
+        initiateMessage = (cancelSummary ? 'Hotel cancellation policy applied.' : 'Refund breakdown.')
             + '<br><strong>Order price:</strong> '
-            + (refundCurrency ? refundCurrency + ' ' : '')
-            + (isFinite(fullOrderPrice) ? fullOrderPrice.toFixed(2) : maxAmount.toFixed(2));
+            + (displayOrderCurrency ? displayOrderCurrency + ' ' : '')
+            + (isFinite(displayOrderAmount) ? displayOrderAmount.toFixed(2) : maxAmount.toFixed(2));
         if (hasDmcMarkup) {
             initiateMessage += '<br><strong>DMC markup'
                 + (dmcMarkupLabel ? ' (' + dmcMarkupLabel + ')' : '')
@@ -1614,8 +1754,14 @@ function processSingleOrderRefund(tourId, orderId, event) {
         }
         if (isTravclicksRefund) {
             initiateMessage += '<br><br>Amounts are in SGD. The converted DMC-currency amount below is credited to the DMC wallet.';
+        } else if (dmcCurrencyDiffers) {
+            initiateMessage += '<br><br>Refund amount below is in <strong>' + refundCurrency
+                + '</strong> (DMC base currency), converted from the order currency.';
         }
     }
+
+    const savedTxnId = button?.dataset.refundTxn || '';
+    const savedRemarks = button?.dataset.refundRemarks || '';
 
     const modalOptions = initiated
         ? {
@@ -1624,6 +1770,8 @@ function processSingleOrderRefund(tourId, orderId, event) {
             verifyOnly: true,
             currency: refundCurrency,
             amount: isFinite(parseFloat(savedAmount)) ? parseFloat(savedAmount) : 0,
+            transactionId: savedTxnId,
+            remarks: savedRemarks,
             note: isTravclicksRefund
                 ? 'This will complete the refund and credit the converted amount to the DMC wallet.'
                 : null
@@ -1635,9 +1783,13 @@ function processSingleOrderRefund(tourId, orderId, event) {
             fullOrderPrice: isFinite(fullOrderPrice) ? fullOrderPrice : (isFinite(maxAmount) ? maxAmount : 0),
             currency: refundCurrency,
             amount: isFinite(startingAmount) ? startingAmount : 0,
+            transactionId: savedTxnId,
+            remarks: savedRemarks,
             priceLabel: isTravclicksRefund
                 ? (hasDmcMarkup ? 'Max refundable to DMC (SGD)' : 'Order price with markup (SGD)')
                 : 'Order price with markup',
+            // DMC base-currency refund: order price is already in the message; hide the extra max box.
+            hideMaxPriceDisplay: !isTravclicksRefund && dmcCurrencyDiffers,
             dmcMarkupAmount: hasDmcMarkup ? dmcMarkupAmount : null,
             dmcMarkupLabel: hasDmcMarkup ? dmcMarkupLabel : '',
             helpText: isTravclicksRefund
@@ -1646,12 +1798,17 @@ function processSingleOrderRefund(tourId, orderId, event) {
                     : (cancelSummary
                         ? 'Enter SGD. Default is the policy suggested refund. You can lower it, but not above the SGD max.'
                         : 'Enter SGD. You can refund this amount or less. It cannot be higher than the SGD order price with markup.'))
-                : (cancelSummary
-                    ? 'Default is the policy suggested refund. You can lower it, but not above the order price with markup.'
-                    : 'You can refund this amount or less. It cannot be higher than the order price with markup.'),
+                : (dmcCurrencyDiffers
+                    ? ('Enter ' + refundCurrency + '. Converted from order currency '
+                        + displayOrderCurrency + '. You can lower it, but not above this max.')
+                    : (cancelSummary
+                        ? 'Default is the policy suggested refund. You can lower it, but not above the order price with markup.'
+                        : 'You can refund this amount or less. It cannot be higher than the order price with markup.')),
             note: isTravclicksRefund
                 ? 'This credits the DMC wallet only (TravClicks → DMC). DMC still refunds the agent separately.'
-                : null,
+                : (dmcCurrencyDiffers
+                    ? ('Refund is recorded in ' + refundCurrency + ' (DMC base currency).')
+                    : null),
             showDmcWalletConversion: isTravclicksRefund && !!dmcWalletCurrency,
             dmcWalletCurrency: dmcWalletCurrency,
             dmcWalletSgdRate: isFinite(dmcWalletSgdRate) ? dmcWalletSgdRate : null,
@@ -1784,6 +1941,8 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
                                 </div>
                             </div>
     ` : '';
+    const prefillTxnId = $('<div>').text(String(options.transactionId || '')).html();
+    const prefillRemarks = $('<div>').text(String(options.remarks || '')).html();
     const metaFieldsBlock = `
                             <div class="text-start mb-3">
                                 <label for="refundTransactionIdInput" class="form-label fw-semibold mb-1">
@@ -1794,7 +1953,7 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
                                     id="refundTransactionIdInput"
                                     maxlength="191"
                                     placeholder="Bank / payment reference"
-                                    value="">
+                                    value="${prefillTxnId}">
                             </div>
                             <div class="text-start mb-3">
                                 <label for="refundRemarksInput" class="form-label fw-semibold mb-1">
@@ -1804,13 +1963,15 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
                                     id="refundRemarksInput"
                                     rows="2"
                                     maxlength="2000"
-                                    placeholder="Refund remarks..."></textarea>
+                                    placeholder="Refund remarks...">${prefillRemarks}</textarea>
                             </div>
     `;
     const fullOrderPrice = options.fullOrderPrice != null ? parseFloat(options.fullOrderPrice) : NaN;
     const dmcMarkupAmount = options.dmcMarkupAmount != null ? parseFloat(options.dmcMarkupAmount) : NaN;
     const dmcMarkupLabel = String(options.dmcMarkupLabel || '').trim();
+    const hideMaxPriceDisplay = !!options.hideMaxPriceDisplay;
     const showMarkupBreakdown = hasAmount
+        && !hideMaxPriceDisplay
         && isFinite(dmcMarkupAmount)
         && dmcMarkupAmount > 0
         && isFinite(fullOrderPrice);
@@ -1829,10 +1990,10 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
                                         <span>${amountCurrency ? amountCurrency + ' ' : ''}${maxAmount.toFixed(2)}</span>
                                     </div>
                                 </div>
-    ` : `
+    ` : (hideMaxPriceDisplay ? '' : `
                                 <label class="form-label fw-semibold mb-1">${priceLabel}</label>
                                 <div class="form-control bg-light mb-3">${amountCurrency ? amountCurrency + ' ' : ''}${maxAmount.toFixed(2)}</div>
-    `;
+    `);
     const amountBlock = verifyOnly ? `
                             <div class="alert alert-warning border-0 text-start mb-3" style="background-color: #fff7ed;">
                                 <strong>Refund already initiated</strong>
@@ -2037,11 +2198,14 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
         }
         const sgdAmount = sourceCur === 'SGD' ? amount : (amount / sourceSgdRate);
         const creditAmount = targetCur === 'SGD' ? sgdAmount : (sgdAmount * dmcWalletSgdRate);
+        const pathLabel = sourceCur === 'SGD'
+            ? ('SGD → ' + targetCur)
+            : (targetCur === 'SGD' ? (sourceCur + ' → SGD') : (sourceCur + ' → SGD → ' + targetCur));
         return {
             ok: true,
             text: creditAmount.toFixed(2),
             help: 'Converted via countries.current_rate ('
-                + sourceCur + ' → SGD → ' + targetCur
+                + pathLabel
                 + '). This amount is credited to the DMC wallet.'
         };
     };

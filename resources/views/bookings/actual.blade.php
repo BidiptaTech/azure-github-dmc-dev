@@ -1109,7 +1109,8 @@
                                 is_array($paymentData) ? $paymentData : null,
                                 (string) ($tour->order_classification ?? ''),
                                 (bool) $taxIncluded,
-                                (bool) $onlineTaxIncluded
+                                (bool) $onlineTaxIncluded,
+                                isset($taxResult['taxable_base']) ? (float) $taxResult['taxable_base'] : null
                             );
                             $baseAmount = $collection['base_amount'];
                             $taxAmount = $collection['tax_amount'];
@@ -3434,6 +3435,7 @@
                 }
             }
         }
+        $taxableBase = isset($taxResult['taxable_base']) ? (float) $taxResult['taxable_base'] : null;
         $collection = \App\Helpers\CommonHelper::resolveOfflineCollectionAmounts(
             (float) $baseAmount,
             (float) $taxAmount,
@@ -3441,8 +3443,12 @@
             is_array($paymentData) ? $paymentData : null,
             (string) ($tour->order_classification ?? ''),
             (bool) $taxIncluded,
-            (bool) $onlineTaxIncluded
+            (bool) $onlineTaxIncluded,
+            $taxableBase
         );
+        $baseAmount = $collection['base_amount'];
+        $taxAmount = $collection['tax_amount'];
+        $finalAmount = $collection['final_amount'];
         $totalPaid = $collection['total_paid'];
         $remainingAmount = $collection['remaining_amount'];
         // Prefer enquiry_comments.currency when set; else tour user_currency; else DMC currency.

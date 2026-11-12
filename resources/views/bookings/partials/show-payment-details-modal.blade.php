@@ -35,16 +35,24 @@
     $spdTaxIncluded = ! empty($taxIncluded);
     $spdOnlineTaxIncluded = ! empty($onlineTaxIncluded);
 
+    // Online and offline are separate ledgers — never subtract online paid from offline totals.
+    $spdTaxableBase = isset($taxableBase) ? round((float) $taxableBase, 2) : null;
     $spdOfflineBase = $spdInvoiceBase;
     $spdOfflineTax = $spdInvoiceTax;
     $spdOfflineTotal = $spdInvoiceTotal;
-    if ($spdExcludeOnline && $spdOnlinePaid > 0.009) {
-        $spdOfflineTotal = max(0, round($spdOfflineTotal - $spdOnlinePaid, 2));
+    if (
+        $spdExcludeOnline
+        && $spdOnlineTaxIncluded
+        && $spdTaxableBase !== null
+        && $spdTaxableBase > 0.009
+        && ($spdTaxableBase + 0.009) < $spdOfflineBase
+    ) {
+        $spdOfflineBase = $spdTaxableBase;
         if ($spdTaxIncluded) {
-            $spdOfflineBase = $spdOfflineTotal;
             $spdOfflineTax = 0.0;
+            $spdOfflineTotal = $spdOfflineBase;
         } else {
-            $spdOfflineBase = max(0, round($spdOfflineTotal - $spdOfflineTax, 2));
+            $spdOfflineTotal = round($spdOfflineBase + $spdOfflineTax, 2);
         }
     }
 
@@ -428,7 +436,7 @@
                                         </div>
                                         <div class="spd-stat bg-info text-white">
                                             <span>
-                                                @if($spdTaxIncluded && ! ($spdExcludeOnline && $spdOnlinePaid > 0.009))
+                                                @if($spdTaxIncluded)
                                                     Tax
                                                 @elseif($spdOnlineTaxIncluded)
                                                     Tax (off)
@@ -437,7 +445,7 @@
                                                 @endif
                                             </span>
                                             <b>
-                                                @if($spdTaxIncluded && ! ($spdExcludeOnline && $spdOnlinePaid > 0.009))
+                                                @if($spdTaxIncluded)
                                                     Included
                                                 @else
                                                     {{ $spdFmt($spdOfflineTax, $spdCurrency) }}
@@ -458,7 +466,7 @@
                                         </div>
                                     </div>
                                     @if($spdExcludeOnline && $spdOnlinePaid > 0.009)
-                                        <p class="spd-note">Online {{ $spdFmt($spdOnlinePaid, $spdCurrency) }} already deducted from offline total.</p>
+                                        <p class="spd-note">Online {{ $spdFmt($spdOnlinePaid, $spdCurrency) }} is settled separately — not deducted from offline.</p>
                                     @endif
                                 </div>
                             </section>
