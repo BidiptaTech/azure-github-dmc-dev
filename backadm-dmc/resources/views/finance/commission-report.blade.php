@@ -211,6 +211,125 @@
                 </table>
             </div>
         </div>
+
+        @php
+            $curColors = ['SGD' => 'primary', 'IDR' => 'danger', 'USD' => 'success', 'INR' => 'warning', 'EUR' => 'info', 'GBP' => 'dark', 'MYR' => 'secondary', 'THB' => 'info', 'AUD' => 'primary'];
+            $curBadge = fn ($c) => $c === '' ? '' : '<span class="badge bg-label-'.($curColors[$c] ?? 'secondary').' ms-1 align-middle">'.e($c).'</span>';
+            $money = fn ($v) => number_format((float) $v, 2);
+            $verifiedTotal = 0.0;
+            foreach ($payments as $pp) {
+                if ((int) ($pp['status'] ?? 0) === 1) { $verifiedTotal += (float) ($pp['amount'] ?? 0); }
+            }
+            $orderCur = strtoupper((string) ($payments[0]['currency'] ?? ($opened->currency_code ?? '')));
+        @endphp
+        <div class="card mt-3">
+            <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div>
+                    <h5 class="mb-0">Transactions</h5>
+                    <small class="text-muted">Order #{{ $tourId }} · {{ count($payments) }} {{ \Illuminate\Support\Str::plural('payment', count($payments)) }}</small>
+                </div>
+                <div class="text-end small">
+                    <span class="text-muted">From</span> <strong>{{ $selectedTour?->agent?->name ?? ('Agent #'.($selectedTour->agent_id ?? '—')) }}</strong>
+                    <i class="ri-arrow-right-line mx-1 text-muted"></i>
+                    <span class="text-muted">To</span> <strong>{{ $selectedTour?->dmc?->name ?? ('DMC #'.($selectedTour->dmc_id ?? '—')) }}</strong>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Date &amp; time</th>
+                            <th>Method</th>
+                            <th>Transaction</th>
+                            <th class="text-end">Amount</th>
+                            <th class="text-end">Paid in</th>
+                            <th class="text-end">Rate</th>
+                            <th class="text-end">Conv. charge</th>
+                            <th>Status</th>
+                            <th>Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($payments as $i => $p)
+                            @php
+                                $cur = strtoupper((string) ($p['currency'] ?? ''));
+                                $walletAmt = $p['wallet_amount'] ?? null;
+                                $walletCur = strtoupper((string) ($p['wallet_currency'] ?? ''));
+                                $converted = $walletAmt !== null && $walletCur !== '' && $walletCur !== $cur;
+                                $ts = !empty($p['date']) ? strtotime((string) $p['date']) : false;
+                            @endphp
+                            <tr>
+                                <td class="text-muted">{{ $i + 1 }}</td>
+                                <td class="text-nowrap">
+                                    @if($ts)
+                                        <div class="fw-semibold">{{ date('d M Y', $ts) }}</div>
+                                        <small class="text-muted">{{ date('H:i:s', $ts) }}</small>
+                                    @else
+                                        —
+                                    @endif
+                                    @if(!empty($p['payment_date']))<div class="small text-muted">Paid on {{ $p['payment_date'] }}</div>@endif
+                                </td>
+                                <td>
+                                    <div class="fw-semibold">{{ ucfirst(str_replace('_', ' ', (string) ($p['payment_type'] ?? '—'))) }}</div>
+                                    @if(!empty($p['payment_for']))<span class="badge bg-label-{{ $p['payment_for'] === 'online' ? 'info' : 'secondary' }}">{{ ucfirst($p['payment_for']) }}</span>@endif
+                                    @if(!empty($p['auto_verified']))<span class="badge bg-label-success">Auto</span>@endif
+                                </td>
+                                <td>
+                                    <div class="fw-semibold text-break">{{ $p['transaction_id'] ?? '—' }}</div>
+                                    @if(!empty($p['payment_attempt_uuid']))
+                                        <small class="text-muted" title="{{ $p['payment_attempt_uuid'] }}">{{ \Illuminate\Support\Str::limit($p['payment_attempt_uuid'], 13, '…') }}</small>
+                                    @endif
+                                </td>
+                                <td class="text-end text-nowrap fw-semibold">{{ isset($p['amount']) ? $money($p['amount']) : '—' }}{!! $curBadge($cur) !!}</td>
+                                <td class="text-end text-nowrap">
+                                    @if($converted)
+                                        {{ $money($walletAmt) }}{!! $curBadge($walletCur) !!}
+                                    @elseif(isset($p['original_amount']))
+                                        {{ $money($p['original_amount']) }}{!! $curBadge($cur) !!}
+                                    @else
+                                        —
+                                    @endif
+                                </td>
+                                <td class="text-end text-nowrap">
+                                    @if($converted && !empty($p['exchange_rate']))
+                                        <small class="text-muted">1 {{ $cur }} =</small> {{ $money($p['exchange_rate']) }}{!! $curBadge($walletCur) !!}
+                                    @else
+                                        <span class="text-muted">—</span>
+                                    @endif
+                                </td>
+                                <td class="text-end text-nowrap">
+                                    @if(!empty($p['conversion_charge']))
+                                        {{ $money($p['conversion_charge']) }}{!! $curBadge($cur) !!}
+                                    @else
+                                        <span class="text-muted">—</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    @if((int) ($p['status'] ?? 0) === 1)
+                                        <span class="badge bg-label-success"><i class="ri-checkbox-circle-line me-1"></i>Verified</span>
+                                    @else
+                                        <span class="badge bg-label-warning"><i class="ri-time-line me-1"></i>Unverified</span>
+                                    @endif
+                                </td>
+                                <td class="small text-muted" style="min-width:160px">{{ $p['remarks'] ?? '—' }}</td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="10" class="text-center text-muted py-4">No payment transactions recorded on this order.</td></tr>
+                        @endforelse
+                    </tbody>
+                    @if(count($payments))
+                        <tfoot class="table-light">
+                            <tr class="fw-semibold">
+                                <td colspan="4" class="text-end">Verified total</td>
+                                <td class="text-end text-nowrap">{{ $money($verifiedTotal) }}{!! $curBadge($orderCur) !!}</td>
+                                <td colspan="5"></td>
+                            </tr>
+                        </tfoot>
+                    @endif
+                </table>
+            </div>
+        </div>
     @endif
 </div>
 @endsection
