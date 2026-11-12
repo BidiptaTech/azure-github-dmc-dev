@@ -44,13 +44,20 @@ class CommissionReportController extends Controller
             }
         }
 
+        $selectedTour = $tourId ? Tour::query()->with(['agent', 'dmc'])->where('tour_id', $tourId)->first() : null;
+        // Scoping: only show payments for tours already visible to this viewer in the list.
+        $payments = $selectedTour && $opened
+            ? (json_decode((string) $selectedTour->payment_details, true) ?: [])
+            : [];
+
         return view('finance.commission-report', [
+            'payments' => is_array($payments) ? array_values(array_filter($payments, 'is_array')) : [],
             'viewer' => $viewer,
             'tours' => $tours,
             'lines' => $lines,
             'totals' => $totals,
             'tourId' => $tourId,
-            'selectedTour' => $tourId ? Tour::query()->where('tour_id', $tourId)->first() : null,
+            'selectedTour' => $selectedTour,
             'operatingDmcId' => $operatingDmcId,
             'displayCurrency' => $displayCurrency,
         ]);
