@@ -1604,7 +1604,7 @@
                         <span class="menu-header-text" data-i18n="Setting">Setting</span>
                     </li>
                     
-                    <li class="menu-item @if(Request::is('master-setting*', 'country*', 'countries*', 'mail*', 'guide-languages*', 'suppliers*', 'cities*', 'app-management*', 'dmc-func-app*', 'itinerary_settings.pdf', 'quotation_settings.pdf', 'finance/payment-settings*')) open @endif">
+                    <li class="menu-item @if(Request::is('master-setting*', 'country*', 'countries*', 'mail*', 'guide-languages*', 'suppliers*', 'cities*', 'app-management*', 'dmc-func-app*', 'dmc-invoice*', 'dmc-offer*', 'travclicks-invoice*', 'itinerary_settings.pdf', 'quotation_settings.pdf', 'finance/payment-settings*')) open @endif">
                         <a href="#" class="menu-link menu-toggle">
                             <i class="menu-icon tf-icons ri-settings-3-line"></i>
                             <div data-i18n="General Settings">General Settings</div>
@@ -1705,6 +1705,24 @@
                             <li class="menu-item @if(Request::is('quotation_settings.pdf')) active @endif">
                                 <a href="{{ route('quotation_settings.pdf') }}" class="menu-link">
                                     <div data-i18n="Quotation Settings">Quotation Settings</div>
+                                </a>
+                            </li>
+                            <li class="menu-item @if(Request::is('travclicks-invoice*')) active @endif">
+                                <a href="{{ route('travclicks-invoice.index') }}" class="menu-link">
+                                    <div data-i18n="Travclicks Invoice">Travclicks Invoice</div>
+                                </a>
+                            </li>
+                        @endif
+
+                        @if($sidebarIsAdmin)
+                            <li class="menu-item @if(Request::is('dmc-invoice*')) active @endif">
+                                <a href="{{ route('dmc-invoice.index') }}" class="menu-link">
+                                    <div data-i18n="DMC Invoice">DMC Invoice</div>
+                                </a>
+                            </li>
+                            <li class="menu-item @if(Request::is('dmc-offer*')) active @endif">
+                                <a href="{{ route('dmc-offer.index') }}" class="menu-link">
+                                    <div data-i18n="DMC Offer">DMC Offer</div>
                                 </a>
                             </li>
                         @endif
