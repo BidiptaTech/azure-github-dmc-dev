@@ -54,10 +54,8 @@ class PaymentEligibilityService
         $amount = $requestedAmount !== null && $requestedAmount > 0
             ? (float) $requestedAmount
             : $payable;
-        $currency = strtoupper((string) (
-            $breakdown['currency']
-            ?? $this->classificationService->resolveTourCurrency($tour)
-        ));
+        // Settlement currency = confirmed negotiation currency (enquiry.currency).
+        $currency = $this->resolveSettlementCurrency($tour);
         $dmcId = (int) ($tour->dmc_id ?? 0);
         $agentId = (int) ($tour->agent_id ?? 0);
 
@@ -387,6 +385,43 @@ class PaymentEligibilityService
         $details = json_decode((string) ($tour->payment_details ?? '[]'), true) ?: [];
 
         return is_array($details) ? array_values(array_filter($details, 'is_array')) : [];
+    }
+
+    /**
+     * Currency confirmed at negotiation (enquiry.currency). Falls back to tour/order currency.
+     */
+    protected function resolveSettlementCurrency(Tour $tour): string
+    {
+        $tourId = (int) ($tour->tour_id ?? 0);
+        if ($tourId > 0) {
+            $enquiryCurrency = Enquiry::query()
+                ->where('tour_id', $tourId)
+                ->where('status', 2)
+                ->orderByDesc('enquiry_id')
+                ->value('currency');
+            if (! is_string($enquiryCurrency) || trim($enquiryCurrency) === '') {
+                $enquiryCurrency = Enquiry::query()
+                    ->where('tour_id', $tourId)
+                    ->orderByDesc('enquiry_id')
+                    ->value('currency');
+            }
+            $code = strtoupper(trim((string) $enquiryCurrency));
+            if (preg_match('/^[A-Z]{3}$/', $code)) {
+                return $code;
+            }
+        }
+
+        $tourEnquiry = strtoupper(trim((string) ($tour->enquiry_currency ?? '')));
+        if (preg_match('/^[A-Z]{3}$/', $tourEnquiry)) {
+            return $tourEnquiry;
+        }
+
+        $userCurrency = strtoupper(trim((string) ($tour->user_currency ?? '')));
+        if (preg_match('/^[A-Z]{3}$/', $userCurrency)) {
+            return $userCurrency;
+        }
+
+        return strtoupper((string) $this->classificationService->resolveTourCurrency($tour));
     }
 
     /**

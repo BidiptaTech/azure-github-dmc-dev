@@ -138,16 +138,27 @@ function showRejectServiceAlert(serviceType, callback, tourId, withoutRefund, ex
     extra = extra || {};
     withoutRefund = !!(withoutRefund || window.__cancelWithoutRefund);
 
+    function formatDurationBeforeCheckIn(hours) {
+        if (hours === null || hours === undefined || !Number.isFinite(Number(hours))) return '—';
+        const total = Math.max(0, Math.round(Number(hours)));
+        if (total < 24) return total === 1 ? '1 hour' : (total + ' hours');
+        const days = Math.floor(total / 24);
+        const remHours = total % 24;
+        const dayPart = days === 1 ? '1 day' : (days + ' days');
+        if (remHours === 0) return dayPart;
+        const hourPart = remHours === 1 ? '1 hour' : (remHours + ' hours');
+        return dayPart + ' ' + hourPart;
+    }
+
     function policyBlock(calc) {
         if (!calc || !calc.applicable) return '';
         const cur = calc.currency || '';
-        const hours = calc.hours_until_check_in;
-        const hoursLabel = (hours === null || hours === undefined) ? '—' : (Number(hours).toFixed(0) + 'h');
+        const hoursLabel = formatDurationBeforeCheckIn(calc.hours_until_check_in);
         return `<div class="reject-info-note reject-info-note--refunds" style="margin-top:0.75rem;">
             <i class="ri-calculator-line"></i>
             <span>
                 <strong>Cancellation policy</strong><br>
-                Hours to check-in: <strong>${hoursLabel}</strong><br>
+                Time to check-in: <strong>${hoursLabel}</strong><br>
                 Hotel price: <strong>${cur} ${Number(calc.hotel_price || 0).toFixed(2)}</strong><br>
                 Cancellation charge: <strong>${cur} ${Number(calc.cancellation_charge || 0).toFixed(2)}</strong><br>
                 Suggested refund: <strong>${cur} ${Number(calc.suggested_refund || 0).toFixed(2)}</strong><br>

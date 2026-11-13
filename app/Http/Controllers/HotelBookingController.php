@@ -3361,10 +3361,11 @@ class HotelBookingController extends Controller
         }
 
         $tour = Tour::where('tour_id', $tourId)->first();
+        // Full hotel sell only — do not scale to tour negotiated total.
         $hotelPriceBase = null;
         if ($tour) {
-            $capped = app(BookingsController::class)->resolveOrderRefundMaxForHotel($tour, $order);
-            $hotelPriceBase = (float) ($capped['amount'] ?? 0);
+            $priced = app(BookingsController::class)->resolveOrderRefundMaxForHotel($tour, $order);
+            $hotelPriceBase = (float) ($priced['amount'] ?? 0);
         }
         $calc = CommonHelper::calculateHotelCancellationCharge(
             $order,
