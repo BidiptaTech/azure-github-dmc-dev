@@ -2790,7 +2790,7 @@
         let availableAgents = [];
 
         function ctpSafeInt(v) {
-            const n = parseInt(String(v ?? '').trim(), 10F);
+            const n = parseInt(String(v ?? '').trim(), 10);
             return Number.isFinite(n) ? n : 0;
         }
         function ctpIsGroup() {
