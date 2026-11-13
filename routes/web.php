@@ -79,6 +79,9 @@ use App\Http\Controllers\ExternalApiReceiveController;
 use App\Http\Controllers\SmartNotificationController;
 use App\Http\Controllers\AiConfigController;
 use App\Http\Controllers\DmcFuncAppController;
+use App\Http\Controllers\DmcInvoiceController;
+use App\Http\Controllers\DmcOfferController;
+use App\Http\Controllers\TravclicksInvoiceController;
 
 
 // Removed conflicting mobileapp routes - these should be in routes/mobileapp.php
@@ -118,6 +121,26 @@ Route::get('/clear', function () {
             Route::get('/dmc-func-app/{dmc_func_app}/edit', [DmcFuncAppController::class, 'edit'])->name('dmc-func-app.edit');
             Route::put('/dmc-func-app/{dmc_func_app}', [DmcFuncAppController::class, 'update'])->name('dmc-func-app.update');
             Route::delete('/dmc-func-app/{dmc_func_app}', [DmcFuncAppController::class, 'destroy'])->name('dmc-func-app.destroy');
+
+            // DMC Invoice (Travclicks-level base prices, always SGD)
+            Route::get('/dmc-invoice', [DmcInvoiceController::class, 'index'])->name('dmc-invoice.index');
+            Route::post('/dmc-invoice', [DmcInvoiceController::class, 'store'])->name('dmc-invoice.store');
+            Route::get('/dmc-invoice/{dmc_invoice}/edit', [DmcInvoiceController::class, 'edit'])->name('dmc-invoice.edit');
+            Route::put('/dmc-invoice/{dmc_invoice}', [DmcInvoiceController::class, 'update'])->name('dmc-invoice.update');
+            Route::delete('/dmc-invoice/{dmc_invoice}', [DmcInvoiceController::class, 'destroy'])->name('dmc-invoice.destroy');
+
+            // DMC Offer (per-DMC dated prices, always SGD)
+            Route::get('/dmc-offer', [DmcOfferController::class, 'index'])->name('dmc-offer.index');
+            Route::post('/dmc-offer', [DmcOfferController::class, 'store'])->name('dmc-offer.store');
+            Route::get('/dmc-offer/{dmc_offer}/edit', [DmcOfferController::class, 'edit'])->name('dmc-offer.edit');
+            Route::put('/dmc-offer/{dmc_offer}', [DmcOfferController::class, 'update'])->name('dmc-offer.update');
+            Route::delete('/dmc-offer/{dmc_offer}', [DmcOfferController::class, 'destroy'])->name('dmc-offer.destroy');
+
+            // Travclicks monthly invoice (DMC portal)
+            Route::get('/travclicks-invoice', [TravclicksInvoiceController::class, 'index'])->name('travclicks-invoice.index');
+            Route::post('/travclicks-invoice/generate', [TravclicksInvoiceController::class, 'generate'])->name('travclicks-invoice.generate');
+            Route::get('/travclicks-invoice/pdf', [TravclicksInvoiceController::class, 'pdf'])->name('travclicks-invoice.pdf');
+            Route::get('/travclicks-invoice/download', [TravclicksInvoiceController::class, 'download'])->name('travclicks-invoice.download');
 
             Route::get('/ai-key-words', [AiConfigController::class, 'index'])->name('ai-key-words.index');
             Route::post('/ai-key-words', [AiConfigController::class, 'store'])->name('ai-key-words.store');
