@@ -184,6 +184,22 @@ class OrderClassificationService
             : (string) config('payment.recipients.dmc', 'dmc');
     }
 
+    /**
+     * What a payment covers on the booking: online services or offline services.
+     * Mix: supplier_initial pays online first; later dmc_collection pays offline.
+     */
+    public function resolvePaymentFor(?string $classification, ?string $stage): string
+    {
+        $classification = strtolower(trim((string) $classification));
+        $stage = strtolower(trim((string) $stage));
+
+        if ($stage === 'supplier_initial' || $classification === self::ONLINE) {
+            return self::ONLINE;
+        }
+
+        return self::OFFLINE;
+    }
+
     public function supplierInitialCompleted(Tour $tour): bool
     {
         if ((string) ($tour->payment_stage ?? '') === 'offline_negotiation') {

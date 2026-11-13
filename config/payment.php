@@ -20,10 +20,12 @@ return [
     'wallet_legacy_unscoped_agent' => (bool) env('PAYMENT_WALLET_LEGACY_UNSCOPED_AGENT', true),
 
     /*
-    | Percent added on top of a converted amount when payment currency differs
-    | from the order currency. 0 uses the destination country gateway_percentage.
+    | Percent added on top of a converted (wallet) amount when wallet currency
+    | differs from the order currency. Rates use countries.current_rate with SGD
+    | as pivot (1 SGD = rate). Empty/null/0 disables the fee. Never uses
+    | countries.gateway_percentage.
     */
-    'fx_conversion_charge_percent' => env('PAYMENT_FX_CONVERSION_CHARGE_PERCENT'),
+    'fx_conversion_charge_percent' => env('PAYMENT_FX_CONVERSION_CHARGE_PERCENT', 11),
 
     'stripe' => [
         'mode' => env('STRIPE_MODE', 'test'), // test|live

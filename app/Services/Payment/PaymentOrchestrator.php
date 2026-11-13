@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\Tour;
 use App\Services\Finance\PaymentGatewayService;
 use App\Services\Finance\WalletService;
+use App\Services\Payment\FxConversionCharge;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -39,7 +40,11 @@ class PaymentOrchestrator
             return ['attempt' => $existing, 'idempotent_replay' => true];
         }
 
-        $eligibility = $this->eligibilityService->forTour($tour);
+        // Evaluate wallet/FX against the amount being paid (e.g. 300 SGD), not always full remaining.
+        $requestedAmount = isset($input['amount']) && is_numeric($input['amount'])
+            ? (float) $input['amount']
+            : null;
+        $eligibility = $this->eligibilityService->forTour($tour, $requestedAmount);
         $method = strtolower((string) ($input['payment_method'] ?? ''));
         $this->settingsService->assertMethodAllowed($method);
 
@@ -55,11 +60,11 @@ class PaymentOrchestrator
         $amount = (float) $eligibility['payable_amount'];
         if (! empty($eligibility['amount_readonly'])) {
             // Reject tampered amounts for supplier_initial
-            if (isset($input['amount']) && abs((float) $input['amount'] - $amount) > 0.0001) {
+            if ($requestedAmount !== null && abs($requestedAmount - $amount) > 0.0001) {
                 throw new RuntimeException('Payment amount cannot be modified for this payment stage.');
             }
         } else {
-            $amount = isset($input['amount']) ? (float) $input['amount'] : $amount;
+            $amount = $requestedAmount !== null && $requestedAmount > 0 ? $requestedAmount : $amount;
             $outstanding = (float) $eligibility['outstanding_balance'];
             if ($amount <= 0 || $amount - $outstanding > 0.0001) {
                 throw new RuntimeException('Payment amount exceeds outstanding balance or is invalid.');
@@ -125,7 +130,18 @@ class PaymentOrchestrator
                 'order_currency' => $orderCurrency,
                 'exchange_rate' => $exchangeRate,
                 'conversion_charge' => $destinationCurrency !== $orderCurrency ? (float) ($fxMeta['conversion_charge'] ?? 0) : 0.0,
-                'user_remarks' => trim((string) ($input['user_remarks'] ?? '')),
+                'conversion_charge_percent' => $destinationCurrency !== $orderCurrency
+                    ? (float) ($fxMeta['charge_percent'] ?? app(FxConversionCharge::class)->percent())
+                    : 0.0,
+                'conversion_charge_currency' => $destinationCurrency !== $orderCurrency ? $destinationCurrency : $orderCurrency,
+                'sgd_rate_order' => $fxMeta['sgd_rate_order'] ?? null,
+                'sgd_rate_wallet' => $fxMeta['sgd_rate_wallet'] ?? null,
+                'payment_for' => $this->classificationService->resolvePaymentFor(
+                    (string) ($eligibility['order_classification'] ?? ''),
+                    (string) ($eligibility['payment_stage'] ?? ''),
+                ),
+                'user_remarks' => trim((string) ($input['user_remarks'] ?? $input['remarks'] ?? '')),
+                'user_transaction_id' => trim((string) ($input['transaction_id'] ?? '')),
             ]),
         ]);
 
@@ -270,13 +286,19 @@ class PaymentOrchestrator
         $tour->refresh();
 
         // Wallet funds are already deducted — record as auto-verified (no manual approve).
+        $attemptMeta = (array) ($attempt['metadata'] ?? []);
+        $attemptMeta['payment_for'] = $attemptMeta['payment_for']
+            ?? $this->classificationService->resolvePaymentFor(
+                (string) ($attempt['order_classification'] ?? $tour->order_classification ?? ''),
+                (string) ($attempt['payment_stage'] ?? $tour->payment_stage ?? ''),
+            );
         $paymentIndex = $this->recordAutoVerifiedWalletPayment(
             $tour,
             $finalAmount,
             (string) ($attempt['currency_code'] ?? 'SGD'),
             $commit['data']['finance_reference'] ?? $commit['finance_reference'] ?? null,
             (string) ($attempt['attempt_uuid'] ?? $attemptUuid),
-            (array) ($attempt['metadata'] ?? []),
+            $attemptMeta,
             (float) ($attempt['requested_amount'] ?? 0),
         );
 
@@ -468,15 +490,28 @@ class PaymentOrchestrator
         $ratio = $requestedAmount > 0 ? $walletAmount / $requestedAmount : 1.0;
         $orderAmount = $converted ? (float) $attemptMeta['order_amount'] * $ratio : $walletAmount;
 
+        $paymentFor = strtolower(trim((string) ($attemptMeta['payment_for'] ?? '')));
+        if (! in_array($paymentFor, [OrderClassificationService::ONLINE, OrderClassificationService::OFFLINE], true)) {
+            $paymentFor = $this->classificationService->resolvePaymentFor(
+                (string) ($attemptMeta['order_classification'] ?? ''),
+                (string) ($attemptMeta['payment_stage'] ?? ''),
+            );
+        }
+
+        $userTxn = trim((string) ($attemptMeta['user_transaction_id'] ?? ''));
+        $userRemarks = trim((string) ($attemptMeta['user_remarks'] ?? ''));
         $row = [
             'amount' => round($orderAmount, 4),
             'original_amount' => round($orderAmount, 4),
             'currency' => $converted ? $orderCurrency : $walletCurrency,
             'exchange_rate' => $converted ? (float) ($attemptMeta['exchange_rate'] ?? 1) : 1,
-            'transaction_id' => $financeReference ?: $attemptUuid,
-            'remarks' => 'Wallet payment — auto verified',
-            'user_remarks' => trim((string) ($attemptMeta['user_remarks'] ?? '')),
+            // Prefer cashier-entered reference; fall back to wallet ledger / attempt id.
+            'transaction_id' => $userTxn !== '' ? $userTxn : ($financeReference ?: $attemptUuid),
+            'remarks' => $userRemarks !== '' ? $userRemarks : 'Wallet payment — auto verified',
+            'user_remarks' => $userRemarks,
             'payment_type' => 'wallet',
+            // online = online-service payment; offline = offline-service payment
+            'payment_for' => $paymentFor,
             'status' => 1, // verified — no manual approve needed
             'auto_verified' => true,
             'payment_attempt_uuid' => $attemptUuid,
@@ -486,6 +521,13 @@ class PaymentOrchestrator
                 'wallet_amount' => round($walletAmount, 4),
                 'wallet_currency' => $walletCurrency,
                 'conversion_charge' => round((float) ($attemptMeta['conversion_charge'] ?? 0) * $ratio, 4),
+                // Fee is in wallet/destination currency — keep percent for statement display.
+                'conversion_charge_percent' => (float) (
+                    $attemptMeta['conversion_charge_percent']
+                    ?? $attemptMeta['charge_percent']
+                    ?? 0
+                ),
+                'conversion_charge_currency' => $walletCurrency,
             ];
         }
 

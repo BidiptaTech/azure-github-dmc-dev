@@ -11272,6 +11272,11 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             $currency = strtoupper(trim((string) ($item['currency'] ?? $hotelDetails['currency'] ?? '')));
         }
 
+        $onlineBooking = is_array($item['onlineHotelBooking'] ?? null) ? $item['onlineHotelBooking'] : [];
+        $isOnlineHotel = ! empty($item['isOnlineHotel'])
+            || strtolower(trim((string) ($item['hotelSourceType'] ?? $item['priceMode'] ?? ''))) === 'online'
+            || $onlineBooking !== [];
+
         $hotelId = trim((string) (
             $item['hotel_unique_id']
             ?? $hotelDetails['hotel_unique_id']
@@ -11292,11 +11297,24 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $hotelName = trim((string) (
             ($hotel->name ?? null)
             ?? $hotelDetails['hotel_name']
+            ?? $onlineBooking['hotel']['name'] ?? null
             ?? $item['hotelName']
             ?? $item['hotel_name']
             ?? ''
         ));
         $refundPolicyHtml = $hotel ? trim((string) ($hotel->refundpolicy ?? '')) : '';
+
+        // Online hotels store supplier cancellation windows on the enquiry payload —
+        // prefer those over the local hotels.cancellation_data row (often missing).
+        if ($isOnlineHotel && $onlineBooking !== []) {
+            return self::calculateOnlineHotelCancellationCharge(
+                $onlineBooking,
+                $hotelPrice,
+                $currency,
+                $hotelName,
+                $refundPolicyHtml
+            );
+        }
 
         $rawRules = $hotel->cancellation_data ?? null;
         if (is_string($rawRules)) {
@@ -11429,6 +11447,385 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             'refund_policy' => $refundPolicyHtml,
             'hotel_name' => $hotelName,
         ];
+    }
+
+    /**
+     * Online hotel cancel charge from stored onlineHotelBooking cancellation_policies.
+     *
+     * @param  array<string, mixed>  $onlineBooking
+     * @return array{
+     *   applicable: bool,
+     *   free: bool,
+     *   hotel_price: float,
+     *   cancellation_charge: float,
+     *   suggested_refund: float,
+     *   currency: string,
+     *   hours_until_check_in: float|null,
+     *   matched_rule: array<string, mixed>|null,
+     *   rules: array<int, array<string, mixed>>,
+     *   summary: string,
+     *   refund_policy: string,
+     *   hotel_name: string
+     * }
+     */
+    public static function calculateOnlineHotelCancellationCharge(
+        array $onlineBooking,
+        float $hotelPrice,
+        string $currency = '',
+        string $hotelName = '',
+        string $extraRefundPolicyHtml = ''
+    ): array {
+        $hotelPrice = max(0.0, $hotelPrice);
+        if ($currency === '') {
+            $currency = strtoupper(trim((string) ($onlineBooking['currency'] ?? '')));
+        }
+        if ($hotelName === '') {
+            $hotelName = trim((string) ($onlineBooking['hotel']['name'] ?? ''));
+        }
+
+        $policies = self::extractOnlineHotelCancellationPolicies($onlineBooking);
+        $policyType = trim((string) (
+            $onlineBooking['room']['cancellation_policy_type']
+            ?? $onlineBooking['raw_room']['cancellationPolicyType']
+            ?? ''
+        ));
+        $checkInRaw = (string) (
+            $onlineBooking['check_in']
+            ?? $onlineBooking['selection']['stay_check_in']
+            ?? ''
+        );
+        $checkInTime = trim((string) (
+            $onlineBooking['hotel']['check_in_time']
+            ?? ''
+        ));
+        $hoursUntil = null;
+        if ($checkInRaw !== '') {
+            try {
+                $checkInString = $checkInRaw;
+                if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $checkInString) && $checkInTime !== '') {
+                    $checkInString .= ' ' . $checkInTime;
+                }
+                $hoursUntil = round((Carbon::parse($checkInString)->getTimestamp() - now()->getTimestamp()) / 3600, 2);
+            } catch (\Throwable $e) {
+                $hoursUntil = null;
+            }
+        }
+
+        $policyHtml = self::formatOnlineHotelRefundPolicyHtml(
+            $policies,
+            $policyType,
+            $currency,
+            $hotelPrice
+        );
+        if ($extraRefundPolicyHtml !== '') {
+            $policyHtml = trim($policyHtml . ($policyHtml !== '' ? '<hr class="my-2">' : '') . $extraRefundPolicyHtml);
+        }
+
+        $base = [
+            'applicable' => true,
+            'free' => true,
+            'hotel_price' => round($hotelPrice, 2),
+            'cancellation_charge' => 0.0,
+            'suggested_refund' => round($hotelPrice, 2),
+            'currency' => $currency,
+            'hours_until_check_in' => $hoursUntil,
+            'matched_rule' => null,
+            'rules' => $policies,
+            'summary' => 'Free cancellation applies.',
+            'refund_policy' => $policyHtml,
+            'hotel_name' => $hotelName,
+        ];
+
+        $isNrf = (bool) preg_match('/nrf|non[-\s]?refund/i', $policyType);
+        if ($isNrf) {
+            $charge = round($hotelPrice, 2);
+
+            return array_merge($base, [
+                'free' => false,
+                'cancellation_charge' => $charge,
+                'suggested_refund' => 0.0,
+                'matched_rule' => ['type' => 'nrf', 'percent' => 100],
+                'summary' => sprintf(
+                    'Non-refundable rate — full charge %s %s. Suggested refund %s 0.00.',
+                    $currency,
+                    number_format($charge, 2),
+                    $currency
+                ),
+            ]);
+        }
+
+        if ($policies === []) {
+            $base['summary'] = $policyType !== ''
+                ? sprintf('%s — no dated cancellation windows found; treating as free cancellation.', $policyType)
+                : 'No online cancellation windows found — free cancellation.';
+
+            return $base;
+        }
+
+        $today = now()->toDateString();
+        $matched = null;
+        foreach ($policies as $policy) {
+            if (! is_array($policy) || ! empty($policy['noShow'])) {
+                continue;
+            }
+            $from = substr(trim((string) ($policy['fromDate'] ?? '')), 0, 10);
+            $to = substr(trim((string) ($policy['toDate'] ?? '')), 0, 10);
+            if ($from === '' || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) {
+                continue;
+            }
+            if ($today < $from) {
+                continue;
+            }
+            if ($to !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $to) && $today > $to) {
+                continue;
+            }
+            $matched = $policy;
+            break;
+        }
+
+        // If past all dated windows but still before / on check-in, use last non-noShow rule.
+        if ($matched === null && $checkInRaw !== '') {
+            $checkInDate = substr($checkInRaw, 0, 10);
+            $earliestFrom = null;
+            $latestNonNoShow = null;
+            foreach ($policies as $policy) {
+                if (! is_array($policy) || ! empty($policy['noShow'])) {
+                    continue;
+                }
+                $from = substr(trim((string) ($policy['fromDate'] ?? '')), 0, 10);
+                if ($from === '') {
+                    continue;
+                }
+                if ($earliestFrom === null || $from < $earliestFrom) {
+                    $earliestFrom = $from;
+                }
+                $to = substr(trim((string) ($policy['toDate'] ?? '')), 0, 10);
+                $latestNonNoShow = $policy;
+                if ($to !== '' && $today > $to && $today <= $checkInDate) {
+                    $matched = $policy;
+                }
+            }
+            if ($matched === null && $earliestFrom !== null && $today >= $earliestFrom && $today <= $checkInDate) {
+                $matched = $latestNonNoShow;
+            }
+        }
+
+        if ($matched === null) {
+            $earliestFrom = null;
+            foreach ($policies as $policy) {
+                if (! is_array($policy) || ! empty($policy['noShow'])) {
+                    continue;
+                }
+                $from = substr(trim((string) ($policy['fromDate'] ?? '')), 0, 10);
+                if ($from !== '' && ($earliestFrom === null || $from < $earliestFrom)) {
+                    $earliestFrom = $from;
+                }
+            }
+            $freeUntil = null;
+            if ($earliestFrom !== null) {
+                try {
+                    $freeUntil = Carbon::parse($earliestFrom)->subDay()->toDateString();
+                } catch (\Throwable $e) {
+                    $freeUntil = null;
+                }
+            }
+            $base['summary'] = $freeUntil
+                ? sprintf('Free cancellation until %s.', Carbon::parse($freeUntil)->format('D, M j, Y'))
+                : 'Outside charge windows — free cancellation.';
+
+            return $base;
+        }
+
+        $charge = self::onlineHotelPolicyPenaltyAmount($matched, $hotelPrice);
+        $suggested = round(max(0, $hotelPrice - $charge), 2);
+        $penaltyLabel = self::onlineHotelPolicyPenaltyLabel($matched, $currency);
+
+        return array_merge($base, [
+            'free' => $charge <= 0.009,
+            'cancellation_charge' => $charge,
+            'suggested_refund' => $suggested,
+            'matched_rule' => $matched,
+            'summary' => sprintf(
+                'Policy window %s–%s: %s. Hotel %s %s − charge %s %s = refund %s %s.',
+                substr((string) ($matched['fromDate'] ?? ''), 0, 10),
+                substr((string) ($matched['toDate'] ?? $matched['fromDate'] ?? ''), 0, 10),
+                $penaltyLabel,
+                $currency,
+                number_format($hotelPrice, 2),
+                $currency,
+                number_format($charge, 2),
+                $currency,
+                number_format($suggested, 2)
+            ),
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $onlineBooking
+     * @return array<int, array<string, mixed>>
+     */
+    public static function extractOnlineHotelCancellationPolicies(array $onlineBooking): array
+    {
+        $candidates = [
+            $onlineBooking['room']['cancellation_policies'] ?? null,
+            $onlineBooking['raw_room']['cancellationPolicies']['policy'] ?? null,
+            $onlineBooking['room']['cancellationPolicies']['policy'] ?? null,
+            $onlineBooking['raw_room']['rate']['cancellationPolicies'] ?? null,
+        ];
+
+        foreach ($candidates as $candidate) {
+            if (! is_array($candidate) || $candidate === []) {
+                continue;
+            }
+            if (isset($candidate['fromDate']) || isset($candidate['from'])) {
+                return [$candidate];
+            }
+            $list = [];
+            foreach ($candidate as $row) {
+                if (is_array($row)) {
+                    $list[] = $row;
+                }
+            }
+            if ($list !== []) {
+                return $list;
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $policy
+     */
+    public static function onlineHotelPolicyPenaltyAmount(array $policy, float $hotelPrice): float
+    {
+        $hotelPrice = max(0.0, $hotelPrice);
+        $nights = trim((string) ($policy['nights'] ?? ''));
+        if ($nights !== '' && is_numeric($nights) && (float) $nights > 0 && $hotelPrice > 0) {
+            // Without a reliable per-night breakdown, treat N nights as (N / stay) is unknown —
+            // fall through to percent/amount when available; otherwise approximate 1-night as equal share only if nights=1 and percent empty.
+        }
+
+        $percent = trim((string) ($policy['percent'] ?? ''));
+        if ($percent !== '' && is_numeric($percent)) {
+            return round($hotelPrice * ((float) $percent / 100), 2);
+        }
+
+        foreach (['grossAmount', 'amount'] as $key) {
+            $raw = $policy[$key] ?? null;
+            if ($raw === null || $raw === '') {
+                continue;
+            }
+            if (is_numeric($raw) && (float) $raw > 0) {
+                return round((float) $raw, 2);
+            }
+        }
+
+        if ($nights !== '' && is_numeric($nights) && (float) $nights > 0) {
+            // Unknown night count of stay — charge full stay when nights penalty is present without amount.
+            return round($hotelPrice, 2);
+        }
+
+        return 0.0;
+    }
+
+    /**
+     * @param  array<string, mixed>  $policy
+     */
+    public static function onlineHotelPolicyPenaltyLabel(array $policy, string $currency = ''): string
+    {
+        $nights = trim((string) ($policy['nights'] ?? ''));
+        if ($nights !== '') {
+            $n = (int) $nights;
+
+            return $n === 1 ? '1 night charge' : ($n > 0 ? $n . ' nights charge' : $nights . ' night charge');
+        }
+        $percent = trim((string) ($policy['percent'] ?? ''));
+        if ($percent !== '' && is_numeric($percent)) {
+            $pct = (float) $percent;
+            $label = fmod($pct, 1.0) === 0.0 ? (string) (int) $pct : number_format($pct, 2);
+
+            return $label . '% of stay';
+        }
+        foreach (['grossAmount', 'amount'] as $key) {
+            $raw = $policy[$key] ?? null;
+            if ($raw === null || $raw === '' || ! is_numeric($raw)) {
+                continue;
+            }
+
+            return trim($currency . ' ' . number_format((float) $raw, 2));
+        }
+
+        return 'penalty applies';
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $policies
+     */
+    public static function formatOnlineHotelRefundPolicyHtml(
+        array $policies,
+        string $policyType = '',
+        string $currency = '',
+        float $hotelPrice = 0.0
+    ): string {
+        $isNrf = (bool) preg_match('/nrf|non[-\s]?refund/i', $policyType);
+        $typeLabel = $isNrf
+            ? 'Non-refundable'
+            : ((bool) preg_match('/flexi/i', $policyType) ? 'Flexible' : ($policyType !== '' ? $policyType : 'Cancellation policy'));
+
+        $lines = ['<div><strong>' . e($typeLabel) . '</strong></div>'];
+        if ($policies === []) {
+            $lines[] = $isNrf
+                ? '<div class="text-muted">Full charge if cancelled.</div>'
+                : '<div class="text-muted">No dated cancellation windows on file.</div>';
+
+            return implode('', $lines);
+        }
+
+        $earliestFrom = null;
+        foreach ($policies as $policy) {
+            if (! is_array($policy) || ! empty($policy['noShow'])) {
+                continue;
+            }
+            $from = substr(trim((string) ($policy['fromDate'] ?? '')), 0, 10);
+            if ($from !== '' && ($earliestFrom === null || $from < $earliestFrom)) {
+                $earliestFrom = $from;
+            }
+        }
+        if ($earliestFrom !== null && ! $isNrf) {
+            try {
+                $freeUntil = Carbon::parse($earliestFrom)->subDay();
+                $lines[] = '<div class="text-muted">Free cancel until ' . e($freeUntil->format('D, M j, Y')) . '</div>';
+            } catch (\Throwable $e) {
+                // ignore
+            }
+        }
+
+        $lines[] = '<ul class="mb-0 ps-3">';
+        foreach ($policies as $policy) {
+            if (! is_array($policy)) {
+                continue;
+            }
+            $from = substr(trim((string) ($policy['fromDate'] ?? '')), 0, 10);
+            $to = substr(trim((string) ($policy['toDate'] ?? '')), 0, 10);
+            $window = $from;
+            if ($to !== '' && $to !== $from) {
+                $window .= ' → ' . $to;
+            }
+            $isNoShow = ! empty($policy['noShow']);
+            $penalty = self::onlineHotelPolicyPenaltyLabel($policy, $currency);
+            if ($hotelPrice > 0) {
+                $amount = self::onlineHotelPolicyPenaltyAmount($policy, $hotelPrice);
+                if ($amount > 0) {
+                    $penalty .= ' (' . trim($currency . ' ' . number_format($amount, 2)) . ')';
+                }
+            }
+            $prefix = $isNoShow ? 'No-show' : 'Cancel';
+            $lines[] = '<li>' . e($prefix) . ($window !== '' ? ' ' . e($window) : '') . ': ' . e($penalty) . '</li>';
+        }
+        $lines[] = '</ul>';
+
+        return implode('', $lines);
     }
 
     /**
@@ -12810,6 +13207,87 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
      * - original_amount + currency = what the client paid
      * - amount = tour-currency equivalent only when it differs from original (converted at payment time)
      */
+    /**
+     * Offline / mix Add Payment + Payment Details collection math.
+     *
+     * Online and offline are separate ledgers: never subtract online payments from the
+     * offline invoice. For mix tours, prefer TaxHelper's taxable_base (offline slice)
+     * when the passed base still includes online sell.
+     *
+     * @param  array<int, mixed>|null  $paymentData
+     * @return array{
+     *   exclude_online: bool,
+     *   online_paid: float,
+     *   offline_paid: float,
+     *   total_paid: float,
+     *   base_amount: float,
+     *   tax_amount: float,
+     *   final_amount: float,
+     *   remaining_amount: float
+     * }
+     */
+    public static function resolveOfflineCollectionAmounts(
+        float $baseAmount,
+        float $taxAmount,
+        float $finalAmount,
+        ?array $paymentData,
+        ?string $orderClassification,
+        bool $taxIncluded = false,
+        bool $onlineTaxIncluded = false,
+        ?float $taxableBase = null
+    ): array {
+        $excludeOnline = strtolower(trim((string) $orderClassification)) !== 'online';
+        $onlinePaid = 0.0;
+        $offlinePaid = 0.0;
+
+        if (is_array($paymentData)) {
+            foreach ($paymentData as $payment) {
+                if (! is_array($payment) || (int) ($payment['status'] ?? 0) !== 1) {
+                    continue;
+                }
+                $amt = (float) ($payment['amount'] ?? 0);
+                if (strtolower(trim((string) ($payment['payment_for'] ?? ''))) === 'online') {
+                    $onlinePaid += $amt;
+                } else {
+                    $offlinePaid += $amt;
+                }
+            }
+        }
+
+        $onlinePaid = round($onlinePaid, 2);
+        $offlinePaid = round($offlinePaid, 2);
+        $base = round($baseAmount, 2);
+        $tax = round($taxAmount, 2);
+        $final = round($finalAmount, 2);
+        $paid = $excludeOnline ? $offlinePaid : round($onlinePaid + $offlinePaid, 2);
+
+        // Mix: invoice the offline taxable base only (online stay on the online panel).
+        if ($excludeOnline && $onlineTaxIncluded && $taxableBase !== null && $taxableBase > 0.009) {
+            $offlineBase = round($taxableBase, 2);
+            // Replace only when taxable base is a clear offline slice of a larger tour base.
+            if ($offlineBase + 0.009 < $base) {
+                $base = $offlineBase;
+                if ($taxIncluded) {
+                    $tax = 0.0;
+                    $final = $base;
+                } else {
+                    $final = round($base + $tax, 2);
+                }
+            }
+        }
+
+        return [
+            'exclude_online' => $excludeOnline,
+            'online_paid' => $onlinePaid,
+            'offline_paid' => $offlinePaid,
+            'total_paid' => $paid,
+            'base_amount' => $base,
+            'tax_amount' => $tax,
+            'final_amount' => $final,
+            'remaining_amount' => max(0, round($final - $paid, 2)),
+        ];
+    }
+
     public static function sumTourPaymentsInCurrency(Invoice $invoice, string $selectedCurrency, string $baseCurrency): float
     {
         $invoice->loadMissing(['tour']);
@@ -12832,12 +13310,18 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             );
         }
 
+        $classification = strtolower(trim((string) ($tour->order_classification ?? '')));
         $total = 0.0;
         foreach ($raw as $payment) {
             if (!is_array($payment)) {
                 continue;
             }
             if (!isset($payment['status']) || (int) $payment['status'] !== 1) {
+                continue;
+            }
+            // Negotiated / offline invoice totals must not merge payment_for=online.
+            if ($classification !== 'online'
+                && strtolower(trim((string) ($payment['payment_for'] ?? ''))) === 'online') {
                 continue;
             }
 

@@ -11,12 +11,12 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
-use RuntimeException;
 use Throwable;
 
 /**
- * Full-tour cancel: paid online services enter the same TravClicks → DMC
- * refund pipeline as per-service cancel (supplier cancel → is_refund → soft delete).
+ * Full-tour cancel refund queue:
+ * - Paid online services → TravClicks → DMC pipeline (supplier cancel → is_refund → soft delete)
+ * - Definite/Actual offline booking services → DMC refunds list (same is_refund path as service remove)
  *
  * Mix flow often pays online while tour is still New Enquiry / Confirmed and
  * online orders may still be bookingType=enquiry — those must still refund.
@@ -44,20 +44,17 @@ class OnlineTourCancelRefundService
     }
 
     /**
-     * Queue paid online services for refund before tour_status changes.
+     * Queue refund services before tour_status changes.
      *
-     * @return array{queued: int, skipped: int}
+     * @return array{queued: int, skipped: int, online_queued: int, offline_queued: int}
      */
     public function enqueuePaidOnlineServices(Tour $tour): array
     {
         $status = (string) ($tour->tour_status ?? '');
         $tourId = (int) ($tour->tour_id ?? 0);
+        $empty = ['queued' => 0, 'skipped' => 0, 'online_queued' => 0, 'offline_queued' => 0];
         if ($tourId <= 0) {
-            return ['queued' => 0, 'skipped' => 0];
-        }
-
-        if (! Schema::hasColumn('orders', 'order_type')) {
-            return ['queued' => 0, 'skipped' => 0];
+            return $empty;
         }
 
         $onlinePaid = $this->tourHasPaidOnlinePortion($tour);
@@ -65,8 +62,47 @@ class OnlineTourCancelRefundService
 
         // No paid online + not Definite/Actual → nothing to put on Refunds tab
         if (! $onlinePaid && ! $isDefiniteOrActual) {
-            return ['queued' => 0, 'skipped' => 0];
+            return $empty;
         }
+
+        $onlineResult = ['queued' => 0, 'skipped' => 0];
+        if (Schema::hasColumn('orders', 'order_type')) {
+            $onlineResult = $this->enqueueOnlineServices($tour, $status, $onlinePaid);
+        }
+
+        $offlineQueued = 0;
+        // Previous DMC logic: Definite/Actual tour cancel puts every booking service on Refunds
+        // (not only online hotels). TravClicks UI still filters to online only.
+        if ($isDefiniteOrActual) {
+            $offlineQueued = $this->enqueueOfflineBookingServices($tour, $status);
+        }
+
+        $queued = (int) $onlineResult['queued'] + $offlineQueued;
+
+        Log::info('Tour cancel queued services for TravClicks/DMC refund flow', [
+            'tour_id' => $tourId,
+            'tour_status' => $status,
+            'online_paid' => $onlinePaid,
+            'online_queued' => (int) $onlineResult['queued'],
+            'offline_queued' => $offlineQueued,
+            'queued' => $queued,
+            'skipped' => (int) $onlineResult['skipped'],
+        ]);
+
+        return [
+            'queued' => $queued,
+            'skipped' => (int) $onlineResult['skipped'],
+            'online_queued' => (int) $onlineResult['queued'],
+            'offline_queued' => $offlineQueued,
+        ];
+    }
+
+    /**
+     * @return array{queued: int, skipped: int}
+     */
+    protected function enqueueOnlineServices(Tour $tour, string $status, bool $onlinePaid): array
+    {
+        $tourId = (int) ($tour->tour_id ?? 0);
 
         $query = Order::query()
             ->where('tour_id', $tourId)
@@ -87,7 +123,8 @@ class OnlineTourCancelRefundService
         $queued = 0;
         $skipped = 0;
 
-        // Supplier cancel first (cannot roll back). Fail the whole tour cancel if any fail.
+        // Supplier cancel first (cannot roll back). Soft-fail: persist failed/pending and
+        // still queue the refund — TravClicks wallet stays blocked until confirmed/resolved.
         foreach ($orders as $order) {
             if (! $this->orderLooksPaidOnline($order, $onlinePaid)) {
                 $skipped++;
@@ -95,10 +132,29 @@ class OnlineTourCancelRefundService
             }
 
             try {
-                $this->hotelCancellation->cancelIfApplicable($order);
-                $this->attractionCancellation->cancelIfApplicable($order, 'Tour cancelled');
+                $hotelResult = $this->hotelCancellation->cancelIfApplicable($order, true);
+                $attractionResult = $this->attractionCancellation->cancelIfApplicable(
+                    $order,
+                    'Tour cancelled',
+                    true
+                );
+
+                foreach ([$hotelResult, $attractionResult] as $cancelResult) {
+                    if (! is_array($cancelResult) || empty($cancelResult['soft_failed'])) {
+                        continue;
+                    }
+
+                    Log::warning('Online supplier cancellation soft-failed during tour cancel', [
+                        'tour_id' => $tourId,
+                        'order_id' => $order->id,
+                        'booking_id' => $order->booking_id,
+                        'type' => $order->type ?? null,
+                        'message' => $cancelResult['message'] ?? null,
+                        'status' => $cancelResult['status'] ?? 'failed',
+                    ]);
+                }
             } catch (Throwable $e) {
-                Log::error('Online supplier cancellation failed during tour cancel', [
+                Log::error('Online supplier cancellation unexpected error during tour cancel', [
                     'tour_id' => $tourId,
                     'order_id' => $order->id,
                     'booking_id' => $order->booking_id,
@@ -106,17 +162,18 @@ class OnlineTourCancelRefundService
                     'error' => $e->getMessage(),
                 ]);
 
-                $label = (($order->type ?? '') === 'attraction')
-                    ? 'online attraction voucher'
-                    : 'online hotel';
-
-                throw new RuntimeException(
-                    $e instanceof RuntimeException
-                        ? $e->getMessage()
-                        : 'Failed to cancel the '.$label.' with the supplier. Tour was not cancelled.',
-                    0,
-                    $e
-                );
+                // Soft-fail unexpected errors too so refund can still queue for manual review.
+                try {
+                    app(SupplierCancellationStatusService::class)->markFailed(
+                        $order,
+                        $e->getMessage() ?: 'Unexpected supplier cancellation error.'
+                    );
+                } catch (Throwable $statusError) {
+                    Log::warning('Could not persist supplier cancellation failed status', [
+                        'order_id' => $order->id,
+                        'error' => $statusError->getMessage(),
+                    ]);
+                }
             }
         }
 
@@ -172,15 +229,85 @@ class OnlineTourCancelRefundService
             }
         });
 
-        Log::info('Tour cancel queued paid online services for TravClicks/DMC refund flow', [
-            'tour_id' => $tourId,
-            'tour_status' => $status,
-            'online_paid' => $onlinePaid,
-            'queued' => $queued,
-            'skipped' => $skipped,
-        ]);
-
         return ['queued' => $queued, 'skipped' => $skipped];
+    }
+
+    /**
+     * Definite/Actual full-tour cancel: remaining offline booking services → Refunds for DMC.
+     * Skips online rows (already handled) and enquiry rows.
+     */
+    protected function enqueueOfflineBookingServices(Tour $tour, string $status): int
+    {
+        $tourId = (int) ($tour->tour_id ?? 0);
+        if ($tourId <= 0) {
+            return 0;
+        }
+
+        $query = Order::query()
+            ->where('tour_id', $tourId)
+            ->where('bookingType', 'booking')
+            ->where(function ($q) {
+                $q->whereNull('is_refund')
+                    ->orWhere('is_refund', 0)
+                    ->orWhere('is_refund', false);
+            });
+
+        if (Schema::hasColumn('orders', 'order_type')) {
+            $query->where(function ($q) {
+                $q->whereNull('order_type')
+                    ->orWhereRaw("LOWER(TRIM(COALESCE(order_type, ''))) = ?", [''])
+                    ->orWhereRaw("LOWER(TRIM(COALESCE(order_type, ''))) <> ?", ['online']);
+            });
+        }
+
+        $orders = $query->get();
+        if ($orders->isEmpty()) {
+            return 0;
+        }
+
+        $queued = 0;
+
+        DB::transaction(function () use ($orders, $tourId, $status, &$queued) {
+            $currentUser = Auth::user();
+            $changedByName = $currentUser ? ($currentUser->name ?? null) : null;
+            $changedByUserId = $currentUser ? ($currentUser->userId ?? $currentUser->id ?? null) : null;
+            $jobsheets = app(\App\Services\JobsheetRemovalService::class);
+
+            foreach ($orders as $order) {
+                $order->is_refund = 1;
+                $order->is_verify = 0;
+                $order->refunded = false;
+                $order->save();
+
+                $payload = is_array($order->data) && isset($order->data[0])
+                    ? $order->data[0]
+                    : (is_array($order->data) ? $order->data : []);
+                $orderType = (string) ($order->type ?? '');
+                [$serviceId, $serviceName] = $this->resolveServiceMeta($orderType, $payload);
+
+                CommonHelper::appendTourStatusTrackById(
+                    $tourId,
+                    $status,
+                    $status,
+                    null,
+                    null,
+                    null,
+                    null,
+                    $changedByName,
+                    $changedByUserId,
+                    'deleted',
+                    $orderType !== '' ? $orderType : null,
+                    $serviceId,
+                    $serviceName
+                );
+
+                $jobsheets->deleteForOrder($order);
+                $order->delete();
+                $queued++;
+            }
+        });
+
+        return $queued;
     }
 
     /**

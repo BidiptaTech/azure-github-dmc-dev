@@ -730,14 +730,29 @@ class SingleTourPackageController extends Controller
             $cancelReason = trim((string) $request->input('cancel_reason', ''));
             $voucherCancelResult = null;
 
-            // Cancel with the supplier before soft-deleting so a failed API call
-            // does not leave a live reservation while the local order is gone.
+            // Soft-fail supplier cancel: local remove + refund queue still proceed;
+            // failed/pending blocks TravClicks wallet until retry or manual resolve.
+            $supplierCancelSoftFailed = false;
             try {
-                app(OnlineHotelCancellationService::class)->cancelIfApplicable($order);
+                $hotelCancelResult = app(OnlineHotelCancellationService::class)
+                    ->cancelIfApplicable($order, true);
                 $voucherCancelResult = app(OnlineAttractionCancellationService::class)
-                    ->cancelIfApplicable($order, $cancelReason !== '' ? $cancelReason : null);
+                    ->cancelIfApplicable($order, $cancelReason !== '' ? $cancelReason : null, true);
+
+                foreach ([$hotelCancelResult, $voucherCancelResult] as $cancelResult) {
+                    if (is_array($cancelResult) && ! empty($cancelResult['soft_failed'])) {
+                        $supplierCancelSoftFailed = true;
+                        Log::warning('Online supplier cancellation soft-failed during order remove', [
+                            'order_id' => $order->id,
+                            'booking_id' => $order->booking_id,
+                            'type' => $order->type ?? null,
+                            'message' => $cancelResult['message'] ?? null,
+                        ]);
+                    }
+                }
             } catch (\Throwable $e) {
-                Log::error('Online supplier cancellation failed during order remove', [
+                $supplierCancelSoftFailed = true;
+                Log::error('Online supplier cancellation unexpected error during order remove', [
                     'order_id' => $order->id,
                     'booking_id' => $order->booking_id,
                     'order_type' => $order->order_type ?? null,
@@ -746,25 +761,24 @@ class SingleTourPackageController extends Controller
                     'previous' => $e->getPrevious()?->getMessage(),
                 ]);
 
-                $label = (($order->type ?? '') === 'attraction')
-                    ? 'online attraction voucher'
-                    : 'online hotel';
+                try {
+                    app(\App\Services\Payment\SupplierCancellationStatusService::class)->markFailed(
+                        $order,
+                        $e->getMessage() ?: 'Unexpected supplier cancellation error.'
+                    );
+                } catch (\Throwable $statusError) {
+                    Log::warning('Could not persist supplier cancellation failed status', [
+                        'order_id' => $order->id,
+                        'error' => $statusError->getMessage(),
+                    ]);
+                }
 
-                // Keep supplier product names out of the API response shown in the UI.
-                $publicMessage = $e instanceof \RuntimeException
-                    ? $e->getMessage()
-                    : 'Failed to cancel the online hotel reservation with the supplier. The hotel was not removed.';
-
-                return response()->json([
+                $voucherCancelResult = [
                     'success' => false,
-                    'message' => 'Failed to cancel the ' . $label . ' with the supplier: ' . $e->getMessage(),
-                    'data' => [
-                        'voucher_cancel' => [
-                            'success' => false,
-                            'message' => $e->getMessage(),
-                        ],
-                    ],
-                ], 422);
+                    'message' => $e->getMessage(),
+                    'soft_failed' => true,
+                    'status' => 'failed',
+                ];
             }
 
             DB::transaction(function () use ($order, $tourId, $tourStatus) {
@@ -819,6 +833,8 @@ class SingleTourPackageController extends Controller
                 if (! empty($voucherCancelResult['message'])) {
                     $message .= ' ' . $voucherCancelResult['message'];
                 }
+            } elseif ($supplierCancelSoftFailed) {
+                $message = 'Service removed and queued for refund, but supplier cancellation failed or is pending. TravClicks must retry or mark resolved before wallet credit.';
             }
 
             return response()->json([
@@ -829,6 +845,7 @@ class SingleTourPackageController extends Controller
                     'voucher_code' => is_array($voucherCancelResult)
                         ? ($voucherCancelResult['voucher_code'] ?? null)
                         : null,
+                    'supplier_cancel_soft_failed' => $supplierCancelSoftFailed,
                 ],
             ]);
         } catch (\Exception $e) {
