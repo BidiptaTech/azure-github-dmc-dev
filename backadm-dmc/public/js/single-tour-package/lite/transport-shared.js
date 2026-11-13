@@ -2946,14 +2946,25 @@
 
     var cancelWithoutRefundIds = [];
 
+    function formatDurationBeforeCheckIn(hours) {
+        if (hours === null || hours === undefined || !isFinite(Number(hours))) return '—';
+        var total = Math.max(0, Math.round(Number(hours)));
+        if (total < 24) return total === 1 ? '1 hour' : (total + ' hours');
+        var days = Math.floor(total / 24);
+        var remHours = total % 24;
+        var dayPart = days === 1 ? '1 day' : (days + ' days');
+        if (remHours === 0) return dayPart;
+        var hourPart = remHours === 1 ? '1 hour' : (remHours + ' hours');
+        return dayPart + ' ' + hourPart;
+    }
+
     function hotelCancellationPolicyHtml(calc) {
         if (!calc || !calc.applicable) return '';
         var cur = calc.currency || '';
-        var hours = calc.hours_until_check_in;
-        var hoursLabel = (hours === null || hours === undefined) ? '—' : (Number(hours).toFixed(0) + 'h');
+        var hoursLabel = formatDurationBeforeCheckIn(calc.hours_until_check_in);
         return '<i class="ri-calculator-line"></i><span>' +
             '<strong>Cancellation policy</strong><br>' +
-            'Hours to check-in: <strong>' + hoursLabel + '</strong><br>' +
+            'Time to check-in: <strong>' + hoursLabel + '</strong><br>' +
             'Hotel price: <strong>' + esc(cur) + ' ' + Number(calc.hotel_price || 0).toFixed(2) + '</strong><br>' +
             'Cancellation charge: <strong>' + esc(cur) + ' ' + Number(calc.cancellation_charge || 0).toFixed(2) + '</strong><br>' +
             'Suggested refund: <strong>' + esc(cur) + ' ' + Number(calc.suggested_refund || 0).toFixed(2) + '</strong><br>' +

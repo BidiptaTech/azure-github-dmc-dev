@@ -19,6 +19,7 @@ use App\Services\Finance\WalletService;
 use App\Services\AttractionSuppliers\OnlineAttractionCancellationService;
 use App\Services\HotelSuppliers\OnlineHotelCancellationService;
 use App\Services\Payment\CommissionBreakdownService;
+use App\Services\Payment\FxConversionCharge;
 use App\Services\Payment\SupplierCancellationStatusService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -991,29 +992,19 @@ class BookingsController extends Controller
     }
 
     /**
+     * Service refund max = full order sell (with markup). No tour-payable scaling —
+     * hotel cancel / refunds show the same price as the booking (e.g. 484 → 484).
+     *
      * @return array{amount: float, currency: string, scale: float}
      */
     private function resolveOrderRefundMax(Tour $tour, Order $order, ?float $tourPayable = null): array
     {
         $priced = $this->orderPriceWithMarkup($order, (int) ($tour->is_pro ?? 0));
-        $payable = $tourPayable;
-        if ($payable === null) {
-            $payable = (float) ($tour->money_total ?? 0);
-            if ($payable <= 0) {
-                // Match attachTourMoneySummary: mix tours must include online sell in
-                // payable. paymentModalTotals alone is offline-only and under-scales
-                // DMC/TravClicks refund max on submit (UI shows full; API rejects).
-                $payable = $this->resolveTourRefundPayable($tour, (string) ($priced['currency'] ?? ''));
-            }
-        }
-
-        $scale = $this->refundScaleToTourPayable($tour, $payable);
-        $amount = round(max(0, $priced['amount'] * $scale), 2);
 
         return [
-            'amount' => $amount,
+            'amount' => round(max(0, (float) $priced['amount']), 2),
             'currency' => $priced['currency'],
-            'scale' => $scale,
+            'scale' => 1.0,
         ];
     }
 
@@ -1328,6 +1319,8 @@ class BookingsController extends Controller
         }
 
         $walletQuery = app(WalletQueryService::class);
+        $fxCharge = app(FxConversionCharge::class);
+        $fxPercent = $fxCharge->percent();
         $dmcCache = [];
         $sourceRateCache = [];
 
@@ -1340,15 +1333,24 @@ class BookingsController extends Controller
                     ?: ($configured['currencies'][0] ?? '')
                     ?: $walletQuery->resolveCurrencyForOwner('dmc', $dmcId)
                 )));
+                $baseRate = ($dmcCurrency !== '' ? Country::sgdRateFor($dmcCurrency) : null);
+                $effectiveRate = ($dmcCurrency === 'SGD')
+                    ? 1.0
+                    : (($baseRate !== null && $baseRate > 0)
+                        ? $fxCharge->effectiveRate((float) $baseRate, $fxPercent)
+                        : null);
                 $dmcCache[$dmcId] = [
                     'currency' => $dmcCurrency,
-                    'rate' => ($dmcCurrency !== '' ? Country::sgdRateFor($dmcCurrency) : null),
+                    'rate' => $baseRate,
+                    'effective_rate' => $effectiveRate,
                 ];
             }
 
-            $dmcFx = $dmcCache[$dmcId] ?? ['currency' => '', 'rate' => null];
+            $dmcFx = $dmcCache[$dmcId] ?? ['currency' => '', 'rate' => null, 'effective_rate' => null];
             $tour->setAttribute('dmc_wallet_currency', $dmcFx['currency']);
             $tour->setAttribute('dmc_wallet_sgd_rate', $dmcFx['rate']);
+            $tour->setAttribute('dmc_wallet_sgd_rate_effective', $dmcFx['effective_rate']);
+            $tour->setAttribute('dmc_wallet_fx_percent', $fxPercent);
 
             $orders = $tour->relationLoaded('booking') ? $tour->booking : collect();
             foreach ($orders as $order) {
@@ -1402,6 +1404,8 @@ class BookingsController extends Controller
                 $order->setAttribute('refund_native_sgd_rate', $nativeRate);
                 $order->setAttribute('dmc_wallet_currency', $dmcFx['currency']);
                 $order->setAttribute('dmc_wallet_sgd_rate', $dmcFx['rate']);
+                $order->setAttribute('dmc_wallet_sgd_rate_effective', $dmcFx['effective_rate'] ?? null);
+                $order->setAttribute('dmc_wallet_fx_percent', $fxPercent);
 
                 if ($canConvertToSgd) {
                     $sgdMax = $this->convertAmountToSgd($nativeMax, $nativeCurrency, $nativeRate);
@@ -1625,13 +1629,20 @@ class BookingsController extends Controller
 
             // Online-only wallet tours usually have no enquiry negotiation. Use service
             // sell directly so cancel/refund rows don't show 0 (or tax-inflated) totals.
+            $moneyDiscount = 0.0;
+            $moneyDiscountLabel = '';
             if ($pricing) {
                 $totals = $this->paymentModalTotals($tour, $pricing, round($sell), $orderCurrency);
                 $moneyTotal = (float) ($totals['total'] ?? 0);
                 $moneyCurrency = (string) ($totals['currency'] ?? $orderCurrency);
+                $moneyDiscount = (float) ($totals['discount'] ?? 0);
+                $moneyDiscountLabel = (string) ($totals['discount_label'] ?? '');
             } else {
                 $moneyTotal = round($sell, 2);
                 $moneyCurrency = $orderCurrency;
+                $discountBits = $this->tourDiscountMoney((float) ceil($sell), $tour);
+                $moneyDiscount = (float) ($discountBits['discount'] ?? 0);
+                $moneyDiscountLabel = (string) ($discountBits['discount_label'] ?? '');
             }
 
             // Mix tours: payment/negotiation total is offline-only. Tour total on Refunds
@@ -1656,13 +1667,154 @@ class BookingsController extends Controller
             $tour->setAttribute('money_paid', $paid);
             $tour->setAttribute('money_due', max(0, round($moneyTotal - $paid, 2)));
             $tour->setAttribute('money_currency', $moneyCurrency);
+            $tour->setAttribute('money_discount', round(max(0, $moneyDiscount), 2));
+            $tour->setAttribute('money_discount_label', $moneyDiscountLabel);
         }
+    }
+
+    /**
+     * Sum completed service refunds into tour money_currency (same as Tour total / Paid / Due).
+     * DMC agent refunds are stored in DMC base currency; TravClicks wallet refunds are SGD.
+     * Convert via SGD rates so the list never mixes IDR/USD labels with SGD totals.
+     *
+     * @param  \Illuminate\Support\Collection|array<int, mixed>  $tours
+     */
+    private function attachTourMoneyRefunded($tours, bool $isTravclicksView, string $dmcCurrency = ''): void
+    {
+        if ($tours === null) {
+            return;
+        }
+
+        $dmcCurrency = strtoupper(trim($dmcCurrency));
+
+        foreach ($tours as $tour) {
+            $moneyCurrency = strtoupper(trim((string) ($tour->money_currency ?? '')));
+            if ($moneyCurrency === '') {
+                $moneyCurrency = $isTravclicksView ? 'SGD' : ($dmcCurrency !== '' ? $dmcCurrency : 'SGD');
+            }
+
+            $refunded = 0.0;
+            $dmcMarkupTotal = 0.0;
+            $dmcMarkupLabels = [];
+
+            foreach (collect($tour->booking ?? []) as $order) {
+                if ($isTravclicksView) {
+                    $markupVal = (float) ($order->online_dmc_markup ?? 0);
+                    if ($markupVal > 0.009) {
+                        $markupCurrency = strtoupper(trim((string) (
+                            $order->online_dmc_markup_currency
+                            ?? $order->refund_price_currency
+                            ?? 'SGD'
+                        )));
+                        $dmcMarkupTotal += ($markupCurrency !== '' && $markupCurrency !== $moneyCurrency)
+                            ? $this->convertAmountViaSgd($markupVal, $markupCurrency, $moneyCurrency)
+                            : $markupVal;
+                        $ruleLabel = trim((string) ($order->online_dmc_markup_label ?? ''));
+                        if ($ruleLabel !== '') {
+                            $dmcMarkupLabels[$ruleLabel] = true;
+                        }
+                    }
+                    if (! ((bool) ($order->travclicks_refunded ?? false))) {
+                        continue;
+                    }
+                    $amountValue = $order->travclicks_refund_amount ?? null;
+                    // TravClicks stores wallet refunds in SGD.
+                    $fromCurrency = 'SGD';
+                } else {
+                    if (! ((bool) ($order->refunded ?? false))) {
+                        continue;
+                    }
+                    $amountValue = $order->refund_amount ?? null;
+                    // DMC enters refund_amount in DMC base currency (not order native currency).
+                    $fromCurrency = $dmcCurrency !== ''
+                        ? $dmcCurrency
+                        : strtoupper(trim((string) (
+                            $order->refund_price_currency
+                            ?: $order->currency
+                            ?: $moneyCurrency
+                        )));
+                }
+
+                if ($amountValue === null || $amountValue === '') {
+                    continue;
+                }
+
+                $amount = (float) $amountValue;
+                if ($fromCurrency !== '' && $fromCurrency !== $moneyCurrency) {
+                    $amount = $this->convertAmountViaSgd($amount, $fromCurrency, $moneyCurrency);
+                }
+                $refunded += $amount;
+            }
+
+            if (! $isTravclicksView
+                && $refunded <= 0
+                && ($tour->tour_status ?? '') === 'Refunded'
+                && $tour->saved_refund_amount !== null
+                && $tour->saved_refund_amount !== ''
+            ) {
+                $saved = (float) $tour->saved_refund_amount;
+                $fromCurrency = $dmcCurrency !== '' ? $dmcCurrency : $moneyCurrency;
+                $refunded = ($fromCurrency !== '' && $fromCurrency !== $moneyCurrency)
+                    ? $this->convertAmountViaSgd($saved, $fromCurrency, $moneyCurrency)
+                    : $saved;
+            }
+
+            // Cap only after conversion — never compare IDR/USD amounts to SGD Paid.
+            $moneyPaid = (float) ($tour->money_paid ?? 0);
+            $moneyTotal = (float) ($tour->money_total ?? 0);
+            $refundCap = $moneyPaid > 0 ? $moneyPaid : $moneyTotal;
+            if ($refundCap > 0 && $refunded > $refundCap + 0.009) {
+                $refunded = $refundCap;
+            }
+
+            $tour->setAttribute('money_refunded', round(max(0, $refunded), 2));
+            $tour->setAttribute('money_dmc_markup', round(max(0, $dmcMarkupTotal), 2));
+            $tour->setAttribute(
+                'money_dmc_markup_label',
+                count($dmcMarkupLabels) === 1 ? (string) array_key_first($dmcMarkupLabels) : ''
+            );
+        }
+    }
+
+    /**
+     * Tour discount money + short label for refunds / payment totals.
+     *
+     * @return array{discount: float, discount_label: string, discount_type: ?string, discount_raw: float}
+     */
+    private function tourDiscountMoney(float $gross, $tour, float $markupMoney = 0.0): array
+    {
+        $discountType = $tour->discount_type ?? null;
+        $discountRaw = (float) ($tour->discount_amount ?? 0);
+        $discountOn = ((int) ($tour->discount ?? 0) === 1) || $discountRaw > 0.009;
+        $discountBase = max(0, $gross + $markupMoney);
+        $discountMoney = 0.0;
+        if ($discountOn && $discountRaw > 0.009) {
+            $discountMoney = $discountType === 'percentage'
+                ? ($discountBase * $discountRaw / 100)
+                : $discountRaw;
+        }
+        $discountMoney = max(0, $discountMoney);
+        $label = '';
+        if ($discountMoney > 0.009) {
+            if ($discountType === 'percentage' && $discountRaw > 0) {
+                $label = rtrim(rtrim(number_format($discountRaw, 2, '.', ''), '0'), '.') . '%';
+            } elseif (in_array((string) $discountType, ['foc', 'flat'], true)) {
+                $label = strtoupper((string) $discountType);
+            }
+        }
+
+        return [
+            'discount' => round($discountMoney, 2),
+            'discount_label' => $label,
+            'discount_type' => $discountType,
+            'discount_raw' => $discountRaw,
+        ];
     }
 
     /**
      * Same base, tax, and total as the Payment Details modal.
      *
-     * @return array{total: float, currency: string}
+     * @return array{total: float, currency: string, discount: float, discount_label: string}
      */
     private function paymentModalTotals($tour, $pricing, float $orderSell, string $orderCurrency): array
     {
@@ -1739,13 +1891,8 @@ class BookingsController extends Controller
             : 0.0;
         $markupMoney = max(0, $markupMoney);
 
-        $discountType = $tour->discount_type ?? null;
-        $discountRaw = (float) ($tour->discount_amount ?? 0);
-        $discountBase = $gross + $markupMoney;
-        $discountMoney = $discountType === 'percentage'
-            ? ($discountBase * $discountRaw / 100)
-            : $discountRaw;
-        $discountMoney = max(0, $discountMoney);
+        $discountBits = $this->tourDiscountMoney($gross, $tour, $markupMoney);
+        $discountMoney = (float) ($discountBits['discount'] ?? 0);
 
         $netPayable = (int) ceil(max(0, $gross + $markupMoney - $discountMoney));
         if ($hasConverted && $convertedPayable > 0) {
@@ -1764,6 +1911,8 @@ class BookingsController extends Controller
             'tax_amount' => (float) ($tax['total_tax'] ?? 0),
             'tax_included' => (bool) ($tax['tax_included'] ?? false),
             'online_tax_included' => (bool) ($tax['online_tax_included'] ?? false),
+            'discount' => $discountMoney,
+            'discount_label' => (string) ($discountBits['discount_label'] ?? ''),
         ];
     }
 
@@ -3887,6 +4036,7 @@ class BookingsController extends Controller
                     'tours.markup',
                     'tours.markup_type',
                     'tours.markup_amount',
+                    'tours.discount',
                     'tours.discount_type',
                     'tours.discount_amount',
                     'tours.created_at',
@@ -3979,6 +4129,7 @@ class BookingsController extends Controller
                 'tours.markup',
                 'tours.markup_type',
                 'tours.markup_amount',
+                'tours.discount',
                 'tours.discount_type',
                 'tours.discount_amount',
                 'tours.created_at',
@@ -4015,12 +4166,15 @@ class BookingsController extends Controller
         $this->attachTourMoneySummary($tours);
         $this->attachRefundPrices($tours);
         $this->attachTourRefundPrices($tours);
-        if (in_array((int) ($user->role_id ?? 0), [1, 2, 3, 4], true)) {
+        $isTravclicksRefunds = in_array((int) ($user->role_id ?? 0), [1, 2, 3, 4], true);
+        if ($isTravclicksRefunds) {
             $this->attachTravclicksDmcWalletFx($tours);
         } else {
             // DMC / finance: enter refund in DMC base currency; order price stays in order currency.
             $this->attachDmcAgentRefundCurrency($tours, (string) $currency);
         }
+        // Refunded line must use the same currency as Tour total / Paid / Due.
+        $this->attachTourMoneyRefunded($tours, $isTravclicksRefunds, (string) $currency);
         $this->hydrateDestinationCreatedAt($tours);
         return view('bookings.refunds', compact('tours', 'country_tax', 'currency'));
     }
@@ -4727,7 +4881,8 @@ class BookingsController extends Controller
 
     /**
      * TravClicks online-service refund: credit the tour's DMC wallet in the DMC's own currency.
-     * TravClicks always enters refund amount in SGD; convert SGD → DMC via countries.current_rate.
+     * TravClicks always enters refund amount in SGD; convert SGD → DMC via countries.current_rate
+     * + PAYMENT_FX_CONVERSION_CHARGE_PERCENT (same stack as Send to DMC / payments).
      *
      * @return array{credited: bool, amount: float, currency: string, source_amount: float, source_currency: string, sgd_amount: float, finance_reference: ?string, message: string}
      */
@@ -4783,9 +4938,20 @@ class BookingsController extends Controller
                 "No countries.current_rate for DMC currency {$dmcCurrency}. Sync currency rates before refunding."
             );
         }
-        $creditAmount = $dmcCurrency === 'SGD'
-            ? round($sgdAmount, 4)
-            : round($sgdAmount * $dmcRate, 4);
+
+        // Same FX stack as Wallet Send to DMC / Add Payment.
+        $fx = app(FxConversionCharge::class);
+        $fxPercent = $fx->percent();
+        $effectiveDmcRate = $dmcCurrency === 'SGD'
+            ? 1.0
+            : $fx->effectiveRate((float) $dmcRate, $fxPercent);
+        if ($dmcCurrency === 'SGD') {
+            $creditAmount = round($sgdAmount, 4);
+        } elseif ($dmcCurrency === 'IDR') {
+            $creditAmount = (float) round($sgdAmount * $effectiveDmcRate);
+        } else {
+            $creditAmount = round($sgdAmount * $effectiveDmcRate, 4);
+        }
 
         if ($creditAmount <= 0) {
             throw new RuntimeException('Converted DMC credit amount is zero.');
@@ -4820,7 +4986,10 @@ class BookingsController extends Controller
 
         $displayId = trim((string) ($tour->display_id ?? ''));
         $tourLabel = $displayId !== '' ? $displayId : ('#'.(int) ($tour->tour_id ?? 0));
-        $fxSuffix = " ({$amount} {$sourceCurrency} → {$sgdAmount} SGD → {$creditAmount} {$dmcCurrency})";
+        $fxLabel = $fxPercent > 0
+            ? (' rate '.$effectiveDmcRate.' incl. FX '.$fxPercent.'%')
+            : (' rate '.$effectiveDmcRate);
+        $fxSuffix = " ({$amount} {$sourceCurrency} → {$creditAmount} {$dmcCurrency}{$fxLabel})";
         $desc = 'TravClicks online refund → DMC wallet (tour '.$tourLabel.', order '.($order->booking_id ?? $order->id).')'.$fxSuffix;
 
         // Same pattern as Send to DMC: TravClicks settles in SGD; DMC is credited in its currency.
@@ -4836,7 +5005,7 @@ class BookingsController extends Controller
             'recipient_currency_code' => $dmcCurrency,
             'allocator_amount' => number_format($sgdAmount, 4, '.', ''),
             'recipient_amount' => number_format($creditAmount, 4, '.', ''),
-            'exchange_rate' => number_format($dmcRate, 8, '.', ''),
+            'exchange_rate' => number_format($effectiveDmcRate, 8, '.', ''),
             'platform_spend' => true,
             'ledger_description' => $desc,
             'debit_ledger_description' => $desc,

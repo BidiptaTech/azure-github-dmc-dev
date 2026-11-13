@@ -58,8 +58,8 @@
 @endphp
 
 @if(isset($svc[$serviceKey]) && $svc[$serviceKey] > 0)
-<div class="modal fade svc-modal" id="{{ $serviceKey }}DetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="{{ $meta['modalLabelId'] }}{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+<div class="modal fade svc-modal svc-modal-wide" id="{{ $serviceKey }}DetailsModal{{ $tour->tour_id }}" tabindex="-1" aria-labelledby="{{ $meta['modalLabelId'] }}{{ $tour->tour_id }}" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered modal-xl">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="{{ $meta['modalLabelId'] }}{{ $tour->tour_id }}">
