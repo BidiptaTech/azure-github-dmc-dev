@@ -121,15 +121,15 @@ class PaymentEligibilityService
             'wallet' => $walletEval,
         ];
 
-        // Stripe Online card
+        // Stripe Online Payment
         $stripeEval = $this->evaluateStripe($recipient, $dmcId, $settings);
         if ($negotiationOnly) {
             $stripeEval['available'] = false;
-            $stripeEval['reason'] = 'Card payment for offline services starts after negotiation and confirmation.';
+            $stripeEval['reason'] = 'Online payment for offline services starts after negotiation and confirmation.';
         }
         $methods[] = [
             'code' => 'stripe',
-            'label' => 'Online Card',
+            'label' => 'Online Payment',
             'available' => $stripeEval['available'],
             'reason' => $stripeEval['reason'],
             'recipient' => $recipient,
@@ -146,9 +146,10 @@ class PaymentEligibilityService
             'currency' => $currency,
             'payable_amount' => round($payable, 4),
             'amount_readonly' => $stage === 'supplier_initial',
-            'acceptance' => app(AcceptanceFlowService::class)->describe(
+            'acceptance' => $this->acceptanceSnapshot(
+                $tour,
                 $classification,
-                $stage === 'offline_negotiation' || ($classification === OrderClassificationService::ONLINE && $stage !== 'supplier_initial'),
+                $stage,
                 (float) ($breakdown['online_amount'] ?? 0),
                 (float) ($breakdown['offline_amount'] ?? 0),
                 $currency,
@@ -166,6 +167,34 @@ class PaymentEligibilityService
             ],
             'methods' => $methods,
         ];
+    }
+
+    /**
+     * Acceptance / online-paid snapshot for Add Payment UI (same source as negotiate modal).
+     *
+     * @return array<string, mixed>
+     */
+    protected function acceptanceSnapshot(
+        Tour $tour,
+        string $classification,
+        string $stage,
+        float $onlineAmount,
+        float $offlineAmount,
+        string $currency,
+    ): array {
+        $acceptanceFlow = app(AcceptanceFlowService::class);
+        $onlineSettled = $acceptanceFlow->onlinePortionSettled($tour)
+            || $stage === 'offline_negotiation'
+            || ($classification === OrderClassificationService::ONLINE && $stage !== 'supplier_initial');
+
+        return $acceptanceFlow->describe(
+            $classification,
+            $onlineSettled,
+            $onlineAmount,
+            $offlineAmount,
+            $currency,
+            $onlineSettled ? $onlineAmount : 0.0,
+        );
     }
 
     /**
@@ -432,13 +461,28 @@ class PaymentEligibilityService
             }
         }
 
-        $quoted = app(FxConversionCharge::class)->apply($amount, $rate, $percent, $differ);
+        $fx = app(FxConversionCharge::class);
+        $quoted = $fx->apply($amount, $rate, $percent, $differ);
+        $sgdRateOrder = Country::sgdRateFor($orderCurrency);
+        $sgdRateWallet = Country::sgdRateFor($walletCurrency);
+        // Display rate X = base + (base × FX%): Paid-in uses this effective rate.
+        $sgdRateWalletEffective = $differ && $sgdRateWallet
+            ? $fx->effectiveRate((float) $sgdRateWallet, $percent)
+            : $sgdRateWallet;
+        $exchangeRateEffective = $differ
+            ? $fx->effectiveRate((float) $quoted['exchange_rate'], $percent)
+            : (float) $quoted['exchange_rate'];
 
         return [
             'charge_percent' => $percent,
             'order_currency' => $orderCurrency,
             'wallet_currency' => $walletCurrency,
             'exchange_rate' => $quoted['exchange_rate'],
+            'exchange_rate_effective' => $exchangeRateEffective,
+            // Standard display: rates relative to SGD (1 SGD = current_rate units).
+            'sgd_rate_order' => $sgdRateOrder,
+            'sgd_rate_wallet' => $sgdRateWallet,
+            'sgd_rate_wallet_effective' => $sgdRateWalletEffective,
             'conversion_charge' => $quoted['fee'],
             'wallet_payable_amount' => $quoted['destination_amount'],
         ];

@@ -36,11 +36,13 @@ class AcceptanceFlowServiceTest extends TestCase
         $this->assertSame(700.0, $before['negotiable_amount']);
         $this->assertTrue($before['exclude_online_from_negotiation']);
 
-        $after = $service->describe(OrderClassificationService::MIX, true, 300, 700, 'SGD');
+        $after = $service->describe(OrderClassificationService::MIX, true, 300, 700, 'SGD', 300);
         $this->assertTrue($after['allow_enquiry']);
         $this->assertTrue($after['allow_negotiate']);
         $this->assertSame('negotiate_offline', $after['next_action']);
         $this->assertSame(700.0, $after['negotiable_amount']);
+        $this->assertSame(300.0, $after['online_paid_amount']);
+        $this->assertStringContainsString('Online payment complete: SGD 300.00', $after['hint']);
     }
 
     public function test_offline_keeps_negotiation(): void

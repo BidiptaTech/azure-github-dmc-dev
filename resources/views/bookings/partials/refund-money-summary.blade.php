@@ -56,6 +56,10 @@
     if (count($refundCurrencies) === 1) {
         $refundedCurrency = (string) array_key_first($refundCurrencies);
     }
+    // Zero refund: keep Tour total / Paid currency (avoid orphan order currency e.g. IDR).
+    if ($refundedAmount <= 0.009 && $moneyCurrency !== '') {
+        $refundedCurrency = $moneyCurrency;
+    }
     // Never display a refund above what was billed/paid.
     $refundCap = $moneyPaid > 0 ? $moneyPaid : $moneyTotal;
     if ($refundCap > 0 && $refundedAmount > $refundCap + 0.009) {

@@ -4,6 +4,14 @@
     $apWalletCurrency = strtoupper(trim((string) ($tour->dmc_wallet_currency ?? '')));
     $apWalletRate = $tour->dmc_wallet_sgd_rate ?? null;
     $apShowWalletFx = $apWalletCurrency !== '' && $apWalletCurrency !== $apTourCurrency;
+    $apAcceptance = is_array($tour->acceptance_flow ?? null)
+        ? $tour->acceptance_flow
+        : app(\App\Services\Payment\AcceptanceFlowService::class)->forTour($tour);
+    $apOnlinePaid = ! empty($apAcceptance['online_paid']);
+    $apOnlinePaidAmount = (float) ($apAcceptance['online_paid_amount'] ?? $apAcceptance['online_amount'] ?? 0);
+    $apOnlineCurrency = strtoupper(trim((string) ($apAcceptance['currency'] ?? $apTourCurrency)));
+    $apOnlineHint = (string) ($apAcceptance['hint'] ?? '');
+    $apShowOnlinePaidBanner = $apOnlinePaid && $apOnlinePaidAmount > 0;
 @endphp
 
 @once
@@ -141,6 +149,53 @@
         border-color: #cbd5e1;
         color: #475569;
     }
+    /* Same deep-green banner as Negotiate by Agent */
+    .add-payment-modal .nego-online-paid-banner {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.65rem;
+        margin-bottom: 0.85rem;
+        padding: 0.75rem 0.95rem;
+        border-radius: 0.65rem;
+        border: 1px solid #14532d;
+        background: linear-gradient(135deg, #14532d 0%, #166534 55%, #15803d 100%);
+        color: #ecfdf5;
+        box-shadow: 0 1px 2px rgba(20, 83, 45, 0.28);
+    }
+    .add-payment-modal .nego-online-paid-banner.d-none {
+        display: none !important;
+    }
+    .add-payment-modal .nego-online-paid-banner__icon {
+        flex-shrink: 0;
+        width: 1.55rem;
+        height: 1.55rem;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.16);
+        color: #bbf7d0;
+        font-size: 1rem;
+        line-height: 1;
+    }
+    .add-payment-modal .nego-online-paid-banner__title {
+        display: block;
+        margin-bottom: 0.15rem;
+        font-size: 0.82rem;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        color: #ffffff;
+    }
+    .add-payment-modal .nego-online-paid-banner__text {
+        display: block;
+        font-size: 0.78rem;
+        line-height: 1.35;
+        color: #d1fae5;
+    }
+    .add-payment-modal .nego-online-paid-banner__text strong {
+        color: #ffffff;
+        font-weight: 700;
+    }
 </style>
 @endonce
 
@@ -193,6 +248,31 @@
                                 <div class="ap-panel-head">
                                     <p class="ap-panel-title">Collect payment</p>
                                     <span class="ap-chip">Due {{ number_format(ceil($remainingAmount), 2) }} {{ $apTourCurrency }}</span>
+                                </div>
+
+                                <div class="nego-online-paid-banner{{ $apShowOnlinePaidBanner ? '' : ' d-none' }}"
+                                    id="addPaymentOnlinePaidBanner{{ $tour->tour_id }}"
+                                    role="status"
+                                    data-online-paid="{{ $apOnlinePaid ? '1' : '0' }}"
+                                    data-online-paid-amount="{{ $apOnlinePaidAmount }}"
+                                    data-online-currency="{{ e($apOnlineCurrency) }}">
+                                    <span class="nego-online-paid-banner__icon" aria-hidden="true">
+                                        <i class="fas fa-check-circle"></i>
+                                    </span>
+                                    <div>
+                                        <strong class="nego-online-paid-banner__title">Online payment complete</strong>
+                                        <span class="nego-online-paid-banner__text" id="addPaymentOnlinePaidText{{ $tour->tour_id }}">
+                                            @if($apShowOnlinePaidBanner)
+                                                @if($apOnlineHint !== '')
+                                                    {{ $apOnlineHint }}
+                                                @else
+                                                    Online payment complete:
+                                                    <strong>{{ $apOnlineCurrency }} {{ number_format($apOnlinePaidAmount, 2) }}</strong>.
+                                                    Collect the offline remaining amount below.
+                                                @endif
+                                            @endif
+                                        </span>
+                                    </div>
                                 </div>
 
                                 <div class="row g-3">

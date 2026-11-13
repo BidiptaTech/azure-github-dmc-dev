@@ -152,19 +152,24 @@
     .online-paid-hint-chip {
         display: inline-flex;
         align-items: flex-start;
-        gap: 0.3rem;
-        max-width: 200px;
-        padding: 0.35rem 0.45rem;
+        gap: 0.35rem;
+        max-width: 220px;
+        padding: 0.4rem 0.55rem;
         border-radius: 0.5rem;
-        background: #ecfdf5;
-        border: 1px solid #a7f3d0;
-        color: #065f46;
+        background: linear-gradient(135deg, #14532d 0%, #166534 100%);
+        border: 1px solid #14532d;
+        color: #d1fae5;
         font-size: 0.64rem;
         line-height: 1.3;
+        box-shadow: 0 1px 2px rgba(20, 83, 45, 0.25);
+    }
+    .online-paid-hint-chip strong {
+        color: #ffffff;
+        font-weight: 700;
     }
     .online-paid-hint-chip i {
         margin-top: 0.05rem;
-        color: #059669;
+        color: #86efac;
         flex-shrink: 0;
     }
 </style>

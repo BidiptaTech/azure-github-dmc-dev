@@ -100,9 +100,9 @@
                         @enderror
                     </div>
 
-                    <!-- Commission Percentage -->
+                    <!-- Exchange Markup -->
                     <div class="col-md-6 mb-3">
-                        <label for="commission_percentage" class="form-label"><strong>Commission Percentage (%)</strong><span class="text-danger">*</span></label>
+                        <label for="commission_percentage" class="form-label"><strong>Exchange Markup(%)</strong><span class="text-danger">*</span></label>
                         <input type="number" step="0.01" class="form-control @error('commission_percentage') is-invalid @enderror"
                                name="commission_percentage" value="{{ $country->commission_percentage }}" required>
                         @error('commission_percentage')
