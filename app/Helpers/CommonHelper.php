@@ -11212,6 +11212,32 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     }
 
     /**
+     * Business-friendly lead time (e.g. 434 hours → "18 days 2 hours").
+     */
+    public static function formatDurationBeforeCheckIn(float|int|null $hours): string
+    {
+        if ($hours === null || ! is_numeric($hours)) {
+            return '0 hours';
+        }
+
+        $total = (int) max(0, round((float) $hours));
+        if ($total < 24) {
+            return $total === 1 ? '1 hour' : $total.' hours';
+        }
+
+        $days = intdiv($total, 24);
+        $remHours = $total % 24;
+        $dayPart = $days === 1 ? '1 day' : $days.' days';
+        if ($remHours === 0) {
+            return $dayPart;
+        }
+
+        $hourPart = $remHours === 1 ? '1 hour' : $remHours.' hours';
+
+        return $dayPart.' '.$hourPart;
+    }
+
+    /**
      * Apply hotels.cancellation_data rules to a hotel order.
      * Duration is hours before check-in. The tightest matching window wins
      * (e.g. within 48h uses the 48 rule, within 72h but outside 48 uses 72).
@@ -11409,8 +11435,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
         if ($matched === null) {
             $base['summary'] = sprintf(
-                'Outside all charge windows (%.0f hours before check-in) — free cancellation.',
-                $hoursUntil
+                'Outside all charge windows (%s before check-in) — free cancellation.',
+                self::formatDurationBeforeCheckIn($hoursUntil)
             );
 
             return $base;
@@ -11433,8 +11459,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             'matched_rule' => $matched,
             'rules' => $rules,
             'summary' => sprintf(
-                'Within %.0f hours of check-in: %s %s charge. Hotel %s %s − charge %s %s = refund %s %s.',
-                (float) $matched['duration'],
+                'Within %s of check-in: %s %s charge. Hotel %s %s − charge %s %s = refund %s %s.',
+                self::formatDurationBeforeCheckIn((float) $matched['duration']),
                 $typeLabel,
                 number_format((float) $matched['price'], 2),
                 $currency,

@@ -46,6 +46,19 @@
         padding: 1rem !important;
     }
 
+    /* Wide horizontal service modals (hotel / attraction / restaurant / transport / guide) */
+    .svc-modal.svc-modal-wide .modal-dialog,
+    .svc-modal.svc-modal-hotel .modal-dialog {
+        max-width: min(1100px, 96vw);
+    }
+
+    .svc-modal.svc-modal-wide .modal-body,
+    .svc-modal.svc-modal-hotel .modal-body {
+        padding: 0.85rem 1rem !important;
+        max-height: none;
+        overflow: visible;
+    }
+
     .svc-modal .modal-footer {
         background: var(--svc-surface) !important;
         border-top: 1px solid var(--svc-line) !important;
@@ -58,6 +71,71 @@
         border-radius: 6px;
         margin-bottom: 0.75rem;
         overflow: hidden;
+    }
+
+    .svc-wide-layout,
+    .svc-hotel-layout {
+        display: flex;
+        flex-direction: column;
+        gap: 0.65rem;
+    }
+
+    .svc-wide-layout > .svc-panel,
+    .svc-hotel-layout > .svc-panel {
+        margin-bottom: 0;
+    }
+
+    .svc-wide-grid,
+    .svc-hotel-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.65rem;
+        align-items: stretch;
+    }
+
+    .svc-wide-grid.is-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .svc-wide-grid > .svc-section,
+    .svc-hotel-grid > .svc-section {
+        margin-bottom: 0;
+        height: 100%;
+    }
+
+    .svc-wide-extra,
+    .svc-hotel-extra {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 0.65rem;
+    }
+
+    .svc-wide-extra > .svc-section,
+    .svc-hotel-extra > .svc-section {
+        margin-bottom: 0;
+    }
+
+    .svc-wide-layout .svc-section-title,
+    .svc-hotel-layout .svc-section-title {
+        padding: 0.5rem 0.75rem 0.25rem;
+    }
+
+    .svc-wide-layout .svc-dl-row,
+    .svc-hotel-layout .svc-dl-row {
+        padding: 0.4rem 0.75rem;
+    }
+
+    .svc-wide-layout .svc-actions,
+    .svc-hotel-layout .svc-actions {
+        padding: 0.55rem 0.75rem 0.65rem;
+    }
+
+    @media (max-width: 991.98px) {
+        .svc-wide-grid,
+        .svc-wide-grid.is-2,
+        .svc-hotel-grid {
+            grid-template-columns: 1fr;
+        }
     }
 
     .svc-panel-head {
@@ -671,55 +749,57 @@
             );
         }
 
+        var extraBlocks = [transferHtml, childHtml, babyCotHtml].filter(Boolean).join('');
+
         return '' +
-            '<div class="svc-panel">' +
-                '<div class="svc-panel-head">' +
-                    '<div class="svc-panel-head-main">' +
-                        thumb +
-                        '<div style="min-width:0;">' +
-                            '<h6 class="svc-title">' + name + '</h6>' +
-                            '<p class="svc-subtitle mb-1"><i class="ri-map-pin-line me-1"></i>' + location +
-                            (hotelBooking.country ? ' · ' + w.escapeServiceHtml(hotelBooking.country) : '') +
-                            '</p>' +
-                            '<div class="d-flex align-items-center flex-wrap gap-1">' + orderTypeBadge + '</div>' +
+            '<div class="svc-wide-layout">' +
+                '<div class="svc-panel">' +
+                    '<div class="svc-panel-head">' +
+                        '<div class="svc-panel-head-main">' +
+                            thumb +
+                            '<div style="min-width:0;">' +
+                                '<h6 class="svc-title">' + name + '</h6>' +
+                                '<p class="svc-subtitle mb-1"><i class="ri-map-pin-line me-1"></i>' + location +
+                                (hotelBooking.country ? ' · ' + w.escapeServiceHtml(hotelBooking.country) : '') +
+                                '</p>' +
+                                '<div class="d-flex align-items-center flex-wrap gap-1">' + orderTypeBadge + '</div>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="text-end">' +
+                            '<div class="svc-price mb-1">' + money(hotelBooking.totalPrice || 0) + '</div>' +
+                            statusPill +
                         '</div>' +
                     '</div>' +
-                    '<div class="text-end">' +
-                        '<div class="svc-price mb-1">' + money(hotelBooking.totalPrice || 0) + '</div>' +
-                        statusPill +
-                    '</div>' +
                 '</div>' +
-            '</div>' +
 
-            section('Stay Schedule',
-                dlRow('Check-in', w.escapeServiceHtml(hotelBooking.checkInDate || 'N/A')) +
-                dlRow('Check-out', w.escapeServiceHtml(hotelBooking.checkOutDate || 'N/A')) +
-                dlRow('Nights', w.escapeServiceHtml(hotelBooking.nights != null ? hotelBooking.nights : 'N/A')) +
-                dlRow('Check-in time', w.escapeServiceHtml(hotelBooking.checkInTime || 'N/A'))
-            ) +
+                '<div class="svc-wide-grid">' +
+                    section('Stay Schedule',
+                        dlRow('Check-in', w.escapeServiceHtml(hotelBooking.checkInDate || 'N/A')) +
+                        dlRow('Check-out', w.escapeServiceHtml(hotelBooking.checkOutDate || 'N/A')) +
+                        dlRow('Nights', w.escapeServiceHtml(hotelBooking.nights != null ? hotelBooking.nights : 'N/A')) +
+                        dlRow('Check-in time', w.escapeServiceHtml(hotelBooking.checkInTime || 'N/A'))
+                    ) +
+                    section('Room Details',
+                        dlRow('Rooms', w.escapeServiceHtml(hotelBooking.rooms || '1')) +
+                        dlRow('Room type', w.escapeServiceHtml(hotelBooking.roomType || 'Standard')) +
+                        dlRow('Bed type', w.escapeServiceHtml(hotelBooking.bedType || 'N/A')) +
+                        dlRow('Meal plan', '<span class="svc-meal-plan" title="' + mealSafe + '">' + mealSafe + '</span>', true)
+                    ) +
+                    section('Pricing',
+                        dlRow('Hotel total', '<span class="svc-amount">' + money(hotelBooking.totalPrice || 0) + '</span>', true) +
+                        (hotelBooking.currency || hotelBooking.country
+                            ? dlRow('Currency', w.escapeServiceHtml(currency)) +
+                              dlRow('Country', w.escapeServiceHtml(hotelBooking.country || '—'))
+                            : '')
+                    ) +
+                '</div>' +
 
-            section('Room Details',
-                dlRow('Rooms', w.escapeServiceHtml(hotelBooking.rooms || '1')) +
-                dlRow('Room type', w.escapeServiceHtml(hotelBooking.roomType || 'Standard')) +
-                dlRow('Bed type', w.escapeServiceHtml(hotelBooking.bedType || 'N/A')) +
-                dlRow('Meal plan', '<span class="svc-meal-plan" title="' + mealSafe + '">' + mealSafe + '</span>', true)
-            ) +
+                (extraBlocks ? ('<div class="svc-wide-extra">' + extraBlocks + '</div>') : '') +
 
-            transferHtml +
-            childHtml +
-            babyCotHtml +
-
-            section('Pricing',
-                dlRow('Hotel total', '<span class="svc-amount">' + money(hotelBooking.totalPrice || 0) + '</span>', true) +
-                (hotelBooking.currency || hotelBooking.country
-                    ? dlRow('Currency', w.escapeServiceHtml(currency)) +
-                      dlRow('Country', w.escapeServiceHtml(hotelBooking.country || '—'))
-                    : '')
-            ) +
-
-            '<div class="svc-section">' +
-                '<h6 class="svc-section-title">Actions</h6>' +
-                '<div class="svc-actions" id="hotel_buttons_' + tourId + '_' + hotelOrderIndex + '_' + bookingIndex + '"></div>' +
+                '<div class="svc-section" style="margin-bottom:0;">' +
+                    '<h6 class="svc-section-title">Actions</h6>' +
+                    '<div class="svc-actions" id="hotel_buttons_' + tourId + '_' + hotelOrderIndex + '_' + bookingIndex + '"></div>' +
+                '</div>' +
             '</div>';
     };
 
@@ -920,50 +1000,52 @@
 
         var special = booking.specialRequests || booking.special_requests || details.specialRequests || '';
 
+        var extraBlocks = [transferSection, guideSection, special ? section('Special Requests', '<div class="svc-dl-row full"><span class="svc-dl-value">' + w.escapeServiceHtml(special) + '</span></div>') : ''].filter(Boolean).join('');
+
         return '' +
-            '<div class="svc-panel">' +
-                '<div class="svc-panel-head">' +
-                    '<div class="svc-panel-head-main">' +
-                        '<div class="svc-thumb svc-thumb-fallback"><i class="ri-building-2-line"></i></div>' +
-                        '<div style="min-width:0;">' +
-                            '<p class="svc-title">' + name + '</p>' +
-                            '<p class="svc-subtitle">' + subtitle + '</p>' +
+            '<div class="svc-wide-layout">' +
+                '<div class="svc-panel">' +
+                    '<div class="svc-panel-head">' +
+                        '<div class="svc-panel-head-main">' +
+                            '<div class="svc-thumb svc-thumb-fallback"><i class="ri-building-2-line"></i></div>' +
+                            '<div style="min-width:0;">' +
+                                '<p class="svc-title">' + name + '</p>' +
+                                '<p class="svc-subtitle">' + subtitle + '</p>' +
+                            '</div>' +
                         '</div>' +
+                        '<div class="svc-price">' + money(grand) + '</div>' +
                     '</div>' +
-                    '<div class="svc-price">' + money(grand) + '</div>' +
                 '</div>' +
-            '</div>' +
 
-            section('Visit Schedule',
-                dlRow('Visit Date', w.escapeServiceHtml(visitDate)) +
-                dlRow('Visit Time', w.escapeServiceHtml(visitTime)) +
-                dlRow('Selection', w.escapeServiceHtml(String(selection).charAt(0).toUpperCase() + String(selection).slice(1))) +
-                dlRow('Country', w.escapeServiceHtml(country))
-            ) +
-
-            '<div class="svc-section">' +
-                '<h6 class="svc-section-title">Guest Information</h6>' +
-                '<div class="svc-guest-grid" style="grid-template-columns:repeat(' + (infants > 0 ? 4 : 3) + ',1fr);">' +
-                    '<div class="svc-guest-box"><div class="num">' + adults + '</div><div class="lbl">Adults</div></div>' +
-                    '<div class="svc-guest-box"><div class="num">' + children + '</div><div class="lbl">Children</div></div>' +
-                    '<div class="svc-guest-box"><div class="num">' + seniors + '</div><div class="lbl">Seniors</div></div>' +
-                    (infants > 0 ? '<div class="svc-guest-box"><div class="num">' + infants + '</div><div class="lbl">Infants</div></div>' : '') +
+                '<div class="svc-wide-grid">' +
+                    section('Visit Schedule',
+                        dlRow('Visit Date', w.escapeServiceHtml(visitDate)) +
+                        dlRow('Visit Time', w.escapeServiceHtml(visitTime)) +
+                        dlRow('Selection', w.escapeServiceHtml(String(selection).charAt(0).toUpperCase() + String(selection).slice(1))) +
+                        dlRow('Country', w.escapeServiceHtml(country))
+                    ) +
+                    '<div class="svc-section">' +
+                        '<h6 class="svc-section-title">Guest Information</h6>' +
+                        '<div class="svc-guest-grid" style="grid-template-columns:repeat(' + (infants > 0 ? 4 : 3) + ',1fr);">' +
+                            '<div class="svc-guest-box"><div class="num">' + adults + '</div><div class="lbl">Adults</div></div>' +
+                            '<div class="svc-guest-box"><div class="num">' + children + '</div><div class="lbl">Children</div></div>' +
+                            '<div class="svc-guest-box"><div class="num">' + seniors + '</div><div class="lbl">Seniors</div></div>' +
+                            (infants > 0 ? '<div class="svc-guest-box"><div class="num">' + infants + '</div><div class="lbl">Infants</div></div>' : '') +
+                        '</div>' +
+                        '<div class="svc-total-bar">Total: ' + guests + ' Guest' + (guests === 1 ? '' : 's') + '</div>' +
+                    '</div>' +
+                    section('Ticket & Pricing', ticketRows) +
                 '</div>' +
-                '<div class="svc-total-bar">Total: ' + guests + ' Guest' + (guests === 1 ? '' : 's') + '</div>' +
-            '</div>' +
 
-            section('Ticket & Pricing', ticketRows) +
-            transferSection +
-            guideSection +
-            ((transferDisplay > 0 || guideTotal > 0) ? section('Price Summary', summaryRows) : '') +
-            (special ? section('Special Requests', '<div class="svc-dl-row full"><span class="svc-dl-value">' + w.escapeServiceHtml(special) + '</span></div>') : '') +
+                (extraBlocks ? ('<div class="svc-wide-extra">' + extraBlocks + ((transferDisplay > 0 || guideTotal > 0) ? section('Price Summary', summaryRows) : '') + '</div>') : ((transferDisplay > 0 || guideTotal > 0) ? ('<div class="svc-wide-extra">' + section('Price Summary', summaryRows) + '</div>') : '')) +
 
-            (actionsHtml
-                ? ('<div class="svc-section">' +
-                    '<h6 class="svc-section-title">Booking Actions</h6>' +
-                    '<div class="svc-actions">' + actionsHtml + '</div>' +
-                   '</div>')
-                : '');
+                (actionsHtml
+                    ? ('<div class="svc-section" style="margin-bottom:0;">' +
+                        '<h6 class="svc-section-title">Booking Actions</h6>' +
+                        '<div class="svc-actions">' + actionsHtml + '</div>' +
+                       '</div>')
+                    : '') +
+            '</div>';
     };
 
     /**
@@ -1147,45 +1229,49 @@
         var qrHtml = opts.qrHtml || '';
         var guestCols = infants > 0 ? 3 : 2;
 
+        var extraBlocks = [menuRows ? section('Menu Items (' + mealsArr.length + ')', menuRows) : '', transferHtml, guideHtml].filter(Boolean).join('');
+
         return '' +
-            '<div class="svc-panel' + (isMulti ? ' is-multi-restaurant' : '') + '">' +
-                (isMulti ? '<div class="svc-multi-flag" title="Multi restaurant booking"><span>Multi</span></div>' : '') +
-                '<div class="svc-panel-head">' +
-                    '<div class="svc-panel-head-main">' +
-                        '<div class="svc-thumb svc-thumb-fallback"><i class="ri-restaurant-2-line"></i></div>' +
-                        '<div style="min-width:0;">' +
-                            '<h6 class="svc-title">' + name + '</h6>' +
-                            '<p class="svc-subtitle">' + mealType + ' · ' + mealSpecific + '</p>' +
+            '<div class="svc-wide-layout">' +
+                '<div class="svc-panel' + (isMulti ? ' is-multi-restaurant' : '') + '">' +
+                    (isMulti ? '<div class="svc-multi-flag" title="Multi restaurant booking"><span>Multi</span></div>' : '') +
+                    '<div class="svc-panel-head">' +
+                        '<div class="svc-panel-head-main">' +
+                            '<div class="svc-thumb svc-thumb-fallback"><i class="ri-restaurant-2-line"></i></div>' +
+                            '<div style="min-width:0;">' +
+                                '<h6 class="svc-title">' + name + '</h6>' +
+                                '<p class="svc-subtitle">' + mealType + ' · ' + mealSpecific + '</p>' +
+                            '</div>' +
                         '</div>' +
+                        '<div class="svc-price">' + money(grand) + '</div>' +
                     '</div>' +
-                    '<div class="svc-price">' + money(grand) + '</div>' +
                 '</div>' +
-            '</div>' +
 
-            '<div class="svc-section">' +
-                '<h6 class="svc-section-title">Reservation Details</h6>' +
-                '<div class="svc-dl">' +
-                    dlRow('Dining date', w.escapeServiceHtml(diningDate)) +
-                    dlRow('Dining time', diningTime) +
-                    dlRow('Meal', mealType + ' / ' + mealSpecific) +
+                '<div class="svc-wide-grid">' +
+                    section('Reservation',
+                        dlRow('Dining date', w.escapeServiceHtml(diningDate)) +
+                        dlRow('Dining time', diningTime) +
+                        dlRow('Meal', mealType + ' / ' + mealSpecific, true)
+                    ) +
+                    '<div class="svc-section">' +
+                        '<h6 class="svc-section-title">Guests</h6>' +
+                        '<div class="svc-guest-grid" style="grid-template-columns:repeat(' + guestCols + ',1fr);">' +
+                            '<div class="svc-guest-box"><div class="num">' + adults + '</div><div class="lbl">Adults</div></div>' +
+                            '<div class="svc-guest-box"><div class="num">' + children + '</div><div class="lbl">Children</div></div>' +
+                            (infants > 0 ? '<div class="svc-guest-box"><div class="num">' + infants + '</div><div class="lbl">Infants</div></div>' : '') +
+                        '</div>' +
+                        '<div class="svc-total-bar">Total: ' + party + ' Guest' + (party === 1 ? '' : 's') + '</div>' +
+                    '</div>' +
+                    section('Pricing Overview', pricingRows) +
                 '</div>' +
-                '<div class="svc-guest-grid" style="grid-template-columns:repeat(' + guestCols + ',1fr);">' +
-                    '<div class="svc-guest-box"><div class="num">' + adults + '</div><div class="lbl">Adults</div></div>' +
-                    '<div class="svc-guest-box"><div class="num">' + children + '</div><div class="lbl">Children</div></div>' +
-                    (infants > 0 ? '<div class="svc-guest-box"><div class="num">' + infants + '</div><div class="lbl">Infants</div></div>' : '') +
-                '</div>' +
-                '<div class="svc-total-bar">Total: ' + party + ' Guest' + (party === 1 ? '' : 's') + '</div>' +
-            '</div>' +
 
-            (menuRows ? section('Menu Items (' + mealsArr.length + ')', menuRows) : '') +
-            transferHtml +
-            guideHtml +
-            section('Pricing Overview', pricingRows) +
+                (extraBlocks ? ('<div class="svc-wide-extra">' + extraBlocks + '</div>') : '') +
 
-            (actionsHtml
-                ? ('<div class="svc-section"><h6 class="svc-section-title">Booking Status</h6><div class="svc-actions">' + actionsHtml + '</div></div>')
-                : '') +
-            qrHtml;
+                (actionsHtml
+                    ? ('<div class="svc-section" style="margin-bottom:0;"><h6 class="svc-section-title">Booking Status</h6><div class="svc-actions">' + actionsHtml + '</div></div>')
+                    : '') +
+                qrHtml +
+            '</div>';
     };
 
     /**
@@ -1253,45 +1339,51 @@
         }
 
         return '' +
-            '<div class="svc-panel">' +
-                '<div class="svc-panel-head">' +
-                    '<div class="svc-panel-head-main">' + thumb +
-                        '<div>' +
-                            '<p class="svc-title">' + esc(vehicleName) + '</p>' +
-                            '<p class="svc-subtitle">' + esc(transferLabel) + ' ' + (parseInt(orderIndex, 10) + 1) + ' • ' + esc(typeLabel) + '</p>' +
+            '<div class="svc-wide-layout">' +
+                '<div class="svc-panel">' +
+                    '<div class="svc-panel-head">' +
+                        '<div class="svc-panel-head-main">' + thumb +
+                            '<div>' +
+                                '<p class="svc-title">' + esc(vehicleName) + '</p>' +
+                                '<p class="svc-subtitle">' + esc(transferLabel) + ' ' + (parseInt(orderIndex, 10) + 1) + ' • ' + esc(typeLabel) + '</p>' +
+                            '</div>' +
                         '</div>' +
+                        '<div class="svc-price">' + esc(currency) + ' ' + totalPrice.toFixed(2) + '</div>' +
                     '</div>' +
-                    '<div class="svc-price">' + esc(currency) + ' ' + totalPrice.toFixed(2) + '</div>' +
                 '</div>' +
-                section('Service Schedule',
-                    dlRow('Date', esc(dateLabel)) +
-                    dlRow('Time', esc(timeLabel)) +
-                    dlRow('Type', esc(typeLabel)) +
-                    dlRow('Transfer', esc(transferLabel))
-                ) +
-                '<div class="svc-section">' +
-                    '<h6 class="svc-section-title">Group Information</h6>' +
-                    '<div class="svc-guest-grid">' +
-                        '<div class="svc-guest-box"><div class="num">' + adults + '</div><div class="lbl">Adults</div></div>' +
-                        '<div class="svc-guest-box"><div class="num">' + children + '</div><div class="lbl">Children</div></div>' +
+                '<div class="svc-wide-grid">' +
+                    section('Service Schedule',
+                        dlRow('Date', esc(dateLabel)) +
+                        dlRow('Time', esc(timeLabel)) +
+                        dlRow('Type', esc(typeLabel)) +
+                        dlRow('Transfer', esc(transferLabel))
+                    ) +
+                    '<div class="svc-section">' +
+                        '<h6 class="svc-section-title">Group Information</h6>' +
+                        '<div class="svc-guest-grid">' +
+                            '<div class="svc-guest-box"><div class="num">' + adults + '</div><div class="lbl">Adults</div></div>' +
+                            '<div class="svc-guest-box"><div class="num">' + children + '</div><div class="lbl">Children</div></div>' +
+                        '</div>' +
+                        '<div class="svc-total-bar">Total: ' + guests + ' Guest' + (guests === 1 ? '' : 's') + '</div>' +
                     '</div>' +
-                    '<div class="svc-total-bar">Total: ' + guests + ' Guest' + (guests === 1 ? '' : 's') + '</div>' +
+                    section('Route Information',
+                        dlRow('Pickup', '<i class="ri-map-pin-line me-1" style="color:var(--svc-accent);"></i>' + esc(pickup)) +
+                        dlRow('Dropoff', '<i class="ri-map-pin-2-line me-1" style="color:var(--svc-danger);"></i>' + esc(dropoff))
+                    ) +
                 '</div>' +
-                section('Route Information',
-                    dlRow('Pickup', '<i class="ri-map-pin-line me-1" style="color:var(--svc-accent);"></i>' + esc(pickup)) +
-                    dlRow('Dropoff', '<i class="ri-map-pin-2-line me-1" style="color:var(--svc-danger);"></i>' + esc(dropoff))
-                ) +
-                section('Vehicle &amp; Location',
-                    dlRow('Vehicle', esc(vehicleName)) +
-                    dlRow('Service', esc(typeLabel)) +
-                    dlRow('City', esc(city)) +
-                    dlRow('Country', esc(country)) +
-                    dlRow('Total Price', '<span class="svc-amount" style="color:var(--svc-accent);">' + esc(currency) + ' ' + totalPrice.toFixed(2) + '</span>', true)
-                ) +
-                (booking.specialRequests
-                    ? section('Special Requests', dlRow('', esc(booking.specialRequests), true))
-                    : '') +
-                '<div class="svc-section">' +
+                '<div class="svc-wide-extra">' +
+                    section('Vehicle &amp; Location',
+                        dlRow('Vehicle', esc(vehicleName)) +
+                        dlRow('Service', esc(typeLabel)) +
+                        dlRow('City', esc(city)) +
+                        dlRow('Country', esc(country)) +
+                        dlRow('Total Price', '<span class="svc-amount" style="color:var(--svc-accent);">' + esc(currency) + ' ' + totalPrice.toFixed(2) + '</span>', true)
+                    ) +
+                    (booking.specialRequests
+                        ? section('Special Requests', dlRow('', esc(booking.specialRequests), true))
+                        : '') +
+                '</div>' +
+                '<div class="svc-section" style="margin-bottom:0;">' +
                     '<h6 class="svc-section-title">Booking Status</h6>' +
                     '<div class="svc-actions">' + actionsHtml + '</div>' +
                 '</div>' +
@@ -1308,7 +1400,9 @@
         var title = w.escapeServiceHtml(config.title || 'Details');
         var icon = config.iconClass || 'ri-file-list-3-line';
         var bodyId = config.bodyId || ('svcContent_' + modalId);
-        var size = config.sizeClass || 'modal-lg';
+        var size = config.sizeClass || 'modal-xl';
+        var scrollable = config.scrollable === true;
+        var extraModalClass = ' svc-modal-wide' + (config.modalClass ? (' ' + String(config.modalClass)) : '');
         var onClose = config.onClose || ("closeProfessionalServiceModal('" + modalId + "')");
         var footerLeft = config.footerLeftHtml || '';
         var footerRight = config.footerRightHtml || (
@@ -1317,8 +1411,8 @@
         );
 
         return '' +
-            '<div class="modal fade svc-modal" id="' + modalId + '" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">' +
-                '<div class="modal-dialog modal-dialog-centered ' + size + ' modal-dialog-scrollable">' +
+            '<div class="modal fade svc-modal' + extraModalClass + '" id="' + modalId + '" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">' +
+                '<div class="modal-dialog modal-dialog-centered ' + size + (scrollable ? ' modal-dialog-scrollable' : '') + '">' +
                     '<div class="modal-content">' +
                         '<div class="modal-header">' +
                             '<h5 class="modal-title"><i class="' + icon + ' me-2"></i>' + title + '</h5>' +

@@ -104,7 +104,7 @@
         <div class="row">
             @if($canAllocate)
                 <div class="col-lg-4 mb-4">
-                    <div class="card border-0 shadow-sm h-100">
+                    <div class="card border-0 shadow-sm h-100" style="overflow: visible;">
                         <div class="card-header bg-transparent">
                             <h5 class="mb-0">
                                 <i class="ri-exchange-dollar-line me-1"></i>
@@ -114,7 +114,7 @@
                             </h5>
                         </div>
 
-                        <div class="card-body">
+                        <div class="card-body" style="overflow: visible;">
                             <form method="POST" action="{{ route('finance.wallet.topup') }}">
                                 @csrf
 
@@ -128,16 +128,45 @@
                                     </p>
                                     <div class="mb-3">
                                         <label class="form-label">DMC</label>
-                                        <div class="position-relative">
-                                            <input type="text" id="travclicks_dmc_search" class="form-control pe-5" placeholder="Select DMC" autocomplete="off">
-                                            <i class="ri-arrow-down-s-line position-absolute top-50 end-0 translate-middle-y me-2 text-muted" style="pointer-events:none"></i>
-                                            <div id="travclicks_dmc_list" class="position-absolute w-100 d-none" style="z-index:1050;max-height:240px;overflow-y:auto;background:#fff;border:1px solid #d9dee3;border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,.15);margin-top:2px;"></div>
+                                        <div class="position-relative" id="travclicks_dmc_combo">
+                                            <div class="position-relative">
+                                                <input type="text" id="travclicks_dmc_search" class="form-control pe-4" placeholder="Search & select DMC" autocomplete="off" required>
+                                                <i class="ri-arrow-down-s-line position-absolute top-50 end-0 translate-middle-y me-2 text-muted" style="pointer-events:none;"></i>
+                                            </div>
+                                            <div id="travclicks_dmc_list" class="d-none border rounded bg-white shadow w-100 py-1"></div>
                                         </div>
-                                        <select id="travclicks_dmc_select" class="d-none"></select>
+                                        <input type="hidden" id="travclicks_dmc_select" value="">
                                         <div id="travclicks_dmcs_loading" class="text-muted small mt-1" style="display:none;">
                                             Loading DMCs...
                                         </div>
                                     </div>
+                                    <style>
+                                        #travclicks_dmc_list {
+                                            position: absolute;
+                                            top: calc(100% + 4px);
+                                            left: 0;
+                                            right: 0;
+                                            z-index: 1080;
+                                            max-height: 220px;
+                                            overflow-y: auto;
+                                            background: #fff;
+                                        }
+                                        #travclicks_dmc_list .dropdown-item {
+                                            display: block;
+                                            width: 100%;
+                                            border: 0;
+                                            background: transparent;
+                                            text-align: left;
+                                            padding: 0.5rem 0.85rem;
+                                            color: #333;
+                                            white-space: normal;
+                                        }
+                                        #travclicks_dmc_list .dropdown-item:hover,
+                                        #travclicks_dmc_list .dropdown-item.active {
+                                            background: #eef2ff;
+                                            color: #1d4ed8;
+                                        }
+                                    </style>
                                 @elseif($roleGroup === 'master_dmc')
                                     <div class="mb-3">
                                         <label class="form-label">DMC</label>
@@ -527,66 +556,15 @@
         if (targetCurrency) targetCurrency.addEventListener('change', scheduleFxPreview);
 
         if (roleGroup === 'travclicks_owner') {
-            const dmcSelect = $('#travclicks_dmc_select');
+            const dmcValueEl = document.getElementById('travclicks_dmc_select');
+            const dmcSearchEl = document.getElementById('travclicks_dmc_search');
+            const dmcListEl = document.getElementById('travclicks_dmc_list');
+            const dmcComboEl = document.getElementById('travclicks_dmc_combo');
             const loadingDmcs = document.getElementById('travclicks_dmcs_loading');
             const dmcsUrl = {!! json_encode(route('finance.wallet.dropdowns.travclicks-dmcs')) !!};
             const currencyLabel = document.getElementById('allocator_currency_label');
-
-            // Search-selection dropdown: one control, click to open, type to filter.
-            const dmcSearch = document.getElementById('travclicks_dmc_search');
-            const dmcList = document.getElementById('travclicks_dmc_list');
             let dmcItems = [];
-
-            function selectDmc(item) {
-                dmcSelect.empty();
-                dmcSelect[0].appendChild(new Option(item.label, item.id, true, true));
-                dmcSearch.value = item.label;
-                dmcList.classList.add('d-none');
-                dmcSelect.trigger('change');
-            }
-
-            function showDmcList(filter) {
-                const q = (filter || '').trim().toLowerCase();
-                const matches = dmcItems.filter(i => i.label.toLowerCase().includes(q));
-                dmcList.innerHTML = '';
-                if (!matches.length) {
-                    const none = document.createElement('div');
-                    none.className = 'px-3 py-2 text-muted small';
-                    none.textContent = 'No matching DMC';
-                    dmcList.appendChild(none);
-                }
-                matches.forEach(i => {
-                    const btn = document.createElement('button');
-                    btn.type = 'button';
-                    const active = String(i.id) === String(dmcSelect.val());
-                    btn.className = 'd-block w-100 text-start border-0 px-3 py-2';
-                    btn.style.cssText = 'background:' + (active ? '#e7e7ff' : '#fff') + ';color:#333;';
-                    btn.onmouseenter = () => { btn.style.background = '#f1f1f6'; };
-                    btn.onmouseleave = () => { btn.style.background = active ? '#e7e7ff' : '#fff'; };
-                    btn.textContent = i.label;
-                    btn.addEventListener('mousedown', ev => { ev.preventDefault(); selectDmc(i); });
-                    dmcList.appendChild(btn);
-                });
-                dmcList.classList.remove('d-none');
-            }
-
-            dmcSearch.addEventListener('focus', () => { dmcSearch.select(); showDmcList(''); });
-            dmcSearch.addEventListener('input', () => showDmcList(dmcSearch.value));
-            dmcSearch.addEventListener('blur', () => {
-                dmcList.classList.add('d-none');
-                const current = dmcItems.find(i => String(i.id) === String(dmcSelect.val()));
-                dmcSearch.value = current ? current.label : '';
-            });
-            dmcSearch.addEventListener('keydown', e => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    const first = dmcItems.find(i => i.label.toLowerCase().includes(dmcSearch.value.trim().toLowerCase()));
-                    if (first) selectDmc(first);
-                    dmcSearch.blur();
-                } else if (e.key === 'Escape') {
-                    dmcSearch.blur();
-                }
-            });
+            let selectedDmc = null;
 
             function syncAmountCurrencyLabel() {
                 const toSelect = document.getElementById('wallet_currency_code');
@@ -639,33 +617,114 @@
                 currencySelectEl.addEventListener('change', convertSgd);
             }
 
+            async function onDmcChosen(item) {
+                selectedDmc = item || null;
+                dmcValueEl.value = item ? String(item.id) : '';
+                dmcSearchEl.value = item ? item.label : '';
+                dmcListEl.classList.add('d-none');
+                setAllocRecipientHidden('dmc', item ? item.id : '');
+                await refreshCurrencyOptions('dmc', item ? item.id : '');
+                syncAmountCurrencyLabel();
+                convertSgd();
+            }
+
+            function showDmcList(filterText) {
+                const q = (filterText || '').trim().toLowerCase();
+                const matches = !q
+                    ? dmcItems
+                    : dmcItems.filter(i => String(i.label || '').toLowerCase().includes(q));
+
+                dmcListEl.innerHTML = '';
+                if (!matches.length) {
+                    const empty = document.createElement('div');
+                    empty.className = 'px-3 py-2 text-muted small';
+                    empty.textContent = q ? 'No matching DMC' : 'No DMCs available';
+                    dmcListEl.appendChild(empty);
+                } else {
+                    matches.forEach((item) => {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'dropdown-item text-wrap';
+                        if (selectedDmc && String(selectedDmc.id) === String(item.id)) {
+                            btn.classList.add('active');
+                        }
+                        btn.textContent = item.label;
+                        btn.addEventListener('mousedown', (e) => {
+                            e.preventDefault();
+                            onDmcChosen(item);
+                        });
+                        dmcListEl.appendChild(btn);
+                    });
+                }
+                dmcListEl.classList.remove('d-none');
+            }
+
+            dmcSearchEl.addEventListener('focus', () => {
+                showDmcList(dmcSearchEl.value === (selectedDmc?.label || '') ? '' : dmcSearchEl.value);
+            });
+            dmcSearchEl.addEventListener('click', () => {
+                showDmcList(dmcSearchEl.value === (selectedDmc?.label || '') ? '' : dmcSearchEl.value);
+            });
+            dmcSearchEl.addEventListener('input', () => {
+                // Typing means filtering; clear selected until a list item is chosen.
+                if (selectedDmc && dmcSearchEl.value !== selectedDmc.label) {
+                    selectedDmc = null;
+                    dmcValueEl.value = '';
+                    setAllocRecipientHidden('', '');
+                }
+                showDmcList(dmcSearchEl.value);
+            });
+            dmcSearchEl.addEventListener('blur', () => {
+                setTimeout(() => {
+                    dmcListEl.classList.add('d-none');
+                    if (selectedDmc) {
+                        dmcSearchEl.value = selectedDmc.label;
+                    } else {
+                        dmcSearchEl.value = '';
+                        dmcValueEl.value = '';
+                    }
+                }, 120);
+            });
+            dmcSearchEl.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    dmcSearchEl.blur();
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const q = dmcSearchEl.value.trim().toLowerCase();
+                    const first = dmcItems.find(i => String(i.label || '').toLowerCase().includes(q));
+                    if (first) onDmcChosen(first);
+                }
+            });
+            document.addEventListener('click', (e) => {
+                if (dmcComboEl && !dmcComboEl.contains(e.target)) {
+                    dmcListEl.classList.add('d-none');
+                }
+            });
+
             async function loadDmcs() {
                 loadingDmcs.style.display = 'block';
                 try {
-                    dmcSelect.empty();
                     setAllocRecipientHidden('', '');
                     const res = await fetch(dmcsUrl, { credentials: 'same-origin' });
                     const json = await res.json();
-                    const items = json.items || [];
-
-                    if (!items.length) {
-                        setEmptySelect(dmcSelect[0], 'No DMCs available');
-                        return;
+                    dmcItems = json.items || [];
+                    if (dmcItems.length) {
+                        await onDmcChosen(dmcItems[0]);
+                    } else {
+                        await onDmcChosen(null);
                     }
-
-                    dmcItems = items;
-                    selectDmc(items[0]);
                 } finally {
                     loadingDmcs.style.display = 'none';
                 }
             }
 
-            dmcSelect.on('change', async function () {
-                const dmcId = dmcSelect.val();
-                setAllocRecipientHidden('dmc', dmcId);
-                await refreshCurrencyOptions('dmc', dmcId);
-                syncAmountCurrencyLabel();
-                convertSgd();
+            // Validate hidden value before submit (search box alone is not enough).
+            dmcSearchEl.form?.addEventListener('submit', (e) => {
+                if (!dmcValueEl.value) {
+                    e.preventDefault();
+                    dmcSearchEl.focus();
+                    showDmcList(dmcSearchEl.value);
+                }
             });
 
             loadDmcs();
