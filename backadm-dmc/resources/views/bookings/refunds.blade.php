@@ -716,6 +716,22 @@
                                         @php
                                             $refundType = $refundOrder->type ?? null;
                                             $serviceMeta = $refundServiceIcons[$refundType] ?? ['icon' => 'ri-service-line', 'label' => ucfirst(str_replace('_', ' ', (string)$refundType))];
+                                            $refundOrderData = is_string($refundOrder->data ?? null)
+                                                ? json_decode($refundOrder->data, true)
+                                                : ($refundOrder->data ?? null);
+                                            $refundFirstItem = is_array($refundOrderData) ? (array_values($refundOrderData)[0] ?? null) : null;
+                                            $refundServiceName = '';
+                                            if (is_array($refundFirstItem)) {
+                                                $refundServiceName = trim((string) (
+                                                    (($refundFirstItem['hotelDetails'] ?? [])['hotel_name'] ?? null)
+                                                    ?? $refundFirstItem['hotel_name']
+                                                    ?? $refundFirstItem['name']
+                                                    ?? $refundFirstItem['title']
+                                                    ?? $refundFirstItem['service_name']
+                                                    ?? $refundFirstItem['vehicles_name']
+                                                    ?? ''
+                                                ));
+                                            }
                                             $isOnlineServiceOrder = $isOnlineRefundOrder($refundOrder);
                                             $adminRefundedToDmc = (bool) ($refundOrder->travclicks_refunded ?? false);
                                             $isWaitingAdminApproval = ! $showDmcColumn
@@ -855,7 +871,9 @@
                                                 data-tooltip="{{ $serviceTooltip }}"
                                                 data-tour-id="{{ $tour->tour_id }}"
                                                 data-service-type="{{ $refundType }}"
+                                                data-service-label="{{ e(trim($serviceMeta['label'] . ($refundServiceName !== '' ? (' · ' . $refundServiceName) : ($hotelRefundPolicyName !== '' ? (' · ' . $hotelRefundPolicyName) : '')))) }}"
                                                 data-order-id="{{ $orderActionId }}"
+                                                data-order-ref="{{ e((string) ($orderIdentifier ?? '')) }}"
                                                 data-refund-initiated="{{ $isRefundInitiated ? '1' : '0' }}"
                                                 data-waiting-admin="{{ $isWaitingAdminApproval ? '1' : '0' }}"
                                                 data-supplier-cancel-blocked="{{ $supplierCancelBlocksWallet ? '1' : '0' }}"
@@ -1680,6 +1698,8 @@ function processSingleOrderRefund(tourId, orderId, event) {
     const cancelCharge = button?.dataset.cancelCharge;
     const cancelSummary = button?.dataset.cancelSummary || '';
     const hotelName = button?.dataset.hotelName || '';
+    const serviceLabel = button?.dataset.serviceLabel || button?.dataset.serviceType || 'Service';
+    const serviceHeadline = serviceLabel || hotelName || 'Service';
     const dmcMarkupRaw = button?.dataset.dmcMarkup || '';
     const dmcMarkupLabel = button?.dataset.dmcMarkupLabel || '';
     const dmcMarkupAmount = dmcMarkupRaw !== '' ? parseFloat(dmcMarkupRaw) : NaN;
@@ -1754,9 +1774,6 @@ function processSingleOrderRefund(tourId, orderId, event) {
         }
         if (isTravclicksRefund) {
             initiateMessage += '<br><br>Amounts are in SGD. The converted DMC-currency amount below is credited to the DMC wallet.';
-        } else if (dmcCurrencyDiffers) {
-            initiateMessage += '<br><br>Refund amount below is in <strong>' + refundCurrency
-                + '</strong> (DMC base currency), converted from the order currency.';
         }
     }
 
@@ -1772,6 +1789,7 @@ function processSingleOrderRefund(tourId, orderId, event) {
             amount: isFinite(parseFloat(savedAmount)) ? parseFloat(savedAmount) : 0,
             transactionId: savedTxnId,
             remarks: savedRemarks,
+            serviceHeadline: serviceHeadline,
             note: isTravclicksRefund
                 ? 'This will complete the refund and credit the converted amount to the DMC wallet.'
                 : null
@@ -1814,6 +1832,7 @@ function processSingleOrderRefund(tourId, orderId, event) {
             dmcWalletSgdRate: isFinite(dmcWalletSgdRate) ? dmcWalletSgdRate : null,
             sourceSgdRate: isFinite(refundSourceSgdRate) ? refundSourceSgdRate : null,
             hotelName: hotelName,
+            serviceHeadline: serviceHeadline,
             refundPolicyHtml: hotelRefundPolicyHtml
         };
 
@@ -1917,14 +1936,16 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
     ` : '';
     const refundPolicyRaw = String(options.refundPolicyHtml || '').trim();
     const refundPolicyHotel = String(options.hotelName || '').trim();
+    const serviceHeadline = String(options.serviceHeadline || options.hotelName || '').trim();
     const refundPolicyCollapseId = 'refundPolicyCollapse_' + Date.now();
+    // Keep policy collapsed by default so the modal fits without page scroll.
     const refundPolicyBlock = refundPolicyRaw ? `
                             <div class="text-start mb-3 refund-policy-compact">
                                 <button type="button"
                                     class="btn btn-sm btn-outline-secondary w-100 d-flex justify-content-between align-items-center"
                                     data-bs-toggle="collapse"
                                     data-bs-target="#${refundPolicyCollapseId}"
-                                    aria-expanded="true"
+                                    aria-expanded="false"
                                     aria-controls="${refundPolicyCollapseId}">
                                     <span class="text-start">
                                         <i class="ri-file-list-3-line me-1"></i>
@@ -1933,7 +1954,7 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
                                     </span>
                                     <i class="ri-arrow-down-s-line ms-2"></i>
                                 </button>
-                                <div class="collapse show" id="${refundPolicyCollapseId}">
+                                <div class="collapse" id="${refundPolicyCollapseId}">
                                     <div class="border rounded mt-2 p-2 bg-light refund-policy-body"
                                          style="max-height: 150px; overflow-y: auto; font-size: 11.5px; line-height: 1.45; text-align: left;">
                                         ${refundPolicyRaw}
@@ -1941,10 +1962,16 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
                                 </div>
                             </div>
     ` : '';
+    const serviceBadgeBlock = serviceHeadline ? `
+                            <div class="refund-service-badge mb-2">
+                                <i class="ri-service-line me-1"></i>
+                                <span>${$('<div>').text(serviceHeadline).html()}</span>
+                            </div>
+    ` : '';
     const prefillTxnId = $('<div>').text(String(options.transactionId || '')).html();
     const prefillRemarks = $('<div>').text(String(options.remarks || '')).html();
     const metaFieldsBlock = `
-                            <div class="text-start mb-3">
+                            <div class="text-start mb-2">
                                 <label for="refundTransactionIdInput" class="form-label fw-semibold mb-1">
                                     Transaction ID <span class="text-muted fw-normal">(optional)</span>
                                 </label>
@@ -1955,7 +1982,7 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
                                     placeholder="Bank / payment reference"
                                     value="${prefillTxnId}">
                             </div>
-                            <div class="text-start mb-3">
+                            <div class="text-start mb-2">
                                 <label for="refundRemarksInput" class="form-label fw-semibold mb-1">
                                     Remarks <span class="text-muted fw-normal">(optional)</span>
                                 </label>
@@ -2002,7 +2029,7 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
                             </div>
                             ${metaFieldsBlock}
     ` : (hasAmount ? `
-                            <div class="text-start mb-3">
+                            <div class="text-start mb-2">
                                 ${markupBreakdownBlock}
                                 <label for="refundAmountInput" class="form-label fw-semibold mb-1">Refund amount</label>
                                 <div class="input-group">
@@ -2020,24 +2047,25 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
         <div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content border-0 shadow-lg" style="border-radius: 15px;">
-                    <div class="modal-body text-center py-5 px-4">
+                    <div class="modal-body text-center py-3 px-4">
                         <!-- Refund Icon with Animation -->
-                        <div class="refund-icon-wrapper mb-4">
+                        <div class="refund-icon-wrapper mb-2">
                             <div class="refund-circle">
-                                <i class="ri-money-dollar-circle-line ri-32px text-white"></i>
+                                <i class="ri-money-dollar-circle-line text-white"></i>
                             </div>
                         </div>
                         
                         <!-- Refund Title -->
-                        <h4 class="fw-bold ${verifyOnly ? 'text-warning' : 'text-primary'} mb-3" id="confirmationModalLabel">${modalTitle}</h4>
+                        <h4 class="fw-bold ${verifyOnly ? 'text-warning' : 'text-primary'} mb-2" id="confirmationModalLabel">${modalTitle}</h4>
+                        ${serviceBadgeBlock}
                         
                         <!-- Refund Process Message -->
-                        <div class="refund-message mb-4">
+                        <div class="refund-message mb-3">
                             
-                            <p class="text-muted mb-3">${message || 'You are about to process a refund for this tour booking. This will update the tour status and initiate the refund process.'}</p>
+                            <p class="text-muted mb-2">${message || 'You are about to process a refund for this tour booking. This will update the tour status and initiate the refund process.'}</p>
                             ${refundPolicyBlock}
                             ${amountBlock}
-                            <div class="alert ${verifyOnly ? 'alert-warning' : 'alert-info'} border-0" style="background-color: ${verifyOnly ? '#fff7ed' : '#e3f2fd'};">
+                            <div class="alert ${verifyOnly ? 'alert-warning' : 'alert-info'} border-0 py-2 mb-0" style="background-color: ${verifyOnly ? '#fff7ed' : '#e3f2fd'};">
                                 <i class="ri-information-line me-2"></i>
                                 <strong>Note:</strong> ${options.note
                                     ? options.note
@@ -2077,8 +2105,9 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
     // Add modal to body
     $('body').append(modalHtml);
     
-    // Add custom CSS for enhanced styling
-    if (!$('#confirmationModalStyles').length) {
+    // Refresh styles so spacing/icon size updates apply after edits.
+    $('#confirmationModalStyles').remove();
+    {
         $('head').append(`
             <style id="confirmationModalStyles">
                 .refund-icon-wrapper {
@@ -2087,14 +2116,14 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
                 }
                 
                 .refund-circle {
-                    width: 80px;
-                    height: 80px;
+                    width: 56px;
+                    height: 56px;
                     background: linear-gradient(135deg, #007bff, #0056b3);
                     border-radius: 50%;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    box-shadow: 0 8px 25px rgba(0, 123, 255, 0.3);
+                    box-shadow: 0 6px 18px rgba(0, 123, 255, 0.28);
                     animation: refundPulse 0.6s ease-out;
                 }
                 
@@ -2105,7 +2134,7 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
                 }
                 
                 .refund-circle i {
-                    font-size: 2.5rem;
+                    font-size: 1.75rem;
                     animation: iconAppear 0.8s ease-out 0.3s both;
                 }
                 
@@ -2117,6 +2146,25 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
                 .refund-message {
                     max-width: 440px;
                     margin: 0 auto;
+                }
+
+                .refund-service-badge {
+                    display: inline-flex;
+                    align-items: center;
+                    max-width: 100%;
+                    gap: 0.25rem;
+                    padding: 0.4rem 0.85rem;
+                    border-radius: 999px;
+                    background: #eef5ff;
+                    color: #1d4ed8;
+                    font-size: 0.9rem;
+                    font-weight: 600;
+                    line-height: 1.25;
+                }
+                .refund-service-badge span {
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
                 }
                 
                 #confirmationModal .modal-content {

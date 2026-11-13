@@ -1435,7 +1435,7 @@
                                     @elseif($hasPendingPayments && $totalPaid == 0)
                                         <span class="payment-status-badge status-pending" title="Pending approval"><i class="ri-time-line"></i> Pending</span>
                                     @elseif($remainingAmount > 0)
-                                        <span class="payment-status-badge status-partial" title="Partial: {{ number_format($totalPaid, 2) }} paid{{ $hasPendingPayments ? ' + pending' : '' }}"><i class="ri-bank-card-line"></i> Partial{{ $hasPendingPayments ? '+' : '' }} ({{ number_format($totalPaid, 0) }})</span>
+                                        <span class="payment-status-badge status-partial" title="Partial{{ $hasPendingPayments ? ' + pending' : '' }}"><i class="ri-bank-card-line"></i> Partial{{ $hasPendingPayments ? '+' : '' }}</span>
                                     @else
                                         <span class="payment-status-badge status-paid" title="Fully paid"><i class="ri-checkbox-circle-fill"></i> Paid</span>
                                     @endif

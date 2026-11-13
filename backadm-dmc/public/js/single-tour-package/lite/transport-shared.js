@@ -2936,7 +2936,7 @@
             '  <div class="stp-reject-note"><i class="ri-shield-check-line"></i><span><strong>Tour status</strong> and <strong>payment details</strong> stay unchanged. Only this service is included in partial cancellation &amp; refund. <strong>This cannot be undone.</strong></span></div>' +
             '  <div id="stpLiteRejectRefundPolicy" class="stp-reject-policy" aria-live="polite"></div>' +
             '  <div class="stp-reject-actions">' +
-            '    <button type="button" id="stpLiteRejectRefundCancel" class="stp-reject-cancel">Close</button>' +
+            '    <button type="button" id="stpLiteRejectRefundCancel" class="stp-reject-cancel">Cancel</button>' +
             '    <button type="button" id="stpLiteRejectRefundZero" class="stp-reject-zero">Cancel without refund</button>' +
             '    <button type="button" id="stpLiteRejectRefundOk" class="stp-reject-ok">Cancel with refund</button>' +
             '  </div>' +

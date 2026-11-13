@@ -14,8 +14,28 @@
     if (!document.getElementById('payment-eligibility-tooltip-style')) {
         const style = document.createElement('style');
         style.id = 'payment-eligibility-tooltip-style';
-        style.textContent = '.payment-eligibility-tooltip .tooltip-inner{max-width:280px;text-align:left;font-size:12px;line-height:1.35;}';
+        style.textContent = [
+            '.payment-eligibility-tooltip .tooltip-inner{max-width:280px;text-align:left;font-size:12px;line-height:1.35;}',
+            'select.form-select option.pay-method-unavailable,#acceptancePayMethod option.pay-method-unavailable{color:#9ca3af !important;background-color:#f3f4f6;font-style:italic;}'
+        ].join('');
         document.head.appendChild(style);
+    }
+
+    function formatPaymentMethodLabel(method, eligibility) {
+        if (!method) {
+            return '';
+        }
+        // Wallet always shows live balance (same as before). Enable/disable is separate.
+        if (method.code === 'wallet') {
+            const bal = Number(method.wallet?.available_balance ?? 0);
+            const cur = method.wallet?.currency || eligibility?.currency || '';
+            const balTxt = bal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            return `Wallet (${cur} ${balTxt})`;
+        }
+        if (method.available) {
+            return method.label || method.code;
+        }
+        return `${method.label || method.code} — Not available`;
     }
 
     const PAYMENT_SERVICE_BASE = @json($paymentServiceBase);
@@ -294,29 +314,21 @@
             amountEl.textContent = `${moneyFmt(show, frac)} ${dmcCur || ''}`.trim();
         }
         if (detailEl) {
-            const rate = Number(fx.exchange_rate || 0);
-            const pct = Number(fx.charge_percent || 0);
-            const dmcTyped = dmcPayEl ? parseFloat(dmcPayEl.value) : NaN;
-            const bits = [];
-            if (converted && rate > 0) {
-                bits.push(`Rate ${moneyFmt(rate, 6)} ${orderCur}→${dmcCur}`);
+            // Rate = base + FX fee (no % / fee lines). Paid amount already uses effective rate.
+            const sgdEffective = Number(fx.sgd_rate_wallet_effective || 0) > 0
+                ? Number(fx.sgd_rate_wallet_effective)
+                : (() => {
+                    const base = Number(fx.sgd_rate_wallet || 0);
+                    const pct = Number(fx.charge_percent || 0);
+                    return base > 0 && pct > 0 ? base * (1 + pct / 100) : base;
+                })();
+            if (converted && sgdEffective > 0 && dmcCur && dmcCur !== 'SGD') {
+                detailEl.textContent = `1 SGD = ${moneyFmt(sgdEffective, 2)} ${dmcCur}`;
+            } else if (converted) {
+                detailEl.textContent = `Display only — booking remaining stays in ${orderCur}.`;
+            } else {
+                detailEl.textContent = dmcCur ? `DMC currency: ${dmcCur}` : '';
             }
-            if (converted && pct > 0) {
-                bits.push(`+${moneyFmt(pct, 2)}% conversion charge`);
-            }
-            if (converted && Number.isFinite(dmcTyped) && dmcTyped > 0 && pct > 0) {
-                const fee = roundMoney(dmcTyped * (pct / (100 + pct)), dmcCur);
-                if (fee > 0) {
-                    bits.push(`Fee ${moneyFmt(fee, frac)} ${dmcCur}`);
-                }
-            } else if (converted && Number(fx.conversion_charge || 0) > 0) {
-                bits.push(`Fee ${moneyFmt(fx.conversion_charge, frac)} ${dmcCur}`);
-            }
-            detailEl.textContent = bits.length
-                ? bits.join(' · ')
-                : (converted
-                    ? `Display only — booking remaining stays in ${orderCur}.`
-                    : (dmcCur ? `DMC currency: ${dmcCur}` : ''));
         }
         // Offline methods store order-currency amount; keep exchange_rate = 1.
         if (rateEl) {
@@ -480,16 +492,10 @@
                 opt.value = code;
                 selectEl.appendChild(opt);
             }
-            if (method.code === 'wallet') {
-                const bal = Number(method.wallet?.available_balance ?? 0);
-                const cur = method.wallet?.currency || eligibility.currency || '';
-                opt.textContent = `Wallet (${cur} ${bal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`;
-            } else if (method.available) {
-                opt.textContent = method.label;
-            } else {
-                opt.textContent = method.label + ' (unavailable)';
-            }
+            opt.textContent = formatPaymentMethodLabel(method, eligibility);
             opt.disabled = !method.available;
+            // Only gray-out non-wallet methods when unavailable (wallet keeps normal balance label).
+            opt.classList.toggle('pay-method-unavailable', method.code !== 'wallet' && !method.available);
             opt.dataset.reason = method.reason || '';
             if (!method.available && current === opt.value) {
                 selectEl.value = '';
@@ -502,8 +508,16 @@
             msg += ` Wallet: ${walletMethod.reason}`;
         }
         const fx = eligibility.fx || {};
-        if (Number(fx.conversion_charge) > 0) {
-            msg += ` Currency conversion charge ${fx.charge_percent}% (${fx.conversion_charge} ${fx.wallet_currency}).`;
+        const sgdEff = Number(fx.sgd_rate_wallet_effective || 0) > 0
+            ? Number(fx.sgd_rate_wallet_effective)
+            : (() => {
+                const base = Number(fx.sgd_rate_wallet || 0);
+                const pct = Number(fx.charge_percent || 0);
+                return base > 0 && pct > 0 ? base * (1 + pct / 100) : base;
+            })();
+        if (sgdEff > 0 && fx.wallet_currency && String(fx.wallet_currency).toUpperCase() !== 'SGD'
+            && fx.order_currency && String(fx.order_currency).toUpperCase() !== String(fx.wallet_currency).toUpperCase()) {
+            msg += ` Rate: 1 SGD = ${sgdEff.toFixed(2)} ${fx.wallet_currency}.`;
         }
         if (eligibility.acceptance?.hint) {
             msg += ` ${eligibility.acceptance.hint}`;
@@ -528,8 +542,55 @@
             }
         }
         setEligibilityTooltip(eligibility.tour_id, msg);
+        updateAddPaymentOnlinePaidBanner(eligibility);
         window.__paymentEligibility = window.__paymentEligibility || {};
         window.__paymentEligibility[eligibility.tour_id] = eligibility;
+    }
+
+    function updateAddPaymentOnlinePaidBanner(eligibility) {
+        if (!eligibility || !eligibility.tour_id) {
+            return;
+        }
+        const tourId = eligibility.tour_id;
+        const banner = document.getElementById(`addPaymentOnlinePaidBanner${tourId}`);
+        const textEl = document.getElementById(`addPaymentOnlinePaidText${tourId}`);
+        if (!banner || !textEl) {
+            return;
+        }
+
+        const acceptance = eligibility.acceptance || {};
+        const onlinePaid = !!acceptance.online_paid;
+        const currency = String(acceptance.currency || eligibility.currency || '').trim().toUpperCase();
+        const paidAmount = Number(acceptance.online_paid_amount || acceptance.online_amount || 0);
+        const hint = String(acceptance.hint || '').trim();
+        const amountLabel = (currency ? currency + ' ' : '') + (Number.isFinite(paidAmount) ? paidAmount.toFixed(2) : '0.00');
+
+        if (!onlinePaid || !(paidAmount > 0)) {
+            banner.classList.add('d-none');
+            textEl.textContent = '';
+            return;
+        }
+
+        if (hint) {
+            const safeHint = hint
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+            const safeAmount = amountLabel
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+            textEl.innerHTML = safeHint.includes(amountLabel)
+                ? safeHint.replace(safeAmount, '<strong>' + safeAmount + '</strong>')
+                : safeHint;
+        } else {
+            textEl.innerHTML = 'Online payment complete: <strong>' + amountLabel
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                + '</strong>. Collect the offline remaining amount below.';
+        }
+        banner.classList.remove('d-none');
     }
 
     async function enhancePaymentModal(tourId) {
@@ -776,12 +837,9 @@
                 }
                 const opt = document.createElement('option');
                 opt.value = method.code;
-                if (method.code === 'wallet') {
-                    opt.textContent = `Wallet (${walletCurrency} ${walletBalance.toFixed(2)})`;
-                } else {
-                    opt.textContent = method.available ? method.label : `${method.label} (unavailable)`;
-                }
+                opt.textContent = formatPaymentMethodLabel(method, eligibility);
                 opt.disabled = !method.available;
+                opt.classList.toggle('pay-method-unavailable', method.code !== 'wallet' && !method.available);
                 opt.dataset.reason = method.reason || '';
                 select.appendChild(opt);
             });
@@ -790,10 +848,20 @@
             const remarksEl = document.getElementById('acceptancePayRemarks');
             if (remarksEl) remarksEl.value = '';
             const help = document.getElementById('acceptancePayHelp');
-            const walletLine = `Wallet from this DMC: ${walletCurrency} ${walletBalance.toFixed(2)}.`;
-            help.textContent = Number(fx.conversion_charge) > 0
-                ? `${walletLine} Conversion charge ${fx.charge_percent}% is included when the wallet currency differs from ${eligibility.currency}.`
-                : walletLine;
+            const orderCur = String(fx.order_currency || eligibility.currency || '').toUpperCase();
+            const walletLine = `Wallet from this DMC: ${walletCurrency} ${Number(walletBalance || 0).toFixed(2)}.`;
+            const sgdEffective = Number(fx.sgd_rate_wallet_effective || 0) > 0
+                ? Number(fx.sgd_rate_wallet_effective)
+                : (() => {
+                    const base = Number(fx.sgd_rate_wallet || 0);
+                    const pct = Number(fx.charge_percent || 0);
+                    return base > 0 && pct > 0 ? base * (1 + pct / 100) : base;
+                })();
+            const rateLine = (sgdEffective > 0 && walletCurrency && walletCurrency !== 'SGD'
+                && orderCur && orderCur !== walletCurrency)
+                ? ` Rate: 1 SGD = ${sgdEffective.toFixed(2)} ${walletCurrency}.`
+                : '';
+            help.textContent = `${walletLine}${rateLine}`;
             const submit = document.getElementById('acceptancePaySubmit');
             submit.disabled = payable <= 0;
                 submit.onclick = async () => {
