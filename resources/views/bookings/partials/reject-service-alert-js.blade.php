@@ -68,7 +68,8 @@
 .swal2-reject-modal .swal2-actions {
     padding: 1rem 1.5rem 1.5rem;
     gap: 0.75rem;
-    flex-direction: row-reverse;
+    /* Confirm (Proceed / red) on the left, Cancel on the right */
+    flex-direction: row;
 }
 .swal2-reject-modal .swal2-styled.swal2-confirm {
     background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
@@ -190,8 +191,9 @@ function showRejectServiceAlert(serviceType, callback, tourId, withoutRefund, ex
             showCancelButton: true,
             confirmButtonColor: '#dc2626',
             cancelButtonColor: '#64748b',
-            confirmButtonText: isDefiniteOrActualPage ? 'Cancel' : 'Yes, Reject',
-            cancelButtonText: isDefiniteOrActualPage ? 'Close' : 'Cancel',
+            confirmButtonText: isDefiniteOrActualPage ? 'Proceed' : 'Yes, Reject',
+            cancelButtonText: 'Cancel',
+            reverseButtons: false,
             width: calcHtml ? '460px' : '400px',
             padding: '0',
             customClass: {

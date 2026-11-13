@@ -618,7 +618,14 @@
                     return;
                 }
                 amountEl.value = Number(json.converted_amount).toFixed(2);
-                sgdNote.textContent = 'Rate: 1 SGD = ' + json.exchange_rate + ' ' + to;
+                const fxPct = Number(json.fx_percent || 0);
+                const baseRate = Number(json.base_exchange_rate || 0);
+                if (fxPct > 0 && baseRate > 0) {
+                    sgdNote.textContent = 'Rate: 1 SGD = ' + json.exchange_rate + ' ' + to
+                        + ' (base ' + baseRate + ' + FX ' + fxPct + '%)';
+                } else {
+                    sgdNote.textContent = 'Rate: 1 SGD = ' + json.exchange_rate + ' ' + to;
+                }
             }
 
             sgdInput.addEventListener('input', () => {

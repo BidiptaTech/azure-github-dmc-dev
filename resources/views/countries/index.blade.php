@@ -189,7 +189,8 @@
                             <th>Currency</th>
                             <th>Tax Percentage</th>
                             <th>Gateway Percentage</th>
-                            <th>Commission Percentage</th>
+                            <th>Exchange Markup(%)</th>
+                            <th>Exchange Rate</th>
                             @endif
                             @if($showRemitanceAndExchange)
                                 <th>Remitance Charge</th>
@@ -217,6 +218,7 @@
                                 <td>{{ $country->tax_percentage }}</td>
                                 <td>{{ $country->gateway_percentage }}</td>
                                 <td>{{ $country->commission_percentage }}</td>
+                                <td>{{ $country->current_rate !== null && $country->current_rate !== '' ? $country->current_rate : '—' }}</td>
                                 @endif
                                 @if($showRemitanceAndExchange)
                                     @php

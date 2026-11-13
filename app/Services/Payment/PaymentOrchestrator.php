@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Models\Tour;
 use App\Services\Finance\PaymentGatewayService;
 use App\Services\Finance\WalletService;
+use App\Services\Payment\FxConversionCharge;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -129,6 +130,12 @@ class PaymentOrchestrator
                 'order_currency' => $orderCurrency,
                 'exchange_rate' => $exchangeRate,
                 'conversion_charge' => $destinationCurrency !== $orderCurrency ? (float) ($fxMeta['conversion_charge'] ?? 0) : 0.0,
+                'conversion_charge_percent' => $destinationCurrency !== $orderCurrency
+                    ? (float) ($fxMeta['charge_percent'] ?? app(FxConversionCharge::class)->percent())
+                    : 0.0,
+                'conversion_charge_currency' => $destinationCurrency !== $orderCurrency ? $destinationCurrency : $orderCurrency,
+                'sgd_rate_order' => $fxMeta['sgd_rate_order'] ?? null,
+                'sgd_rate_wallet' => $fxMeta['sgd_rate_wallet'] ?? null,
                 'payment_for' => $this->classificationService->resolvePaymentFor(
                     (string) ($eligibility['order_classification'] ?? ''),
                     (string) ($eligibility['payment_stage'] ?? ''),
@@ -514,6 +521,13 @@ class PaymentOrchestrator
                 'wallet_amount' => round($walletAmount, 4),
                 'wallet_currency' => $walletCurrency,
                 'conversion_charge' => round((float) ($attemptMeta['conversion_charge'] ?? 0) * $ratio, 4),
+                // Fee is in wallet/destination currency — keep percent for statement display.
+                'conversion_charge_percent' => (float) (
+                    $attemptMeta['conversion_charge_percent']
+                    ?? $attemptMeta['charge_percent']
+                    ?? 0
+                ),
+                'conversion_charge_currency' => $walletCurrency,
             ];
         }
 

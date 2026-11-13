@@ -1546,6 +1546,11 @@
                                     data-negotiation-locked="{{ $hasAgentComment ? '1' : '0' }}"
                                     data-country-groups='@json($tour->negotiation_country_groups ?? [])'
                                     data-last-offers='@json($lastNegotiationDetails ?? [])'
+                                    data-online-paid="{{ !empty($tour->acceptance_flow['online_paid']) ? '1' : '0' }}"
+                                    data-online-amount="{{ (float) ($tour->acceptance_flow['online_amount'] ?? 0) }}"
+                                    data-online-paid-amount="{{ (float) ($tour->acceptance_flow['online_paid_amount'] ?? 0) }}"
+                                    data-online-currency="{{ e($tour->acceptance_flow['currency'] ?? '') }}"
+                                    data-acceptance-hint="{{ e($tour->acceptance_flow['hint'] ?? '') }}"
                                     onclick="openAgentNegotiationModal(this)"
                                     {{ $hasAgentComment ? 'disabled' : '' }}
                                 >
@@ -1584,7 +1589,16 @@
                                 @else
                                     <span class="text-muted">No negotiation</span>
                                 @endif
-                                @if(($tour->acceptance_flow['classification'] ?? '') === 'mix' && !empty($tour->acceptance_flow['hint']))
+                                @if(($tour->acceptance_flow['classification'] ?? '') === 'mix' && !empty($tour->acceptance_flow['online_paid']) && (float) ($tour->acceptance_flow['online_paid_amount'] ?? $tour->acceptance_flow['online_amount'] ?? 0) > 0)
+                                    <div class="online-paid-hint-chip">
+                                        <i class="ri-checkbox-circle-line" aria-hidden="true"></i>
+                                        <span>
+                                            Online paid:
+                                            <strong>{{ strtoupper((string) ($tour->acceptance_flow['currency'] ?? '')) }}
+                                            {{ number_format((float) ($tour->acceptance_flow['online_paid_amount'] ?? $tour->acceptance_flow['online_amount'] ?? 0), 2) }}</strong>
+                                        </span>
+                                    </div>
+                                @elseif(($tour->acceptance_flow['classification'] ?? '') === 'mix' && !empty($tour->acceptance_flow['hint']))
                                     <div class="online-paid-hint-chip">
                                         <i class="ri-checkbox-circle-line" aria-hidden="true"></i>
                                         <span>{{ $tour->acceptance_flow['hint'] }}</span>
@@ -1828,6 +1842,15 @@
                         <div class="mb-3">
                             <span class="negotiation-label">Tour</span>
                             <div class="negotiation-value" id="agentNegotiationDisplayId">—</div>
+                        </div>
+                        <div class="nego-online-paid-banner d-none" id="agentNegotiationOnlinePaidBanner" role="status">
+                            <span class="nego-online-paid-banner__icon" aria-hidden="true">
+                                <i class="ri-checkbox-circle-fill"></i>
+                            </span>
+                            <div>
+                                <strong class="nego-online-paid-banner__title" id="agentNegotiationOnlinePaidTitle">Online payment complete</strong>
+                                <span class="nego-online-paid-banner__text" id="agentNegotiationOnlinePaidText"></span>
+                            </div>
                         </div>
                         <div id="agentNegotiationProfileMarkupOnce" class="mb-2"></div>
                         <div id="agentNegotiationCountryBlocks" class="d-flex flex-column gap-3 mb-3"></div>
@@ -3800,6 +3823,9 @@ function showFilterResetMessage() {
 
             if (typeof renderAgentNegotiationProfitPanel === 'function') {
                 renderAgentNegotiationProfitPanel(countryGroups);
+            }
+            if (typeof updateAgentNegotiationOnlinePaidBanner === 'function') {
+                updateAgentNegotiationOnlinePaidBanner(button);
             }
 
             const profileHost = document.getElementById('agentNegotiationProfileMarkupOnce');

@@ -5,6 +5,7 @@
     $nextAction = (string) ($flow['next_action'] ?? '');
     $currency = strtoupper((string) ($flow['currency'] ?? 'SGD'));
     $offlineAmount = (float) ($flow['negotiable_amount'] ?? 0);
+    $onlineDue = (float) ($flow['payable_now'] ?? $flow['online_amount'] ?? 0);
     $hint = (string) ($flow['hint'] ?? '');
     $tourId = (int) ($tourId ?? 0);
     $isFullOnline = $classification === 'online' || $nextAction === 'full_payment';
@@ -19,6 +20,14 @@
     </div>
 
     <p class="online-pay-first-card__subtitle">{{ $subtitle }}</p>
+
+    @if($onlineDue > 0)
+        <div class="online-pay-first-card__offline mb-2">
+            <i class="ri-secure-payment-line" aria-hidden="true"></i>
+            {{ $isFullOnline ? 'Amount due:' : 'Online due now:' }}
+            <strong>{{ $currency }} {{ number_format($onlineDue, 2) }}</strong>
+        </div>
+    @endif
 
     <button
         type="button"

@@ -73,6 +73,7 @@
     $spdFmt = static function (float $n, string $cur): string {
         return number_format($n, $cur === 'IDR' && abs($n - round($n)) < 0.001 ? 0 : 2) . ' ' . $cur;
     };
+    $spdFx = app(\App\Services\Payment\FxConversionCharge::class);
 @endphp
 <style>
     #showPaymentModal{{ $tour->tour_id }} .modal-dialog {
@@ -240,16 +241,9 @@
                                                 <tbody>
                                                     @foreach($spdOnlineRows as $index => $payment)
                                                         @php
-                                                            $walletAmt = isset($payment['wallet_amount']) ? (float) $payment['wallet_amount'] : null;
-                                                            $walletCur = strtoupper(trim((string) ($payment['wallet_currency'] ?? '')));
-                                                            $debitAmt = $walletAmt;
-                                                            $debitCur = $walletCur;
-                                                            if ($debitAmt === null) {
-                                                                $debitAmt = isset($payment['original_amount'])
-                                                                    ? (float) $payment['original_amount']
-                                                                    : (isset($payment['amount']) ? (float) $payment['amount'] : null);
-                                                                $debitCur = strtoupper(trim((string) ($payment['currency'] ?? $spdCurrency)));
-                                                            }
+                                                            $fxRow = $spdFx->paymentDisplay($payment, $spdCurrency);
+                                                            $debitAmt = $fxRow['paid_in'];
+                                                            $debitCur = $fxRow['paid_in_currency'];
                                                         @endphp
                                                         <tr class="is-online-payment">
                                                             <td class="text-center status-cell">
@@ -286,7 +280,13 @@
                                                                     —
                                                                 @endif
                                                             </td>
-                                                            <td class="text-center">{{ isset($payment['exchange_rate']) ? number_format((float) $payment['exchange_rate'], 4) : '1.0000' }}</td>
+                                                            <td class="text-center">
+                                                                @if(!empty($fxRow['show_rate']))
+                                                                    1 SGD = {{ number_format((float) $fxRow['rate_per_sgd'], 2) }} {{ $fxRow['rate_currency'] }}
+                                                                @else
+                                                                    —
+                                                                @endif
+                                                            </td>
                                                             <td class="text-center">{{ ucfirst($payment['payment_type'] ?? '—') }}</td>
                                                             <td class="text-center" title="{{ $payment['transaction_id'] ?? '' }}">{{ \Illuminate\Support\Str::limit($payment['transaction_id'] ?? '—', 16, '…') }}</td>
                                                             <td class="text-center" title="{{ $payment['remarks'] ?? '' }}">{{ \Illuminate\Support\Str::limit($payment['remarks'] ?? '—', 20, '…') }}</td>
@@ -364,16 +364,9 @@
                                                 <tbody>
                                                     @foreach($spdOfflineRows as $index => $payment)
                                                         @php
-                                                            $walletAmt = isset($payment['wallet_amount']) ? (float) $payment['wallet_amount'] : null;
-                                                            $walletCur = strtoupper(trim((string) ($payment['wallet_currency'] ?? '')));
-                                                            $debitAmt = $walletAmt;
-                                                            $debitCur = $walletCur;
-                                                            if ($debitAmt === null) {
-                                                                $debitAmt = isset($payment['original_amount'])
-                                                                    ? (float) $payment['original_amount']
-                                                                    : (isset($payment['amount']) ? (float) $payment['amount'] : null);
-                                                                $debitCur = strtoupper(trim((string) ($payment['currency'] ?? $spdCurrency)));
-                                                            }
+                                                            $fxRow = $spdFx->paymentDisplay($payment, $spdCurrency);
+                                                            $debitAmt = $fxRow['paid_in'];
+                                                            $debitCur = $fxRow['paid_in_currency'];
                                                         @endphp
                                                         <tr>
                                                             <td class="text-center status-cell">
@@ -410,7 +403,13 @@
                                                                     —
                                                                 @endif
                                                             </td>
-                                                            <td class="text-center">{{ isset($payment['exchange_rate']) ? number_format((float) $payment['exchange_rate'], 4) : '1.0000' }}</td>
+                                                            <td class="text-center">
+                                                                @if(!empty($fxRow['show_rate']))
+                                                                    1 SGD = {{ number_format((float) $fxRow['rate_per_sgd'], 2) }} {{ $fxRow['rate_currency'] }}
+                                                                @else
+                                                                    —
+                                                                @endif
+                                                            </td>
                                                             <td class="text-center">{{ ucfirst($payment['payment_type'] ?? '—') }}</td>
                                                             <td class="text-center" title="{{ $payment['transaction_id'] ?? '' }}">{{ \Illuminate\Support\Str::limit($payment['transaction_id'] ?? '—', 16, '…') }}</td>
                                                             <td class="text-center" title="{{ $payment['remarks'] ?? '' }}">{{ \Illuminate\Support\Str::limit($payment['remarks'] ?? '—', 20, '…') }}</td>
