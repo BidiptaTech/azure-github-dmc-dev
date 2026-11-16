@@ -347,7 +347,8 @@ export const LandingFooter = () => (
       </div>
       <div>
         <a href="mailto:admin@travclicks.com">Contact Travclicks</a>
-        <Link to="/login">Agent sign in</Link>
+        <Link to="/agent/sign-in">Agent Sign In</Link>
+        <Link to="/travos">DMC Sign In</Link>
         <small>Travel operations platform</small>
       </div>
     </div>
