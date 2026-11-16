@@ -40,6 +40,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   clearSelectedCities,
   addSelectedCity,
+  fetchCityCountry,
 } from "@/slice/common/citiesSlice";
 import moment from "moment";
 import {
@@ -833,6 +834,139 @@ export default function SearchForm({
     dispatch(settourdetails({}));
     dispatch(clearAllServices());
   }, []);
+
+  // When updating an existing booking/tour, seed destination, dates and travellers
+  // from the booked tour so LocationSearch / date pickers show the current values.
+  const hydratedTourIdRef = useRef(null);
+  useEffect(() => {
+    const tour = packageData?.tour;
+    const tourId = tour?.tour_id;
+    if (!tourId || hydratedTourIdRef.current === tourId) return;
+    hydratedTourIdRef.current = tourId;
+
+    let cancelled = false;
+
+    const parseNameList = (value) => {
+      if (Array.isArray(value)) {
+        return value
+          .map((item) =>
+            typeof item === "string"
+              ? item.trim()
+              : String(item?.city || item?.name || "").trim()
+          )
+          .filter(Boolean);
+      }
+      if (value == null || value === "") return [];
+      return String(value)
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean);
+    };
+
+    const cityNamesFromWise = normalizeCityWiseDatesList(tour.cityWiseDates).map(
+      (item) => item.city
+    );
+    const cityNames =
+      cityNamesFromWise.length > 0
+        ? cityNamesFromWise
+        : parseNameList(tour.city);
+    const countries = parseDestinationCountries(tour.destination);
+    const shortCodes = parseCodeList(tour.short_code);
+
+    if (tour.check_in_time) {
+      const parsedIn = moment(tour.check_in_time);
+      if (parsedIn.isValid()) setStartDate(parsedIn.toDate());
+    }
+    if (tour.check_out_time) {
+      const parsedOut = moment(tour.check_out_time);
+      if (parsedOut.isValid()) setEndDate(parsedOut.toDate());
+    }
+    setGuestCounts(getInitialGuestCounts());
+    if (cityNames.length > 1) setTripType("multi");
+
+    const hydrateCities = async () => {
+      dispatch(clearSelectedCities());
+      const resolved = [];
+
+      for (let index = 0; index < cityNames.length; index += 1) {
+        const cityName = cityNames[index];
+        const fallback = {
+          city: cityName,
+          name: cityName,
+          city_id: `tour-${tourId}-${index}`,
+          country: countries[index] || countries[0] || null,
+          country_code: shortCodes[index] || shortCodes[0] || null,
+        };
+
+        try {
+          const results = await dispatch(fetchCityCountry(cityName)).unwrap();
+          const list = Array.isArray(results) ? results : [];
+          const match =
+            list.find(
+              (item) =>
+                String(item.city || item.name || "")
+                  .trim()
+                  .toLowerCase() === cityName.toLowerCase()
+            ) || list[0];
+
+          if (match) {
+            resolved.push({
+              city: match.city || match.name || cityName,
+              name: match.city || match.name || cityName,
+              city_id:
+                match.city_id || match.id || `tour-${tourId}-${index}`,
+              country:
+                match.country ||
+                match.country_name ||
+                countries[index] ||
+                countries[0] ||
+                null,
+              country_code:
+                match.country_code ||
+                match.countryCode ||
+                shortCodes[index] ||
+                shortCodes[0] ||
+                null,
+            });
+            continue;
+          }
+        } catch {
+          /* fall back to tour city name */
+        }
+        resolved.push(fallback);
+      }
+
+      if (cancelled) return;
+
+      resolved.forEach((city) => dispatch(addSelectedCity(city)));
+      syncLocationFromCities(resolved);
+    };
+
+    if (cityNames.length > 0) {
+      hydrateCities();
+    } else {
+      // Still expose country-only destination if city list is missing
+      const countryOnly = countries[0];
+      if (countryOnly) {
+        const fallbackCity = {
+          city: countryOnly,
+          name: countryOnly,
+          city_id: `tour-${tourId}-0`,
+          country: countryOnly,
+          country_code: shortCodes[0] || null,
+        };
+        dispatch(clearSelectedCities());
+        dispatch(addSelectedCity(fallbackCity));
+        syncLocationFromCities([fallbackCity]);
+      }
+    }
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [packageData?.tour?.tour_id, dispatch]);
+
   // Extract the actual update logic into a separate function
   const proceedWithUpdate = async () => {
     // Clear previous customer info when starting update
@@ -1851,7 +1985,7 @@ dispatch(fetchHotels());
       </div>
 
       <div
-        className="bg-white hero-search-bar tp-plan-search__bar"
+        className="bg-white tp-plan-search__bar"
         style={{
           borderRadius: 12,
           padding: 8,
@@ -2044,16 +2178,24 @@ dispatch(fetchHotels());
                     // Show readonly input when agent comes from packageData
                     <input
                       type="text"
-                      value={`${selectedAgentName}`}
+                      value={selectedAgentName || ""}
                       readOnly
+                      title={selectedAgentName || ""}
                       style={{
-                        width: '100%',
-                        height: '32px',
-                        border: 'none',
-                        background: 'transparent',
-                        fontSize: '0.8rem',
-                        padding: '0 8px',
-                        cursor: 'default'
+                        width: "100%",
+                        minWidth: 0,
+                        height: "auto",
+                        minHeight: 28,
+                        border: "none",
+                        background: "transparent",
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: "#0f172a",
+                        padding: 0,
+                        cursor: "default",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
                       }}
                     />
                   ) : (
@@ -2267,17 +2409,17 @@ dispatch(fetchHotels());
           </Grid>
         </Grid>
 
-        {/* City-wise travel dates */}
-        {cityWiseDateRanges.length > 0 && (
-          <Grid item xs={12}>
+        {/* City-wise travel dates — only for multi-city (single city uses Travel dates above) */}
+        {tripType === "multi" && cityWiseDateRanges.length > 1 && (
+          <Grid item xs={12} className="tp-plan-search__city-dates">
             <Grid container spacing={1.5}>
               {cityWiseDateRanges.map((cityDate, index) => (
                 <Grid item xs={12} sm={6} md={4} key={`${cityDate.city}-${index}`}>
                   <Box
                     sx={{
-                      p: 1,
+                      p: 1.5,
                       borderRadius: 1.5,
-                      bgcolor: isDateGuestLocked ? '#f5f5f5' : 'white',
+                      bgcolor: isDateGuestLocked ? '#f8fafc' : 'white',
                       border: '1px solid #e2e8f0',
                       height: '100%',
                       minHeight: '60px',

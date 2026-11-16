@@ -50,6 +50,8 @@ export const fetchBookingid = createAsyncThunk(
         male: parseInt(maleCount) || 0,
         female: parseInt(femaleCount) || 0,
         children_ages: guests.childrenAges?.length > 0 ? guests.childrenAges.join(", ") : "",
+        // Client / group name shown on Quotes & requests
+        customer_name: (enquiryState.customer_name || "").trim(),
         // Add selected DMC IDs to the request
         dmc_ids: selectedDmcIds.length > 0 ? selectedDmcIds : [selectedDmcId],
       };
@@ -695,8 +697,13 @@ const EnquirySlice = createSlice({
     },
     selectedServices: [],
     calculatedPrice: 0, // Store the calculated price from ConfirmDetails
+    customer_name: "", // Client / group name for Quotes & requests
   },
   reducers: {
+    setCustomerName: (state, action) => {
+      state.customer_name =
+        typeof action.payload === "string" ? action.payload : "";
+    },
     setSearchLocation: (state, action) => {
       console.log('Enquiry Slice setSearchLocation action payload:', action.payload);
       // Ensure we're storing the data correctly
@@ -849,6 +856,7 @@ export const {
   setCheckIn, 
   setCheckOut, 
   setGuest,
+  setCustomerName,
   updateServiceDetails,
   updateCalculatedPrice,
   setSelectedServices,

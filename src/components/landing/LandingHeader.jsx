@@ -1,6 +1,5 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Icon } from "./LandingIcons";
 
 const NAV_LINKS = [
   { href: "#journey", label: "How it connects" },
@@ -11,6 +10,29 @@ const NAV_LINKS = [
 
 const LandingHeader = () => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [signInOpen, setSignInOpen] = useState(false);
+  const signInRef = useRef(null);
+
+  useEffect(() => {
+    if (!signInOpen) return undefined;
+
+    const onPointerDown = (event) => {
+      if (signInRef.current && !signInRef.current.contains(event.target)) {
+        setSignInOpen(false);
+      }
+    };
+
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") setSignInOpen(false);
+    };
+
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [signInOpen]);
 
   return (
     <header className="site-header">
@@ -47,10 +69,22 @@ const LandingHeader = () => {
           ))}
         </nav>
 
-        <Link className="signin" to="/login" aria-label="Agent sign in">
-          <span className="signin-prefix">Agent </span>
-          Sign in <Icon name="arrow" className="lc-icon external-arrow" />
-        </Link>
+        <details
+          ref={signInRef}
+          className="signin-picker"
+          open={signInOpen}
+          onToggle={(event) => setSignInOpen(event.currentTarget.open)}
+        >
+          <summary className="signin signin-primary">SIGN IN</summary>
+          <div className="signin-options">
+            <Link to="/agent/sign-in" onClick={() => setSignInOpen(false)}>
+              TA Partner Sign In
+            </Link>
+            <Link to="/travos" onClick={() => setSignInOpen(false)}>
+              DMC Sign In
+            </Link>
+          </div>
+        </details>
       </div>
     </header>
   );

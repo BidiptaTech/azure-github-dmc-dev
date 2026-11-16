@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import PartnerTourBookings from "@/components/workspace/PartnerTourBookings";
-import { appPath, QUOTES_ENQUIRY_PATH } from "@/utils/appPaths";
+import { appPath } from "@/utils/appPaths";
 
 export default function Bookings() {
   const navigate = useNavigate();
@@ -23,7 +23,7 @@ export default function Bookings() {
           <button
             type="button"
             className="partner-btn partner-btn--primary"
-            onClick={() => navigate(appPath())}
+            onClick={() => navigate(appPath("plan"))}
           >
             + New booking
           </button>
@@ -40,24 +40,6 @@ export default function Bookings() {
           onDetailChange={setDetailOpen}
         />
       </section>
-
-      {detailOpen ? null : (
-        <section className="partner-quote-cta partner-quote-cta--block">
-          <h2 className="partner-quote-cta__title">
-            Prefer a tailor-made proposal?
-          </h2>
-          <p className="partner-quote-cta__sub">
-            Share your brief and let your DMC create the itinerary.
-          </p>
-          <button
-            type="button"
-            className="partner-btn partner-btn--primary"
-            onClick={() => navigate(QUOTES_ENQUIRY_PATH)}
-          >
-            Request a Custom Quote →
-          </button>
-        </section>
-      )}
     </div>
   );
 }
