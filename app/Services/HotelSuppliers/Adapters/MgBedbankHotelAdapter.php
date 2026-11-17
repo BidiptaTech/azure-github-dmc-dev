@@ -282,19 +282,40 @@ class MgBedbankHotelAdapter implements TwoStepHotelSupplierAdapter
             ];
         }
 
-        $country = $client->credential('country_code');
+        // Prefer an explicit destination map for this city name over supplier defaults.
+        // Defaults (e.g. SG-SIN) must never be reused for a different city — that caused
+        // wrong-country hotel lists when mg_* codes were missing.
         $cityCode = $this->cityCodeFromMap($request, $client);
-
-        if ($cityCode === '') {
-            $cityCode = $client->credential('city_code');
-        }
 
         // Permit an MG destination code to be supplied directly as the city value.
         if ($cityCode === '' && preg_match('/^[A-Z]{2}-[A-Z0-9]{3,}$/i', trim($request->cityName))) {
             $cityCode = strtoupper(trim($request->cityName));
         }
 
-        if ($country === '' && str_contains($cityCode, '-')) {
+        $country = '';
+        if ($cityCode !== '' && str_contains($cityCode, '-')) {
+            $country = strtoupper((string) strtok($cityCode, '-'));
+        }
+
+        // Only use credential country/city defaults when this search is for that same city
+        // (or we have no city row and the map already resolved a code).
+        if ($cityCode === '') {
+            $defaultCity = strtoupper(trim((string) $client->credential('city_code')));
+            $defaultCountry = strtoupper(trim((string) $client->credential('country_code')));
+            $needle = strtolower(trim($request->cityName));
+            $defaultLooksLikeSameCity = $needle !== ''
+                && (
+                    str_contains(strtolower($defaultCity), $needle)
+                    || ($needle === 'singapore' && str_starts_with($defaultCity, 'SG-'))
+                );
+
+            if ($defaultLooksLikeSameCity && $defaultCity !== '' && $defaultCountry !== '') {
+                $cityCode = $defaultCity;
+                $country = $defaultCountry;
+            }
+        }
+
+        if ($country === '' && $cityCode !== '' && str_contains($cityCode, '-')) {
             $country = strtoupper((string) strtok($cityCode, '-'));
         }
 

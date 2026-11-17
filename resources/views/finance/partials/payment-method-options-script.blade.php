@@ -325,7 +325,7 @@
             if (converted && sgdEffective > 0 && dmcCur && dmcCur !== 'SGD') {
                 detailEl.textContent = `1 SGD = ${moneyFmt(sgdEffective, 2)} ${dmcCur}`;
             } else if (converted) {
-                detailEl.textContent = `Display only — booking remaining stays in ${orderCur}.`;
+                detailEl.textContent = `Negotiated settlement currency: ${orderCur}.`;
             } else {
                 detailEl.textContent = dmcCur ? `DMC currency: ${dmcCur}` : '';
             }

@@ -7419,6 +7419,9 @@ function createIndividualHotelViewModal(tourId, hotelOrderIndex, bookingIndex, a
             title: 'Hotel Details',
             iconClass: 'ri-hotel-line',
             bodyId: bodyId,
+            sizeClass: 'modal-xl',
+            scrollable: false,
+            modalClass: 'svc-modal-hotel',
             onClose: `closeIndividualHotelViewModal('${modalId}')`,
             footerRightHtml: footerRight
         })
@@ -7539,6 +7542,8 @@ function loadIndividualHotelContent(tourId, hotelOrderIndex, bookingIndex, modal
                 approvalFile: hotelData.approval_file || null,
                 // orders.order_type: online | offline | null
                 orderType: hotelData.order_type || null,
+                orderId: hotelData.booking_id || hotelData.order_id || null,
+                isOnlineHotel: !!(hotelData.is_online_hotel || hotelData.order_type === 'online'),
                 booking_details: hotelData.booking_details || null,
                 mgBookingID: hotelData.mg_booking_id || null
             };
@@ -7607,10 +7612,11 @@ function generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrde
                     canReject: canReject,
                     onEdit: `editIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')`,
                     onApprove: `approveIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')`,
-                    onReject: `rejectIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')`
+                    onReject: `rejectIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}', ${JSON.stringify(hotelBooking.orderId || hotelBooking.booking_id || null)})`
                 });
             } else if (hasAnyPermission) {
                 let buttonsHTML = '';
+                const pendingOrderIdJs = JSON.stringify(hotelBooking.orderId || hotelBooking.booking_id || null);
                 if (canEdit) {
                     buttonsHTML += `<button type="button" class="btn btn-sm svc-btn svc-btn-edit" onclick="editIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')"><i class="ri-pencil-line me-1"></i>Edit</button>`;
                 }
@@ -7618,7 +7624,7 @@ function generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrde
                     buttonsHTML += `<button type="button" class="btn btn-sm svc-btn svc-btn-approve" onclick="approveIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')"><i class="ri-check-line me-1"></i>Approve</button>`;
                 }
                 if (canReject) {
-                    buttonsHTML += `<button type="button" class="btn btn-sm svc-btn svc-btn-reject" onclick="rejectIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}')"><i class="ri-close-line me-1"></i>Cancel</button>`;
+                    buttonsHTML += `<button type="button" class="btn btn-sm svc-btn svc-btn-reject" onclick="rejectIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}', ${pendingOrderIdJs})"><i class="ri-close-line me-1"></i>Cancel</button>`;
                 }
                 buttonsContainer.innerHTML = buttonsHTML;
             } else {
@@ -7628,15 +7634,32 @@ function generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrde
     } else {
         const buttonsContainer = document.getElementById(`hotel_buttons_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
         if (buttonsContainer) {
+            const userRoleId = {{ auth()->user()->role_id ?? 0 }};
+            const canReject = [11, 34, 33, 37, 38, 124, 125, 128, 129, 130, 131, 132, 134, 135, 136, 137, 138].includes(userRoleId);
             const referenceId = hotelBooking.referenceId || hotelBooking.reference_id || '';
             const displayDueDate = hotelBooking.displayDueDate || hotelBooking.display_due_date || '';
-            buttonsContainer.innerHTML = `
+            const orderId = hotelBooking.orderId || hotelBooking.booking_id || null;
+            const orderIdJs = JSON.stringify(orderId);
+            let buttonsHTML = `
                 <div class="svc-status-pill is-approved">
                     <i class="ri-check-line"></i> Approved
                     ${referenceId ? `<span class="ms-1">· Ref: ${referenceId}</span>` : ''}
                     ${displayDueDate ? `<span class="ms-1">· Due: ${displayDueDate}</span>` : ''}
                 </div>
             `;
+            if (canReject) {
+                buttonsHTML += `
+                    <button type="button" class="btn btn-sm svc-btn svc-btn-reject"
+                            onclick="window.__cancelWithoutRefund=false; rejectIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}', ${orderIdJs})">
+                        <i class="ri-close-line me-1"></i>Cancel with refund
+                    </button>
+                    <button type="button" class="btn btn-sm svc-btn svc-btn-cancel-zero"
+                            onclick="window.__cancelWithoutRefund=true; rejectIndividualHotel(${tourId}, ${hotelOrderIndex}, ${bookingIndex}, '${autoCancelDate || ''}', ${orderIdJs})">
+                        <i class="ri-close-circle-line me-1"></i>Cancel without refund
+                    </button>
+                `;
+            }
+            buttonsContainer.innerHTML = buttonsHTML;
         }
     }
 }
@@ -7660,11 +7683,22 @@ function approveIndividualHotel(tourId, hotelOrderIndex, bookingIndex, autoCance
     createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'approve', autoCancelDate);
 }
 
-function rejectIndividualHotel(tourId, hotelOrderIndex, bookingIndex, autoCancelDate=null) {
+function rejectIndividualHotel(tourId, hotelOrderIndex, bookingIndex, autoCancelDate=null, orderId) {
     showRejectServiceAlert('hotel', () => {
+        try {
+            const viewModal = document.getElementById(`individualHotelViewModal_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
+            if (viewModal) {
+                const viewInstance = bootstrap.Modal.getInstance(viewModal);
+                if (viewInstance) viewInstance.hide();
+            }
+        } catch (e) {}
         createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'reject', autoCancelDate);
-    }, tourId, !!window.__cancelWithoutRefund, { hotelOrderIndex: hotelOrderIndex });
+    }, tourId, !!window.__cancelWithoutRefund, {
+        hotelOrderIndex: hotelOrderIndex,
+        orderId: orderId || null
+    });
 }
+window.rejectIndividualHotel = rejectIndividualHotel;
 
 // Override any previous definitions - this is the correct attraction approve function
 window.approveIndividualAttraction = function(tourId, attractionOrderIndex, bookingIndex, autoCancelDate=null, attractionOrderId=null) {
@@ -19383,17 +19417,25 @@ function approveIndividualHotel(tourId, hotelOrderIndex, bookingIndex, autoCance
     }
 }
 
-function rejectIndividualHotel(tourId, hotelOrderIndex, bookingIndex) {
+function rejectIndividualHotel(tourId, hotelOrderIndex, bookingIndex, autoCancelDate=null, orderId) {
     showRejectServiceAlert('hotel', () => {
         const hotelDetailsModal = document.getElementById('hotelDetailsModal' + tourId);
         if (hotelDetailsModal) {
             const hotelModal = bootstrap.Modal.getInstance(hotelDetailsModal);
             if (hotelModal) hotelModal.hide();
         }
+        const viewModal = document.getElementById(`individualHotelViewModal_${tourId}_${hotelOrderIndex}_${bookingIndex}`);
+        if (viewModal) {
+            const viewInstance = bootstrap.Modal.getInstance(viewModal);
+            if (viewInstance) viewInstance.hide();
+        }
         setTimeout(() => {
-            createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'reject');
+            createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex, 'reject', autoCancelDate);
         }, 300);
-    }, tourId, !!window.__cancelWithoutRefund, { hotelOrderIndex: hotelOrderIndex });
+    }, tourId, !!window.__cancelWithoutRefund, {
+        hotelOrderIndex: hotelOrderIndex,
+        orderId: orderId || null
+    });
 }
 window.rejectIndividualHotel = rejectIndividualHotel;
 
@@ -19443,26 +19485,30 @@ function createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex
                 break;
         }
         
-        // Use modal-md for reject action, modal-lg for others
-        const modalSize = action === 'reject' ? 'modal-md' : 'modal-lg';
-        const headerPadding = action === 'reject' ? 'py-2 px-3' : 'p-4';
-        const bodyPadding = action === 'reject' ? 'p-3' : 'p-4';
-        const footerPadding = action === 'reject' ? 'py-2 px-3' : 'p-4';
-        const borderRadius = action === 'reject' ? '10px' : '15px';
-        const titleSize = action === 'reject' ? 'h6' : 'h5';
-        const titleFontSize = action === 'reject' ? '1rem' : '';
-        const subtitleFontSize = action === 'reject' ? '0.8rem' : '';
-        const iconSize = action === 'reject' ? '1rem' : 'fs-5';
-        const iconContainerSize = action === 'reject' ? '32px' : '';
+        // reject: compact; approve: wide horizontal (no scroll); edit: default lg
+        const modalSize = action === 'reject'
+            ? 'modal-md'
+            : (action === 'approve' ? 'modal-xl modal-dialog-centered' : 'modal-lg');
+        const isApproveWide = action === 'approve';
+        const headerPadding = (action === 'reject' || isApproveWide) ? 'py-2 px-3' : 'p-4';
+        const bodyPadding = action === 'reject' ? 'p-3' : (isApproveWide ? 'py-2 px-3' : 'p-4');
+        const footerPadding = (action === 'reject' || isApproveWide) ? 'py-2 px-3' : 'p-4';
+        const borderRadius = action === 'reject' ? '10px' : (isApproveWide ? '12px' : '15px');
+        const titleSize = (action === 'reject' || isApproveWide) ? 'h6' : 'h5';
+        const titleFontSize = (action === 'reject' || isApproveWide) ? '0.95rem' : '';
+        const subtitleFontSize = (action === 'reject' || isApproveWide) ? '0.75rem' : '';
+        const iconSize = (action === 'reject' || isApproveWide) ? '1rem' : 'fs-5';
+        const iconContainerSize = (action === 'reject' || isApproveWide) ? '32px' : '';
+        const modalExtraClass = isApproveWide ? ' hotel-approve-modal' : '';
         
         const modalHTML = `
-            <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+            <div class="modal fade${modalExtraClass}" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
                 <div class="modal-dialog ${modalSize}">
                     <div class="modal-content shadow-lg border-0" style="border-radius: ${borderRadius}; overflow: hidden;">
                         <!-- Modal Header -->
                         <div class="modal-header ${headerPadding} border-0" style="background: ${modalColor};">
                             <div class="d-flex align-items-center">
-                                <div class="bg-white rounded-circle shadow-sm me-2" style="width: ${iconContainerSize || 'auto'}; height: ${iconContainerSize || 'auto'}; padding: ${action === 'reject' ? '4px' : '8px'}; display: flex; align-items: center; justify-content: center;">
+                                <div class="bg-white rounded-circle shadow-sm me-2" style="width: ${iconContainerSize || 'auto'}; height: ${iconContainerSize || 'auto'}; padding: ${(action === 'reject' || isApproveWide) ? '4px' : '8px'}; display: flex; align-items: center; justify-content: center;">
                                     <i class="ri-hotel-line text-primary ${iconSize}"></i>
                                 </div>
                                 <div>
@@ -19481,10 +19527,10 @@ function createAndShowIndividualHotelModal(tourId, hotelOrderIndex, bookingIndex
                         <!-- Modal Footer -->
                         <div class="modal-footer border-0 ${footerPadding}" style="background: #f8f9fa;">
                             <div class="d-flex gap-2 w-100 justify-content-end">
-                                <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-2" onclick="closeIndividualHotelModal('${modalId}')" style="border-radius: 8px; font-size: 0.9rem;">
+                                <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeIndividualHotelModal('${modalId}')" style="border-radius: 6px; font-size: 0.85rem;">
                                     <i class="ri-close-line me-1"></i>Cancel
                                 </button>
-                                <button type="button" class="btn ${buttonClass} btn-sm px-3 py-2" onclick="${onSubmit}" style="border-radius: 8px; font-size: 0.9rem;">
+                                <button type="button" class="btn ${buttonClass} btn-sm px-3 py-1" onclick="${onSubmit}" style="border-radius: 6px; font-size: 0.85rem;">
                                     ${action === 'reject' ? '<i class="ri-close-line me-1"></i>Confirm' : buttonText}
                                 </button>
                             </div>

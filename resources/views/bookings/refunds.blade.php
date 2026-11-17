@@ -209,6 +209,9 @@
     #toursTable .refund-money-summary .rms-dmc-markup {
         color: #b45309;
     }
+    #toursTable .refund-money-summary .rms-discount {
+        color: #b45309;
+    }
     #toursTable thead th {
         padding: 0.5rem 0.5rem;
         font-size: 0.8125rem;
@@ -722,15 +725,60 @@
                                             $refundFirstItem = is_array($refundOrderData) ? (array_values($refundOrderData)[0] ?? null) : null;
                                             $refundServiceName = '';
                                             if (is_array($refundFirstItem)) {
-                                                $refundServiceName = trim((string) (
-                                                    (($refundFirstItem['hotelDetails'] ?? [])['hotel_name'] ?? null)
-                                                    ?? $refundFirstItem['hotel_name']
-                                                    ?? $refundFirstItem['name']
-                                                    ?? $refundFirstItem['title']
-                                                    ?? $refundFirstItem['service_name']
-                                                    ?? $refundFirstItem['vehicles_name']
-                                                    ?? ''
-                                                ));
+                                                $typeKey = strtolower(trim((string) $refundType));
+                                                $refundServiceName = match ($typeKey) {
+                                                    'hotel' => trim((string) (
+                                                        (($refundFirstItem['hotelDetails'] ?? [])['hotel_name'] ?? null)
+                                                        ?? $refundFirstItem['hotel_name']
+                                                        ?? ''
+                                                    )),
+                                                    'attraction' => trim((string) (
+                                                        $refundFirstItem['AttractionName']
+                                                        ?? $refundFirstItem['attraction_name']
+                                                        ?? $refundFirstItem['ticketName']
+                                                        ?? ''
+                                                    )),
+                                                    'restaurant' => trim((string) (
+                                                        $refundFirstItem['restaurantName']
+                                                        ?? $refundFirstItem['restaurant_name']
+                                                        ?? (($refundFirstItem['restaurantDetails'] ?? [])['restaurant_name'] ?? null)
+                                                        ?? ''
+                                                    )),
+                                                    'guide' => trim((string) (
+                                                        $refundFirstItem['guide_name']
+                                                        ?? $refundFirstItem['guideName']
+                                                        ?? ''
+                                                    )),
+                                                    'entry_port', 'exit_port' => trim((string) (
+                                                        $refundFirstItem['port_name']
+                                                        ?? $refundFirstItem['portName']
+                                                        ?? $refundFirstItem['vehicles_name']
+                                                        ?? ''
+                                                    )),
+                                                    'travel_hourly', 'travel_point', 'local_transport' => trim((string) (
+                                                        $refundFirstItem['vehicles_name']
+                                                        ?? $refundFirstItem['vehicle_name']
+                                                        ?? $refundFirstItem['travel_type']
+                                                        ?? ''
+                                                    )),
+                                                    'miscellaneous' => trim((string) (
+                                                        $refundFirstItem['name']
+                                                        ?? $refundFirstItem['title']
+                                                        ?? $refundFirstItem['service_name']
+                                                        ?? ''
+                                                    )),
+                                                    default => trim((string) (
+                                                        $refundFirstItem['name']
+                                                        ?? $refundFirstItem['title']
+                                                        ?? $refundFirstItem['service_name']
+                                                        ?? $refundFirstItem['hotel_name']
+                                                        ?? $refundFirstItem['guide_name']
+                                                        ?? $refundFirstItem['restaurantName']
+                                                        ?? $refundFirstItem['AttractionName']
+                                                        ?? $refundFirstItem['vehicles_name']
+                                                        ?? ''
+                                                    )),
+                                                };
                                             }
                                             $isOnlineServiceOrder = $isOnlineRefundOrder($refundOrder);
                                             $adminRefundedToDmc = (bool) ($refundOrder->travclicks_refunded ?? false);
@@ -801,6 +849,11 @@
                                                 : ($showDmcColumn && ($tour->dmc_wallet_sgd_rate ?? null) !== null
                                                     ? (float) $tour->dmc_wallet_sgd_rate
                                                     : null);
+                                            $dmcWalletFxPercent = $showDmcColumn
+                                                ? (float) ($refundOrder->dmc_wallet_fx_percent
+                                                    ?? $tour->dmc_wallet_fx_percent
+                                                    ?? config('payment.fx_conversion_charge_percent', 0))
+                                                : 0.0;
                                             $sourceSgdRate = $showDmcColumn && $refundOrder->refund_source_sgd_rate !== null
                                                 ? (float) $refundOrder->refund_source_sgd_rate
                                                 : null;
@@ -898,6 +951,7 @@
                                                 @if($showDmcColumn && $dmcWalletCurrency !== '')
                                                     data-dmc-wallet-currency="{{ $dmcWalletCurrency }}"
                                                     data-dmc-wallet-sgd-rate="{{ $dmcWalletSgdRate !== null ? number_format($dmcWalletSgdRate, 8, '.', '') : '' }}"
+                                                    data-dmc-wallet-fx-percent="{{ number_format($dmcWalletFxPercent, 4, '.', '') }}"
                                                     data-source-sgd-rate="{{ $sourceSgdRate !== null ? number_format($sourceSgdRate, 8, '.', '') : '' }}"
                                                 @endif
                                                 @if($isRefundCompleteForOrder || $isWaitingAdminApproval || $supplierCancelBlocksWallet)
@@ -1714,6 +1768,7 @@ function processSingleOrderRefund(tourId, orderId, event) {
     }
     const dmcWalletCurrency = (button?.dataset.dmcWalletCurrency || '').toUpperCase();
     const dmcWalletSgdRate = parseFloat(button?.dataset.dmcWalletSgdRate || '');
+    const dmcWalletFxPercent = parseFloat(button?.dataset.dmcWalletFxPercent || '0');
     const sourceSgdRate = parseFloat(button?.dataset.sourceSgdRate || '');
     const suggestedAmount = (suggestedRaw !== undefined && suggestedRaw !== '')
         ? parseFloat(suggestedRaw)
@@ -1830,6 +1885,7 @@ function processSingleOrderRefund(tourId, orderId, event) {
             showDmcWalletConversion: isTravclicksRefund && !!dmcWalletCurrency,
             dmcWalletCurrency: dmcWalletCurrency,
             dmcWalletSgdRate: isFinite(dmcWalletSgdRate) ? dmcWalletSgdRate : null,
+            dmcWalletFxPercent: isFinite(dmcWalletFxPercent) ? dmcWalletFxPercent : 0,
             sourceSgdRate: isFinite(refundSourceSgdRate) ? refundSourceSgdRate : null,
             hotelName: hotelName,
             serviceHeadline: serviceHeadline,
@@ -1925,14 +1981,19 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
     const showDmcWalletConversion = !!options.showDmcWalletConversion && !!(options.dmcWalletCurrency || '');
     const dmcWalletCurrency = (options.dmcWalletCurrency || '').toUpperCase();
     const dmcWalletSgdRate = options.dmcWalletSgdRate != null ? parseFloat(options.dmcWalletSgdRate) : NaN;
+    const dmcWalletFxPercent = options.dmcWalletFxPercent != null ? parseFloat(options.dmcWalletFxPercent) : 0;
     const sourceSgdRate = options.sourceSgdRate != null ? parseFloat(options.sourceSgdRate) : NaN;
     const dmcConversionBlock = showDmcWalletConversion ? `
-                                <label class="form-label fw-semibold mb-1 mt-3">Amount to DMC wallet</label>
+                                <div class="rf-rate-box mt-2 mb-2" id="dmcWalletRateBox">
+                                    <div class="rf-rate-label">Conversion rate</div>
+                                    <div class="rf-rate-value" id="dmcWalletRateValue">—</div>
+                                </div>
+                                <label class="rf-field-label">Amount to DMC wallet</label>
                                 <div class="input-group">
                                     <span class="input-group-text">${dmcWalletCurrency}</span>
                                     <input type="text" class="form-control bg-light" id="dmcWalletCreditPreview" readonly tabindex="-1" value="">
                                 </div>
-                                <div class="form-text" id="dmcWalletCreditHelp">Converted country-wise via countries.current_rate. This amount is credited to the DMC wallet.</div>
+                                <div class="rf-help" id="dmcWalletCreditHelp">Credited to the DMC wallet after conversion.</div>
     ` : '';
     const refundPolicyRaw = String(options.refundPolicyHtml || '').trim();
     const refundPolicyHotel = String(options.hotelName || '').trim();
@@ -1971,26 +2032,29 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
     const prefillTxnId = $('<div>').text(String(options.transactionId || '')).html();
     const prefillRemarks = $('<div>').text(String(options.remarks || '')).html();
     const metaFieldsBlock = `
-                            <div class="text-start mb-2">
-                                <label for="refundTransactionIdInput" class="form-label fw-semibold mb-1">
-                                    Transaction ID <span class="text-muted fw-normal">(optional)</span>
-                                </label>
-                                <input type="text"
-                                    class="form-control"
-                                    id="refundTransactionIdInput"
-                                    maxlength="191"
-                                    placeholder="Bank / payment reference"
-                                    value="${prefillTxnId}">
-                            </div>
-                            <div class="text-start mb-2">
-                                <label for="refundRemarksInput" class="form-label fw-semibold mb-1">
-                                    Remarks <span class="text-muted fw-normal">(optional)</span>
-                                </label>
-                                <textarea class="form-control"
-                                    id="refundRemarksInput"
-                                    rows="2"
-                                    maxlength="2000"
-                                    placeholder="Refund remarks...">${prefillRemarks}</textarea>
+                            <div class="row g-2 text-start mb-0">
+                                <div class="col-md-6">
+                                    <label for="refundTransactionIdInput" class="rf-field-label">
+                                        Transaction ID <span class="text-muted fw-normal">(optional)</span>
+                                    </label>
+                                    <input type="text"
+                                        class="form-control"
+                                        id="refundTransactionIdInput"
+                                        maxlength="191"
+                                        placeholder="Bank / payment reference"
+                                        value="${prefillTxnId}">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="refundRemarksInput" class="rf-field-label">
+                                        Remarks <span class="text-muted fw-normal">(optional)</span>
+                                    </label>
+                                    <input type="text"
+                                        class="form-control"
+                                        id="refundRemarksInput"
+                                        maxlength="2000"
+                                        placeholder="Refund remarks..."
+                                        value="${prefillRemarks}">
+                                </div>
                             </div>
     `;
     const fullOrderPrice = options.fullOrderPrice != null ? parseFloat(options.fullOrderPrice) : NaN;
@@ -2018,81 +2082,87 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
                                     </div>
                                 </div>
     ` : (hideMaxPriceDisplay ? '' : `
-                                <label class="form-label fw-semibold mb-1">${priceLabel}</label>
-                                <div class="form-control bg-light mb-3">${amountCurrency ? amountCurrency + ' ' : ''}${maxAmount.toFixed(2)}</div>
+                                <label class="rf-field-label">${priceLabel}</label>
+                                <div class="form-control bg-light mb-2">${amountCurrency ? amountCurrency + ' ' : ''}${maxAmount.toFixed(2)}</div>
     `);
     const amountBlock = verifyOnly ? `
-                            <div class="alert alert-warning border-0 text-start mb-3" style="background-color: #fff7ed;">
+                            <div class="alert alert-warning border-0 text-start mb-2 py-2" style="background-color: #fff7ed;">
                                 <strong>Refund already initiated</strong>
                                 <div class="mt-1">${amountCurrency ? amountCurrency + ' ' : ''}${amountValue.toFixed(2)}</div>
                                 <div class="small mt-1">The amount stays as entered. This step only verifies the refund.</div>
                             </div>
                             ${metaFieldsBlock}
     ` : (hasAmount ? `
-                            <div class="text-start mb-2">
+                            <div class="text-start">
                                 ${markupBreakdownBlock}
-                                <label for="refundAmountInput" class="form-label fw-semibold mb-1">Refund amount</label>
-                                <div class="input-group">
+                                <label for="refundAmountInput" class="rf-field-label">Refund amount</label>
+                                <div class="input-group mb-1">
                                     ${amountCurrency ? `<span class="input-group-text">${amountCurrency}</span>` : ''}
                                     <input type="number" class="form-control" id="refundAmountInput" min="0" max="${maxAmount.toFixed(2)}" step="0.01" value="${Math.min(amountValue, maxAmount).toFixed(2)}" inputmode="decimal">
                                 </div>
-                                <div class="form-text">${helpText}</div>
+                                <div class="rf-help mb-2">${helpText}</div>
                                 ${dmcConversionBlock}
                                 <div class="text-danger small mt-1 d-none" id="refundAmountError"></div>
+                                <div class="mt-2">${metaFieldsBlock}</div>
                             </div>
-                            ${metaFieldsBlock}
     ` : '');
+    const noteText = options.note
+        ? options.note
+        : (verifyOnly
+            ? 'Verification does not ask for the amount again.'
+            : (hasAmount
+                ? 'After you initiate, this amount dialog will not open again.'
+                : 'This action will mark the tour as "Refunded" and cannot be undone.'));
 
     const modalHtml = `
-        <div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content border-0 shadow-lg" style="border-radius: 15px;">
-                    <div class="modal-body text-center py-3 px-4">
-                        <!-- Refund Icon with Animation -->
-                        <div class="refund-icon-wrapper mb-2">
-                            <div class="refund-circle">
-                                <i class="ri-money-dollar-circle-line text-white"></i>
+        <div class="modal fade refund-flow-modal" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title d-flex align-items-center mb-0" id="confirmationModalLabel">
+                            <i class="ri-money-dollar-circle-line me-2"></i>${modalTitle}
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row g-3 align-items-stretch">
+                            <div class="col-md-5">
+                                <div class="rf-panel h-100">
+                                    <div class="rf-panel-head">
+                                        <h6 class="rf-panel-title">Refund details</h6>
+                                        ${serviceHeadline ? `<span class="rf-chip"><i class="ri-service-line"></i>${$('<div>').text(serviceHeadline).html()}</span>` : ''}
+                                    </div>
+                                    <div class="rf-info-body">${message || 'You are about to process a refund for this tour booking.'}</div>
+                                    ${refundPolicyBlock}
+                                    <div class="rf-note mt-auto">
+                                        <i class="ri-information-line me-1"></i>${noteText}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-7">
+                                <div class="rf-panel h-100">
+                                    <div class="rf-panel-head">
+                                        <h6 class="rf-panel-title">Collect refund</h6>
+                                    </div>
+                                    ${amountBlock || '<div class="text-muted small">No amount entry required.</div>'}
+                                </div>
                             </div>
                         </div>
-                        
-                        <!-- Refund Title -->
-                        <h4 class="fw-bold ${verifyOnly ? 'text-warning' : 'text-primary'} mb-2" id="confirmationModalLabel">${modalTitle}</h4>
-                        ${serviceBadgeBlock}
-                        
-                        <!-- Refund Process Message -->
-                        <div class="refund-message mb-3">
-                            
-                            <p class="text-muted mb-2">${message || 'You are about to process a refund for this tour booking. This will update the tour status and initiate the refund process.'}</p>
-                            ${refundPolicyBlock}
-                            ${amountBlock}
-                            <div class="alert ${verifyOnly ? 'alert-warning' : 'alert-info'} border-0 py-2 mb-0" style="background-color: ${verifyOnly ? '#fff7ed' : '#e3f2fd'};">
-                                <i class="ri-information-line me-2"></i>
-                                <strong>Note:</strong> ${options.note
-                                    ? options.note
-                                    : (verifyOnly
-                                    ? 'Verification does not ask for the amount again.'
-                                    : (hasAmount
-                                    ? 'After you initiate, this amount dialog will not open again.'
-                                    : 'This action will mark the tour as "Refunded" and cannot be undone.'))}
-                            </div>
-                        </div>
-                        
-                        <!-- Action Buttons -->
-                        <div class="d-flex gap-3 justify-content-center">
-                            <button type="button" class="btn btn-outline-secondary px-4 py-2" data-bs-dismiss="modal">
-                                <i class="ri-close-line me-2"></i>Cancel
-                            </button>
-                            <button type="button" class="btn ${verifyOnly ? 'btn-warning' : 'btn-primary'} px-4 py-2" id="confirmButton">
-                                <i class="ri-check-line me-2"></i>${confirmLabel}
-                            </button>
-                            @if(
-                                in_array(auth()->user()->role_id, [36, 126, 127])
-                            )
-                            <button type="button" class="btn btn-primary px-4 py-2" id="declineButton">
-                                    <i class="ri-check-line me-2"></i>Decline
-                                </button>
-                            @endif
-                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                            <i class="ri-close-line me-1"></i>Cancel
+                        </button>
+                        <button type="button" class="btn ${verifyOnly ? 'btn-warning' : 'btn-primary'}" id="confirmButton">
+                            <i class="ri-check-line me-1"></i>${confirmLabel}
+                        </button>
+                        @if(
+                            in_array(auth()->user()->role_id, [36, 126, 127])
+                        )
+                        <button type="button" class="btn btn-primary" id="declineButton">
+                            <i class="ri-check-line me-1"></i>Decline
+                        </button>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -2110,103 +2180,162 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
     {
         $('head').append(`
             <style id="confirmationModalStyles">
-                .refund-icon-wrapper {
-                    position: relative;
-                    display: inline-block;
+                .refund-flow-modal .modal-content {
+                    border: 0;
+                    border-radius: 16px;
+                    overflow: hidden;
+                    box-shadow: 0 18px 50px rgba(15, 23, 42, .18);
                 }
-                
-                .refund-circle {
-                    width: 56px;
-                    height: 56px;
-                    background: linear-gradient(135deg, #007bff, #0056b3);
-                    border-radius: 50%;
+                .refund-flow-modal .modal-header {
+                    background: #38bdf8;
+                    border: 0;
+                    border-bottom: 1px solid #0ea5e9;
+                    padding: .85rem 1.1rem;
+                }
+                .refund-flow-modal .modal-title,
+                .refund-flow-modal .modal-title * {
+                    color: #fff !important;
+                    font-size: .95rem;
+                    font-weight: 650;
+                }
+                .refund-flow-modal .modal-header .btn-close {
+                    filter: brightness(0) invert(1);
+                }
+                .refund-flow-modal .modal-body {
+                    background: #f8fafc;
+                    padding: 1rem;
+                }
+                .refund-flow-modal .modal-footer {
+                    background: #fff;
+                    border-top: 1px solid #e2e8f0;
+                    padding: .75rem 1.1rem;
+                }
+                .refund-flow-modal .rf-panel {
+                    background: #fff;
+                    border: 1px solid #e2e8f0;
+                    border-radius: 14px;
+                    padding: .9rem;
+                    box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
                     display: flex;
+                    flex-direction: column;
+                }
+                .refund-flow-modal .rf-panel-head {
+                    display: flex;
+                    justify-content: space-between;
                     align-items: center;
-                    justify-content: center;
-                    box-shadow: 0 6px 18px rgba(0, 123, 255, 0.28);
-                    animation: refundPulse 0.6s ease-out;
+                    gap: .5rem;
+                    margin-bottom: .75rem;
+                    padding-bottom: .55rem;
+                    border-bottom: 1px solid #eef2f7;
                 }
-                
-                @keyframes refundPulse {
-                    0% { transform: scale(0.8); opacity: 0; }
-                    50% { transform: scale(1.1); }
-                    100% { transform: scale(1); opacity: 1; }
+                .refund-flow-modal .rf-panel-title {
+                    margin: 0;
+                    font-size: .72rem;
+                    font-weight: 700;
+                    letter-spacing: .06em;
+                    text-transform: uppercase;
+                    color: #64748b;
                 }
-                
-                .refund-circle i {
-                    font-size: 1.75rem;
-                    animation: iconAppear 0.8s ease-out 0.3s both;
-                }
-                
-                @keyframes iconAppear {
-                    0% { transform: scale(0) rotate(-45deg); opacity: 0; }
-                    100% { transform: scale(1) rotate(0deg); opacity: 1; }
-                }
-                
-                .refund-message {
-                    max-width: 440px;
-                    margin: 0 auto;
-                }
-
-                .refund-service-badge {
+                .refund-flow-modal .rf-chip {
                     display: inline-flex;
                     align-items: center;
-                    max-width: 100%;
-                    gap: 0.25rem;
-                    padding: 0.4rem 0.85rem;
+                    gap: .35rem;
+                    padding: .2rem .55rem;
                     border-radius: 999px;
-                    background: #eef5ff;
-                    color: #1d4ed8;
-                    font-size: 0.9rem;
-                    font-weight: 600;
-                    line-height: 1.25;
+                    background: #eef2ff;
+                    color: #4338ca;
+                    border: 1px solid #c7d2fe;
+                    font-size: .72rem;
+                    font-weight: 700;
+                    max-width: 70%;
                 }
-                .refund-service-badge span {
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                    white-space: nowrap;
+                .refund-flow-modal .rf-info-body {
+                    color: #475569;
+                    font-size: .86rem;
+                    line-height: 1.45;
+                    margin-bottom: .75rem;
                 }
-                
-                #confirmationModal .modal-content {
-                    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+                .refund-flow-modal .rf-field-label {
+                    font-size: .78rem;
+                    font-weight: 650;
+                    color: #334155;
+                    margin-bottom: .35rem;
+                    display: block;
                 }
-                
-                #confirmationModal .modal-dialog {
-                    max-width: 540px;
+                .refund-flow-modal .rf-help {
+                    font-size: .72rem;
+                    color: #64748b;
+                    margin-top: .3rem;
                 }
-
-                .refund-policy-compact .refund-policy-body p {
-                    margin-bottom: 0.35rem;
+                .refund-flow-modal .rf-note {
+                    margin-top: .75rem;
+                    padding: .55rem .7rem;
+                    border-radius: 10px;
+                    background: #eff6ff;
+                    border: 1px solid #bfdbfe;
+                    color: #1e40af;
+                    font-size: .74rem;
+                    line-height: 1.35;
                 }
+                .refund-flow-modal .rf-rate-box {
+                    border: 1px solid #c7d2fe;
+                    background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+                    border-radius: 10px;
+                    padding: .55rem .75rem;
+                }
+                .refund-flow-modal .rf-rate-label {
+                    font-size: .68rem;
+                    font-weight: 700;
+                    letter-spacing: .04em;
+                    text-transform: uppercase;
+                    color: #6366f1;
+                    margin-bottom: .15rem;
+                }
+                .refund-flow-modal .rf-rate-value {
+                    font-size: .95rem;
+                    font-weight: 700;
+                    color: #312e81;
+                }
+                .refund-flow-modal .form-control,
+                .refund-flow-modal .form-select,
+                .refund-flow-modal .input-group-text {
+                    border-color: #dbe3ee;
+                    border-radius: 10px;
+                    min-height: 40px;
+                    font-size: .9rem;
+                }
+                .refund-flow-modal .input-group > .form-control {
+                    border-top-left-radius: 0;
+                    border-bottom-left-radius: 0;
+                }
+                .refund-flow-modal .input-group > .input-group-text {
+                    border-top-right-radius: 0;
+                    border-bottom-right-radius: 0;
+                    background: #f8fafc;
+                    color: #475569;
+                    font-weight: 700;
+                    font-size: .78rem;
+                }
+                .refund-flow-modal .btn-primary {
+                    border: 0;
+                    background: linear-gradient(135deg, #2563eb, #3b82f6);
+                    box-shadow: 0 6px 16px rgba(37, 99, 235, .25);
+                }
+                .refund-flow-modal .btn-outline-secondary {
+                    border-color: #cbd5e1;
+                    color: #475569;
+                }
+                .refund-flow-modal .modal-dialog {
+                    max-width: 860px;
+                }
+                .refund-policy-compact .refund-policy-body p { margin-bottom: 0.35rem; }
                 .refund-policy-compact .refund-policy-body ol,
                 .refund-policy-compact .refund-policy-body ul {
                     padding-left: 1.1rem;
                     margin-bottom: 0.35rem;
                 }
-                .refund-policy-compact .refund-policy-body img {
-                    max-width: 100%;
-                    height: auto;
-                }
-                .refund-policy-compact .refund-policy-body * {
-                    max-width: 100%;
-                    word-break: break-word;
-                }
-                
-                #confirmationModal .btn {
-                    border-radius: 8px;
-                    font-weight: 500;
-                    transition: all 0.3s ease;
-                }
-                
-                #confirmationModal .btn:hover {
-                    transform: translateY(-2px);
-                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-                }
-                
-                #confirmationModal .alert {
-                    border-radius: 8px;
-                    font-size: 0.9rem;
-                }
+                .refund-policy-compact .refund-policy-body img { max-width: 100%; height: auto; }
+                .refund-policy-compact .refund-policy-body * { max-width: 100%; word-break: break-word; }
             </style>
         `);
     }
@@ -2214,26 +2343,42 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
     // Show modal
     $('#confirmationModal').modal('show');
 
+    const formatRateNumber = function(value) {
+        const num = Number(value);
+        if (!Number.isFinite(num) || num <= 0) return '—';
+        return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+    };
+
+    // Same as payments / Send to DMC: effective = base × (1 + FX%).
+    const effectiveFxRate = function(baseRate, fxPercent) {
+        const base = Number(baseRate);
+        const pct = Math.max(0, Number(fxPercent) || 0);
+        if (!Number.isFinite(base) || base <= 0) return NaN;
+        if (pct <= 0) return base;
+        return base * (1 + (pct / 100));
+    };
+
     const convertRefundToDmcWallet = function(sourceAmount) {
         const amount = Math.max(0, parseFloat(sourceAmount) || 0);
         const sourceCur = (amountCurrency || 'SGD').toUpperCase();
         const targetCur = dmcWalletCurrency;
+        const fxPct = Math.max(0, Number(dmcWalletFxPercent) || 0);
         if (!targetCur) {
-            return { ok: false, text: '—', help: 'DMC wallet currency is not configured.' };
+            return { ok: false, text: '—', rate: '—', help: 'DMC wallet currency is not configured.' };
         }
         if (sourceCur === targetCur) {
             return {
                 ok: true,
                 text: amount.toFixed(2),
-                help: sourceCur === 'SGD'
-                    ? 'SGD refund — same as DMC wallet currency. This amount is credited to the DMC wallet.'
-                    : 'Same currency as the refund amount. This amount is credited to the DMC wallet.'
+                rate: '1 ' + sourceCur + ' = 1 ' + targetCur,
+                help: 'Same currency — no conversion / no FX. Credited to the DMC wallet.'
             };
         }
         if (!isFinite(sourceSgdRate) || sourceSgdRate <= 0) {
             return {
                 ok: false,
                 text: 'Rate unavailable',
+                rate: 'Rate unavailable',
                 help: 'No countries.current_rate for ' + sourceCur + '. Sync currency rates before refunding.'
             };
         }
@@ -2241,20 +2386,31 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
             return {
                 ok: false,
                 text: 'Rate unavailable',
+                rate: 'Rate unavailable',
                 help: 'No countries.current_rate for DMC currency ' + targetCur + '. Sync currency rates before refunding.'
             };
         }
         const sgdAmount = sourceCur === 'SGD' ? amount : (amount / sourceSgdRate);
-        const creditAmount = targetCur === 'SGD' ? sgdAmount : (sgdAmount * dmcWalletSgdRate);
-        const pathLabel = sourceCur === 'SGD'
-            ? ('SGD → ' + targetCur)
-            : (targetCur === 'SGD' ? (sourceCur + ' → SGD') : (sourceCur + ' → SGD → ' + targetCur));
+        const effectiveTarget = targetCur === 'SGD' ? 1 : effectiveFxRate(dmcWalletSgdRate, fxPct);
+        let creditAmount = targetCur === 'SGD' ? sgdAmount : (sgdAmount * effectiveTarget);
+        // Match payment / wallet: IDR credits are whole numbers.
+        creditAmount = targetCur === 'IDR' ? Math.round(creditAmount) : Math.round(creditAmount * 100) / 100;
+        // Business rate with FX, same style as wallet Send to DMC.
+        let rateText = '';
+        let helpTextRate = 'Converted amount credited to the DMC wallet.';
+        if (sourceCur === 'SGD') {
+            rateText = '1 SGD = ' + formatRateNumber(effectiveTarget) + ' ' + targetCur;
+        } else if (targetCur === 'SGD') {
+            rateText = '1 ' + sourceCur + ' = ' + formatRateNumber(sourceSgdRate) + ' SGD';
+        } else {
+            const cross = effectiveTarget / sourceSgdRate;
+            rateText = '1 ' + sourceCur + ' = ' + formatRateNumber(cross) + ' ' + targetCur;
+        }
         return {
             ok: true,
             text: creditAmount.toFixed(2),
-            help: 'Converted via countries.current_rate ('
-                + pathLabel
-                + '). This amount is credited to the DMC wallet.'
+            rate: rateText,
+            help: helpTextRate
         };
     };
 
@@ -2263,10 +2419,12 @@ function showConfirmationModal(title, message, type, confirmCallback, options) {
         const input = document.getElementById('refundAmountInput');
         const preview = document.getElementById('dmcWalletCreditPreview');
         const help = document.getElementById('dmcWalletCreditHelp');
+        const rateEl = document.getElementById('dmcWalletRateValue');
         if (!preview) return;
         const result = convertRefundToDmcWallet(input ? input.value : amountValue);
         preview.value = result.text;
         if (help) help.textContent = result.help;
+        if (rateEl) rateEl.textContent = result.rate || '—';
     };
     
     // Handle confirm button click

@@ -315,7 +315,7 @@
                                     </div>
 
                                     <div class="col-12{{ $apShowWalletFx ? '' : ' d-none' }}" id="orderAmountBox{{ $tour->tour_id }}">
-                                        <label for="order_currency_amount{{ $tour->tour_id }}" class="ap-field-label">Order currency amount</label>
+                                        <label for="order_currency_amount{{ $tour->tour_id }}" class="ap-field-label">Settlement currency</label>
                                         <div class="input-group">
                                             <span class="input-group-text" id="orderCurrencyCode{{ $tour->tour_id }}">{{ $apTourCurrency }}</span>
                                             <input type="text"
@@ -326,7 +326,7 @@
                                                 tabindex="-1">
                                         </div>
                                         <div class="ap-help" id="walletFxDetail{{ $tour->tour_id }}">
-                                            Display only — booking remaining stays in {{ $apTourCurrency }}.
+                                            Negotiated settlement currency ({{ $apTourCurrency }}).
                                         </div>
                                     </div>
 
