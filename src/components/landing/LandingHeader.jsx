@@ -80,9 +80,12 @@ const LandingHeader = () => {
             <Link to="/agent/sign-in" onClick={() => setSignInOpen(false)}>
               TA Partner Sign In
             </Link>
-            <Link to="/travos" onClick={() => setSignInOpen(false)}>
+            <a
+              href="https://dev.travclicks.com/backadm-dmc/login"
+              onClick={() => setSignInOpen(false)}
+            >
               DMC Sign In
-            </Link>
+            </a>
           </div>
         </details>
       </div>

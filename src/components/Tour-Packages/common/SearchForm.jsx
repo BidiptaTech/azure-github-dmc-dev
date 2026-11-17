@@ -36,12 +36,19 @@ import {
 import LocationSearch from "@/components/hero/hero-1/LocationSearch";
 import DateRangePicker from './DateRangePicker';
 import PaxSelector from './PaxSelector';
+import StayDatesPerCity from "@/components/booking/StayDatesPerCity";
 import { useDispatch, useSelector } from "react-redux";
 import {
   clearSelectedCities,
   addSelectedCity,
   fetchCityCountry,
 } from "@/slice/common/citiesSlice";
+import {
+  normalizeCityWiseDatesList,
+  syncStaysFromCities,
+  toCityWiseDatesPayload,
+  staysAllDated,
+} from "@/utils/cityWiseDates";
 import moment from "moment";
 import {
   resetHotels,
@@ -302,25 +309,6 @@ export default function SearchForm({
       packageData?.tour?.destination || enquirydetail?.country || ""
     );
 
-  const normalizeCityWiseDatesList = (list) => {
-    if (!Array.isArray(list) || list.length === 0) return [];
-    return list
-      .map((item) => {
-        if (!item) return null;
-        const city =
-          typeof item === "string"
-            ? item.trim()
-            : String(item.city || "").trim();
-        if (!city) return null;
-        return {
-          city,
-          checkIn: item.checkIn || item.checkin || "",
-          checkOut: item.checkOut || item.checkout || "",
-        };
-      })
-      .filter(Boolean);
-  };
-
   const getInitialCityWiseDateRanges = () => {
     const fromTour = normalizeCityWiseDatesList(
       packageData?.tour?.cityWiseDates
@@ -547,26 +535,16 @@ export default function SearchForm({
 
     setCityWiseDateRanges((prev) => {
       const packageRanges = getInitialCityWiseDateRanges();
-      return mappedCities.map((cityItem) => {
-        const cityName = cityItem.city || cityItem.name;
-        const existing = prev.find(
-          (item) =>
-            String(item.city || "").toLowerCase() ===
-            String(cityName || "").toLowerCase()
-        );
-        if (existing) return { ...existing, city: cityName };
-
-        const fromPackage = packageRanges.find(
-          (item) =>
-            String(item.city || "").toLowerCase() ===
-            String(cityName || "").toLowerCase()
-        );
-        if (fromPackage) return fromPackage;
-
+      const seededPrev =
+        Array.isArray(prev) && prev.length > 0 ? prev : packageRanges;
+      const synced = syncStaysFromCities(mappedCities, seededPrev);
+      return synced.map((stay) => {
+        if (stay.checkIn && stay.checkOut) return stay;
+        if (!startDate || !endDate || stay.isReturn) return stay;
         return {
-          city: cityName,
-          checkIn: startDate ? moment(startDate).format("DD/MM/YYYY") : "",
-          checkOut: endDate ? moment(endDate).format("DD/MM/YYYY") : "",
+          ...stay,
+          checkIn: moment(startDate).format("DD/MM/YYYY"),
+          checkOut: moment(endDate).format("DD/MM/YYYY"),
         };
       });
     });
@@ -678,41 +656,14 @@ export default function SearchForm({
     };
   };
 
-  const handleCityWiseDateChange = (cityIndex, dateRange) => {
-    if (isDateGuestLocked) {
-      return;
-    }
-
-    if (dateRange && Array.isArray(dateRange) && dateRange.length === 2) {
-      const newStartDate = dateRange[0].toDate
-        ? dateRange[0].toDate()
-        : dateRange[0];
-      const newEndDate = dateRange[1].toDate
-        ? dateRange[1].toDate()
-        : dateRange[1];
-
-      setCityWiseDateRanges((prev) =>
-        prev.map((item, index) =>
-          index === cityIndex
-            ? {
-                ...item,
-                checkIn: moment(newStartDate).format("DD/MM/YYYY"),
-                checkOut: moment(newEndDate).format("DD/MM/YYYY"),
-              }
-            : item
-        )
-      );
-    }
+  const handleStayDatesChange = (nextStays) => {
+    if (isDateGuestLocked) return;
+    setCityWiseDateRanges(nextStays);
+    dispatch(setCityWiseDates(toCityWiseDatesPayload(nextStays)));
   };
 
   const getCityWiseDatesPayload = () =>
-    cityWiseDateRanges
-      .map((item) => ({
-        city: item.city,
-        checkIn: item.checkIn || "",
-        checkOut: item.checkOut || "",
-      }))
-      .filter((item) => item.city);
+    toCityWiseDatesPayload(cityWiseDateRanges);
 
   // Function to validate services against new date range
   const validateServicesAgainstNewDates = (newStartDate, newEndDate) => {
@@ -1228,6 +1179,19 @@ dispatch(fetchHotels());
 
     if (!startDate || !endDate) {
       setSnackbarMessage("Please select check-in and check-out dates.");
+      setSnackbarSeverity("error");
+      setOpenSnackbar(true);
+      return false;
+    }
+
+    if (
+      tripType === "multi" &&
+      cityWiseDateRanges.length > 1 &&
+      !staysAllDated(cityWiseDateRanges)
+    ) {
+      setSnackbarMessage(
+        "Please set Stay from / until for every city stay (including Return stays)."
+      );
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
       return false;
@@ -2409,96 +2373,14 @@ dispatch(fetchHotels());
           </Grid>
         </Grid>
 
-        {/* City-wise travel dates — only for multi-city (single city uses Travel dates above) */}
+        {/* Stay dates per city — multi-city (includes Return stays) */}
         {tripType === "multi" && cityWiseDateRanges.length > 1 && (
           <Grid item xs={12} className="tp-plan-search__city-dates">
-            <Grid container spacing={1.5}>
-              {cityWiseDateRanges.map((cityDate, index) => (
-                <Grid item xs={12} sm={6} md={4} key={`${cityDate.city}-${index}`}>
-                  <Box
-                    sx={{
-                      p: 1.5,
-                      borderRadius: 1.5,
-                      bgcolor: isDateGuestLocked ? '#f8fafc' : 'white',
-                      border: '1px solid #e2e8f0',
-                      height: '100%',
-                      minHeight: '60px',
-                      position: 'relative',
-                      zIndex: 9 - Math.min(index, 5),
-                      overflow: 'visible',
-                      opacity: isDateGuestLocked ? 0.7 : 1,
-                      '&:hover': {
-                        borderColor: isDateGuestLocked ? '#e2e8f0' : '#3b82f6',
-                        boxShadow: isDateGuestLocked
-                          ? 'none'
-                          : '0 2px 6px rgba(59, 130, 246, 0.1)',
-                      },
-                      transition: 'all 0.2s ease-in-out',
-                    }}
-                  >
-                    <Typography
-                      variant="caption"
-                      sx={{
-                        mb: 0.5,
-                        fontWeight: 600,
-                        color: isDateGuestLocked ? '#9ca3af' : '#374151',
-                        textTransform: 'uppercase',
-                        fontSize: '0.65rem',
-                        letterSpacing: '0.05em',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 0.5,
-                      }}
-                    >
-                      <CalendarIcon
-                        sx={{
-                          color: isDateGuestLocked ? '#9ca3af' : '#10b981',
-                          fontSize: 14,
-                        }}
-                      />
-                      {cityDate.city} Dates
-                      {isDateGuestLocked && (
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            ml: 1,
-                            color: '#6b7280',
-                            fontSize: '0.6rem',
-                            fontStyle: 'italic',
-                          }}
-                        >
-                          (Locked)
-                        </Typography>
-                      )}
-                    </Typography>
-                    <Box sx={{ position: 'relative' }}>
-                      <DateRangePicker
-                        onDateChange={(range) =>
-                          handleCityWiseDateChange(index, range)
-                        }
-                        defaultCheckIn={cityDate.checkIn}
-                        defaultCheckOut={cityDate.checkOut}
-                        isDataFromEnquiryDetail={isDateGuestLocked}
-                      />
-                      {isDateGuestLocked && (
-                        <Box
-                          sx={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            bgcolor: 'transparent',
-                            zIndex: 10,
-                            cursor: 'not-allowed',
-                          }}
-                        />
-                      )}
-                    </Box>
-                  </Box>
-                </Grid>
-              ))}
-            </Grid>
+            <StayDatesPerCity
+              stays={cityWiseDateRanges}
+              onChange={handleStayDatesChange}
+              locked={isDateGuestLocked}
+            />
           </Grid>
         )}
         

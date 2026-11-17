@@ -1,0 +1,264 @@
+.stay-dates-panel {
+  width: 100%;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  padding: 16px 18px 14px;
+}
+
+.stay-dates-panel__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.stay-dates-panel__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.stay-dates-panel__hint {
+  margin: 0 0 14px;
+  font-size: 0.85rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.stay-dates-panel__badge {
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: #475569;
+}
+
+.stay-dates-panel__badge.is-ready {
+  background: #059669;
+}
+
+.stay-dates-rows {
+  display: grid;
+  gap: 10px;
+}
+
+.stay-dates-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.2fr) minmax(140px, 1fr) minmax(140px, 1fr) minmax(130px, 0.9fr);
+  gap: 12px;
+  align-items: end;
+  padding: 10px 0;
+  border-top: 1px solid #eef2f7;
+}
+
+.stay-dates-row:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.stay-dates-row__label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #64748b;
+}
+
+.stay-dates-row__city,
+.stay-dates-row__route {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid #dbe4f0;
+  background: #f1f5f9;
+  color: #0f172a;
+  font-weight: 600;
+  font-size: 14px;
+  flex-wrap: wrap;
+}
+
+.stay-dates-row__city.is-primary {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #065f46;
+}
+
+.stay-dates-row__route.is-return {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+
+.stay-dates-row__route-from {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.stay-dates-row__route-arrow {
+  color: #94a3b8;
+  font-weight: 700;
+}
+
+.stay-dates-row__route-to {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.stay-dates-row__return-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #f97316;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.stay-dates-row__field {
+  min-width: 0;
+}
+
+.stay-dates-row__date-box {
+  min-height: 44px;
+  border: 1px solid #dbe4f0;
+  border-radius: 10px;
+  background: #fff;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+}
+
+.stay-dates-datepicker {
+  width: 100%;
+}
+
+.stay-dates-input {
+  width: 100%;
+  border: 0 !important;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  padding: 8px 4px;
+}
+
+.stay-dates-input::placeholder {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.stay-dates-row__return {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 44px;
+  justify-content: flex-end;
+}
+
+.stay-dates-row__return-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+}
+
+.stay-dates-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  border: 0;
+  background: #cbd5e1;
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background 0.2s ease;
+}
+
+.stay-dates-switch.is-on {
+  background: #7c3aed;
+}
+
+.stay-dates-switch:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.stay-dates-switch__knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
+  transition: transform 0.2s ease;
+}
+
+.stay-dates-switch.is-on .stay-dates-switch__knob {
+  transform: translateX(20px);
+}
+
+.stay-dates-row__return-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.stay-dates-row__return-text.is-return-label {
+  color: #7c3aed;
+}
+
+.stay-dates-panel__warning {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.stay-dates-panel.is-locked {
+  opacity: 0.78;
+}
+
+.stay-dates-panel.is-locked .stay-dates-row__date-box {
+  background: #f8fafc;
+}
+
+@media (max-width: 900px) {
+  .stay-dates-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .stay-dates-row__city-wrap,
+  .stay-dates-row__route-wrap,
+  .stay-dates-row__return {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 560px) {
+  .stay-dates-row {
+    grid-template-columns: 1fr;
+  }
+}
