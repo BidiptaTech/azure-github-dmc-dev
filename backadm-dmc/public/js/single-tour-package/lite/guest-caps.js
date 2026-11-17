@@ -340,11 +340,35 @@
                 while (rem > 0 && d.female > 0) { d.female--; rem--; }
                 if (d.male + d.female < 1) { d.male = 1; d.female = 0; }
             }
-        } else if (key === 'male') {
-            d.male = Math.max(0, d.male + delta);
-            if (d.male + d.female < 1) d.male = 1;
-        } else if (key === 'female') {
-            d.female = Math.max(0, d.female + delta);
+        } else if (key === 'male' || key === 'female') {
+            // Male/female split only — adults total stays fixed.
+            // +male ⇒ −female, +female ⇒ −male (and the reverse on decrease).
+            var adultsFixed = Math.max(1, d.male + d.female);
+            if (key === 'male') {
+                if (delta > 0) {
+                    if (d.female <= 0) return;
+                    d.male++;
+                    d.female--;
+                } else if (delta < 0) {
+                    if (d.male <= 0) return;
+                    d.male--;
+                    d.female++;
+                }
+            } else {
+                if (delta > 0) {
+                    if (d.male <= 0) return;
+                    d.female++;
+                    d.male--;
+                } else if (delta < 0) {
+                    if (d.female <= 0) return;
+                    d.female--;
+                    d.male++;
+                }
+            }
+            if (d.male + d.female !== adultsFixed) {
+                d.female = Math.max(0, adultsFixed - d.male);
+                d.male = adultsFixed - d.female;
+            }
             if (d.male + d.female < 1) { d.male = 1; d.female = 0; }
         } else if (key === 'children') {
             d.children = Math.max(0, d.children + delta);

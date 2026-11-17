@@ -1411,7 +1411,7 @@
                                         data-online-paid="{{ !empty($tour->acceptance_flow['online_paid']) ? '1' : '0' }}"
                                         data-online-amount="{{ (float) ($tour->acceptance_flow['online_amount'] ?? 0) }}"
                                         data-online-paid-amount="{{ (float) ($tour->acceptance_flow['online_paid_amount'] ?? 0) }}"
-                                        data-online-currency="{{ e($tour->acceptance_flow['currency'] ?? '') }}"
+                                        data-online-currency="{{ e($tour->acceptance_flow['online_currency'] ?? $tour->acceptance_flow['currency'] ?? '') }}"
                                         data-acceptance-hint="{{ e($tour->acceptance_flow['hint'] ?? '') }}"
                                         onclick="openAgentNegotiationModal(this)"
                                         {{ $canCheckNegotiation ? 'disabled' : '' }}
@@ -1454,7 +1454,7 @@
                                             <i class="ri-checkbox-circle-line" aria-hidden="true"></i>
                                             <span>
                                                 Online paid:
-                                                <strong>{{ strtoupper((string) ($tour->acceptance_flow['currency'] ?? '')) }}
+                                                <strong>{{ strtoupper((string) ($tour->acceptance_flow['online_currency'] ?? $tour->acceptance_flow['currency'] ?? '')) }}
                                                 {{ number_format((float) ($tour->acceptance_flow['online_paid_amount'] ?? $tour->acceptance_flow['online_amount'] ?? 0), 2) }}</strong>
                                             </span>
                                         </div>

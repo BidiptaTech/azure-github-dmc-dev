@@ -14,12 +14,13 @@ use Illuminate\Support\Facades\Schema;
 use Throwable;
 
 /**
- * Full-tour cancel refund queue:
- * - Paid online services → TravClicks → DMC pipeline (supplier cancel → is_refund → soft delete)
- * - Definite/Actual offline booking services → DMC refunds list (same is_refund path as service remove)
+ * Full-tour cancel:
+ * - Paid online services → supplier cancel + is_refund soft-delete (TravClicks wallet credit only)
+ * - Offline booking services → soft-delete without is_refund (DMC refunds the tour amount, not per-service)
  *
+ * DMC Refunds UI uses tour_status Refund - Pending for the full tour amount.
  * Mix flow often pays online while tour is still New Enquiry / Confirmed and
- * online orders may still be bookingType=enquiry — those must still refund.
+ * online orders may still be bookingType=enquiry — those must still cancel with supplier.
  */
 class OnlineTourCancelRefundService
 {
@@ -71,8 +72,8 @@ class OnlineTourCancelRefundService
         }
 
         $offlineQueued = 0;
-        // Previous DMC logic: Definite/Actual tour cancel puts every booking service on Refunds
-        // (not only online hotels). TravClicks UI still filters to online only.
+        // Full tour cancel: remove remaining offline booking services without per-service refund rows.
+        // DMC refunds the tour paid amount via processRefund when tour_status is Refund - Pending.
         if ($isDefiniteOrActual) {
             $offlineQueued = $this->enqueueOfflineBookingServices($tour, $status);
         }
@@ -233,7 +234,8 @@ class OnlineTourCancelRefundService
     }
 
     /**
-     * Definite/Actual full-tour cancel: remaining offline booking services → Refunds for DMC.
+     * Definite/Actual full-tour cancel: soft-delete remaining offline booking services.
+     * Does not set is_refund — DMC refunds the tour amount, not each service.
      * Skips online rows (already handled) and enquiry rows.
      */
     protected function enqueueOfflineBookingServices(Tour $tour, string $status): int
@@ -274,11 +276,7 @@ class OnlineTourCancelRefundService
             $jobsheets = app(\App\Services\JobsheetRemovalService::class);
 
             foreach ($orders as $order) {
-                $order->is_refund = 1;
-                $order->is_verify = 0;
-                $order->refunded = false;
-                $order->save();
-
+                // Tour-level refund: do not queue per-service refund rows for DMC.
                 $payload = is_array($order->data) && isset($order->data[0])
                     ? $order->data[0]
                     : (is_array($order->data) ? $order->data : []);

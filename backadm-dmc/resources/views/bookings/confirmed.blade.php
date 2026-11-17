@@ -20,6 +20,7 @@
 <script>
     window.bookingCurrency = @json($pageCurrency);
     window.tourNegotiationHistory = @json($tourNegotiationHistory ?? []);
+    window.tourActiveServiceCounts = @json($tourActiveServiceCounts ?? []);
     window.rejectServicePageTourStatus = 'Confirmed';
 </script>
 
@@ -1256,15 +1257,21 @@
                                             }
                                         }
                                     }
+                                    $paymentAcceptance = app(\App\Services\Payment\AcceptanceFlowService::class)->forTour($tour);
+                                    $paymentClassification = (string) ($paymentAcceptance['classification']
+                                        ?? app(\App\Services\Payment\OrderClassificationService::class)->classifyTour($tour)
+                                        ?: ($tour->order_classification ?? ''));
                                     $collection = \App\Helpers\CommonHelper::resolveOfflineCollectionAmounts(
                                         (float) $baseAmount,
                                         (float) $taxAmount,
                                         (float) $finalAmount,
                                         is_array($paymentData) ? $paymentData : null,
-                                        (string) ($tour->order_classification ?? ''),
+                                        $paymentClassification,
                                         (bool) $taxIncluded,
                                         (bool) $onlineTaxIncluded,
-                                        isset($taxRow['taxable_base']) ? (float) $taxRow['taxable_base'] : null
+                                        isset($taxRow['taxable_base']) ? (float) $taxRow['taxable_base'] : null,
+                                        ! empty($paymentAcceptance['online_paid']),
+                                        (float) ($paymentAcceptance['online_paid_amount'] ?? $paymentAcceptance['online_amount'] ?? 0)
                                     );
                                     $baseAmount = $collection['base_amount'];
                                     $taxAmount = $collection['tax_amount'];
@@ -3382,15 +3389,25 @@
         
         $paymentData = is_string($tour->payment_details) ? json_decode($tour->payment_details, true) : $tour->payment_details;
         $taxableBase = isset($taxResult['taxable_base']) ? (float) $taxResult['taxable_base'] : null;
+        $paymentAcceptance = app(\App\Services\Payment\AcceptanceFlowService::class)->forTour($tour);
+        $paymentClassification = (string) ($paymentAcceptance['classification']
+            ?? app(\App\Services\Payment\OrderClassificationService::class)->classifyTour($tour)
+            ?: ($tour->order_classification ?? ''));
+        // Use live classification in-memory; do not save Tour from a GET view.
+        if ($paymentClassification === 'online') {
+            $tour->setAttribute('order_classification', 'online');
+        }
         $collection = \App\Helpers\CommonHelper::resolveOfflineCollectionAmounts(
             (float) $baseAmount,
             (float) $taxAmount,
             (float) $finalAmount,
             is_array($paymentData) ? $paymentData : null,
-            (string) ($tour->order_classification ?? ''),
+            $paymentClassification,
             (bool) $taxIncluded,
             (bool) $onlineTaxIncluded,
-            $taxableBase
+            $taxableBase,
+            ! empty($paymentAcceptance['online_paid']),
+            (float) ($paymentAcceptance['online_paid_amount'] ?? $paymentAcceptance['online_amount'] ?? 0)
         );
         // Add Payment / Payment Details: offline ledger only (online is separate).
         $baseAmount = $collection['base_amount'];
@@ -7607,6 +7624,7 @@ function generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrde
 
             if (hasAnyPermission && window.buildProfessionalServiceActionButtons) {
                 buttonsContainer.innerHTML = window.buildProfessionalServiceActionButtons({
+                    tourId: tourId,
                     canEdit: canEdit,
                     canApprove: canApprove,
                     canReject: canReject,
@@ -17128,6 +17146,7 @@ function generateIndividualLocalTransportContent(localTransportData, modalId, to
                 if (canEdit || canReject) {
                     if (window.buildProfessionalServiceActionButtons) {
                         buttonsHTML = window.buildProfessionalServiceActionButtons({
+                            tourId: tourId,
                             canEdit: canEdit,
                             canReject: canReject,
                             onEdit: `editIndividualLocalTransport(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})`,

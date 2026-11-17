@@ -69,11 +69,20 @@ class MgBedbankBookingService implements OnlineHotelBookingService, OnlineHotelC
             throw new RuntimeException('MG Bedbank search did not return a session ID.');
         }
 
+        // RecheckHotel must mirror SearchHotel (JRVXML149). MG settlement currency is always SGD.
+        $destination = is_array($hotel['destination'] ?? null) ? $hotel['destination'] : [];
+        $searchCountry = strtoupper(trim((string) ($destination['country'] ?? $context['country'])));
+        $searchCity = strtoupper(trim((string) ($destination['city'] ?? $context['city'])));
+        $searchNationality = strtoupper(trim((string) $client->credential('nationality', 'SG')));
+        if ($searchNationality === '') {
+            $searchNationality = 'SG';
+        }
+
         $recheckPayload = [
             'SessionID' => $sessionId,
-            'Nationality' => $context['nationality'],
-            'Country' => $context['country'],
-            'City' => $context['city'],
+            'Nationality' => $searchNationality,
+            'Country' => $searchCountry,
+            'City' => $searchCity,
             'CheckIn' => $context['check_in'],
             'CheckOut' => $context['check_out'],
             'HotelCode' => $context['hotel_code'],
@@ -90,13 +99,12 @@ class MgBedbankBookingService implements OnlineHotelBookingService, OnlineHotelC
                 ),
             ],
             'AvailFlag' => true,
-            'Currency' => $context['currency'],
+            'Currency' => 'SGD',
             'Language' => $client->credential('language', 'En'),
             'DetailLevel' => 'Basic',
         ];
 
         $recheckBody = $client->recheckHotel($recheckPayload);
-        
 
         if ($reason = $client->failureReason($recheckBody)) {
             throw new RuntimeException('MG Bedbank recheck failed: ' . $reason);
@@ -118,7 +126,7 @@ class MgBedbankBookingService implements OnlineHotelBookingService, OnlineHotelC
             'supplier_code' => 'mg_bedbank',
             'api_environment' => $credentials['api_environment'] ?? 'demo',
             'session_id' => (string) ($recheckBody['sessionID'] ?? $sessionId),
-            'currency' => (string) ($recheckBody['currency'] ?? $context['currency']),
+            'currency' => 'SGD',
             'check_in' => (string) ($recheckBody['checkIn'] ?? $context['check_in']),
             'check_out' => (string) ($recheckBody['checkOut'] ?? $context['check_out']),
             'hotel_code' => $context['hotel_code'],
@@ -199,7 +207,7 @@ class MgBedbankBookingService implements OnlineHotelBookingService, OnlineHotelC
                 'PackageRate' => (bool) ($recheckResult['package_rate'] ?? false),
             ],
             'Rooms' => ['Room' => $bookRooms],
-            'Currency' => (string) ($recheckResult['currency'] ?? 'SGD'),
+            'Currency' => 'SGD',
             'Language' => strtoupper($client->credential('language', 'EN')),
             'AvailFlag' => true,
             'OnHold' => false,
@@ -421,8 +429,10 @@ class MgBedbankBookingService implements OnlineHotelBookingService, OnlineHotelC
             'hotel_name' => (string) ($hotel['name'] ?? $hotelDetails['hotel_name'] ?? ''),
             'country' => $country,
             'city' => $city,
-            'nationality' => $country,
-            'currency' => strtoupper((string) ($online['currency'] ?? $booking['currency'] ?? 'SGD')),
+            // Traveller nationality comes from agency credentials (SearchHotel), not destination.
+            'nationality' => strtoupper((string) ($search['nationality'] ?? $online['nationality'] ?? 'SG')),
+            // MG Bedbank prices / settlement are always SGD.
+            'currency' => 'SGD',
             'room_code' => (string) ($storedRoom['code'] ?? ''),
             'room_name' => (string) ($storedRoom['name'] ?? ''),
             'meal_plan_code' => (string) ($storedRoom['meal_plan_code'] ?? ''),

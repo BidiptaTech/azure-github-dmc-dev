@@ -10,6 +10,9 @@
     $cancelDateStr = !empty($tour->auto_cancel_date)
         ? \Carbon\Carbon::parse($tour->auto_cancel_date)->format('Y-m-d')
         : '';
+    $allowOrderCancel = isset($allowOrderCancel)
+        ? (bool) $allowOrderCancel
+        : ((int) (($tourActiveServiceCounts[$tour->tour_id] ?? 0)) > 1);
 @endphp
 
 <div class="svc-section mb-0" style="border:0;border-radius:0;border-top:1px solid var(--svc-line);">
@@ -40,7 +43,7 @@
                 <i class="ri-check-line me-1"></i>Approve
             </button>
             @endif
-            @if($canReject)
+            @if($canReject && $allowOrderCancel)
             <button type="button" class="btn btn-sm svc-btn svc-btn-reject"
                     onclick="window.__cancelWithoutRefund=false; (window.rejectIndividualAttraction ? window.rejectIndividualAttraction({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}) : rejectIndividualAttraction({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}))">
                 <i class="ri-close-line me-1"></i>Cancel with refund
@@ -49,6 +52,10 @@
                     onclick="window.__cancelWithoutRefund=true; (window.rejectIndividualAttraction ? window.rejectIndividualAttraction({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}) : rejectIndividualAttraction({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}))">
                 <i class="ri-close-circle-line me-1"></i>Cancel without refund
             </button>
+            @elseif($canReject && ! $allowOrderCancel)
+            <span class="text-muted small" title="Only one service — cancel the tour instead">
+                <i class="ri-information-line me-1"></i>Cancel tour to refund
+            </span>
             @endif
         @else
             <span class="text-muted" style="font-size:0.8rem;">No actions available</span>
