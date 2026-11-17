@@ -3789,9 +3789,20 @@ class UserController extends Controller
         }
 
         $msg = "Updated rates for {$result['updated']} countries.";
-        if ($result['failed']) {
-            return redirect()->route('user.profile')
-                ->with('error', $msg.' Could not fetch: '.implode(', ', $result['failed']).' (previous rates kept).');
+        if (! empty($result['failed'])) {
+            // Partial success should not look like a hard failure when most rates synced.
+            if ((int) ($result['updated'] ?? 0) > 0) {
+                return redirect()->route('user.profile')->with(
+                    'success',
+                    $msg.' Skipped '.count($result['failed']).' unavailable code(s): '
+                    .implode(', ', $result['failed']).' (previous rates kept).'
+                );
+            }
+
+            return redirect()->route('user.profile')->with(
+                'error',
+                $msg.' Could not fetch: '.implode(', ', $result['failed']).' (previous rates kept).'
+            );
         }
 
         return redirect()->route('user.profile')->with('success', $msg);
