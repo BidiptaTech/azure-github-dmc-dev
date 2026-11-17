@@ -86,6 +86,30 @@
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
+                            <label for="mg_country_code" class="form-label">MG Country Code <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control text-uppercase" id="mg_country_code" name="mg_country_code"
+                                value="{{ old('mg_country_code') }}" required maxlength="10"
+                                placeholder="e.g. SG, ID" style="text-transform: uppercase;">
+                            <small class="text-muted">MG Bedbank country code (used for multi-country hotel search).</small>
+                            @error('mg_country_code')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="col-md-6 mb-3">
+                            <label for="mg_city_code" class="form-label">MG City Code <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control text-uppercase" id="mg_city_code" name="mg_city_code"
+                                value="{{ old('mg_city_code') }}" required maxlength="20"
+                                placeholder="e.g. SG-SIN, ID-BTM" style="text-transform: uppercase;">
+                            <small class="text-muted">MG Bedbank destination/city code for this city.</small>
+                            @error('mg_city_code')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
                             <label for="image" class="form-label">City Image</label>
                             <input type="file" class="form-control" id="image" name="image" 
                                 accept="image/jpeg,image/png,image/jpg,image/gif,image/webp">
@@ -107,8 +131,8 @@
                         <div class="col-md-12">
                             <div class="alert alert-info">
                                 <i class="ri-information-line me-2"></i>
-                                <strong>Note:</strong> The system will check if the city already exists in the selected country (case-insensitive). 
-                                If a city with the same name already exists, you'll receive an error message.
+                                <strong>Note:</strong> The system will check if the city already exists in the selected country (case-insensitive).
+                                Set MG Country Code and MG City Code so hotel search can map this city for MG Bedbank across countries.
                             </div>
                         </div>
                     </div>
@@ -189,6 +213,8 @@
         $('form').on('submit', function(e) {
             const country = $('#country').val();
             const cityName = $('#name').val().trim();
+            const mgCountryCode = $('#mg_country_code').val().trim();
+            const mgCityCode = $('#mg_city_code').val().trim();
             
             if (!country) {
                 e.preventDefault();
@@ -201,6 +227,20 @@
                 e.preventDefault();
                 alert('Please enter a city name');
                 $('#name').focus();
+                return false;
+            }
+
+            if (!mgCountryCode) {
+                e.preventDefault();
+                alert('Please enter MG Country Code');
+                $('#mg_country_code').focus();
+                return false;
+            }
+
+            if (!mgCityCode) {
+                e.preventDefault();
+                alert('Please enter MG City Code');
+                $('#mg_city_code').focus();
                 return false;
             }
         });

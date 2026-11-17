@@ -1,7 +1,18 @@
 {{-- Payment Details: compact Online + Offline panels. --}}
 @php
     $spdCurrency = strtoupper(trim((string) ($tourCurrency ?? 'SGD')));
-    $spdExcludeOnline = strtolower(trim((string) ($tour->order_classification ?? ''))) !== 'online';
+    $spdClassificationService = app(\App\Services\Payment\OrderClassificationService::class);
+    $spdAcceptance = app(\App\Services\Payment\AcceptanceFlowService::class);
+    // Live classify from orders — stored order_classification can lag behind all-online bookings.
+    $spdClassification = $spdClassificationService->classifyTour($tour);
+    if ($spdClassification === \App\Services\Payment\OrderClassificationService::EMPTY
+        || $spdClassification === '') {
+        $spdClassification = strtolower(trim((string) ($tour->order_classification ?? '')));
+    }
+    $spdIsOnlineOnly = $spdClassification === \App\Services\Payment\OrderClassificationService::ONLINE;
+    $spdOnlineCurrency = $spdAcceptance->resolveOnlineCurrency($tour, $spdCurrency);
+    // Online-only: do not build an offline invoice from the tour total.
+    $spdExcludeOnline = ! $spdIsOnlineOnly;
     $spdOnlinePaid = 0.0;
     $spdOfflinePaid = 0.0;
     $spdRows = is_array($paymentData ?? null) ? $paymentData : [];
@@ -37,38 +48,58 @@
 
     // Online and offline are separate ledgers — never subtract online paid from offline totals.
     $spdTaxableBase = isset($taxableBase) ? round((float) $taxableBase, 2) : null;
-    $spdOfflineBase = $spdInvoiceBase;
-    $spdOfflineTax = $spdInvoiceTax;
-    $spdOfflineTotal = $spdInvoiceTotal;
-    if (
-        $spdExcludeOnline
-        && $spdOnlineTaxIncluded
-        && $spdTaxableBase !== null
-        && $spdTaxableBase > 0.009
-        && ($spdTaxableBase + 0.009) < $spdOfflineBase
-    ) {
-        $spdOfflineBase = $spdTaxableBase;
-        if ($spdTaxIncluded) {
-            $spdOfflineTax = 0.0;
-            $spdOfflineTotal = $spdOfflineBase;
-        } else {
-            $spdOfflineTotal = round($spdOfflineBase + $spdOfflineTax, 2);
+    if ($spdIsOnlineOnly) {
+        // All services are online: offline panel stays blank (no negotiated offline due).
+        $spdOfflineBase = 0.0;
+        $spdOfflineTax = 0.0;
+        $spdOfflineTotal = 0.0;
+        $spdOfflineRemaining = 0.0;
+        $spdOnlineTotal = max($spdInvoiceTotal, round($spdOnlinePaid, 2));
+        $spdOnlineBase = max($spdInvoiceBase, round($spdOnlinePaid, 2));
+        $spdOnlineTax = $spdInvoiceTax;
+        $spdOnlineSettled = $spdAcceptance->onlinePortionSettled($tour) || $spdOnlinePaid > 0.009;
+        $spdOnlineRemaining = $spdOnlineSettled
+            ? 0.0
+            : max(0, round($spdOnlineTotal - $spdOnlinePaid, 2));
+        if ($spdOnlineSettled && $spdOnlinePaid <= 0.009) {
+            $spdOnlinePaid = $spdOnlineTotal;
         }
+    } else {
+        $spdOfflineBase = $spdInvoiceBase;
+        $spdOfflineTax = $spdInvoiceTax;
+        $spdOfflineTotal = $spdInvoiceTotal;
+        if (
+            $spdExcludeOnline
+            && $spdOnlineTaxIncluded
+            && $spdTaxableBase !== null
+            && $spdTaxableBase > 0.009
+            && ($spdTaxableBase + 0.009) < $spdOfflineBase
+        ) {
+            $spdOfflineBase = $spdTaxableBase;
+            if ($spdTaxIncluded) {
+                $spdOfflineTax = 0.0;
+                $spdOfflineTotal = $spdOfflineBase;
+            } else {
+                $spdOfflineTotal = round($spdOfflineBase + $spdOfflineTax, 2);
+            }
+        }
+        $spdOfflineRemaining = max(0, round($spdOfflineTotal - $spdOfflinePaid, 2));
+        $spdOnlineTotal = $spdExcludeOnline ? round($spdOnlinePaid, 2) : $spdInvoiceTotal;
+        $spdOnlineBase = $spdExcludeOnline ? round($spdOnlinePaid, 2) : $spdInvoiceBase;
+        $spdOnlineTax = $spdExcludeOnline ? 0.0 : $spdInvoiceTax;
+        $spdOnlineRemaining = $spdExcludeOnline
+            ? 0.0
+            : max(0, round($spdOnlineTotal - $spdOnlinePaid, 2));
     }
-
-    $spdOfflineRemaining = max(0, round($spdOfflineTotal - $spdOfflinePaid, 2));
-    $spdOnlineTotal = $spdExcludeOnline ? round($spdOnlinePaid, 2) : $spdInvoiceTotal;
-    $spdOnlineBase = $spdExcludeOnline ? round($spdOnlinePaid, 2) : $spdInvoiceBase;
-    $spdOnlineTax = $spdExcludeOnline ? 0.0 : $spdInvoiceTax;
-    $spdOnlineRemaining = $spdExcludeOnline
-        ? 0.0
-        : max(0, round($spdOnlineTotal - $spdOnlinePaid, 2));
 
     $financeRoles = [36, 33, 37, 38, 126, 127, 128, 129, 130, 131, 133, 134, 135, 136, 137, 138];
     $canManagePayments = in_array((int) (auth()->user()->role_id ?? 0), $financeRoles, true);
     $spdHasAnyRows = ! empty($spdOnlineRows) || ! empty($spdOfflineRows);
-    $spdShowOfflinePanel = $spdExcludeOnline || ! empty($spdOfflineRows);
-    $spdShowOnlinePanel = ! $spdExcludeOnline || ! empty($spdOnlineRows) || $spdOnlinePaid > 0.009;
+    // Online-only tours: hide offline panel unless an offline payment row somehow exists.
+    $spdShowOfflinePanel = $spdIsOnlineOnly
+        ? ! empty($spdOfflineRows)
+        : ($spdExcludeOnline || ! empty($spdOfflineRows));
+    $spdShowOnlinePanel = $spdIsOnlineOnly || ! empty($spdOnlineRows) || $spdOnlinePaid > 0.009;
 
     $spdFmt = static function (float $n, string $cur): string {
         return number_format($n, $cur === 'IDR' && abs($n - round($n)) < 0.001 ? 0 : 2) . ' ' . $cur;
@@ -219,7 +250,7 @@
                             <section class="spd-panel spd-panel-online">
                                 <div class="spd-panel-head">
                                     <span><i class="fas fa-globe me-1"></i>Online</span>
-                                    <span class="badge bg-warning text-dark">Paid {{ $spdFmt($spdOnlinePaid, $spdCurrency) }}</span>
+                                    <span class="badge bg-warning text-dark">Paid {{ $spdFmt($spdOnlinePaid, $spdOnlineCurrency) }}</span>
                                 </div>
                                 <div class="spd-panel-body">
                                     @if(!empty($spdOnlineRows))
@@ -241,7 +272,11 @@
                                                 <tbody>
                                                     @foreach($spdOnlineRows as $index => $payment)
                                                         @php
-                                                            $fxRow = $spdFx->paymentDisplay($payment, $spdCurrency);
+                                                            $rowOnlineCur = strtoupper(trim((string) ($payment['currency'] ?? '')));
+                                                            if (! preg_match('/^[A-Z]{3}$/', $rowOnlineCur)) {
+                                                                $rowOnlineCur = $spdOnlineCurrency;
+                                                            }
+                                                            $fxRow = $spdFx->paymentDisplay($payment, $rowOnlineCur);
                                                             $debitAmt = $fxRow['paid_in'];
                                                             $debitCur = $fxRow['paid_in_currency'];
                                                         @endphp
@@ -272,7 +307,7 @@
                                                                 </td>
                                                             @endif
                                                             <td class="text-center">{{ isset($payment['payment_date']) ? \Carbon\Carbon::parse($payment['payment_date'])->format('d M Y') : '—' }}</td>
-                                                            <td class="text-center fw-bold text-warning">{{ isset($payment['amount']) ? number_format((float) $payment['amount'], 2) : '0.00' }} {{ $spdCurrency }}</td>
+                                                            <td class="text-center fw-bold text-warning">{{ isset($payment['amount']) ? number_format((float) $payment['amount'], 2) : '0.00' }} {{ $rowOnlineCur }}</td>
                                                             <td class="text-center">
                                                                 @if($debitAmt !== null && $debitCur !== '')
                                                                     {{ number_format($debitAmt, $debitCur === 'IDR' ? 0 : 2) }} {{ $debitCur }}
@@ -303,7 +338,7 @@
                                         {{-- Same chips as Offline; Base/Total = online portion (paid), Tax shown. --}}
                                         <div class="spd-stat bg-secondary text-white">
                                             <span>Base</span>
-                                            <b>{{ $spdFmt($spdOnlineBase, $spdCurrency) }}</b>
+                                            <b>{{ $spdFmt($spdOnlineBase, $spdOnlineCurrency) }}</b>
                                         </div>
                                         <div class="spd-stat bg-info text-white">
                                             <span>Tax</span>
@@ -311,21 +346,21 @@
                                                 @if($spdTaxIncluded || $spdOnlineTaxIncluded)
                                                     Included
                                                 @else
-                                                    {{ $spdFmt($spdOnlineTax, $spdCurrency) }}
+                                                    {{ $spdFmt($spdOnlineTax, $spdOnlineCurrency) }}
                                                 @endif
                                             </b>
                                         </div>
                                         <div class="spd-stat bg-primary text-white">
                                             <span>Total</span>
-                                            <b>{{ $spdFmt($spdOnlineTotal, $spdCurrency) }}</b>
+                                            <b>{{ $spdFmt($spdOnlineTotal, $spdOnlineCurrency) }}</b>
                                         </div>
                                         <div class="spd-stat bg-success text-white">
                                             <span>Paid</span>
-                                            <b>{{ $spdFmt($spdOnlinePaid, $spdCurrency) }}</b>
+                                            <b>{{ $spdFmt($spdOnlinePaid, $spdOnlineCurrency) }}</b>
                                         </div>
                                         <div class="spd-stat bg-warning text-dark">
                                             <span>Remaining</span>
-                                            <b>{{ $spdFmt($spdOnlineRemaining, $spdCurrency) }}</b>
+                                            <b>{{ $spdFmt($spdOnlineRemaining, $spdOnlineCurrency) }}</b>
                                         </div>
                                     </div>
                                     @if($spdExcludeOnline)
@@ -465,7 +500,7 @@
                                         </div>
                                     </div>
                                     @if($spdExcludeOnline && $spdOnlinePaid > 0.009)
-                                        <p class="spd-note">Online {{ $spdFmt($spdOnlinePaid, $spdCurrency) }} is settled separately — not deducted from offline.</p>
+                                        <p class="spd-note">Online {{ $spdFmt($spdOnlinePaid, $spdOnlineCurrency) }} is settled separately — not deducted from offline.</p>
                                     @endif
                                 </div>
                             </section>

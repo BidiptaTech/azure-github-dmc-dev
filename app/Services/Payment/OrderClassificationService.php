@@ -69,10 +69,18 @@ class OrderClassificationService
     public function persistClassification(Tour $tour): string
     {
         $classification = $this->classifyTour($tour);
+        $tourId = (int) ($tour->tour_id ?? $tour->getKey());
 
-        $tour->forceFill([
-            'order_classification' => $classification,
-        ])->save();
+        // Targeted update only — avoid $tour->save() which can write dirty attrs
+        // for columns missing locally (e.g. previous_exchange_rate).
+        if ($tourId > 0) {
+            Tour::query()
+                ->where('tour_id', $tourId)
+                ->update(['order_classification' => $classification]);
+        }
+
+        $tour->setAttribute('order_classification', $classification);
+        $tour->syncOriginalAttribute('order_classification');
 
         return $classification;
     }

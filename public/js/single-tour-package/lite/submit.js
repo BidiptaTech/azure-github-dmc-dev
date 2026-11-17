@@ -297,7 +297,22 @@
                 r.restaurantCity = r.restaurantCity || geo.city;
             }
             if (geo.country) r.country = geo.country;
-            if (geo.currency) r.currency = geo.currency;
+            // Online hotels keep supplier price currency; MG Bedbank is always SGD.
+            var isOnlineHotel = !!(r.isOnlineHotel || r.hotelSourceType === 'online' || r.priceMode === 'online');
+            var supplierCode = String(
+                r.onlineHotelSource
+                || (r.onlineHotelBooking && r.onlineHotelBooking.supplier_code)
+                || ''
+            ).toLowerCase();
+            var isMgBedbank = supplierCode === 'mg_bedbank' || supplierCode === 'mgbedbank' || supplierCode === 'mg';
+            if (isMgBedbank) {
+                r.currency = 'SGD';
+            } else {
+                var rowCurrency = String(r.currency || '').trim().toUpperCase();
+                if (geo.currency && !(isOnlineHotel && rowCurrency)) {
+                    r.currency = geo.currency;
+                }
+            }
             if (r.hotelDetails && typeof r.hotelDetails === 'object') {
                 r.hotelDetails = Object.assign({}, r.hotelDetails);
                 if (geo.city) r.hotelDetails.city = geo.city;

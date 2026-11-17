@@ -560,7 +560,7 @@
 
         const acceptance = eligibility.acceptance || {};
         const onlinePaid = !!acceptance.online_paid;
-        const currency = String(acceptance.currency || eligibility.currency || '').trim().toUpperCase();
+        const currency = String(acceptance.online_currency || acceptance.currency || eligibility.currency || '').trim().toUpperCase();
         const paidAmount = Number(acceptance.online_paid_amount || acceptance.online_amount || 0);
         const hint = String(acceptance.hint || '').trim();
         const amountLabel = (currency ? currency + ' ' : '') + (Number.isFinite(paidAmount) ? paidAmount.toFixed(2) : '0.00');

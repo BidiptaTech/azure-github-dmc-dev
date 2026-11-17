@@ -195,7 +195,7 @@
         line-height: 1.45;
         font-weight: 600;
         color: #334155;
-        white-space: nowrap;
+        white-space: normal;
     }
     #toursTable .refund-money-summary .rms-paid {
         color: #15803d;
@@ -211,6 +211,20 @@
     }
     #toursTable .refund-money-summary .rms-discount {
         color: #b45309;
+    }
+    #toursTable .refund-money-summary .rms-label-with-info {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.2rem;
+    }
+    #toursTable .refund-money-summary .rms-info-icon {
+        font-size: 0.95rem;
+        line-height: 1;
+        color: #64748b;
+        cursor: help;
+    }
+    #toursTable .refund-money-summary .rms-info-icon:hover {
+        color: #0f172a;
     }
     #toursTable thead th {
         padding: 0.5rem 0.5rem;
@@ -639,10 +653,21 @@
                             </td>
                             @php
                                 // TravClicks: always use per-service online refund UI (same as order cancel).
-                                // DMC: full-tour cancel badge when there are no service-level refund rows.
+                                // DMC: full-tour cancel uses tour amount refund (not per-service), whenever
+                                // tour_status is Refund - Pending / Refunded — even if online rows still
+                                // exist for TravClicks wallet credit.
                                 $useDmcTourCancelRefundUi = ! $showDmcColumn
-                                    && in_array($tour->tour_status, ['Refund - Pending', 'Refunded'], true)
-                                    && $rowRefundOrders->isEmpty();
+                                    && in_array($tour->tour_status, ['Refund - Pending', 'Refunded'], true);
+                                $tourRefundMax = (float) ($tour->tour_refund_max ?? 0);
+                                $tourRefundCurrency = trim((string) ($tour->tour_refund_currency ?? $currency ?? ''));
+                                if ($tourRefundMax <= 0) {
+                                    $paidForRefund = (float) ($tour->money_display_paid ?? $tour->money_paid ?? 0);
+                                    $alreadyRefunded = (float) ($tour->money_refunded ?? 0);
+                                    $tourRefundMax = max(0, $paidForRefund - $alreadyRefunded);
+                                }
+                                if ($tourRefundCurrency === '') {
+                                    $tourRefundCurrency = strtoupper(trim((string) ($tour->money_currency ?? $currency ?? '')));
+                                }
                             @endphp
                             @if($useDmcTourCancelRefundUi)
                             <td class="col-refund-status align-top">
@@ -655,6 +680,16 @@
                                             <span class="d-block">Refund Pending</span>
                                         </span>
                                     </span>
+                                    <button type="button"
+                                            class="action-icon-badge mt-1"
+                                            style="--action-color: #16a34a;"
+                                            data-tooltip="Process tour refund"
+                                            data-tour-id="{{ $tour->tour_id }}"
+                                            data-refund-max="{{ number_format($tourRefundMax, 2, '.', '') }}"
+                                            data-refund-currency="{{ $tourRefundCurrency }}"
+                                            onclick="processRefund({{ $tour->tour_id }}, event)">
+                                        <i class="ri-refund-2-line"></i>
+                                    </button>
                                 @else
                                     <span class="refund-status-badge is-completed">
                                         <i class="ri-check-circle-line"></i>
@@ -1561,10 +1596,10 @@ function processRefund(tourId, event) {
             });
         },
         {
-            title: 'Process Refund Confirmation',
+            title: 'Process Tour Refund',
             confirmLabel: 'Process Refund',
-            priceLabel: 'Invoice total (after discount + tax)',
-            helpText: 'Same total the agent paid. You can refund this amount or less.',
+            priceLabel: 'Remaining (paid − refunded)',
+            helpText: 'Refundable = paid amount minus what was already refunded. You can refund this amount or less.',
             note: 'This action will mark the tour as "Refunded" and cannot be undone.',
             maxAmount: tourMax,
             currency: currency,

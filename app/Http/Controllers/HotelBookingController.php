@@ -683,7 +683,7 @@ class HotelBookingController extends Controller
     public function getRestaurantBookingData(Request $request): JsonResponse
     {
         try {
-            Log::info('🍽️ Restaurant data request received', [
+            Log::info('??? Restaurant data request received', [
                 'request_data' => $request->all()
             ]);
 
@@ -705,7 +705,7 @@ class HotelBookingController extends Controller
             $restaurantOrderIndex = $request->restaurant_order_index;
             $bookingIndex = $request->booking_index;
 
-            Log::info('🔍 Processing restaurant data request', [
+            Log::info('?? Processing restaurant data request', [
                 'tour_id' => $tourId,
                 'restaurant_order_index' => $restaurantOrderIndex,
                 'booking_index' => $bookingIndex
@@ -723,7 +723,7 @@ class HotelBookingController extends Controller
                 ->whereNull('deleted_at')
                 ->get();
 
-            Log::info('📋 All restaurant orders found', [
+            Log::info('?? All restaurant orders found', [
                 'count' => $allRestaurantOrders->count(),
                 'orders' => $allRestaurantOrders->map(function($order) {
                     $data = json_decode($order->data, true);
@@ -738,7 +738,7 @@ class HotelBookingController extends Controller
             $restaurantOrder = $allRestaurantOrders->skip($restaurantOrderIndex)->first();
 
             if (!$restaurantOrder) {
-                Log::error('❌ Restaurant order not found', [
+                Log::error('? Restaurant order not found', [
                     'tour_id' => $tourId,
                     'restaurant_order_index' => $restaurantOrderIndex,
                     'total_orders_found' => $allRestaurantOrders->count()
@@ -751,7 +751,7 @@ class HotelBookingController extends Controller
 
             $restaurantData = json_decode($restaurantOrder->data, true);
             
-            Log::info('📊 Restaurant order data decoded', [
+            Log::info('?? Restaurant order data decoded', [
                 'order_id' => $restaurantOrder->id,
                 'booking_count' => is_array($restaurantData) ? count($restaurantData) : 0,
                 'requested_booking_index' => $bookingIndex,
@@ -761,7 +761,7 @@ class HotelBookingController extends Controller
             ]);
             
             if (!$restaurantData || !isset($restaurantData[$bookingIndex])) {
-                Log::error('❌ Restaurant booking not found at index', [
+                Log::error('? Restaurant booking not found at index', [
                     'booking_index' => $bookingIndex,
                     'available_indices' => is_array($restaurantData) ? array_keys($restaurantData) : [],
                     'booking_count' => is_array($restaurantData) ? count($restaurantData) : 0
@@ -775,7 +775,7 @@ class HotelBookingController extends Controller
             $booking = $restaurantData[$bookingIndex];
             $orderCurrency = CommonHelper::resolveOrderDisplayCurrency($restaurantOrder, null);
             
-            Log::info('✅ Found specific restaurant booking', [
+            Log::info('? Found specific restaurant booking', [
                 'booking_index' => $bookingIndex,
                 'restaurant_name' => $booking['restaurantName'] ?? 'Unknown',
                 'booking_date' => $booking['bookingDate'] ?? 'Unknown',
@@ -842,7 +842,7 @@ class HotelBookingController extends Controller
     public function getGuideBookingData(Request $request): JsonResponse
     {
         try {
-            Log::info('👨‍💼 Guide data request received', [
+            Log::info('????? Guide data request received', [
                 'request_data' => $request->all()
             ]);
 
@@ -864,7 +864,7 @@ class HotelBookingController extends Controller
             $guideOrderIndex = $request->guide_order_index;
             $bookingIndex = $request->booking_index;
 
-            Log::info('🔍 Processing guide data request', [
+            Log::info('?? Processing guide data request', [
                 'tour_id' => $tourId,
                 'guide_order_index' => $guideOrderIndex,
                 'booking_index' => $bookingIndex
@@ -881,7 +881,7 @@ class HotelBookingController extends Controller
                 ->whereNull('deleted_at')
                 ->get();
 
-            Log::info('📋 All guide orders found', [
+            Log::info('?? All guide orders found', [
                 'count' => $allGuideOrders->count(),
                 'orders' => $allGuideOrders->map(function($order) {
                     $data = json_decode($order->data, true);
@@ -896,7 +896,7 @@ class HotelBookingController extends Controller
             $guideOrder = $allGuideOrders->skip($guideOrderIndex)->first();
 
             if (!$guideOrder) {
-                Log::error('❌ Guide order not found', [
+                Log::error('? Guide order not found', [
                     'tour_id' => $tourId,
                     'guide_order_index' => $guideOrderIndex,
                     'total_orders_found' => $allGuideOrders->count()
@@ -909,7 +909,7 @@ class HotelBookingController extends Controller
 
             $guideData = json_decode($guideOrder->data, true);
             
-            Log::info('📊 Guide order data decoded', [
+            Log::info('?? Guide order data decoded', [
                 'order_id' => $guideOrder->id,
                 'booking_count' => is_array($guideData) ? count($guideData) : 0,
                 'requested_booking_index' => $bookingIndex,
@@ -919,7 +919,7 @@ class HotelBookingController extends Controller
             ]);
             
             if (!$guideData || !isset($guideData[$bookingIndex])) {
-                Log::error('❌ Guide booking not found at index', [
+                Log::error('? Guide booking not found at index', [
                     'booking_index' => $bookingIndex,
                     'available_indices' => is_array($guideData) ? array_keys($guideData) : [],
                     'booking_count' => is_array($guideData) ? count($guideData) : 0
@@ -933,7 +933,7 @@ class HotelBookingController extends Controller
             $booking = $guideData[$bookingIndex];
             $orderCurrency = CommonHelper::resolveOrderDisplayCurrency($guideOrder, null);
             
-            Log::info('✅ Found specific guide booking', [
+            Log::info('? Found specific guide booking', [
                 'booking_index' => $bookingIndex,
                 'guide_name' => $booking['guide_name'] ?? 'Unknown',
                 'booking_date' => $booking['bookingDate'] ?? 'Unknown',
@@ -978,7 +978,7 @@ class HotelBookingController extends Controller
                     'dmc_id' => $booking['dmc_id'] ?? $booking['dmc_Id'] ?? null,
                     'country' => $guideOrder->country ?? null,
                     'currency' => $orderCurrency,
-                    // ✅ Approval status fields from orders table
+                    // ? Approval status fields from orders table
                     'is_approve' => $guideOrder->is_approve ?? false,
                     'reference_id' => $guideOrder->reference_id ?? null,
                     'display_due_date' => $guideOrder->display_due_date ?? null,
@@ -989,7 +989,7 @@ class HotelBookingController extends Controller
                 ]
             ];
 
-            Log::info('✅ Guide booking data response prepared', [
+            Log::info('? Guide booking data response prepared', [
                 'guide_name' => $response['data']['guide_name'],
                 'booking_date' => $response['data']['booking_date'],
                 'total_price' => $response['data']['total_price'],
@@ -1001,7 +1001,7 @@ class HotelBookingController extends Controller
             return response()->json($response);
 
         } catch (\Exception $e) {
-            Log::error('❌ Error retrieving guide booking data', [
+            Log::error('? Error retrieving guide booking data', [
                 'error' => $e->getMessage(),
                 'request_data' => $request->all()
             ]);
@@ -1334,7 +1334,7 @@ class HotelBookingController extends Controller
                         'actual_due_date' => $hotelOrder->actual_due_date ?? null,
                         'display_due_date' => $hotelOrder->display_due_date ?? null,
                         'approval_file' => $hotelOrder->approval_file ?? null,
-                        // online | offline | null → UI shows Online/Offline Order
+                        // online | offline | null ? UI shows Online/Offline Order
                         'order_type' => $hotelOrder->order_type ?? null,
                         'online_hotel_source' => $booking['onlineHotelSource']
                             ?? ($booking['onlineHotelBooking']['supplier_code'] ?? null),
@@ -2013,7 +2013,7 @@ class HotelBookingController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'message' => '✅ Travel point booking updated successfully'
+                    'message' => '? Travel point booking updated successfully'
                 ]);
             } else {
                 return response()->json([
@@ -2274,7 +2274,7 @@ class HotelBookingController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'message' => '✅ Travel hourly booking updated successfully'
+                    'message' => '? Travel hourly booking updated successfully'
                 ]);
             } else {
                 return response()->json([
@@ -2536,7 +2536,7 @@ class HotelBookingController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'message' => '✅ Local transport booking updated successfully'
+                    'message' => '? Local transport booking updated successfully'
                 ]);
             } else {
                 return response()->json([
@@ -2880,7 +2880,7 @@ class HotelBookingController extends Controller
 
             $bookingDetails = null;
 
-            // Online: agency booking id is still required by supplier — auto-generate when blank.
+            // Online: agency booking id is still required by supplier ? auto-generate when blank.
             if ($isOnlineOrder && $referenceId === '') {
                 $referenceId = 'ONLINE-' . (int) $hotelOrder->tour_id . '-' . (int) $hotelOrder->id . '-' . (int) $bookingIndex;
             }
@@ -3191,11 +3191,11 @@ class HotelBookingController extends Controller
         };
 
         $WIDTH = 66;
-        $border = '┌' . str_repeat('─', $WIDTH - 2) . '┐';
-        $sectionBorder = '├' . str_repeat('─', $WIDTH - 2) . '┤';
-        $endBorder = '└' . str_repeat('─', $WIDTH - 2) . '┘';
-        $header = '╔' . str_repeat('═', $WIDTH - 2) . '╗';
-        $headerEnd = '╚' . str_repeat('═', $WIDTH - 2) . '╝';
+        $border = '+' . str_repeat('-', $WIDTH - 2) . '+';
+        $sectionBorder = '+' . str_repeat('-', $WIDTH - 2) . '?';
+        $endBorder = '+' . str_repeat('-', $WIDTH - 2) . '+';
+        $header = '+' . str_repeat('-', $WIDTH - 2) . '+';
+        $headerEnd = '+' . str_repeat('-', $WIDTH - 2) . '+';
 
         $centerText = function ($text, $width) {
             $text = (string) $text;
@@ -3219,19 +3219,19 @@ class HotelBookingController extends Controller
         };
 
         $sectionHeader = function ($title) use ($WIDTH, $centerText) {
-            return '│' . $centerText($title, $WIDTH - 2) . '│';
+            return '?' . $centerText($title, $WIDTH - 2) . '?';
         };
 
         $row = function ($label, $value) use ($padRight) {
-            return '│ ' . $padRight($label, 16) . ' │ ' . $padRight($value, 43) . '│';
+            return '? ' . $padRight($label, 16) . ' ? ' . $padRight($value, 43) . '?';
         };
 
         $fullRow = function ($text) use ($WIDTH, $padRight) {
-            return '│ ' . $padRight($text, $WIDTH - 4) . ' │';
+            return '? ' . $padRight($text, $WIDTH - 4) . ' ?';
         };
 
         $content = "Dear Valued Partner,\n\nWe are pleased to confirm your hotel booking request. Please find the details below:\n\n";
-        $content .= $header . "\n║" . $centerText('=== HOTEL BOOKING CONFIRMATION ===', $WIDTH - 2) . "║\n" . $headerEnd . "\n";
+        $content .= $header . "\n?" . $centerText('=== HOTEL BOOKING CONFIRMATION ===', $WIDTH - 2) . "?\n" . $headerEnd . "\n";
 
         $content .= $border . "\n" . $sectionHeader('BOOKING INFORMATION') . "\n" . $sectionBorder . "\n";
         $content .= $row('Reference ID', $referenceId ?: $tourDisplayId) . "\n";
@@ -3299,10 +3299,10 @@ class HotelBookingController extends Controller
         $content .= $endBorder . "\n\n";
 
         $content .= $border . "\n" . $sectionHeader('IMPORTANT NOTES') . "\n" . $sectionBorder . "\n";
-        $content .= $fullRow('• Please confirm this booking within 24 hours') . "\n";
-        $content .= $fullRow('• All timings are local time') . "\n";
-        $content .= $fullRow('• Prices are subject to availability and confirmation') . "\n";
-        $content .= $fullRow('• Terms and conditions apply') . "\n";
+        $content .= $fullRow('? Please confirm this booking within 24 hours') . "\n";
+        $content .= $fullRow('? All timings are local time') . "\n";
+        $content .= $fullRow('? Prices are subject to availability and confirmation') . "\n";
+        $content .= $fullRow('? Terms and conditions apply') . "\n";
         $content .= $fullRow('') . "\n";
         $content .= $fullRow('For any queries or modifications, please contact us immediately.') . "\n";
         $content .= $endBorder . "\n\n";
@@ -3361,7 +3361,7 @@ class HotelBookingController extends Controller
         }
 
         $tour = Tour::where('tour_id', $tourId)->first();
-        // Full hotel sell only — do not scale to tour negotiated total.
+        // Full hotel sell only ? do not scale to tour negotiated total.
         $hotelPriceBase = null;
         if ($tour) {
             $priced = app(BookingsController::class)->resolveOrderRefundMaxForHotel($tour, $order);
@@ -3444,7 +3444,7 @@ class HotelBookingController extends Controller
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now(), // Soft delete
                 'updated_at' => now(),
-            ]);
+            ], true);
 
             // Update the order
             $updated = DB::table('orders')
@@ -3479,6 +3479,8 @@ class HotelBookingController extends Controller
                 ]
             ]);
 
+        } catch (\Illuminate\Http\Exceptions\HttpResponseException $e) {
+            throw $e;
         } catch (\Exception $e) {
             Log::error('Error rejecting hotel booking', [
                 'error' => $e->getMessage(),
@@ -3722,7 +3724,7 @@ class HotelBookingController extends Controller
 
                         return response()->json([
                             'success' => false,
-                            'message' => 'Payment was processed but voucher details could not be retrieved. Please click Approve again — credits will not be charged twice. '
+                            'message' => 'Payment was processed but voucher details could not be retrieved. Please click Approve again ? credits will not be charged twice. '
                                 . ($details['message'] ?? ''),
                             'payment_completed' => true,
                             'order_ref_id' => $savedExternalRef,
@@ -4188,7 +4190,7 @@ class HotelBookingController extends Controller
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now(),
                 'updated_at' => now(),
-            ]);
+            ], true);
 
             // Update the order
             $updated = DB::table('orders')
@@ -4223,6 +4225,8 @@ class HotelBookingController extends Controller
                 ]
             ]);
 
+        } catch (\Illuminate\Http\Exceptions\HttpResponseException $e) {
+            throw $e;
         } catch (\Exception $e) {
             Log::error('Error rejecting restaurant booking', [
                 'error' => $e->getMessage(),
@@ -4374,7 +4378,7 @@ class HotelBookingController extends Controller
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now(), // Soft delete
                 'updated_at' => now(),
-            ]);
+            ], true);
             if ($isOnline && $hasVoucher) {
                 $updateData['data'] = json_encode($attractionData);
             }
@@ -4425,6 +4429,8 @@ class HotelBookingController extends Controller
                 ]
             ]);
 
+        } catch (\Illuminate\Http\Exceptions\HttpResponseException $e) {
+            throw $e;
         } catch (\Exception $e) {
             Log::error('Error rejecting attraction booking', [
                 'error' => $e->getMessage(),
@@ -4650,7 +4656,7 @@ class HotelBookingController extends Controller
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now(), // Soft delete
                 'updated_at' => now(),
-            ]);
+            ], true);
 
             // Update the order
             $updated = DB::table('orders')
@@ -4687,6 +4693,8 @@ class HotelBookingController extends Controller
                 ]
             ]);
 
+        } catch (\Illuminate\Http\Exceptions\HttpResponseException $e) {
+            throw $e;
         } catch (\Exception $e) {
             Log::error('Error rejecting guide booking', [
                 'error' => $e->getMessage(),
@@ -4705,7 +4713,7 @@ class HotelBookingController extends Controller
     public function approveArrivalBooking(Request $request): JsonResponse
     {
         try {
-            Log::info('🚗 ARRIVAL APPROVE: Starting arrival booking approval', $request->all());
+            Log::info('?? ARRIVAL APPROVE: Starting arrival booking approval', $request->all());
 
             // Validate the request
             $validator = Validator::make($request->all(), [
@@ -4719,7 +4727,7 @@ class HotelBookingController extends Controller
             ]);
 
             if ($validator->fails()) {
-                Log::warning('🚗 ARRIVAL APPROVE: Validation failed', $validator->errors()->toArray());
+                Log::warning('?? ARRIVAL APPROVE: Validation failed', $validator->errors()->toArray());
                 return response()->json([
                     'success' => false,
                     'message' => 'Validation failed',
@@ -4731,7 +4739,7 @@ class HotelBookingController extends Controller
             $arrivalOrderIndex = $request->arrival_order_index;
             $bookingIndex = $request->booking_index;
 
-            Log::info('🚗 ARRIVAL APPROVE: Processing approval for arrival', [
+            Log::info('?? ARRIVAL APPROVE: Processing approval for arrival', [
                 'tour_id' => $tourId,
                 'arrival_order_index' => $arrivalOrderIndex,
                 'booking_index' => $bookingIndex
@@ -4745,7 +4753,7 @@ class HotelBookingController extends Controller
                 ->first();
 
             if (!$arrivalOrder) {
-                Log::error('🚗 ARRIVAL APPROVE: Arrival order not found', [
+                Log::error('?? ARRIVAL APPROVE: Arrival order not found', [
                     'tour_id' => $tourId,
                     'arrival_order_index' => $arrivalOrderIndex
                 ]);
@@ -4755,7 +4763,7 @@ class HotelBookingController extends Controller
                 ], 404);
             }
 
-            Log::info('🚗 ARRIVAL APPROVE: Found arrival order', [
+            Log::info('?? ARRIVAL APPROVE: Found arrival order', [
                 'order_id' => $arrivalOrder->id,
                 'current_is_approve' => $arrivalOrder->is_approve
             ]);
@@ -4766,7 +4774,7 @@ class HotelBookingController extends Controller
             //     $file = $request->file('reference_file');
             //     $fileName = time() . '_arrival_' . $tourId . '_' . $arrivalOrderIndex . '_' . $bookingIndex . '.' . $file->getClientOriginalExtension();
             //     $file->move(public_path('uploads/arrival_approvals'), $fileName);
-            //     Log::info('🚗 ARRIVAL APPROVE: File uploaded', ['filename' => $fileName]);
+            //     Log::info('?? ARRIVAL APPROVE: File uploaded', ['filename' => $fileName]);
             // }
 
             $approval_file = $arrivalOrder->approval_file ?? '';
@@ -4803,7 +4811,7 @@ class HotelBookingController extends Controller
                 ->update($updateData);
 
             if (!$updated) {
-                Log::error('🚗 ARRIVAL APPROVE: Failed to update arrival order', [
+                Log::error('?? ARRIVAL APPROVE: Failed to update arrival order', [
                     'order_id' => $arrivalOrder->id,
                     'update_data' => $updateData
                 ]);
@@ -4813,7 +4821,7 @@ class HotelBookingController extends Controller
                 ], 500);
             }
 
-            Log::info('✅ ARRIVAL APPROVE: Arrival booking approved successfully', [
+            Log::info('? ARRIVAL APPROVE: Arrival booking approved successfully', [
                 'order_id' => $arrivalOrder->id,
                 'reference_id' => $request->reference_id,
                 'actual_due_date' => $request->actual_due_date,
@@ -4833,7 +4841,7 @@ class HotelBookingController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('🚗 ARRIVAL APPROVE: Error approving arrival booking', [
+            Log::error('?? ARRIVAL APPROVE: Error approving arrival booking', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'request' => $request->all()
@@ -4849,7 +4857,7 @@ class HotelBookingController extends Controller
     public function rejectArrivalBooking(Request $request): JsonResponse
     {
         try {
-            Log::info('🚗 ARRIVAL REJECT: Starting arrival booking rejection', $request->all());
+            Log::info('?? ARRIVAL REJECT: Starting arrival booking rejection', $request->all());
 
             // Validate the request
             $validator = Validator::make($request->all(), [
@@ -4860,7 +4868,7 @@ class HotelBookingController extends Controller
             ]);
 
             if ($validator->fails()) {
-                Log::warning('🚗 ARRIVAL REJECT: Validation failed', $validator->errors()->toArray());
+                Log::warning('?? ARRIVAL REJECT: Validation failed', $validator->errors()->toArray());
                 return response()->json([
                     'success' => false,
                     'message' => 'Validation failed',
@@ -4872,7 +4880,7 @@ class HotelBookingController extends Controller
             $arrivalOrderIndex = $request->arrival_order_index;
             $bookingIndex = $request->booking_index;
 
-            Log::info('🚗 ARRIVAL REJECT: Processing rejection for arrival', [
+            Log::info('?? ARRIVAL REJECT: Processing rejection for arrival', [
                 'tour_id' => $tourId,
                 'arrival_order_index' => $arrivalOrderIndex,
                 'booking_index' => $bookingIndex
@@ -4886,7 +4894,7 @@ class HotelBookingController extends Controller
                 ->first();
 
             if (!$arrivalOrder) {
-                Log::error('🚗 ARRIVAL REJECT: Arrival order not found', [
+                Log::error('?? ARRIVAL REJECT: Arrival order not found', [
                     'tour_id' => $tourId,
                     'arrival_order_index' => $arrivalOrderIndex
                 ]);
@@ -4896,14 +4904,14 @@ class HotelBookingController extends Controller
                 ], 404);
             }
 
-            Log::info('🚗 ARRIVAL REJECT: Found arrival order', [
+            Log::info('?? ARRIVAL REJECT: Found arrival order', [
                 'order_id' => $arrivalOrder->id,
                 'current_is_approve' => $arrivalOrder->is_approve
             ]);
 
             // Check if already approved
             if ($arrivalOrder->is_approve) {
-                Log::warning('🚗 ARRIVAL REJECT: Attempting to reject already approved arrival', [
+                Log::warning('?? ARRIVAL REJECT: Attempting to reject already approved arrival', [
                     'order_id' => $arrivalOrder->id
                 ]);
                 return response()->json([
@@ -4919,10 +4927,10 @@ class HotelBookingController extends Controller
                     'deleted_at' => now(),
                     'cancel_reason' => $request->cancel_reason,
                     'updated_at' => now(),
-                ]));
+                ], true));
 
             if (!$updated) {
-                Log::error('🚗 ARRIVAL REJECT: Failed to reject arrival order', [
+                Log::error('?? ARRIVAL REJECT: Failed to reject arrival order', [
                     'order_id' => $arrivalOrder->id
                 ]);
                 return response()->json([
@@ -4933,7 +4941,7 @@ class HotelBookingController extends Controller
 
             app(\App\Services\JobsheetRemovalService::class)->deleteForOrder($arrivalOrder);
 
-            Log::info('✅ ARRIVAL REJECT: Arrival booking rejected successfully', [
+            Log::info('? ARRIVAL REJECT: Arrival booking rejected successfully', [
                 'order_id' => $arrivalOrder->id,
                 'cancel_reason' => $request->cancel_reason
             ]);
@@ -4948,8 +4956,10 @@ class HotelBookingController extends Controller
                 ]
             ]);
 
+        } catch (\Illuminate\Http\Exceptions\HttpResponseException $e) {
+            throw $e;
         } catch (\Exception $e) {
-            Log::error('🚗 ARRIVAL REJECT: Error rejecting arrival booking', [
+            Log::error('?? ARRIVAL REJECT: Error rejecting arrival booking', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'request' => $request->all()
@@ -4965,7 +4975,7 @@ class HotelBookingController extends Controller
     public function approveDepartureBooking(Request $request): JsonResponse
     {
         try {
-            Log::info('✈️ DEPARTURE APPROVE: Starting departure booking approval', $request->all());
+            Log::info('?? DEPARTURE APPROVE: Starting departure booking approval', $request->all());
 
             // Validate the request
             $validator = Validator::make($request->all(), [
@@ -4979,7 +4989,7 @@ class HotelBookingController extends Controller
             ]);
 
             if ($validator->fails()) {
-                Log::warning('✈️ DEPARTURE APPROVE: Validation failed', $validator->errors()->toArray());
+                Log::warning('?? DEPARTURE APPROVE: Validation failed', $validator->errors()->toArray());
                 return response()->json([
                     'success' => false,
                     'message' => 'Validation failed',
@@ -4991,7 +5001,7 @@ class HotelBookingController extends Controller
             $departureOrderIndex = $request->departure_order_index;
             $bookingIndex = $request->booking_index;
 
-            Log::info('✈️ DEPARTURE APPROVE: Processing approval for departure', [
+            Log::info('?? DEPARTURE APPROVE: Processing approval for departure', [
                 'tour_id' => $tourId,
                 'departure_order_index' => $departureOrderIndex,
                 'booking_index' => $bookingIndex
@@ -5005,7 +5015,7 @@ class HotelBookingController extends Controller
                 ->first();
 
             if (!$departureOrder) {
-                Log::error('✈️ DEPARTURE APPROVE: Departure order not found', [
+                Log::error('?? DEPARTURE APPROVE: Departure order not found', [
                     'tour_id' => $tourId,
                     'departure_order_index' => $departureOrderIndex
                 ]);
@@ -5015,7 +5025,7 @@ class HotelBookingController extends Controller
                 ], 404);
             }
 
-            Log::info('✈️ DEPARTURE APPROVE: Found departure order', [
+            Log::info('?? DEPARTURE APPROVE: Found departure order', [
                 'order_id' => $departureOrder->id,
                 'current_is_approve' => $departureOrder->is_approve
             ]);
@@ -5026,7 +5036,7 @@ class HotelBookingController extends Controller
             //     $file = $request->file('reference_file');
             //     $fileName = time() . '_departure_' . $tourId . '_' . $departureOrderIndex . '_' . $bookingIndex . '.' . $file->getClientOriginalExtension();
             //     $file->move(public_path('uploads/departure_approvals'), $fileName);
-            //     Log::info('✈️ DEPARTURE APPROVE: File uploaded', ['filename' => $fileName]);
+            //     Log::info('?? DEPARTURE APPROVE: File uploaded', ['filename' => $fileName]);
             // }
 
             $approval_file = $departureOrder->approval_file ?? '';
@@ -5063,7 +5073,7 @@ class HotelBookingController extends Controller
                 ->update($updateData);
 
             if (!$updated) {
-                Log::error('✈️ DEPARTURE APPROVE: Failed to update departure order', [
+                Log::error('?? DEPARTURE APPROVE: Failed to update departure order', [
                     'order_id' => $departureOrder->id,
                     'update_data' => $updateData
                 ]);
@@ -5073,7 +5083,7 @@ class HotelBookingController extends Controller
                 ], 500);
             }
 
-            Log::info('✅ DEPARTURE APPROVE: Departure booking approved successfully', [
+            Log::info('? DEPARTURE APPROVE: Departure booking approved successfully', [
                 'order_id' => $departureOrder->id,
                 'reference_id' => $request->reference_id,
                 'actual_due_date' => $request->actual_due_date,
@@ -5093,7 +5103,7 @@ class HotelBookingController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('✈️ DEPARTURE APPROVE: Error approving departure booking', [
+            Log::error('?? DEPARTURE APPROVE: Error approving departure booking', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'request' => $request->all()
@@ -5109,7 +5119,7 @@ class HotelBookingController extends Controller
     public function rejectDepartureBooking(Request $request): JsonResponse
     {
         try {
-            Log::info('✈️ DEPARTURE REJECT: Starting departure booking rejection', $request->all());
+            Log::info('?? DEPARTURE REJECT: Starting departure booking rejection', $request->all());
 
             // Validate the request
             $validator = Validator::make($request->all(), [
@@ -5120,7 +5130,7 @@ class HotelBookingController extends Controller
             ]);
 
             if ($validator->fails()) {
-                Log::warning('✈️ DEPARTURE REJECT: Validation failed', $validator->errors()->toArray());
+                Log::warning('?? DEPARTURE REJECT: Validation failed', $validator->errors()->toArray());
                 return response()->json([
                     'success' => false,
                     'message' => 'Validation failed',
@@ -5132,7 +5142,7 @@ class HotelBookingController extends Controller
             $departureOrderIndex = $request->departure_order_index;
             $bookingIndex = $request->booking_index;
 
-            Log::info('✈️ DEPARTURE REJECT: Processing rejection for departure', [
+            Log::info('?? DEPARTURE REJECT: Processing rejection for departure', [
                 'tour_id' => $tourId,
                 'departure_order_index' => $departureOrderIndex,
                 'booking_index' => $bookingIndex
@@ -5147,7 +5157,7 @@ class HotelBookingController extends Controller
                 ->first();
 
             if (!$departureOrder) {
-                Log::error('✈️ DEPARTURE REJECT: Departure order not found', [
+                Log::error('?? DEPARTURE REJECT: Departure order not found', [
                     'tour_id' => $tourId,
                     'departure_order_index' => $departureOrderIndex
                 ]);
@@ -5157,14 +5167,14 @@ class HotelBookingController extends Controller
                 ], 404);
             }
 
-            Log::info('✈️ DEPARTURE REJECT: Found departure order', [
+            Log::info('?? DEPARTURE REJECT: Found departure order', [
                 'order_id' => $departureOrder->id,
                 'current_is_approve' => $departureOrder->is_approve
             ]);
 
             // Check if already approved
             if ($departureOrder->is_approve) {
-                Log::warning('✈️ DEPARTURE REJECT: Attempting to reject already approved departure', [
+                Log::warning('?? DEPARTURE REJECT: Attempting to reject already approved departure', [
                     'order_id' => $departureOrder->id
                 ]);
                 return response()->json([
@@ -5180,10 +5190,10 @@ class HotelBookingController extends Controller
                     'deleted_at' => now(),
                     'cancel_reason' => $request->cancel_reason,
                     'updated_at' => now(),
-                ]));
+                ], true));
 
             if (!$updated) {
-                Log::error('✈️ DEPARTURE REJECT: Failed to reject departure order', [
+                Log::error('?? DEPARTURE REJECT: Failed to reject departure order', [
                     'order_id' => $departureOrder->id
                 ]);
                 return response()->json([
@@ -5194,7 +5204,7 @@ class HotelBookingController extends Controller
 
             app(\App\Services\JobsheetRemovalService::class)->deleteForOrder($departureOrder);
 
-            Log::info('✅ DEPARTURE REJECT: Departure booking rejected successfully', [
+            Log::info('? DEPARTURE REJECT: Departure booking rejected successfully', [
                 'order_id' => $departureOrder->id,
                 'cancel_reason' => $request->cancel_reason
             ]);
@@ -5209,8 +5219,10 @@ class HotelBookingController extends Controller
                 ]
             ]);
 
+        } catch (\Illuminate\Http\Exceptions\HttpResponseException $e) {
+            throw $e;
         } catch (\Exception $e) {
-            Log::error('✈️ DEPARTURE REJECT: Error rejecting departure booking', [
+            Log::error('?? DEPARTURE REJECT: Error rejecting departure booking', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'request' => $request->all()
@@ -5226,7 +5238,7 @@ class HotelBookingController extends Controller
     public function approveHourlyBooking(Request $request): JsonResponse
     {
         try {
-            Log::info('⏰ HOURLY APPROVE: Starting hourly booking approval', $request->all());
+            Log::info('? HOURLY APPROVE: Starting hourly booking approval', $request->all());
 
             // Validate the request
             $validator = Validator::make($request->all(), [
@@ -5240,7 +5252,7 @@ class HotelBookingController extends Controller
             ]);
 
             if ($validator->fails()) {
-                Log::warning('⏰ HOURLY APPROVE: Validation failed', $validator->errors()->toArray());
+                Log::warning('? HOURLY APPROVE: Validation failed', $validator->errors()->toArray());
                 return response()->json([
                     'success' => false,
                     'message' => 'Validation failed',
@@ -5252,7 +5264,7 @@ class HotelBookingController extends Controller
             $hourlyOrderIndex = $request->hourly_order_index;
             $bookingIndex = $request->booking_index;
 
-            Log::info('⏰ HOURLY APPROVE: Processing approval for hourly booking', [
+            Log::info('? HOURLY APPROVE: Processing approval for hourly booking', [
                 'tour_id' => $tourId,
                 'hourly_order_index' => $hourlyOrderIndex,
                 'booking_index' => $bookingIndex
@@ -5266,7 +5278,7 @@ class HotelBookingController extends Controller
                 ->first();
 
             if (!$hourlyOrder) {
-                Log::error('⏰ HOURLY APPROVE: Hourly order not found', [
+                Log::error('? HOURLY APPROVE: Hourly order not found', [
                     'tour_id' => $tourId,
                     'hourly_order_index' => $hourlyOrderIndex
                 ]);
@@ -5276,7 +5288,7 @@ class HotelBookingController extends Controller
                 ], 404);
             }
 
-            Log::info('⏰ HOURLY APPROVE: Found hourly order', [
+            Log::info('? HOURLY APPROVE: Found hourly order', [
                 'order_id' => $hourlyOrder->id,
                 'current_is_approve' => $hourlyOrder->is_approve
             ]);
@@ -5287,7 +5299,7 @@ class HotelBookingController extends Controller
             //     $file = $request->file('reference_file');
             //     $fileName = time() . '_hourly_' . $tourId . '_' . $hourlyOrderIndex . '_' . $bookingIndex . '.' . $file->getClientOriginalExtension();
             //     $file->move(public_path('uploads/hourly_approvals'), $fileName);
-            //     Log::info('⏰ HOURLY APPROVE: File uploaded', ['filename' => $fileName]);
+            //     Log::info('? HOURLY APPROVE: File uploaded', ['filename' => $fileName]);
             // }
 
             $approval_file = $hourlyOrder->approval_file ?? '';
@@ -5323,7 +5335,7 @@ class HotelBookingController extends Controller
                 ->update($updateData);
 
             if (!$updated) {
-                Log::error('⏰ HOURLY APPROVE: Failed to update hourly order', [
+                Log::error('? HOURLY APPROVE: Failed to update hourly order', [
                     'order_id' => $hourlyOrder->id,
                     'update_data' => $updateData
                 ]);
@@ -5333,7 +5345,7 @@ class HotelBookingController extends Controller
                 ], 500);
             }
 
-            Log::info('✅ HOURLY APPROVE: Hourly booking approved successfully', [
+            Log::info('? HOURLY APPROVE: Hourly booking approved successfully', [
                 'order_id' => $hourlyOrder->id,
                 'reference_id' => $request->reference_id,
                 'actual_due_date' => $request->actual_due_date,
@@ -5353,7 +5365,7 @@ class HotelBookingController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('⏰ HOURLY APPROVE: Error approving hourly booking', [
+            Log::error('? HOURLY APPROVE: Error approving hourly booking', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'request' => $request->all()
@@ -5369,7 +5381,7 @@ class HotelBookingController extends Controller
     public function rejectHourlyBooking(Request $request): JsonResponse
     {
         try {
-            Log::info('⏰ HOURLY REJECT: Starting hourly booking rejection', $request->all());
+            Log::info('? HOURLY REJECT: Starting hourly booking rejection', $request->all());
 
             // Validate the request
             $validator = Validator::make($request->all(), [
@@ -5380,7 +5392,7 @@ class HotelBookingController extends Controller
             ]);
 
             if ($validator->fails()) {
-                Log::warning('⏰ HOURLY REJECT: Validation failed', $validator->errors()->toArray());
+                Log::warning('? HOURLY REJECT: Validation failed', $validator->errors()->toArray());
                 return response()->json([
                     'success' => false,
                     'message' => 'Validation failed',
@@ -5392,7 +5404,7 @@ class HotelBookingController extends Controller
             $hourlyOrderIndex = $request->hourly_order_index;
             $bookingIndex = $request->booking_index;
 
-            Log::info('⏰ HOURLY REJECT: Processing rejection for hourly booking', [
+            Log::info('? HOURLY REJECT: Processing rejection for hourly booking', [
                 'tour_id' => $tourId,
                 'hourly_order_index' => $hourlyOrderIndex,
                 'booking_index' => $bookingIndex
@@ -5407,7 +5419,7 @@ class HotelBookingController extends Controller
                 ->first();
 
             if (!$hourlyOrder) {
-                Log::error('⏰ HOURLY REJECT: Hourly order not found', [
+                Log::error('? HOURLY REJECT: Hourly order not found', [
                     'tour_id' => $tourId,
                     'hourly_order_index' => $hourlyOrderIndex
                 ]);
@@ -5417,14 +5429,14 @@ class HotelBookingController extends Controller
                 ], 404);
             }
 
-            Log::info('⏰ HOURLY REJECT: Found hourly order', [
+            Log::info('? HOURLY REJECT: Found hourly order', [
                 'order_id' => $hourlyOrder->id,
                 'current_is_approve' => $hourlyOrder->is_approve
             ]);
 
             // Check if already approved
             if ($hourlyOrder->is_approve) {
-                Log::warning('⏰ HOURLY REJECT: Attempting to reject already approved hourly booking', [
+                Log::warning('? HOURLY REJECT: Attempting to reject already approved hourly booking', [
                     'order_id' => $hourlyOrder->id
                 ]);
                 return response()->json([
@@ -5440,10 +5452,10 @@ class HotelBookingController extends Controller
                     'deleted_at' => now(),
                     'cancel_reason' => $request->cancel_reason,
                     'updated_at' => now(),
-                ]));
+                ], true));
 
             if (!$updated) {
-                Log::error('⏰ HOURLY REJECT: Failed to reject hourly order', [
+                Log::error('? HOURLY REJECT: Failed to reject hourly order', [
                     'order_id' => $hourlyOrder->id
                 ]);
                 return response()->json([
@@ -5454,7 +5466,7 @@ class HotelBookingController extends Controller
 
             app(\App\Services\JobsheetRemovalService::class)->deleteForOrder($hourlyOrder);
 
-            Log::info('✅ HOURLY REJECT: Hourly booking rejected successfully', [
+            Log::info('? HOURLY REJECT: Hourly booking rejected successfully', [
                 'order_id' => $hourlyOrder->id,
                 'cancel_reason' => $request->cancel_reason
             ]);
@@ -5469,8 +5481,10 @@ class HotelBookingController extends Controller
                 ]
             ]);
 
+        } catch (\Illuminate\Http\Exceptions\HttpResponseException $e) {
+            throw $e;
         } catch (\Exception $e) {
-            Log::error('⏰ HOURLY REJECT: Error rejecting hourly booking', [
+            Log::error('? HOURLY REJECT: Error rejecting hourly booking', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'request' => $request->all()
@@ -5486,7 +5500,7 @@ class HotelBookingController extends Controller
     public function approvePointToPointBooking(Request $request): JsonResponse
     {
         try {
-            Log::info('⏰ POINT TO POINT APPROVE: Starting point to point booking approval', $request->all());
+            Log::info('? POINT TO POINT APPROVE: Starting point to point booking approval', $request->all());
 
             // Validate the request
             $validator = Validator::make($request->all(), [
@@ -5500,7 +5514,7 @@ class HotelBookingController extends Controller
             ]);
 
             if ($validator->fails()) {
-                Log::warning('⏰ POINT TO POINT APPROVE: Validation failed', $validator->errors()->toArray());
+                Log::warning('? POINT TO POINT APPROVE: Validation failed', $validator->errors()->toArray());
                 return response()->json([
                     'success' => false,
                     'message' => 'Validation failed',
@@ -5512,7 +5526,7 @@ class HotelBookingController extends Controller
             $pointOrderIndex = $request->hourly_order_index;
             $bookingIndex = $request->booking_index;
 
-            Log::info('⏰ POINT TO POINT APPROVE: Processing approval for point to point booking', [
+            Log::info('? POINT TO POINT APPROVE: Processing approval for point to point booking', [
                 'tour_id' => $tourId,
                 'point_order_index' => $pointOrderIndex,
                 'booking_index' => $bookingIndex
@@ -5526,7 +5540,7 @@ class HotelBookingController extends Controller
                 ->first();
 
             if (!$pointToPointOrder) {
-                Log::error('⏰ POINT TO POINT APPROVE: Point to point order not found', [
+                Log::error('? POINT TO POINT APPROVE: Point to point order not found', [
                     'tour_id' => $tourId,
                     'point_order_index' => $pointOrderIndex
                 ]);
@@ -5536,7 +5550,7 @@ class HotelBookingController extends Controller
                 ], 404);
             }
 
-            Log::info('⏰ POINT TO POINT APPROVE: Found point to point order', [
+            Log::info('? POINT TO POINT APPROVE: Found point to point order', [
                 'order_id' => $pointToPointOrder->id,
                 'current_is_approve' => $pointToPointOrder->is_approve
             ]);
@@ -5547,7 +5561,7 @@ class HotelBookingController extends Controller
             //     $file = $request->file('reference_file');
             //     $fileName = time() . '_hourly_' . $tourId . '_' . $hourlyOrderIndex . '_' . $bookingIndex . '.' . $file->getClientOriginalExtension();
             //     $file->move(public_path('uploads/hourly_approvals'), $fileName);
-            //     Log::info('⏰ HOURLY APPROVE: File uploaded', ['filename' => $fileName]);
+            //     Log::info('? HOURLY APPROVE: File uploaded', ['filename' => $fileName]);
             // }
 
             $approval_file = $pointToPointOrder->approval_file ?? '';
@@ -5583,7 +5597,7 @@ class HotelBookingController extends Controller
                 ->update($updateData);
 
             if (!$updated) {
-                Log::error('⏰ POINT TO POINT APPROVE: Failed to update point to point order', [
+                Log::error('? POINT TO POINT APPROVE: Failed to update point to point order', [
                     'order_id' => $pointToPointOrder->id,
                     'update_data' => $updateData
                 ]);
@@ -5593,7 +5607,7 @@ class HotelBookingController extends Controller
                 ], 500);
             }
 
-            Log::info('✅ POINT TO POINT APPROVE: Point to point booking approved successfully', [
+            Log::info('? POINT TO POINT APPROVE: Point to point booking approved successfully', [
                 'order_id' => $pointToPointOrder->id,
                 'reference_id' => $request->reference_id,
                 'actual_due_date' => $request->actual_due_date,
@@ -5613,7 +5627,7 @@ class HotelBookingController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('⏰ POINT TO POINT APPROVE: Error approving point to point booking', [
+            Log::error('? POINT TO POINT APPROVE: Error approving point to point booking', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'request' => $request->all()
@@ -5629,7 +5643,7 @@ class HotelBookingController extends Controller
     public function rejectPointToPointBooking(Request $request): JsonResponse
     {
         try {
-            Log::info('⏰ POINT TO POINT REJECT: Starting point to point booking rejection', $request->all());
+            Log::info('? POINT TO POINT REJECT: Starting point to point booking rejection', $request->all());
 
             // Validate the request
             $validator = Validator::make($request->all(), [
@@ -5640,7 +5654,7 @@ class HotelBookingController extends Controller
             ]);
 
             if ($validator->fails()) {
-                Log::warning('⏰ POINT TO POINT REJECT: Validation failed', $validator->errors()->toArray());
+                Log::warning('? POINT TO POINT REJECT: Validation failed', $validator->errors()->toArray());
                 return response()->json([
                     'success' => false,
                     'message' => 'Validation failed',
@@ -5652,7 +5666,7 @@ class HotelBookingController extends Controller
             $pointOrderIndex = $request->hourly_order_index;
             $bookingIndex = $request->booking_index;
 
-            Log::info('⏰ POINT TO POINT REJECT: Processing rejection for point to point booking', [
+            Log::info('? POINT TO POINT REJECT: Processing rejection for point to point booking', [
                 'tour_id' => $tourId,
                 'point_order_index' => $pointOrderIndex,
                 'booking_index' => $bookingIndex
@@ -5667,7 +5681,7 @@ class HotelBookingController extends Controller
                 ->first();
 
             if (!$pointToPointOrder) {
-                Log::error('⏰ POINT TO POINT REJECT: Point to point order not found', [
+                Log::error('? POINT TO POINT REJECT: Point to point order not found', [
                     'tour_id' => $tourId,
                     'point_order_index' => $pointOrderIndex
                 ]);
@@ -5677,14 +5691,14 @@ class HotelBookingController extends Controller
                 ], 404);
             }
 
-            Log::info('⏰ POINT TO POINT REJECT: Found point to point order', [
+            Log::info('? POINT TO POINT REJECT: Found point to point order', [
                 'order_id' => $pointToPointOrder->id,
                 'current_is_approve' => $pointToPointOrder->is_approve
             ]);
 
             // Check if already approved
                 if ($pointToPointOrder->is_approve) {
-                Log::warning('⏰ POINT TO POINT REJECT: Attempting to reject already approved point to point booking', [
+                Log::warning('? POINT TO POINT REJECT: Attempting to reject already approved point to point booking', [
                     'order_id' => $pointToPointOrder->id
                 ]);
                 return response()->json([
@@ -5700,10 +5714,10 @@ class HotelBookingController extends Controller
                     'deleted_at' => now(),
                     'cancel_reason' => $request->cancel_reason,
                     'updated_at' => now(),
-                ]));
+                ], true));
 
             if (!$updated) {
-                Log::error('⏰ POINT TO POINT REJECT: Failed to reject point to point order', [
+                Log::error('? POINT TO POINT REJECT: Failed to reject point to point order', [
                     'order_id' => $pointToPointOrder->id
                 ]);
                 return response()->json([
@@ -5714,7 +5728,7 @@ class HotelBookingController extends Controller
 
             app(\App\Services\JobsheetRemovalService::class)->deleteForOrder($pointToPointOrder);
 
-            Log::info('✅ POINT TO POINT REJECT: Point to point booking rejected successfully', [
+            Log::info('? POINT TO POINT REJECT: Point to point booking rejected successfully', [
                 'order_id' => $pointToPointOrder->id,
                 'cancel_reason' => $request->cancel_reason
             ]);
@@ -5729,8 +5743,10 @@ class HotelBookingController extends Controller
                 ]
             ]);
 
+        } catch (\Illuminate\Http\Exceptions\HttpResponseException $e) {
+            throw $e;
         } catch (\Exception $e) {
-            Log::error('⏰ POINT TO POINT REJECT: Error rejecting point to point booking', [
+            Log::error('? POINT TO POINT REJECT: Error rejecting point to point booking', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'request' => $request->all()
@@ -5746,7 +5762,7 @@ class HotelBookingController extends Controller
     public function approveLocalTransportBooking(Request $request): JsonResponse
     {
         try {
-            Log::info('🚌 LOCAL TRANSPORT APPROVE: Starting local transport booking approval', $request->all());
+            Log::info('?? LOCAL TRANSPORT APPROVE: Starting local transport booking approval', $request->all());
 
             // Validate the request
             $validator = Validator::make($request->all(), [
@@ -5760,7 +5776,7 @@ class HotelBookingController extends Controller
             ]);
 
             if ($validator->fails()) {
-                Log::warning('🚌 LOCAL TRANSPORT APPROVE: Validation failed', $validator->errors()->toArray());
+                Log::warning('?? LOCAL TRANSPORT APPROVE: Validation failed', $validator->errors()->toArray());
                 return response()->json([
                     'success' => false,
                     'message' => 'Validation failed',
@@ -5772,7 +5788,7 @@ class HotelBookingController extends Controller
             $localTransportOrderIndex = $request->hourly_order_index;
             $bookingIndex = $request->booking_index;
 
-            Log::info('🚌 LOCAL TRANSPORT APPROVE: Processing approval for local transport booking', [
+            Log::info('?? LOCAL TRANSPORT APPROVE: Processing approval for local transport booking', [
                 'tour_id' => $tourId,
                 'local_transport_order_index' => $localTransportOrderIndex,
                 'booking_index' => $bookingIndex
@@ -5786,7 +5802,7 @@ class HotelBookingController extends Controller
                 ->first();
 
             if (!$localTransportOrder) {
-                Log::error('🚌 LOCAL TRANSPORT APPROVE: Local transport order not found', [
+                Log::error('?? LOCAL TRANSPORT APPROVE: Local transport order not found', [
                     'tour_id' => $tourId,
                     'local_transport_order_index' => $localTransportOrderIndex
                 ]);
@@ -5796,7 +5812,7 @@ class HotelBookingController extends Controller
                 ], 404);
             }
 
-            Log::info('🚌 LOCAL TRANSPORT APPROVE: Found local transport order', [
+            Log::info('?? LOCAL TRANSPORT APPROVE: Found local transport order', [
                 'order_id' => $localTransportOrder->id,
                 'current_is_approve' => $localTransportOrder->is_approve
             ]);
@@ -5836,7 +5852,7 @@ class HotelBookingController extends Controller
                 ->update($updateData);
 
             if (!$updated) {
-                Log::error('🚌 LOCAL TRANSPORT APPROVE: Failed to update local transport order', [
+                Log::error('?? LOCAL TRANSPORT APPROVE: Failed to update local transport order', [
                     'order_id' => $localTransportOrder->id,
                     'update_data' => $updateData
                 ]);
@@ -5846,7 +5862,7 @@ class HotelBookingController extends Controller
                 ], 500);
             }
 
-            Log::info('✅ LOCAL TRANSPORT APPROVE: Local transport booking approved successfully', [
+            Log::info('? LOCAL TRANSPORT APPROVE: Local transport booking approved successfully', [
                 'order_id' => $localTransportOrder->id,
                 'reference_id' => $request->reference_id,
                 'actual_due_date' => $request->actual_due_date,
@@ -5866,7 +5882,7 @@ class HotelBookingController extends Controller
             ]);
 
         } catch (\Exception $e) {
-            Log::error('🚌 LOCAL TRANSPORT APPROVE: Error approving local transport booking', [
+            Log::error('?? LOCAL TRANSPORT APPROVE: Error approving local transport booking', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'request' => $request->all()
@@ -5882,7 +5898,7 @@ class HotelBookingController extends Controller
     public function rejectLocalTransportBooking(Request $request): JsonResponse
     {
         try {
-            Log::info('🚌 LOCAL TRANSPORT REJECT: Starting local transport booking rejection', $request->all());
+            Log::info('?? LOCAL TRANSPORT REJECT: Starting local transport booking rejection', $request->all());
 
             // Validate the request
             $validator = Validator::make($request->all(), [
@@ -5893,7 +5909,7 @@ class HotelBookingController extends Controller
             ]);
 
             if ($validator->fails()) {
-                Log::warning('🚌 LOCAL TRANSPORT REJECT: Validation failed', $validator->errors()->toArray());
+                Log::warning('?? LOCAL TRANSPORT REJECT: Validation failed', $validator->errors()->toArray());
                 return response()->json([
                     'success' => false,
                     'message' => 'Validation failed',
@@ -5905,7 +5921,7 @@ class HotelBookingController extends Controller
             $localTransportOrderIndex = $request->hourly_order_index;
             $bookingIndex = $request->booking_index;
 
-            Log::info('🚌 LOCAL TRANSPORT REJECT: Processing rejection for local transport booking', [
+            Log::info('?? LOCAL TRANSPORT REJECT: Processing rejection for local transport booking', [
                 'tour_id' => $tourId,
                 'local_transport_order_index' => $localTransportOrderIndex,
                 'booking_index' => $bookingIndex
@@ -5919,7 +5935,7 @@ class HotelBookingController extends Controller
                 ->first();
 
             if (!$localTransportOrder) {
-                Log::error('🚌 LOCAL TRANSPORT REJECT: Local transport order not found', [
+                Log::error('?? LOCAL TRANSPORT REJECT: Local transport order not found', [
                     'tour_id' => $tourId,
                     'local_transport_order_index' => $localTransportOrderIndex
                 ]);
@@ -5929,14 +5945,14 @@ class HotelBookingController extends Controller
                 ], 404);
             }
 
-            Log::info('🚌 LOCAL TRANSPORT REJECT: Found local transport order', [
+            Log::info('?? LOCAL TRANSPORT REJECT: Found local transport order', [
                 'order_id' => $localTransportOrder->id,
                 'current_is_approve' => $localTransportOrder->is_approve
             ]);
 
             // Check if already approved
             if ($localTransportOrder->is_approve) {
-                Log::warning('🚌 LOCAL TRANSPORT REJECT: Attempting to reject already approved local transport booking', [
+                Log::warning('?? LOCAL TRANSPORT REJECT: Attempting to reject already approved local transport booking', [
                     'order_id' => $localTransportOrder->id
                 ]);
                 return response()->json([
@@ -5952,10 +5968,10 @@ class HotelBookingController extends Controller
                     'deleted_at' => now(),
                     'cancel_reason' => $request->cancel_reason,
                     'updated_at' => now(),
-                ]));
+                ], true));
 
             if (!$updated) {
-                Log::error('🚌 LOCAL TRANSPORT REJECT: Failed to reject local transport order', [
+                Log::error('?? LOCAL TRANSPORT REJECT: Failed to reject local transport order', [
                     'order_id' => $localTransportOrder->id
                 ]);
                 return response()->json([
@@ -5966,7 +5982,7 @@ class HotelBookingController extends Controller
 
             app(\App\Services\JobsheetRemovalService::class)->deleteForOrder($localTransportOrder);
 
-            Log::info('✅ LOCAL TRANSPORT REJECT: Local transport booking rejected successfully', [
+            Log::info('? LOCAL TRANSPORT REJECT: Local transport booking rejected successfully', [
                 'order_id' => $localTransportOrder->id,
                 'cancel_reason' => $request->cancel_reason
             ]);
@@ -5981,8 +5997,10 @@ class HotelBookingController extends Controller
                 ]
             ]);
 
+        } catch (\Illuminate\Http\Exceptions\HttpResponseException $e) {
+            throw $e;
         } catch (\Exception $e) {
-            Log::error('🚌 LOCAL TRANSPORT REJECT: Error rejecting local transport booking', [
+            Log::error('?? LOCAL TRANSPORT REJECT: Error rejecting local transport booking', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'request' => $request->all()

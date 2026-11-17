@@ -1085,7 +1085,13 @@ class BookingsController extends Controller
 
         foreach ($tours as $tour) {
             $orders = $tour->relationLoaded('booking') ? $tour->booking : collect();
-            $tourPayable = (float) ($tour->money_total ?? 0);
+            // money_total may be gross when discount shares settlement currency.
+            $discountCur = strtoupper(trim((string) ($tour->money_discount_currency ?? $tour->money_currency ?? '')));
+            $settleCur = strtoupper(trim((string) ($tour->money_currency ?? '')));
+            $discountForNet = ($discountCur === '' || $discountCur === $settleCur)
+                ? (float) ($tour->money_discount ?? 0)
+                : 0.0;
+            $tourPayable = max(0, (float) ($tour->money_total ?? 0) - $discountForNet);
             foreach ($orders as $order) {
                 $priced = $this->resolveOrderRefundMax($tour, $order, $tourPayable > 0 ? $tourPayable : null);
                 $order->setAttribute('refund_price_with_markup', $priced['amount']);
@@ -1489,6 +1495,45 @@ class BookingsController extends Controller
     /**
      * @param  \Illuminate\Support\Collection|array<int, mixed>  $tours
      */
+    /**
+     * Map tour_id => active booking service count (for single-service cancel-tour-only UI).
+     *
+     * @param  \Illuminate\Support\Collection|array<int, mixed>  $tours
+     * @return array<int|string, int>
+     */
+    private function buildTourActiveServiceCounts($tours): array
+    {
+        $counts = [];
+        if ($tours === null) {
+            return $counts;
+        }
+
+        foreach ($tours as $tour) {
+            $tourId = (int) ($tour->tour_id ?? 0);
+            if ($tourId <= 0) {
+                continue;
+            }
+            $booking = $tour->booking ?? null;
+            if ($booking instanceof \Illuminate\Support\Collection) {
+                $counts[$tourId] = $booking
+                    ->filter(fn ($order) => strtolower(trim((string) ($order->bookingType ?? ''))) === 'booking'
+                        && empty($order->deleted_at))
+                    ->count();
+            } elseif (is_array($booking)) {
+                $counts[$tourId] = count(array_filter($booking, function ($order) {
+                    $type = is_object($order) ? ($order->bookingType ?? '') : ($order['bookingType'] ?? '');
+                    $deleted = is_object($order) ? ($order->deleted_at ?? null) : ($order['deleted_at'] ?? null);
+
+                    return strtolower(trim((string) $type)) === 'booking' && empty($deleted);
+                }));
+            } else {
+                $counts[$tourId] = CommonHelper::countActiveBookingServices($tourId);
+            }
+        }
+
+        return $counts;
+    }
+
     private function attachTourRefundPrices($tours): void
     {
         if ($tours === null) {
@@ -1514,13 +1559,35 @@ class BookingsController extends Controller
             }
             $priced = $this->tourPriceWithMarkup($tour);
             // Same figure agent pays in Payment Details: after discount + tax (not sell markup alone).
-            $invoiceTotal = (float) ($tour->money_total ?? 0);
+            // money_total is gross only when discount currency matches settlement currency.
+            $discountCur = strtoupper(trim((string) ($tour->money_discount_currency ?? $tour->money_currency ?? '')));
+            $settleCur = strtoupper(trim((string) ($tour->money_currency ?? '')));
+            $discountForNet = ($discountCur === '' || $discountCur === $settleCur)
+                ? (float) ($tour->money_discount ?? 0)
+                : 0.0;
+            $invoiceTotal = max(0, (float) ($tour->money_total ?? 0) - $discountForNet);
             $paidTotal = (float) ($tour->money_paid ?? 0);
-            $max = $invoiceTotal > 0 ? $invoiceTotal : (float) $priced['amount'];
-            if ($paidTotal > $max) {
-                $max = $paidTotal;
+            $onlinePaidNative = (float) ($tour->money_online_paid ?? 0);
+            $onlineCur = strtoupper(trim((string) ($tour->money_online_currency ?? '')));
+            if (! empty($tour->money_mixed_fx)) {
+                if ($onlinePaidNative > 0.009 && $onlineCur !== '' && $onlineCur !== $settleCur) {
+                    $paidTotal += $this->convertAmountViaSgd($onlinePaidNative, $onlineCur, $settleCur !== '' ? $settleCur : 'SGD');
+                } elseif ($onlinePaidNative > 0.009) {
+                    $paidTotal += $onlinePaidNative;
+                }
+            } elseif ($paidTotal <= 0.009 && $onlinePaidNative > 0.009) {
+                $paidTotal = $onlinePaidNative;
             }
+            // Tour cancel refund = paid − already refunded (remaining refundable).
+            $base = $paidTotal > 0.009
+                ? $paidTotal
+                : ($invoiceTotal > 0 ? $invoiceTotal : (float) $priced['amount']);
+            $alreadyRefunded = (float) ($tour->money_refunded ?? 0);
+            $max = max(0, $base - $alreadyRefunded);
             $currency = trim((string) ($tour->money_currency ?? ''));
+            if ($currency === '' && $onlineCur !== '') {
+                $currency = $onlineCur;
+            }
             if ($currency === '') {
                 $currency = $priced['currency'] !== '' ? $priced['currency'] : '';
             }
@@ -1597,35 +1664,63 @@ class BookingsController extends Controller
             $payments = is_string($tour->payment_details)
                 ? json_decode($tour->payment_details, true)
                 : $tour->payment_details;
-            $paid = 0.0;
+            $onlinePaid = 0.0;
+            $offlinePaid = 0.0;
+            $onlinePaidCurrency = '';
+            $offlinePaidCurrency = '';
             $paymentCurrency = '';
-            // Refund money summary must include online + offline verified payments so
-            // Paid/Due match Tour total when online services were billed and paid.
+            // Split verified payments — never sum SGD online + USD offline into one figure.
             if (is_array($payments)) {
                 foreach ($payments as $payment) {
                     if (! is_array($payment) || (int) ($payment['status'] ?? 0) !== 1) {
                         continue;
                     }
-                    $paid += (float) ($payment['amount'] ?? 0);
-                    if ($paymentCurrency === '') {
-                        $paymentCurrency = strtoupper(trim((string) ($payment['currency'] ?? '')));
+                    $amount = (float) ($payment['amount'] ?? 0);
+                    $payCur = strtoupper(trim((string) ($payment['currency'] ?? '')));
+                    $paymentFor = strtolower(trim((string) ($payment['payment_for'] ?? '')));
+                    if ($paymentFor === 'online') {
+                        $onlinePaid += $amount;
+                        if ($onlinePaidCurrency === '' && preg_match('/^[A-Z]{3}$/', $payCur)) {
+                            $onlinePaidCurrency = $payCur;
+                        }
+                    } else {
+                        $offlinePaid += $amount;
+                        if ($offlinePaidCurrency === '' && preg_match('/^[A-Z]{3}$/', $payCur)) {
+                            $offlinePaidCurrency = $payCur;
+                        }
+                    }
+                    if ($paymentCurrency === '' && preg_match('/^[A-Z]{3}$/', $payCur)) {
+                        $paymentCurrency = $payCur;
                     }
                 }
             }
-            $paid = round($paid, 2);
+            $onlinePaid = round($onlinePaid, 2);
+            $offlinePaid = round($offlinePaid, 2);
 
             if ($orderCurrency === '' && $paymentCurrency !== '') {
                 $orderCurrency = $paymentCurrency;
             }
 
             $onlineSell = 0.0;
+            $onlineCurrency = '';
             foreach ($tourOrders as $order) {
                 if (strtolower(trim((string) ($order->order_type ?? ''))) !== 'online') {
                     continue;
                 }
-                $onlineSell += $this->orderPriceWithMarkup($order, $isPro)['amount'];
+                $pricedOnline = $this->orderPriceWithMarkup($order, $isPro);
+                $onlineSell += $pricedOnline['amount'];
+                if ($onlineCurrency === '' && trim((string) ($pricedOnline['currency'] ?? '')) !== '') {
+                    $onlineCurrency = strtoupper(trim((string) $pricedOnline['currency']));
+                }
             }
             $onlineSell = round($onlineSell, 2);
+            if ($onlineCurrency === '' && $onlinePaidCurrency !== '') {
+                $onlineCurrency = $onlinePaidCurrency;
+            }
+            if ($onlineCurrency === '') {
+                $onlineCurrency = app(\App\Services\Payment\AcceptanceFlowService::class)
+                    ->resolveOnlineCurrency($tour, $orderCurrency !== '' ? $orderCurrency : 'SGD');
+            }
 
             // Online-only wallet tours usually have no enquiry negotiation. Use service
             // sell directly so cancel/refund rows don't show 0 (or tax-inflated) totals.
@@ -1634,20 +1729,42 @@ class BookingsController extends Controller
             if ($pricing) {
                 $totals = $this->paymentModalTotals($tour, $pricing, round($sell), $orderCurrency);
                 $moneyTotal = (float) ($totals['total'] ?? 0);
-                $moneyCurrency = (string) ($totals['currency'] ?? $orderCurrency);
+                $moneyCurrency = strtoupper(trim((string) ($totals['currency'] ?? $orderCurrency)));
                 $moneyDiscount = (float) ($totals['discount'] ?? 0);
                 $moneyDiscountLabel = (string) ($totals['discount_label'] ?? '');
             } else {
                 $moneyTotal = round($sell, 2);
-                $moneyCurrency = $orderCurrency;
+                $moneyCurrency = strtoupper(trim($orderCurrency));
                 $discountBits = $this->tourDiscountMoney((float) ceil($sell), $tour);
                 $moneyDiscount = (float) ($discountBits['discount'] ?? 0);
                 $moneyDiscountLabel = (string) ($discountBits['discount_label'] ?? '');
             }
 
-            // Mix tours: payment/negotiation total is offline-only. Tour total on Refunds
-            // must include every service (offline invoice + online sell), e.g. 570 + 319 = 889.
-            if ($onlineSell > 0.009) {
+            // Flat/FOC discount is entered against service currency (e.g. SGD), not settlement.
+            $discountStored = round(max(0, $moneyDiscount), 2);
+            $discountCurrency = $moneyCurrency;
+            $discountType = strtolower(trim((string) ($tour->discount_type ?? '')));
+            if ($discountStored > 0.009 && in_array($discountType, ['flat', 'fixed', 'foc'], true)) {
+                $nativeOrderCurrencies = $tourOrders
+                    ->map(fn ($order) => strtoupper(trim((string) ($order->currency ?? ''))))
+                    ->filter(fn ($c) => (bool) preg_match('/^[A-Z]{3}$/', $c))
+                    ->unique()
+                    ->values();
+                if ($nativeOrderCurrencies->count() === 1) {
+                    $discountCurrency = (string) $nativeOrderCurrencies->first();
+                } elseif ($onlineCurrency !== '') {
+                    $discountCurrency = $onlineCurrency;
+                }
+            }
+
+            $mixedFx = $onlineSell > 0.009
+                && $onlineCurrency !== ''
+                && $moneyCurrency !== ''
+                && $onlineCurrency !== $moneyCurrency;
+
+            // Mix same-currency: offline invoice + online sell in one total.
+            // Mix cross-currency: keep ledgers separate (e.g. SGD online + USD settlement).
+            if ($onlineSell > 0.009 && ! $mixedFx) {
                 $offlineSell = max(0, round($sell - $onlineSell, 2));
                 $alreadyIncludesOnline = ($moneyTotal + 0.009) >= ($onlineSell + ($offlineSell * 0.9))
                     || ($sell > 0.009 && ($moneyTotal + 0.009) >= ($sell * 0.95));
@@ -1656,19 +1773,93 @@ class BookingsController extends Controller
                 }
             }
 
-            if ($moneyTotal <= 0 && $paid > 0) {
-                $moneyTotal = $paid;
+            $combinedPaidSameCurrency = round($onlinePaid + $offlinePaid, 2);
+            if ($moneyTotal <= 0 && ! $mixedFx && $combinedPaidSameCurrency > 0) {
+                $moneyTotal = $combinedPaidSameCurrency;
+            }
+            if ($moneyCurrency === '' && $offlinePaidCurrency !== '') {
+                $moneyCurrency = $offlinePaidCurrency;
             }
             if ($moneyCurrency === '' && $paymentCurrency !== '') {
                 $moneyCurrency = $paymentCurrency;
             }
 
-            $tour->setAttribute('money_total', $moneyTotal);
-            $tour->setAttribute('money_paid', $paid);
-            $tour->setAttribute('money_due', max(0, round($moneyTotal - $paid, 2)));
+            $offlineNet = round($moneyTotal, 2);
+            // Cross-currency: if offline collection already settled higher (tax etc.), use paid as total.
+            if ($mixedFx && $offlinePaid > $offlineNet) {
+                $offlineNet = $offlinePaid;
+            }
+            // Only fold discount into Tour total when both share the same currency.
+            $grossTotal = ($discountStored > 0.009 && $discountCurrency === $moneyCurrency)
+                ? round($offlineNet + $discountStored, 2)
+                : $offlineNet;
+
+            $onlineTotal = $onlineSell > 0.009 ? $onlineSell : $onlinePaid;
+            if ($onlinePaid > $onlineTotal) {
+                $onlineTotal = $onlinePaid;
+            }
+
+            // Due is offline settlement remaining only (online is a separate ledger).
+            $duePaid = $mixedFx ? $offlinePaid : $combinedPaidSameCurrency;
+
+            // Settlement-currency display (confirmed negotiation currency) with FX notes.
+            $displayTotal = $grossTotal;
+            $displayPaid = $mixedFx ? $offlinePaid : $combinedPaidSameCurrency;
+            $displayDiscount = $discountStored;
+            $fxNoteParts = [];
+            if ($mixedFx) {
+                if ($onlineCurrency !== '') {
+                    $fxNoteParts[$onlineCurrency] = true;
+                }
+                if ($moneyCurrency !== '') {
+                    $fxNoteParts[$moneyCurrency] = true;
+                }
+                if ($onlineTotal > 0.009 && $onlineCurrency !== '' && $onlineCurrency !== $moneyCurrency) {
+                    $displayTotal = round(
+                        $displayTotal + $this->convertAmountViaSgd($onlineTotal, $onlineCurrency, $moneyCurrency),
+                        2
+                    );
+                } elseif ($onlineTotal > 0.009) {
+                    $displayTotal = round($displayTotal + $onlineTotal, 2);
+                }
+                if ($onlinePaid > 0.009 && $onlineCurrency !== '' && $onlineCurrency !== $moneyCurrency) {
+                    $displayPaid = round(
+                        $displayPaid + $this->convertAmountViaSgd($onlinePaid, $onlineCurrency, $moneyCurrency),
+                        2
+                    );
+                } elseif ($onlinePaid > 0.009) {
+                    $displayPaid = round($displayPaid + $onlinePaid, 2);
+                }
+            }
+            // Flat discount entered in service currency → show equivalent in settlement.
+            if ($discountStored > 0.009 && $discountCurrency !== '' && $discountCurrency !== $moneyCurrency) {
+                $displayDiscount = $this->convertAmountViaSgd($discountStored, $discountCurrency, $moneyCurrency);
+                // Gross tour total in settlement includes that discount amount.
+                $displayTotal = round($displayTotal + $displayDiscount, 2);
+            }
+
+            $tour->setAttribute('money_total', $grossTotal);
+            $tour->setAttribute('money_paid', $mixedFx ? $offlinePaid : $combinedPaidSameCurrency);
+            $tour->setAttribute('money_due', max(0, round($offlineNet - $duePaid, 2)));
             $tour->setAttribute('money_currency', $moneyCurrency);
-            $tour->setAttribute('money_discount', round(max(0, $moneyDiscount), 2));
+            $tour->setAttribute('money_discount', $discountStored);
             $tour->setAttribute('money_discount_label', $moneyDiscountLabel);
+            $tour->setAttribute('money_discount_currency', $discountCurrency);
+            $tour->setAttribute('money_online_total', round($onlineTotal, 2));
+            $tour->setAttribute('money_online_paid', $onlinePaid);
+            $tour->setAttribute('money_online_currency', $onlineCurrency);
+            $tour->setAttribute('money_offline_paid', $offlinePaid);
+            $tour->setAttribute('money_mixed_fx', $mixedFx ? 1 : 0);
+            $tour->setAttribute('money_display_total', round($displayTotal, 2));
+            $tour->setAttribute('money_display_paid', round($displayPaid, 2));
+            $tour->setAttribute('money_display_discount', round($displayDiscount, 2));
+            $tour->setAttribute('money_fx_note', $mixedFx ? implode(' + ', array_keys($fxNoteParts)) : '');
+            $tour->setAttribute(
+                'money_discount_fx_note',
+                ($discountStored > 0.009 && $discountCurrency !== '' && $discountCurrency !== $moneyCurrency)
+                    ? $discountCurrency
+                    : ''
+            );
         }
     }
 
@@ -1760,9 +1951,32 @@ class BookingsController extends Controller
             }
 
             // Cap only after conversion — never compare IDR/USD amounts to SGD Paid.
+            $discountCur = strtoupper(trim((string) ($tour->money_discount_currency ?? $moneyCurrency)));
+            $discountForNet = ($discountCur === '' || $discountCur === $moneyCurrency)
+                ? (float) ($tour->money_discount ?? 0)
+                : 0.0;
             $moneyPaid = (float) ($tour->money_paid ?? 0);
-            $moneyTotal = (float) ($tour->money_total ?? 0);
-            $refundCap = $moneyPaid > 0 ? $moneyPaid : $moneyTotal;
+            if (! empty($tour->money_mixed_fx)) {
+                // Cross-currency: online paid stays in its own currency; convert for cap only.
+                $onlinePaidNative = (float) ($tour->money_online_paid ?? 0);
+                $onlineCur = strtoupper(trim((string) ($tour->money_online_currency ?? '')));
+                if ($onlinePaidNative > 0 && $onlineCur !== '' && $onlineCur !== $moneyCurrency) {
+                    $moneyPaid += $this->convertAmountViaSgd($onlinePaidNative, $onlineCur, $moneyCurrency);
+                } else {
+                    $moneyPaid += $onlinePaidNative;
+                }
+            }
+            $moneyNet = max(0, (float) ($tour->money_total ?? 0) - $discountForNet);
+            if (! empty($tour->money_mixed_fx)) {
+                $onlineTotalNative = (float) ($tour->money_online_total ?? 0);
+                $onlineCur = strtoupper(trim((string) ($tour->money_online_currency ?? '')));
+                if ($onlineTotalNative > 0 && $onlineCur !== '' && $onlineCur !== $moneyCurrency) {
+                    $moneyNet += $this->convertAmountViaSgd($onlineTotalNative, $onlineCur, $moneyCurrency);
+                } else {
+                    $moneyNet += $onlineTotalNative;
+                }
+            }
+            $refundCap = $moneyPaid > 0 ? $moneyPaid : $moneyNet;
             if ($refundCap > 0 && $refunded > $refundCap + 0.009) {
                 $refunded = $refundCap;
             }
@@ -2337,7 +2551,7 @@ class BookingsController extends Controller
             }
 
             $onlineQueued = (int) ($onlineRefund['queued'] ?? 0);
-            $newStatus = ($tour->tour_status === 'Definite' || $onlineQueued > 0)
+            $newStatus = (in_array($tour->tour_status, ['Definite', 'Actual'], true) || $onlineQueued > 0)
                 ? 'Refund - Pending'
                 : 'Cancel - ' . $tour->tour_status;
 
@@ -3241,8 +3455,9 @@ class BookingsController extends Controller
         $this->hydrateDestinationCreatedAt($tours);
         $serviceCountryScope = CommonHelper::resolveServiceCountryViewScope($user);
         $this->attachTravclicksDmcWalletFx($tours);
+        $tourActiveServiceCounts = $this->buildTourActiveServiceCounts($tours);
 
-        return view('bookings.confirmed', compact('tours', 'currency', 'tourNegotiationHistory', 'serviceCountryScope'));
+        return view('bookings.confirmed', compact('tours', 'currency', 'tourNegotiationHistory', 'serviceCountryScope', 'tourActiveServiceCounts'));
     }
 
     /**
@@ -3577,8 +3792,9 @@ class BookingsController extends Controller
 
         $serviceCountryScope = CommonHelper::resolveServiceCountryViewScope($user);
         $this->attachTravclicksDmcWalletFx($tours);
+        $tourActiveServiceCounts = $this->buildTourActiveServiceCounts($tours);
 
-        return view('bookings.definite', compact('tours', 'country_tax', 'currency', 'tourNegotiationHistory', 'serviceCountryScope'));
+        return view('bookings.definite', compact('tours', 'country_tax', 'currency', 'tourNegotiationHistory', 'serviceCountryScope', 'tourActiveServiceCounts'));
     }
 
     /**
@@ -3841,8 +4057,9 @@ class BookingsController extends Controller
         $this->hydrateDestinationCreatedAt($tours);
         $serviceCountryScope = CommonHelper::resolveServiceCountryViewScope($user);
         $this->attachTravclicksDmcWalletFx($tours);
+        $tourActiveServiceCounts = $this->buildTourActiveServiceCounts($tours);
 
-        return view('bookings.actual', compact('tours', 'country_tax', 'currency', 'tourNegotiationHistory', 'serviceCountryScope'));
+        return view('bookings.actual', compact('tours', 'country_tax', 'currency', 'tourNegotiationHistory', 'serviceCountryScope', 'tourActiveServiceCounts'));
     }
 
     /**
@@ -4165,7 +4382,6 @@ class BookingsController extends Controller
         // Money summary first so service refund max can cap to negotiated+tax (Tour total / Paid).
         $this->attachTourMoneySummary($tours);
         $this->attachRefundPrices($tours);
-        $this->attachTourRefundPrices($tours);
         $isTravclicksRefunds = in_array((int) ($user->role_id ?? 0), [1, 2, 3, 4], true);
         if ($isTravclicksRefunds) {
             $this->attachTravclicksDmcWalletFx($tours);
@@ -4173,8 +4389,9 @@ class BookingsController extends Controller
             // DMC / finance: enter refund in DMC base currency; order price stays in order currency.
             $this->attachDmcAgentRefundCurrency($tours, (string) $currency);
         }
-        // Refunded line must use the same currency as Tour total / Paid / Due.
+        // Refunded line before tour refund max so cancel-tour amount = paid − refunded.
         $this->attachTourMoneyRefunded($tours, $isTravclicksRefunds, (string) $currency);
+        $this->attachTourRefundPrices($tours);
         $this->hydrateDestinationCreatedAt($tours);
         return view('bookings.refunds', compact('tours', 'country_tax', 'currency'));
     }
@@ -4247,29 +4464,47 @@ class BookingsController extends Controller
             $payments = is_string($tour->payment_details)
                 ? json_decode($tour->payment_details, true)
                 : $tour->payment_details;
-            $classification = strtolower(trim((string) ($tour->order_classification ?? '')));
             if (is_array($payments)) {
                 foreach ($payments as $payment) {
                     if (! is_array($payment) || (int) ($payment['status'] ?? 0) !== 1) {
                         continue;
                     }
-                    if ($classification !== 'online'
-                        && strtolower(trim((string) ($payment['payment_for'] ?? ''))) === 'online') {
-                        continue;
-                    }
+                    // Tour cancel refunds the full collected amount (online + offline).
                     $paidTotal += (float) ($payment['amount'] ?? 0);
                 }
             }
             $paidTotal = round($paidTotal, 2);
-            $maxAmount = $payable > 0 ? $payable : $sellMarkup;
-            if ($paidTotal > $maxAmount) {
-                $maxAmount = $paidTotal;
+            // Prefer paid amount for tour-level refund; fall back to invoice / sell.
+            $baseAmount = $paidTotal > 0.009
+                ? $paidTotal
+                : ($payable > 0 ? $payable : $sellMarkup);
+            // Remaining = paid − already refunded (completed service/tour refunds).
+            $alreadyRefunded = 0.0;
+            $refundedOrders = Order::withTrashed()
+                ->where('tour_id', $tourId)
+                ->where('bookingType', 'booking')
+                ->where('refunded', true)
+                ->get(['refund_amount']);
+            foreach ($refundedOrders as $refundedOrder) {
+                $amt = $refundedOrder->refund_amount;
+                if ($amt === null || $amt === '') {
+                    continue;
+                }
+                $alreadyRefunded += (float) $amt;
             }
+            if ($alreadyRefunded <= 0.009
+                && $tour->refund_amount !== null
+                && $tour->refund_amount !== ''
+                && ($tour->tour_status ?? '') === 'Refunded'
+            ) {
+                $alreadyRefunded = (float) $tour->refund_amount;
+            }
+            $maxAmount = round(max(0, $baseAmount - $alreadyRefunded), 2);
             $refundAmount = round((float) $request->input('refund_amount'), 2);
             if ($refundAmount - $maxAmount > 0.009) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Refund amount cannot be higher than the invoice total (' . number_format($maxAmount, 2, '.', '') . ').',
+                    'message' => 'Refund amount cannot be higher than paid minus already refunded (' . number_format($maxAmount, 2, '.', '') . ').',
                     'max_refund_amount' => $maxAmount,
                 ], 422);
             }
@@ -5577,8 +5812,8 @@ class BookingsController extends Controller
                 ], 400);
             }
 
-            // Paid online services → same TravClicks → DMC refund flow as per-service cancel
-            // (works for New Enquiry / Confirmed after online pay, not only Definite).
+            // Full tour cancel: supplier cancel + soft-delete; DMC refunds tour paid amount
+            // (not per-service). Online rows may still queue for TravClicks wallet credit.
             $onlineRefund = app(\App\Services\Payment\OnlineTourCancelRefundService::class)
                 ->enqueuePaidOnlineServices($tour);
             
@@ -5586,8 +5821,8 @@ class BookingsController extends Controller
             $oldStatus = $tour->tour_status;
             $onlineQueued = (int) ($onlineRefund['queued'] ?? 0);
 
-            // Any paid-online cancel must land on Refunds (not Cancelled list)
-            if ($tour->tour_status == 'Definite' || $onlineQueued > 0) {
+            // Definite/Actual or any paid/queued cancel → Refunds (tour-level amount)
+            if (in_array($oldStatus, ['Definite', 'Actual'], true) || $onlineQueued > 0) {
                 $tour->tour_status = 'Refund - Pending';
             } else {
                 $tour->tour_status = 'Cancel-' . $tour->tour_status;

@@ -68,6 +68,7 @@ class MgBedbankHotelAdapter implements TwoStepHotelSupplierAdapter
             'chunks' => count($chunks),
             'codes_searched' => count($codes),
         ];
+        // Always normalize / present MG prices in SGD (search Currency is fixed to SGD).
         $currency = 'SGD';
         $sessionId = null;
 
@@ -91,8 +92,6 @@ class MgBedbankHotelAdapter implements TwoStepHotelSupplierAdapter
             if ($sessionId === null && filled($body['sessionID'] ?? null)) {
                 $sessionId = (string) $body['sessionID'];
             }
-
-            $currency = (string) ($body['currency'] ?? $currency);
             $rawHotels = $body['hotels']['hotel'] ?? [];
 
             if (! is_array($rawHotels)) {
@@ -219,7 +218,11 @@ class MgBedbankHotelAdapter implements TwoStepHotelSupplierAdapter
             return ['hotel' => null, 'session_id' => $body['sessionID'] ?? null, 'provider' => $body];
         }
 
-        $currency = (string) ($body['currency'] ?? 'SGD');
+        // Keep hotel/room currency as SGD regardless of stray response fields.
+        $currency = 'SGD';
+        if (is_array($body)) {
+            $body['currency'] = 'SGD';
+        }
 
         return [
             'hotel' => $this->normalizeHotel($rawHotel, $currency, $content, $body, $destination, $request),
@@ -250,7 +253,8 @@ class MgBedbankHotelAdapter implements TwoStepHotelSupplierAdapter
             'CheckIn' => $request->checkIn,
             'CheckOut' => $request->checkOut,
             'Rooms' => ['Room' => $this->buildRooms($occupancy, $request->roomCount())],
-            'Currency' => $client->credential('currency', 'SGD'),
+            // MG Bedbank settlement is always SGD for this integration.
+            'Currency' => 'SGD',
             'Language' => $client->credential('language', 'En'),
             'AvailFlag' => true,
             'DetailLevel' => $client->credential('detail_level', 'Basic'),
