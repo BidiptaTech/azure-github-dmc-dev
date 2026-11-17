@@ -12,7 +12,24 @@
         border-radius: 0.75rem;
         box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06), 0 0 1px rgba(0, 0, 0, 0.08);
         background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
-        overflow: hidden;
+        /* visible so Export dropdown is not clipped */
+        overflow: visible;
+    }
+    .card-datatable {
+        overflow: visible;
+    }
+    .page-header {
+        overflow: visible;
+        position: relative;
+        z-index: 5;
+    }
+    .page-header .dropdown {
+        position: relative;
+        z-index: 1060;
+    }
+    .page-header .dropdown-menu {
+        z-index: 1065 !important;
+        min-width: 10rem;
     }
 
     /* Page Header */
@@ -388,8 +405,6 @@
     .topbar-link .ri-arrow-down-s-line { display: flex !important; visibility: visible !important; }
     .topbar-item .dropdown-menu { z-index: 9999 !important; display: none; }
     .topbar-item .dropdown-menu.show { display: block !important; }
-    #exportDropdown + .dropdown-menu { z-index: 1000 !important; display: none; }
-    #exportDropdown + .dropdown-menu.show { display: block !important; }
 </style>
 @endsection
 
@@ -397,7 +412,7 @@
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card">
-            <div class="card-datatable table-responsive pt-0">
+            <div class="card-datatable pt-0">
 
                 <!-- Header -->
                 <div class="page-header">
@@ -414,10 +429,10 @@
 
                         <div class="dropdown">
                             <button class="btn btn-warning btn-premium dropdown-toggle" type="button" id="exportDropdown"
-                                data-bs-toggle="dropdown" aria-expanded="false">
+                                data-bs-toggle="dropdown" data-bs-auto-close="true" aria-expanded="false">
                                 <i class="fas fa-download"></i> Export
                             </button>
-                            <ul class="dropdown-menu" aria-labelledby="exportDropdown">
+                            <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="exportDropdown">
                                 <li><a class="dropdown-item" href="javascript:void(0);" id="exportCopy">Copy</a></li>
                                 <li><a class="dropdown-item" href="javascript:void(0);" id="exportCSV">CSV</a></li>
                                 <li><a class="dropdown-item" href="javascript:void(0);" id="exportExcel">Excel</a></li>
@@ -435,7 +450,7 @@
                     </div>
                 </div>
 
-                <div class="table-shell">
+                <div class="table-shell table-responsive">
                 <table class="datatables-basic table table-bordered table-premium" id="hotelsTable">
                     <thead>
                         <tr>
@@ -658,14 +673,16 @@
 @section('scripts')
 <!-- SweetAlert2 JS -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
-<!-- DataTable JS -->
-<script src="{{ env('APP_URL') . '/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js' }}"></script>
+@php $hotelsAssetBase = rtrim(url('/'), '/'); @endphp
+<!-- DataTable JS (buttons/html5 included in theme bundle) -->
+<script src="{{ $hotelsAssetBase }}/assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js"></script>
 <script>
     $(document).ready(function() {
         var hotelsBatchSize = 25;
         var hotelsTable = $('.datatables-basic').DataTable({
             responsive: false,
             autoWidth: false,
+            // Keep export buttons in API only (custom Export dropdown triggers them)
             dom: '<"row align-items-center mb-2"<"col-sm-6 col-12"l><"col-sm-6 col-12"f>>rt<"row align-items-center mt-2"<"col-sm-12"i>>',
             buttons: ['copy', 'csv', 'excel', 'pdf', 'print'],
             language: {
@@ -733,11 +750,60 @@
         updateHotelsInfiniteFooter();
         loadMoreHotelsIfNeeded();
 
-        $('#exportCopy').on('click',  function() { hotelsTable.button('.buttons-copy').trigger(); });
-        $('#exportCSV').on('click',   function() { hotelsTable.button('.buttons-csv').trigger(); });
-        $('#exportExcel').on('click', function() { hotelsTable.button('.buttons-excel').trigger(); });
-        $('#exportPDF').on('click',   function() { hotelsTable.button('.buttons-pdf').trigger(); });
-        $('#exportPrint').on('click', function() { hotelsTable.button('.buttons-print').trigger(); });
+        function triggerHotelsExport(selector) {
+            try {
+                if (hotelsTable && hotelsTable.button) {
+                    hotelsTable.button(selector).trigger();
+                }
+            } catch (err) {
+                console.warn('Hotels export failed:', selector, err);
+            }
+        }
+        $('#exportCopy').on('click',  function(e) { e.preventDefault(); triggerHotelsExport('.buttons-copy'); });
+        $('#exportCSV').on('click',   function(e) { e.preventDefault(); triggerHotelsExport('.buttons-csv'); });
+        $('#exportExcel').on('click', function(e) { e.preventDefault(); triggerHotelsExport('.buttons-excel'); });
+        $('#exportPDF').on('click',   function(e) { e.preventDefault(); triggerHotelsExport('.buttons-pdf'); });
+        $('#exportPrint').on('click', function(e) { e.preventDefault(); triggerHotelsExport('.buttons-print'); });
+
+        // Ensure Export dropdown opens (Bootstrap 5) even if another script replaced window.bootstrap
+        (function initHotelsExportDropdown() {
+            var toggle = document.getElementById('exportDropdown');
+            var menu = toggle ? toggle.nextElementSibling : null;
+            if (!toggle || !menu || !menu.classList.contains('dropdown-menu')) return;
+
+            function openMenu() {
+                menu.classList.add('show');
+                toggle.setAttribute('aria-expanded', 'true');
+                toggle.classList.add('show');
+            }
+            function closeMenu() {
+                menu.classList.remove('show');
+                toggle.setAttribute('aria-expanded', 'false');
+                toggle.classList.remove('show');
+            }
+
+            var bs = window.__ctpBootstrap || window.bootstrap;
+            if (bs && bs.Dropdown) {
+                try {
+                    if (typeof bs.Dropdown.getOrCreateInstance === 'function') {
+                        bs.Dropdown.getOrCreateInstance(toggle, { autoClose: true });
+                    } else {
+                        new bs.Dropdown(toggle);
+                    }
+                    return;
+                } catch (e) { /* fallback below */ }
+            }
+
+            toggle.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (menu.classList.contains('show')) closeMenu();
+                else openMenu();
+            });
+            document.addEventListener('click', function(e) {
+                if (!toggle.contains(e.target) && !menu.contains(e.target)) closeMenu();
+            });
+        })();
 
         $('#dmcCompaniesModal').on('hidden.bs.modal', function() {
             $('#dmcCompaniesModalBody').html('');
@@ -745,15 +811,17 @@
     });
 </script>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-ka7Sk0Gln4gmtz2MlQnikT1wXgYsOg+OMhuP+IlRH9sENBO0LRn5q+8nbTov4+1p" crossorigin="anonymous"></script>
 <script>
     // Bootstrap tooltips for headers + action buttons
     function initHotelTooltips() {
-        if (typeof bootstrap === 'undefined' || !bootstrap.Tooltip) return;
+        var bs = window.__ctpBootstrap || window.bootstrap;
+        if (!bs || !bs.Tooltip) return;
         document.querySelectorAll('#hotelsTable .th-tooltip[data-bs-toggle="tooltip"]').forEach(function(el) {
-            const existing = bootstrap.Tooltip.getInstance(el);
-            if (existing) existing.dispose();
-            new bootstrap.Tooltip(el, { container: 'body', trigger: 'hover focus' });
+            try {
+                var existing = typeof bs.Tooltip.getInstance === 'function' ? bs.Tooltip.getInstance(el) : null;
+                if (existing) existing.dispose();
+                new bs.Tooltip(el, { container: 'body', trigger: 'hover focus' });
+            } catch (e) { /* ignore */ }
         });
     }
 

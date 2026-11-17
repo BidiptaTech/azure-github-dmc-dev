@@ -687,9 +687,50 @@
         syncGroupDetailsFields();
     }
 
+    function prefillEnquiryCities() {
+        var cities = cfg().enquiryPrefillCities || [];
+        if (!Array.isArray(cities) || !cities.length) return;
+        var $tc = $('#tour_cities');
+        if (!$tc.length) return;
+
+        cities.forEach(function (item) {
+            if (!item) return;
+            var name = String(item.name || '').trim();
+            if (!name) return;
+            var country = String(item.country || '').trim();
+            var id = String(item.id || name);
+            var text = String(item.text || (country ? (name + ' (' + country + ')') : name));
+            var exists = $tc.find('option').filter(function () {
+                return String($(this).val()) === id
+                    || String($(this).attr('data-city-name') || '').toLowerCase() === name.toLowerCase();
+            });
+            if (exists.length) {
+                exists.prop('selected', true);
+                return;
+            }
+            var opt = new Option(text, id, true, true);
+            opt.setAttribute('data-city-name', name);
+            if (country) opt.setAttribute('data-country', country);
+            $tc.append(opt);
+        });
+
+        $tc.trigger('change');
+        syncHiddenCityMirrors();
+
+        // Lock city when creating from enquiry (keep values readable for save)
+        if (cfg().enquiryLocked) {
+            $tc.off('select2:opening.enqLock select2:unselecting.enqLock')
+                .on('select2:opening.enqLock select2:unselecting.enqLock', function (e) {
+                    e.preventDefault();
+                });
+            $tc.next('.select2-container').css({ opacity: 0.85, pointerEvents: 'none' });
+        }
+    }
+
     function init() {
         initDateRange();
         initTourCitiesSelect();
+        prefillEnquiryCities();
         initAgencyAgent();
         initGroupDetails();
         syncHiddenCityMirrors();
@@ -700,7 +741,8 @@
         loadAgents: loadAgents,
         getTourCityItems: getTourCityItems,
         syncHiddenCityMirrors: syncHiddenCityMirrors,
-        syncGroupDetailsFields: syncGroupDetailsFields
+        syncGroupDetailsFields: syncGroupDetailsFields,
+        prefillEnquiryCities: prefillEnquiryCities
     };
 })(window, document, window.jQuery);
 /* === END tour-details.js === */

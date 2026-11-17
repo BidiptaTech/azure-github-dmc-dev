@@ -69,6 +69,9 @@ window.STP_LITE_CONFIG = {
     siblingDmcCityMap: @json($siblingDmcCityMap ?? new \stdClass()),
     siblingDmcZoneOnMap: @json($siblingDmcZoneOnMap ?? new \stdClass()),
     enquiryLocked: @json(!empty($enquiry) && empty($tour->tour_id ?? null)),
+    enquiryId: @json((int) ($enquiry->enquiry_id ?? 0)),
+    multiEnqId: @json((string) ($enquiry->multi_enq_id ?? '')),
+    enquiryPrefillCities: @json($enquiryPrefillCities ?? []),
     onlineHotelApiEnabled: @json(\App\Helpers\CommonHelper::masterDmcOnlineApiEnabled(auth()->user())),
     onlineAttractionApiEnabled: @json(\App\Helpers\CommonHelper::masterDmcOnlineApiEnabled(auth()->user())),
     routes: {

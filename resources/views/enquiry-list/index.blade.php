@@ -129,7 +129,7 @@
                             @if(in_array(auth()->user()->role_id, [33, 37, 38, 128, 129, 130, 134, 135, 136, 138]))
                             <td>
                                 @if($enquiry->unique_tour_id == null)
-                                    <a href="{{ route('single-tour-package.create', Crypt::encrypt(['enquiry_id' => $enquiry->enquiry_id])) }}" class="btn btn-primary btn-sm btn-create-tour-sm" style="padding: 0.35rem 0.5rem; font-size: 0.75rem; line-height: 1.35;">
+                                    <a href="{{ route('single-tour-package.create', Crypt::encrypt($enquiry->enquiry_id)) }}" class="btn btn-primary btn-sm btn-create-tour-sm" style="padding: 0.35rem 0.5rem; font-size: 0.75rem; line-height: 1.35;">
                                         <i class="fas fa-plus me-1" style="font-size: 0.65rem;"></i>Create Tour
                                     </a>
                                 @else

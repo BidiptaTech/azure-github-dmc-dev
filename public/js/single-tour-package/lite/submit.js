@@ -232,7 +232,8 @@
         fd.append('child_ages', JSON.stringify(caps.childAges || []));
         fd.append('agent_id', val('agent_id') || val('agent') || '0');
         fd.append('reference_number', val('reference_number'));
-        fd.append('enquiry_id', val('enquiry_id') || '0');
+        fd.append('enquiry_id', val('enquiry_id') || String(cfg().enquiryId || '0') || '0');
+        fd.append('multi_enq_id', val('multi_enq_id') || String(cfg().multiEnqId || '') || '');
         fd.append('mainguest', JSON.stringify(mainGuest));
         fd.append('additionalguest', JSON.stringify(additional));
         fd.append('tour_type', tourType);
