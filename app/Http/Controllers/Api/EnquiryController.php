@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\EnquiryForm;
+use App\Models\Enquiry;
+use App\Models\Order;
 use Carbon\Carbon;
 use App\Helpers\CommonHelper;
 use App\Models\User;
@@ -955,6 +957,13 @@ class EnquiryController extends Controller
         $attractionIds = [];
         $guideIds = [];
         $enquiry_lists = [];
+
+        // Resolve DMC names (role_id 11) from enquiry dmc_id values
+        $dmcIds = $enquiries->pluck('dmc_id')->filter()->unique()->values();
+        $dmcNames = $dmcIds->isNotEmpty()
+            ? User::where('role_id', 11)->whereIn('userId', $dmcIds)->pluck('name', 'userId')
+            : collect();
+
         foreach($enquiries as $enquiry){
             // Decode and normalize all IDs to arrays of integers
             $hotelIds = is_array($decoded = json_decode($enquiry->hotel_ids, true)) ? $decoded : [];
@@ -1021,6 +1030,8 @@ class EnquiryController extends Controller
             $enquiry_lists[] = [
                 'enquiry_id' => $enquiry->enquiry_id,
                 'agent_id' => $enquiry->agent_id,
+                'dmc_id' => $enquiry->dmc_id,
+                'dmc_name' => $dmcNames[$enquiry->dmc_id] ?? null,
                 'display_id' => $enquiry->display_id,
                 'country' => $enquiry->country,
                 'city' => $enquiry->city,
@@ -1278,5 +1289,172 @@ class EnquiryController extends Controller
         ]);
     }
 
+    public function proposals(Request $request)
+    {
+        $user = auth()->user();
+        $agent_id = $request->agent_id ?? $user->agent_id;
+        $dmc_id = $request->dmc_id;
+
+        if (!$agent_id) {
+            return response()->json(['message' => 'Agent ID not found'], 400);
+        }
+
+        if (!$dmc_id) {
+            return response()->json(['message' => 'DMC ID not found'], 400);
+        }
+
+        $currentAgent = Agent::where('agent_id', $agent_id)->first();
+        if (!$currentAgent) {
+            return response()->json(['message' => 'Agent not found'], 404);
+        }
+
+        $start = $request->start ?? 0;
+        $limit = $request->limit ?? 10;
+
+        $query = Tour::with(['booking'])
+            ->where('agent_id', $agent_id)
+            ->where('dmc_id', $dmc_id)
+            ->whereNotNull('multi_enq_id')
+            ->where('multi_enq_id', '!=', '')
+            ->whereIn('tour_status', ['New Enquiry', 'Prospect', 'Tentative']);
+
+        $activeTours = $query->skip($start)
+            ->take($limit)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $tour_list = [];
+
+        foreach ($activeTours as $tour) {
+            $orders = Order::where('tour_id', $tour->tour_id)->get();
+
+            $edit_off = $orders->isNotEmpty() ? 1 : 0;
+
+            $total_price = $orders->sum(function ($order) {
+                $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                return is_array($data) ? collect($data)->sum(fn($item) => $item['totalPrice'] ?? 0) : 0;
+            });
+
+            $enquiry = Enquiry::where('tour_id', $tour->tour_id)->latest()->first();
+            $enquiry_status = '';
+            $edit_off = 0;
+
+            if ($enquiry) {
+                $enquiry_status = $enquiry->status;
+                $edit_off = 1;
+            }
+
+            $latestOrder = $orders->sortByDesc('created_at')->first();
+            $booking_type = $latestOrder->bookingType ?? '';
+
+            $customer_name = '';
+            foreach ($orders as $order) {
+                $data = is_string($order->data) ? json_decode($order->data, true) : $order->data;
+                if (is_array($data)) {
+                    foreach ($data as $item) {
+                        if (!empty($item['fullName'])) {
+                            $customer_name = $item['fullName'];
+                            break 2;
+                        }
+                    }
+                }
+            }
+
+            $tourTotalPrice = 0;
+            foreach ($tour->booking as $booking) {
+                if (in_array($booking->status, [1, 3])) {
+                    $data = is_string($booking->data) ? json_decode($booking->data, true) : $booking->data;
+                    if (is_array($data)) {
+                        foreach ($data as $item) {
+                            if (isset($item['totalPrice'])) {
+                                $tourTotalPrice += (float) $item['totalPrice'];
+                            }
+                        }
+                    }
+                }
+            }
+
+            $enquiry_amount = $enquiry->amount ?? 0;
+            $frstenquiry = Enquiry::where('tour_id', $tour->tour_id)->first();
+            $first_enquiry_amount = $frstenquiry->actual_amount ?? 0;
+            $discount = $first_enquiry_amount - $enquiry_amount;
+            $settlementAmount = ceil($tourTotalPrice) - $discount;
+
+            $baseAmount = ceil($tourTotalPrice) - $discount;
+            $finalAmountWithTax = $baseAmount;
+
+            $taxArray = $tour->taxes ?? [];
+
+            $paymentData = is_string($tour->payment_details) ? json_decode($tour->payment_details, true) : $tour->payment_details;
+            $totalPaid = 0;
+            if (is_array($paymentData)) {
+                foreach ($paymentData as $payment) {
+                    if (($payment['status'] ?? 0) == 1) {
+                        $totalPaid += (float) ($payment['amount'] ?? 0);
+                    }
+                }
+            }
+
+            $remainingAmount = $finalAmountWithTax - $totalPaid;
+
+            if (!$finalAmountWithTax) {
+                $payment_status = "Not Started Yet";
+            } elseif ($remainingAmount <= 0) {
+                $payment_status = "Completely Paid";
+            } elseif ($remainingAmount < $finalAmountWithTax) {
+                $payment_status = "Partially Paid";
+            } else {
+                $payment_status = "Not Paid";
+            }
+
+            $order_from = "";
+            $enquiry_form = EnquiryForm::where('agent_id', $agent_id)->where('unique_tour_id', $tour->unique_tour_id)->exists();
+            if ($enquiry_form) {
+                $order_from = "By Sales Person";
+            }
+
+            $dmc_company_name = '';
+            if ($tour->dmc_id) {
+                $dmcUser = User::where('userId', $tour->dmc_id)->first();
+                $dmc_company_name = $dmcUser->company_name ?? '';
+            }
+
+            $tour_list[] = [
+                'id' => $tour->tour_id,
+                'unique_tour_id' => $tour->unique_tour_id,
+                'display_id' => $tour->display_id ?? '',
+                'destination' => $tour->destination,
+                'total_pax' => $tour->adult + $tour->child,
+                'check_in_time' => CommonHelper::DateFormat($tour->check_in_time),
+                'check_out_time' => CommonHelper::DateFormat($tour->check_out_time),
+                'child' => $tour->child,
+                'infant' => $tour->infant,
+                'adult' => $tour->adult,
+                'status' => $tour->status,
+                'multi_enq_id' => $tour->multi_enq_id,
+                'editOff' => $edit_off,
+                'enquiry_status' => $enquiry_status,
+                'booking_type' => $booking_type,
+                'customer_name' => $customer_name,
+                'tour_total_price' => $tourTotalPrice,
+                'paidAmount' => $totalPaid,
+                'discountAmount' => $discount,
+                'finalAmount' => $settlementAmount,
+                'finalAmountWithTax' => $finalAmountWithTax,
+                'taxes' => $taxArray,
+                'payment_status' => $payment_status,
+                'tour_status' => $tour->tour_status,
+                'dmc_id' => $tour->dmc_id,
+                'dmc_company_name' => $dmc_company_name,
+                'order_from' => $order_from,
+                'created_at' => $tour->created_at->format('Y-m-d H:i:s'),
+            ];
+        }
+
+        return response()->json([
+            'message' => 'Proposals retrieved successfully',
+            'data' => $tour_list,
+        ]);
+    }
 
 }

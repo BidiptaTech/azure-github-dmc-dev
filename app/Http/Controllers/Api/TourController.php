@@ -626,6 +626,14 @@ class TourController extends Controller
             $query = Tour::with(['booking']) // eager load to prevent N+1
             ->where('agent_id', $agent_id);
         }
+
+        // Exclude multi-enquiry tours still in New Enquiry / Prospect / Tentative
+        $query->where(function ($q) {
+            $q->whereNull('multi_enq_id')
+              ->orWhere('multi_enq_id', '')
+              ->orWhereNotIn('tour_status', ['New Enquiry', 'Prospect', 'Tentative']);
+        });
+
         // Apply date filters based on type
         $today = Carbon::today();
         
@@ -3558,30 +3566,29 @@ class TourController extends Controller
                 }
                 if($tour){
                     Order::where('tour_id', $tour_id)->update(['bookingType' => 'booking']);
-                    $tourStatus = Tour::where('tour_id',$tour_id)->first();
-                    if($tourStatus->tour_status == "Pending" || $tourStatus->tour_status == "New Enquiry" || $tourStatus->tour_status == "Prospect" || $tourStatus->tour_status == "Tentative"){
-                        $tour = Tour::where('tour_id', $tour_id)->update([
-                            'tour_status' => "Confirmed",
+                    // Do not reassign $tour from update() — it returns an int, which breaks multi_enq_id handling below
+                    if (in_array($tour->tour_status, ['Pending', 'New Enquiry', 'Prospect', 'Tentative'], true)) {
+                        $tour->update([
+                            'tour_status' => 'Confirmed',
                         ]);
                     }
 
-                    // Handle multi_enq_id logic - whether it's present or null
-                    if(!empty($tour->multi_enq_id) && (string)$tour->multi_enq_id){   
-                        $formEnquiry = EnquiryForm::where('multi_enq_id', (string)$tour->multi_enq_id)->first();
-                        
+                    // Soft-cancel sibling tours / enquiry forms that share this multi_enq_id
+                    $multiEnqId = trim((string) ($tour->multi_enq_id ?? ''));
+                    if ($multiEnqId !== '') {
+                        $formEnquiry = EnquiryForm::where('multi_enq_id', $multiEnqId)->first();
+
                         if ($formEnquiry && $formEnquiry->multi_enq_id) {
-                            // Cancel other enquiry forms with same multi_enq_id
-                            EnquiryForm::where('multi_enq_id', (string)$formEnquiry->multi_enq_id)
+                            EnquiryForm::where('multi_enq_id', (string) $formEnquiry->multi_enq_id)
                                 ->where('enquiry_id', '!=', $formEnquiry->enquiry_id)
                                 ->update([
                                     'status' => 'cancelled',
                                 ]);
                         }
-                        
-                        // Cancel other tours with same multi_enq_id
-                        Tour::where('multi_enq_id', (string)$tour->multi_enq_id)
+
+                        Tour::where('multi_enq_id', $multiEnqId)
                             ->where('tour_id', '!=', $tour_id)
-                            ->update(['deleted_at' => now()]);
+                            ->delete();
                     }
                     // If multi_enq_id is null or empty, just accept the current booking without affecting others
                     
