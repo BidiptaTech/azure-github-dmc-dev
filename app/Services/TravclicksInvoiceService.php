@@ -46,14 +46,13 @@ class TravclicksInvoiceService
         $periodStart = Carbon::create($year, $month, 1)->startOfDay();
         $periodEnd = (clone $periodStart)->endOfMonth();
 
-        // TESTING: end-date-before-today filter temporarily removed.
-        // Month filter uses tour start (check_in_time) within the selected period.
+        // Month filter: Complete tours whose end date (check_out_time) falls in the selected period.
         $tours = Tour::query()
-            ->where('tour_status', 'Actual')
-            ->whereNotNull('check_in_time')
-            ->whereBetween('check_in_time', [$periodStart, $periodEnd])
+            ->where('tour_status', 'Complete')
+            ->whereNotNull('check_out_time')
+            ->whereBetween('check_out_time', [$periodStart, $periodEnd])
             ->tap(fn ($q) => CommonHelper::applyTourDmcCountryAccess($q, $dmcId, $authUser, 'dmc_id', 'destination'))
-            ->orderBy('check_in_time')
+            ->orderBy('check_out_time')
             ->orderBy('tour_id')
             ->get([
                 'id',
@@ -122,8 +121,8 @@ class TravclicksInvoiceService
                 'guest' => $this->resolveGuestName($tour->mainguest),
                 'destination' => $tour->destination,
                 'city' => $tour->city,
-                'start_date' => $startDate ? $startDate->format('Y-m-d') : '—',
-                'end_date' => $tour->check_out_time ? Carbon::parse($tour->check_out_time)->format('Y-m-d') : '—',
+                'start_date' => $startDate ? $this->formatDisplayDate($startDate) : '—',
+                'end_date' => $tour->check_out_time ? $this->formatDisplayDate($tour->check_out_time) : '—',
                 'adult' => $adult,
                 'child' => $child,
                 'infant' => $infant,
@@ -176,9 +175,9 @@ class TravclicksInvoiceService
             'month' => $month,
             'year' => $year,
             'period_label' => $periodStart->format('F Y'),
-            'period_start' => $periodStart->format('Y-m-d'),
-            'period_end' => $periodEnd->format('Y-m-d'),
-            'generated_at' => Carbon::now()->format('Y-m-d H:i'),
+            'period_start' => $this->formatDisplayDate($periodStart),
+            'period_end' => $this->formatDisplayDate($periodEnd),
+            'generated_at' => $this->formatDisplayDateTime(Carbon::now()),
             'invoice_number' => sprintf('TCI-%s-%s-%s', $dmcId, $periodStart->format('Ym'), substr(md5($dmcId . $month . $year), 0, 6)),
             'dmc' => $dmc,
             'travclicks' => $this->travclicksProfile(),
@@ -278,6 +277,32 @@ class TravclicksInvoiceService
             'phone' => $get('support_phone') ?: $get('phone'),
             'address' => $get('address') ?: $get('company_address'),
         ];
+    }
+
+    /**
+     * Display date like "9th Sep 2026".
+     */
+    protected function formatDisplayDate(mixed $date): string
+    {
+        try {
+            $carbon = $date instanceof Carbon ? $date : Carbon::parse($date);
+            return $carbon->format('jS M Y');
+        } catch (\Throwable $e) {
+            return '—';
+        }
+    }
+
+    /**
+     * Display datetime like "9th Sep 2026, 16:42".
+     */
+    protected function formatDisplayDateTime(mixed $date): string
+    {
+        try {
+            $carbon = $date instanceof Carbon ? $date : Carbon::parse($date);
+            return $carbon->format('jS M Y, H:i');
+        } catch (\Throwable $e) {
+            return '—';
+        }
     }
 
     /**

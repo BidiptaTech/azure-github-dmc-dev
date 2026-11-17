@@ -185,7 +185,7 @@ dmc_offer     (time-bound override per DMC, currency = SGD)
 - [x] Validation: SGD lock, date range, overlap reject on offers
 - [x] Wire consumer: **Travclicks Invoice** (DMC portal monthly PDF)
   - Menu: General Settings → Travclicks Invoice (`/travclicks-invoice`)
-  - Tours: `tour_status = Actual`, `check_out_time` in selected month and `< now`
+  - Tours: `tour_status = Complete`, `check_out_time` (tour end date) in selected month
   - Line = pax × `dmc_invoice` SGD rates; offer on `check_in_time` → discount badge + discount amount
   - Tax from active DMC `taxes` when enabled; grand total SGD + DMC currency conversion when different
 

@@ -135,10 +135,20 @@ class SingleTourPackageController extends Controller
         $exitPickupLocation = null;
         
         if($enquiry_id){
-            $enquiry_id = Crypt::decrypt($enquiry_id);
+            try {
+                $decodedEnquiryId = Crypt::decrypt($enquiry_id);
+            } catch (\Throwable $e) {
+                $decodedEnquiryId = null;
+            }
+            // Route may pass encrypted scalar or ['enquiry_id' => N]
+            if (is_array($decodedEnquiryId)) {
+                $enquiry_id = $decodedEnquiryId['enquiry_id'] ?? reset($decodedEnquiryId) ?: null;
+            } else {
+                $enquiry_id = $decodedEnquiryId;
+            }
             if($enquiry_id){
-                $enquiry = EnquiryForm::where('enquiry_id', $enquiry_id)->first();
-                $selectedCountry = $enquiry->country;
+                $enquiry = EnquiryForm::with('agent')->where('enquiry_id', $enquiry_id)->first();
+                $selectedCountry = $enquiry->country ?? null;
                 if($enquiry){
                     // Get hotels
                     if($enquiry->hotel_ids){
@@ -308,6 +318,30 @@ class SingleTourPackageController extends Controller
         }
         $ports = $this->getPortsForDmc($portsCountryName);
 
+        // Prefill city for lite create when opening from enquiry list
+        $enquiryPrefillCities = [];
+        if ($enquiry && !empty($enquiry->city)) {
+            $cityName = trim((string) $enquiry->city);
+            $countryName = trim((string) ($enquiry->country ?? ''));
+            $cityRow = City::query()
+                ->when($countryName !== '', function ($q) use ($countryName) {
+                    $q->whereRaw('LOWER(TRIM(country)) = ?', [mb_strtolower($countryName)]);
+                })
+                ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($cityName)])
+                ->first();
+            if (!$cityRow) {
+                $cityRow = City::query()
+                    ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($cityName)])
+                    ->first();
+            }
+            $enquiryPrefillCities[] = [
+                'id' => $cityRow ? (string) ($cityRow->city_id ?? $cityRow->id ?? $cityName) : $cityName,
+                'name' => $cityName,
+                'country' => $countryName !== '' ? $countryName : (string) ($cityRow->country ?? ''),
+                'text' => $countryName !== '' ? ($cityName . ' (' . $countryName . ')') : $cityName,
+            ];
+        }
+
         $viewData = compact(
             'countries',
             'agents',
@@ -336,7 +370,8 @@ class SingleTourPackageController extends Controller
             'siblingDmcCountryMap',
             'siblingDmcCityMap',
             'siblingDmcZoneOnMap',
-            'userDmcId'
+            'userDmcId',
+            'enquiryPrefillCities'
         );
 
         // Lite create only (create.blade.php / create.backup.blade.php kept as file backups)
@@ -1124,6 +1159,15 @@ class SingleTourPackageController extends Controller
             $tour->taxes = !empty($taxArray) ? json_encode($taxArray) : null;
             $tour->reference_id = $request->reference_number ?? null;
             $tour->created_by = Auth::user()->userId;
+
+            // Link multi enquiry (same multi_enq_id across DMC rows on inquiry_form)
+            $multiEnqId = trim((string) $request->input('multi_enq_id', ''));
+            if ($multiEnqId === '' && $request->filled('enquiry_id') && (int) $request->enquiry_id > 0) {
+                $multiEnqId = (string) (EnquiryForm::where('enquiry_id', (int) $request->enquiry_id)->value('multi_enq_id') ?? '');
+            }
+            if ($multiEnqId !== '') {
+                $tour->multi_enq_id = $multiEnqId;
+            }
 
             // City-wise markup/discount (same shape as enquiry proform)
             $rawMarkups = $request->input('currency_markups');

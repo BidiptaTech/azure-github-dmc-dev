@@ -36,7 +36,7 @@
         <div class="card-header">
             <h5 class="mb-0">Generate Monthly Travclicks Invoice</h5>
             <small class="text-muted">
-                Includes Actual tours whose start date falls in the selected month (end-date filter temporarily disabled for testing).
+                Includes Complete tours whose end date falls in the selected month.
                 Prices are in SGD from Travclicks invoice rates; DMC offers apply as discounts when the tour start date falls in an offer range.
             </small>
         </div>

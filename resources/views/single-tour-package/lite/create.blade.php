@@ -26,6 +26,8 @@
         <form id="singleTourPackageForm" method="POST" action="{{ route('single-tour-package.store') }}">
             @csrf
             <input type="hidden" name="dmc_id" value="{{ (int) ($userDmcId ?? 0) }}">
+            <input type="hidden" name="enquiry_id" id="enquiry_id" value="{{ (int) ($enquiry->enquiry_id ?? 0) }}">
+            <input type="hidden" name="multi_enq_id" id="multi_enq_id" value="{{ $enquiry->multi_enq_id ?? '' }}">
             <input type="hidden" id="hotel_data" name="hotel_data" value="[]">
             <input type="hidden" id="entry_port_data" name="entry_port_data" value="[]">
             <input type="hidden" id="exit_port_data" name="exit_port_data" value="[]">
@@ -37,6 +39,8 @@
 
             @include('single-tour-package.lite.partials.01-config-toggles')
             @include('single-tour-package.lite.partials.02-tour-details')
+            {{-- Full-width enquiry services strip (does not squeeze hotel/service forms) --}}
+            @include('single-tour-package.lite.partials.enquiry-services-sidebar')
             @include('single-tour-package.lite.partials.04-multi-country-planner')
             @include('single-tour-package.lite.partials.06-lead-guests')
         </form>
