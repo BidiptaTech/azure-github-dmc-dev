@@ -80,6 +80,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::post('/create-enquiry', 'App\Http\Controllers\Api\EnquiryController@createEnquiry');
     Route::get('/listofenquiry', 'App\Http\Controllers\Api\EnquiryController@listofenquiry');
     Route::post('/update-enquiry-form', 'App\Http\Controllers\Api\EnquiryController@UpdateEnquiryForm');
+    Route::get('/proposals', 'App\Http\Controllers\Api\EnquiryController@proposals');
     Route::get('/zone-price', 'App\Http\Controllers\Api\ZoneController@zonewisePrice');
     Route::get('/create-enquiry-tour', 'App\Http\Controllers\Api\EnquiryController@enquiryToTour');
 
