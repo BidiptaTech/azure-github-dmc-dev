@@ -333,7 +333,7 @@
             @endif
         </td>
         <td class="brand-center">
-            <p class="brand-kicker">Business Pricing Proposal</p>
+            <p class="brand-kicker">INVOICE</p>
             <p class="brand-sub">DMC Partnership — Monthly Invoice</p>
         </td>
         <td class="brand-right">
@@ -395,7 +395,7 @@
                 C {{ $fmt($base->child_price) }} /
                 I {{ $fmt($base->infant_price) }} SGD
             </p>
-            <p class="party-line">Generated: {{ $data['generated_at'] }} · Tours: {{ $totals['tour_count'] }} Actual</p>
+            <p class="party-line">Generated: {{ $data['generated_at'] }} · Tours: {{ $totals['tour_count'] }} Complete</p>
         </td>
     </tr>
 </table>
@@ -408,7 +408,7 @@
 </div>
 
 @if(empty($data['lines']))
-    <div class="empty">No Actual tours were found for {{ $data['period_label'] }}.</div>
+    <div class="empty">No Complete tours were found for {{ $data['period_label'] }}.</div>
 @else
     <table class="breakdown">
         <thead>
@@ -489,7 +489,7 @@
             <div class="total-card">
                 <p class="total-kicker">Grand Total</p>
                 <p class="total-value">SGD {{ $fmt($totals['grand_total']) }}</p>
-                <p class="total-sub">{{ $totals['tour_count'] }} Actual tour(s) · {{ $data['period_label'] }}</p>
+                <p class="total-sub">{{ $totals['tour_count'] }} Complete tour(s) · {{ $data['period_label'] }}</p>
             </div>
         </td>
         <td>

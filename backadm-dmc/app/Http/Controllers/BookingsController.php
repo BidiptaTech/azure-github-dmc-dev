@@ -2538,18 +2538,42 @@ class BookingsController extends Controller
                 );
             }
 
+            // When one DMC confirms a multi enquiry tour, soft-delete sibling
+            // inquiry_form rows + sibling tours that share the same multi_enq_id.
             if (!empty($tour->multi_enq_id)) {
-                $formEnquiry = EnquiryForm::where('multi_enq_id', (string) $tour->multi_enq_id)->first();
+                $multiEnqId = (string) $tour->multi_enq_id;
+                $uniqueTourId = (string) ($tour->unique_tour_id ?? '');
 
-                if ($formEnquiry && $formEnquiry->multi_enq_id) {
-                    EnquiryForm::where('multi_enq_id', (string) $formEnquiry->multi_enq_id)
-                        ->where('enquiry_id', '!=', $formEnquiry->enquiry_id)
-                        ->update(['status' => 'cancelled']);
+                $siblingEnquiries = EnquiryForm::where('multi_enq_id', $multiEnqId)
+                    ->when($uniqueTourId !== '', function ($q) use ($uniqueTourId) {
+                        // Keep the enquiry linked to this confirmed tour; remove the rest
+                        $q->where(function ($inner) use ($uniqueTourId) {
+                            $inner->whereNull('unique_tour_id')
+                                ->orWhere('unique_tour_id', '!=', $uniqueTourId);
+                        });
+                    }, function ($q) use ($tour) {
+                        $q->where('dmc_id', '!=', (int) ($tour->dmc_id ?? 0));
+                    })
+                    ->get();
+
+                foreach ($siblingEnquiries as $row) {
+                    if ($row->trashed()) {
+                        continue;
+                    }
+                    $row->status = 'cancelled';
+                    $row->save();
+                    $row->delete();
                 }
 
-                Tour::where('multi_enq_id', (string) $tour->multi_enq_id)
+                $siblingTours = Tour::where('multi_enq_id', $multiEnqId)
                     ->where('tour_id', '!=', $tour->tour_id)
-                    ->update(['deleted_at' => now()]);
+                    ->get();
+
+                foreach ($siblingTours as $siblingTour) {
+                    if (!$siblingTour->trashed()) {
+                        $siblingTour->delete();
+                    }
+                }
             }
 
             return back()->with('success', 'Tour #' . $tour->tour_id . ' confirmed successfully! Status has been updated to Confirmed and booking has been finalized.');
