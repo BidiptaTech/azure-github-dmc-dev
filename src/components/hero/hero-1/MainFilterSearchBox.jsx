@@ -44,6 +44,12 @@ import { clearBookingFlow } from "@/utils/clearBookingFlow";
 import { clearViewDetails } from "@/slice/common/ViewDetails";
 import { clearCart } from "@/slice/cart/carSlice";
 import { appPath } from "@/utils/appPaths";
+import StayDatesPerCity from "@/components/booking/StayDatesPerCity";
+import {
+  syncStaysFromCities,
+  toCityWiseDatesPayload,
+  staysAllDated,
+} from "@/utils/cityWiseDates";
 import swal from "sweetalert";
 
 const toDdMmYyyy = (date) => {
@@ -83,7 +89,7 @@ const MainFilterSearchBox = () => {
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [selectedDates, setSelectedDates] = useState([]);
   const [cityDates, setCityDates] = useState({});
-  const [showCityDateRows, setShowCityDateRows] = useState(false);
+  const [cityStays, setCityStays] = useState([]);
   const [guestCounts, setGuestCounts] = useState({
     Adults: 1,
     Children: 0,
@@ -134,20 +140,70 @@ const MainFilterSearchBox = () => {
     });
   };
 
-  const handleCityDateChange = (cityId, dates, cityIndex) => {
-    // Ignore partial range while picking check-out
-    if (!Array.isArray(dates) || dates.length !== 2) return;
-
-    setCityDates((prev) => {
-      const next = { ...prev, [cityId]: dates };
-      selectedCities.forEach((city, idx) => {
-        if (idx > cityIndex) {
-          delete next[city.city_id];
-        }
-      });
-      return next;
+  const handleCityStaysChange = (nextStays) => {
+    setCityStays(nextStays);
+    const nextCityDates = {};
+    (nextStays || []).forEach((stay) => {
+      if (!stay.city_id || !stay.checkIn || !stay.checkOut) return;
+      // Last dated occurrence wins for legacy city_id map; legs sync by index
+      nextCityDates[stay.city_id] = [
+        moment(stay.checkIn, "DD/MM/YYYY").toDate(),
+        moment(stay.checkOut, "DD/MM/YYYY").toDate(),
+      ];
     });
+    setCityDates(nextCityDates);
+
+    // Keep MultiCityLegs in sync by itinerary order (supports Batam → Singapore revisit)
+    if (tripType === "multi") {
+      setMultiLegs((prev) => {
+        let stayIdx = 0;
+        return (prev || []).map((leg) => {
+          if (!leg.city?.city_id) return leg;
+          const match = nextStays[stayIdx];
+          stayIdx += 1;
+          if (!match?.checkIn || !match?.checkOut) return leg;
+          if (
+            match.city_id &&
+            String(match.city_id) !== String(leg.city.city_id)
+          ) {
+            return leg;
+          }
+          return {
+            ...leg,
+            dates: [
+              moment(match.checkIn, "DD/MM/YYYY").toDate(),
+              moment(match.checkOut, "DD/MM/YYYY").toDate(),
+            ],
+          };
+        });
+      });
+    }
   };
+
+  // Multi-city legs → stay rows (preserves Return stays / revisits)
+  useEffect(() => {
+    if (tripType !== "multi") return;
+    const cities = (multiLegs || []).map((leg) => leg.city).filter(Boolean);
+    if (!cities.length) {
+      setCityStays([]);
+      return;
+    }
+    setCityStays((prev) => {
+      const synced = syncStaysFromCities(cities, prev);
+      const filledLegs = (multiLegs || []).filter((leg) => leg.city?.city_id);
+      return synced.map((stay, index) => {
+        const leg = filledLegs[index];
+        if (!leg || !Array.isArray(leg.dates) || leg.dates.length !== 2) {
+          return stay;
+        }
+        return {
+          ...stay,
+          checkIn: formatDateValue(leg.dates[0]),
+          checkOut: formatDateValue(leg.dates[1]),
+        };
+      });
+    });
+  }, [tripType, multiLegs]);
 
   const hasTotalDates =
     Array.isArray(selectedDates) && selectedDates.length === 2;
@@ -181,62 +237,25 @@ const MainFilterSearchBox = () => {
       return;
     }
 
-    setShowCityDateRows(true);
     setSelectedLocation(selectedCities[0]?.country || selectedLocation);
-  };
-
-  const getCityDateConstraints = (cityIndex) => {
-    const totalMin = hasTotalDates ? selectedDates[0] : undefined;
-    const totalMax = hasTotalDates ? selectedDates[1] : undefined;
-
-    if (cityIndex === 0) {
-      return {
-        minDate: totalMin,
-        maxDate: totalMax,
-        blockedRanges: [],
-        disabled: !hasTotalDates,
-      };
-    }
-
-    const prevCity = selectedCities[cityIndex - 1];
-    const prevDates = prevCity ? cityDates[prevCity.city_id] : null;
-    const prevFilled =
-      Array.isArray(prevDates) && prevDates.length === 2;
-
-    const blockedRanges = selectedCities
-      .slice(0, cityIndex)
-      .map((city) => cityDates[city.city_id])
-      .filter((range) => Array.isArray(range) && range.length === 2);
-
-    return {
-      // Next city can start on previous city's check-out day
-      minDate: prevFilled ? prevDates[1] : totalMin,
-      maxDate: totalMax,
-      blockedRanges,
-      disabled: !hasTotalDates || !prevFilled,
-    };
   };
 
   const allCityDatesFilled =
     hasTotalDates &&
     selectedCities.length > 0 &&
     (selectedCities.length === 1 ||
-      selectedCities.every(
-        (city) =>
-          Array.isArray(cityDates[city.city_id]) &&
-          cityDates[city.city_id].length === 2
-      ));
+      (cityStays.length > 0
+        ? staysAllDated(cityStays)
+        : selectedCities.every(
+            (city) =>
+              Array.isArray(cityDates[city.city_id]) &&
+              cityDates[city.city_id].length === 2
+          )));
 
   const showItineraryPlanner =
     (tripType === "multi" || selectedCities.length > 1) &&
     selectedCities.length > 1 &&
     hasTotalDates;
-
-  useEffect(() => {
-    if (showItineraryPlanner) {
-      setShowCityDateRows(true);
-    }
-  }, [showItineraryPlanner]);
 
   const handleGuestChange = (updatedGuestCounts) => {
     setGuestCounts(updatedGuestCounts);
@@ -257,10 +276,17 @@ const MainFilterSearchBox = () => {
     if (selectedCities.length === 1 && hasTotalDates) {
       const onlyCityId = selectedCities[0].city_id;
       setCityDates({ [onlyCityId]: selectedDates });
-      setShowCityDateRows(false);
+      setCityStays(
+        syncStaysFromCities(selectedCities, []).map((stay) => ({
+          ...stay,
+          checkIn: formatDateValue(selectedDates[0]),
+          checkOut: formatDateValue(selectedDates[1]),
+        }))
+      );
       return;
     }
 
+    setCityStays((prev) => syncStaysFromCities(selectedCities, prev));
     setCityDates((prev) => {
       const next = {};
       selectedCities.forEach((city) => {
@@ -270,9 +296,6 @@ const MainFilterSearchBox = () => {
       });
       return next;
     });
-    if (selectedCities.length <= 1) {
-      setShowCityDateRows(false);
-    }
   }, [selectedCities, selectedDates, hasTotalDates]);
 
   const validateForm = (opts = {}) => {
@@ -302,16 +325,20 @@ const MainFilterSearchBox = () => {
       return false;
     }
 
-    const cityDatesReady =
+    const staysReady =
       cities.length <= 1 ||
-      cities.every(
-        (city) =>
-          Array.isArray(perCityDates[city.city_id]) &&
-          perCityDates[city.city_id].length === 2
-      );
+      (cityStays.length > 0
+        ? staysAllDated(cityStays)
+        : cities.every(
+            (city) =>
+              Array.isArray(perCityDates[city.city_id]) &&
+              perCityDates[city.city_id].length === 2
+          ));
 
-    if (cities.length > 1 && !cityDatesReady) {
-      setSnackbarMessage("Please select check-in and check-out dates for each city.");
+    if (cities.length > 1 && !staysReady) {
+      setSnackbarMessage(
+        "Please set Stay from / until for every city stay (including Return stays)."
+      );
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
       return false;
@@ -440,18 +467,26 @@ const MainFilterSearchBox = () => {
       return;
     }
 
-    // City-wise check-in / check-out as array of key-value objects
-    const cityWiseDatesPayload = citiesForSearch.map((city) => {
-      const range =
-        citiesForSearch.length === 1
-          ? datesForSearch
-          : cityDatesForSearch[city.city_id] || [];
-      return {
-        city: city.city,
-        checkIn: formatDateValue(range[0]),
-        checkOut: formatDateValue(range[1]),
-      };
-    });
+    // City-wise check-in / check-out (supports Return stays)
+    const cityWiseDatesPayload =
+      citiesForSearch.length === 1
+        ? [
+            {
+              city: citiesForSearch[0].city,
+              checkIn: formatDateValue(datesForSearch[0]),
+              checkOut: formatDateValue(datesForSearch[1]),
+            },
+          ]
+        : cityStays.length > 0
+          ? toCityWiseDatesPayload(cityStays)
+          : citiesForSearch.map((city) => {
+              const range = cityDatesForSearch[city.city_id] || [];
+              return {
+                city: city.city,
+                checkIn: formatDateValue(range[0]),
+                checkOut: formatDateValue(range[1]),
+              };
+            });
     dispatch(setCityWiseDates(cityWiseDatesPayload));
 
     // Keep Redux selectedCities aligned with the search payload
@@ -574,19 +609,6 @@ const MainFilterSearchBox = () => {
       ? canSearchSingle
       : canSearchMulti;
 
-  const formatRangeLabel = (range) => {
-    if (!Array.isArray(range) || range.length !== 2) return "Select dates";
-    const a =
-      typeof range[0]?.format === "function"
-        ? range[0].format("DD MMM")
-        : formatDateValue(range[0]);
-    const b =
-      typeof range[1]?.format === "function"
-        ? range[1].format("DD MMM")
-        : formatDateValue(range[1]);
-    return `${a} → ${b}`;
-  };
-
   const syncMultiLegsToSearchState = () => {
     const cities = multiLegs.map((leg) => leg.city).filter(Boolean);
     const nextCityDates = {};
@@ -608,7 +630,17 @@ const MainFilterSearchBox = () => {
     }
 
     setCityDates(nextCityDates);
-    setShowCityDateRows(true);
+    setCityStays(
+      syncStaysFromCities(cities, []).map((stay) => {
+        const range = stay.city_id ? nextCityDates[stay.city_id] : null;
+        if (!Array.isArray(range) || range.length !== 2) return stay;
+        return {
+          ...stay,
+          checkIn: formatDateValue(range[0]),
+          checkOut: formatDateValue(range[1]),
+        };
+      })
+    );
     dispatch(clearSelectedCities());
     cities.forEach((city) => dispatch(addSelectedCity(city)));
     if (cities[0]?.country) {
@@ -620,7 +652,6 @@ const MainFilterSearchBox = () => {
   const setTripTypeMode = (id) => {
     setTripType(id);
     if (id === "single") {
-      setShowCityDateRows(false);
       if (selectedCities.length > 1) {
         const keep = selectedCities[0];
         dispatch(clearSelectedCities());
@@ -642,10 +673,9 @@ const MainFilterSearchBox = () => {
       }
       return base;
     });
-    setShowCityDateRows(false);
   };
 
-  const canSearchMultiLegs =
+  const multiLegsReady =
     tripType === "multi" &&
     multiLegs.length >= 2 &&
     multiLegs.every(
@@ -655,11 +685,18 @@ const MainFilterSearchBox = () => {
         leg.dates.length === 2
     ) &&
     guestCounts.Adults > 0;
+  const canSearchMultiLegs =
+    multiLegsReady &&
+    (cityStays.length === 0 || staysAllDated(cityStays));
 
   const handleMultiSearch = async (e) => {
     e?.preventDefault?.();
     if (!canSearchMultiLegs) {
-      setSnackbarMessage("Please complete city and dates for each stop.");
+      setSnackbarMessage(
+        cityStays.length > 0 && !staysAllDated(cityStays)
+          ? "Please set Stay from / until for every city stay (including Return stays)."
+          : "Please complete city and dates for each stop."
+      );
       setSnackbarSeverity("error");
       setOpenSnackbar(true);
       return;
@@ -727,15 +764,41 @@ const MainFilterSearchBox = () => {
       </div>
 
       {tripType === "multi" ? (
-        <MultiCityLegs
-          legs={multiLegs}
-          onLegsChange={setMultiLegs}
-          guestCounts={guestCounts}
-          onGuestChange={handleGuestChange}
-          onSearch={handleMultiSearch}
-          canSearch={canSearchMultiLegs}
-          guestOpenSignal={guestModalSignal}
-        />
+        <div>
+          <MultiCityLegs
+            legs={multiLegs}
+            onLegsChange={setMultiLegs}
+            guestCounts={guestCounts}
+            onGuestChange={handleGuestChange}
+            onSearch={handleMultiSearch}
+            canSearch={canSearchMultiLegs}
+            guestOpenSignal={guestModalSignal}
+          />
+          {multiLegs.filter((leg) => leg.city?.city_id).length >= 2 && (
+            <div
+              style={{
+                marginTop: 12,
+                border: "1px solid #e2e8f0",
+                borderRadius: 12,
+                background: "#fff",
+                overflow: "hidden",
+                padding: 12,
+              }}
+            >
+              <StayDatesPerCity
+                stays={
+                  cityStays.length
+                    ? cityStays
+                    : syncStaysFromCities(
+                        multiLegs.map((leg) => leg.city).filter(Boolean),
+                        []
+                      )
+                }
+                onChange={handleCityStaysChange}
+              />
+            </div>
+          )}
+        </div>
       ) : (
       <div
         className="bg-white hero-search-bar"
@@ -897,170 +960,15 @@ const MainFilterSearchBox = () => {
               overflow: "hidden",
             }}
           >
-            <div
-              className="d-flex items-center justify-between flex-wrap"
-              style={{
-                gap: 8,
-                padding: "12px 16px",
-                borderBottom: "1px solid #e2e8f0",
-                background: "#fff",
-              }}
-            >
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>
-                  City itinerary
-                </div>
-                <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-                  Split the tour period across cities in order
-                  {hasTotalDates && (
-                    <span style={{ fontWeight: 600, color: "#3554D1" }}>
-                      {" "}
-                      (
-                      {typeof selectedDates[0]?.format === "function"
-                        ? selectedDates[0].format("DD MMM")
-                        : ""}
-                      {" – "}
-                      {typeof selectedDates[1]?.format === "function"
-                        ? selectedDates[1].format("DD MMM")
-                        : ""}
-                      )
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: allCityDatesFilled ? "#15803d" : "#b45309",
-                  background: allCityDatesFilled
-                    ? "rgba(22, 163, 74, 0.1)"
-                    : "rgba(245, 158, 11, 0.12)",
-                  borderRadius: 999,
-                  padding: "4px 10px",
-                }}
-              >
-                {allCityDatesFilled
-                  ? "Ready to search"
-                  : `${selectedCities.filter((c) => cityDates[c.city_id]?.length === 2).length}/${selectedCities.length} cities dated`}
-              </div>
-            </div>
-
-            <div style={{ padding: "8px 0" }}>
-              {selectedCities.map((city, index) => {
-                const constraints = getCityDateConstraints(index);
-                const filled =
-                  Array.isArray(cityDates[city.city_id]) &&
-                  cityDates[city.city_id].length === 2;
-                return (
-                  <div
-                    key={city.city_id}
-                    className="d-flex items-stretch flex-wrap"
-                    style={{
-                      gap: 12,
-                      padding: "14px 16px",
-                      borderTop: index === 0 ? "none" : "1px solid #e2e8f0",
-                    }}
-                  >
-                    <div
-                      className="d-flex items-start"
-                      style={{ gap: 12, flex: "1 1 180px", minWidth: 160 }}
-                    >
-                      <div
-                        style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: "50%",
-                          background: filled ? "#3554D1" : "#cbd5e1",
-                          color: "#fff",
-                          fontSize: 12,
-                          fontWeight: 700,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          flexShrink: 0,
-                          marginTop: 2,
-                        }}
-                      >
-                        {index + 1}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>
-                          {city.city}
-                        </div>
-                        <div style={{ fontSize: 12, color: "#64748b" }}>
-                          {city.country}
-                        </div>
-                        {index < selectedCities.length - 1 && (
-                          <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 6 }}>
-                            then → {selectedCities[index + 1]?.city}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div
-                      className="searchMenu-date js-form-dd js-calendar"
-                      style={{ flex: "1.4 1 240px", minWidth: 220 }}
-                    >
-                      <div
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 600,
-                          letterSpacing: "0.04em",
-                          textTransform: "uppercase",
-                          color: "#64748b",
-                          marginBottom: 6,
-                        }}
-                      >
-                        Stay dates
-                      </div>
-                      <div
-                        style={{
-                          background: "#fff",
-                          border: "1px solid #e2e8f0",
-                          borderRadius: 10,
-                          padding: "8px 12px",
-                          opacity: constraints.disabled ? 0.55 : 1,
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: 13,
-                            fontWeight: 600,
-                            color: filled ? "#0f172a" : "#94a3b8",
-                            marginBottom: 4,
-                          }}
-                        >
-                          {formatRangeLabel(cityDates[city.city_id])}
-                        </div>
-                        <DateSearch
-                          key={city.city_id}
-                          onDateChange={(dates) =>
-                            handleCityDateChange(city.city_id, dates, index)
-                          }
-                          minDate={constraints.minDate}
-                          maxDate={constraints.maxDate}
-                          blockedRanges={constraints.blockedRanges}
-                          value={
-                            cityDates[city.city_id]?.length === 2
-                              ? cityDates[city.city_id]
-                              : undefined
-                          }
-                          disabled={constraints.disabled}
-                          notifyOnMount={false}
-                          calendarPosition="bottom-left"
-                        />
-                      </div>
-                      {constraints.disabled && index > 0 && (
-                        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 6 }}>
-                          Complete previous city dates first
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+            <div style={{ padding: 12 }}>
+              <StayDatesPerCity
+                stays={
+                  cityStays.length
+                    ? cityStays
+                    : syncStaysFromCities(selectedCities, [])
+                }
+                onChange={handleCityStaysChange}
+              />
             </div>
           </div>
         )}
