@@ -6443,6 +6443,13 @@ class SingleTourPackageController extends Controller
                                         'isOnlineHotel' => (bool) ($hotelBooking['isOnlineHotel'] ?? false),
                                         'hotelSourceType' => $hotelBooking['hotelSourceType'] ?? (! empty($hotelBooking['isOnlineHotel']) ? 'online' : 'offline'),
                                         'onlineHotelSource' => $hotelBooking['onlineHotelSource'] ?? null,
+                                        'online_price_breakdown' => is_array($hotelBooking['online_price_breakdown'] ?? null)
+                                            ? $hotelBooking['online_price_breakdown']
+                                            : null,
+                                        'dmc_profile_markup' => is_array($hotelBooking['dmc_profile_markup'] ?? null)
+                                            ? $hotelBooking['dmc_profile_markup']
+                                            : null,
+                                        'base_grand_total' => $hotelBooking['base_grand_total'] ?? null,
 
                                         // Supplier session, rate keys, room/meal and cancellation terms for confirming the booking
                                         'onlineHotelBooking' => is_array($hotelBooking['onlineHotelBooking'] ?? null)
@@ -6457,6 +6464,52 @@ class SingleTourPackageController extends Controller
                                     }
 
                                     [$enhancedHotelData, $hotelGeo] = $this->applyOrderGeoToServiceRow($enhancedHotelData, $request, $tourId);
+
+                                    // Online hotels keep supplier price currency — do not overwrite with
+                                    // stay/country currency from the request (e.g. Bali/IDR).
+                                    $isOnlineHotel = ! empty($hotelBooking['isOnlineHotel'])
+                                        || (($hotelBooking['hotelSourceType'] ?? '') === 'online')
+                                        || (($hotelBooking['priceMode'] ?? '') === 'online');
+                                    $onlineSupplier = strtolower(trim((string) (
+                                        $hotelBooking['onlineHotelSource']
+                                        ?? (is_array($hotelBooking['onlineHotelBooking'] ?? null)
+                                            ? ($hotelBooking['onlineHotelBooking']['supplier_code'] ?? '')
+                                            : '')
+                                        ?? ''
+                                    )));
+                                    $isMgBedbank = in_array($onlineSupplier, ['mg_bedbank', 'mgbedbank', 'mg'], true);
+                                    // MG Bedbank settlement is always SGD.
+                                    $onlineBookingCurrency = $isMgBedbank
+                                        ? 'SGD'
+                                        : strtoupper(trim((string) (
+                                            $hotelBooking['currency']
+                                            ?? (is_array($hotelBooking['online_price_breakdown'] ?? null)
+                                                ? ($hotelBooking['online_price_breakdown']['currency'] ?? null)
+                                                : null)
+                                            ?? (is_array($hotelBooking['dmc_profile_markup'] ?? null)
+                                                ? ($hotelBooking['dmc_profile_markup']['currency'] ?? null)
+                                                : null)
+                                            ?? (is_array($hotelBooking['price_payload'] ?? null)
+                                                ? ($hotelBooking['price_payload']['currency'] ?? null)
+                                                : null)
+                                            ?? ''
+                                        )));
+                                    if ($isOnlineHotel && $onlineBookingCurrency !== '') {
+                                        $enhancedHotelData['currency'] = $onlineBookingCurrency;
+                                        $hotelGeo['currency'] = $onlineBookingCurrency;
+                                        if (is_array($enhancedHotelData['onlineHotelBooking'] ?? null)) {
+                                            $enhancedHotelData['onlineHotelBooking']['currency'] = $onlineBookingCurrency;
+                                        }
+                                        if (is_array($enhancedHotelData['online_price_breakdown'] ?? null)) {
+                                            $enhancedHotelData['online_price_breakdown']['currency'] = $onlineBookingCurrency;
+                                        }
+                                        if (is_array($enhancedHotelData['dmc_profile_markup'] ?? null)) {
+                                            $enhancedHotelData['dmc_profile_markup']['currency'] = $onlineBookingCurrency;
+                                        }
+                                        if (is_array($enhancedHotelData['price_payload'] ?? null)) {
+                                            $enhancedHotelData['price_payload']['currency'] = $onlineBookingCurrency;
+                                        }
+                                    }
                                     
                                     // Log transfer options for debugging
                                     if (isset($hotelBooking['transfer_options'])) {

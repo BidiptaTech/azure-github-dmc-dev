@@ -156,31 +156,60 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
             : nightsBetween(checkIn, checkOut);
         const rooms = parseInt(hotelData.numberOfRooms, 10) || 1;
         const persons = parseInt(hotelData.selectedPersons, 10) || 1;
-        // Stay total (Lite parity) — never treat pricePerNight as grand total.
-        let totalPrice = toNum(hotelData.price || hotelData.combinedRoomTotal || hotelData.customRoomPrice);
+        // Stay total — never treat pricePerNight as grand total.
+        // Prefer modal stamp so add-modal and after-add show the same Hotel / DMC / Total.
+        const stamp = hotelData.online_price_breakdown
+            || hotelData.dmc_profile_markup
+            || (booking && booking.online_price_breakdown)
+            || (booking && booking.dmc_profile_markup)
+            || null;
+        let totalPrice = toNum(hotelData.price || hotelData.combinedRoomTotal || hotelData.customRoomPrice || hotelData.grand_total);
         const perNightHint = toNum(hotelData.pricePerNight);
         if (totalPrice <= 0 && perNightHint > 0) {
             totalPrice = Math.round(perNightHint * nights * 100) / 100;
         }
-        // DMC hotel markup meta for Price breakdown (Lite parity)
         let hotelMarkupMeta = null;
-        const bookingMk = (booking && booking.markup) ? booking.markup : null;
-        if (bookingMk && toNum(bookingMk.markup_amount) > 0) {
+        if (stamp) {
+            const hotelPrice = toNum(stamp.hotel_price != null ? stamp.hotel_price : stamp.base_price);
+            const mkAmt = toNum(stamp.markup_amount);
+            const stampedTotal = toNum(stamp.total_price != null ? stamp.total_price : stamp.price);
+            const markedTotal = stampedTotal > 0 ? stampedTotal : (totalPrice > 0 ? totalPrice : (hotelPrice + mkAmt));
+            hotelMarkupMeta = {
+                currency: stamp.currency || null,
+                hotel_price: hotelPrice > 0 ? hotelPrice : Math.max(0, markedTotal - mkAmt),
+                base_price: hotelPrice > 0 ? hotelPrice : Math.max(0, markedTotal - mkAmt),
+                markup_amount: mkAmt,
+                markup_type: stamp.markup_type || 'percentage',
+                markup_value: toNum(stamp.markup_value),
+                markup_kind: 'hotel',
+                price: markedTotal,
+                total_price: markedTotal,
+                dmc_id: stamp.dmc_id || null
+            };
+            totalPrice = markedTotal;
+        } else if (toNum(hotelData.base_grand_total) > 0 && totalPrice > toNum(hotelData.base_grand_total) + 0.009) {
+            // Price already includes markup — peel for meta, do not mark up again.
             hotelMarkupMeta = {
                 markup_kind: 'hotel',
-                markup_type: bookingMk.markup_type || 'percentage',
-                markup_value: toNum(bookingMk.markup_value),
-                markup_amount: toNum(bookingMk.markup_amount),
-                dmc_id: bookingMk.dmc_id || null
+                hotel_price: toNum(hotelData.base_grand_total),
+                base_price: toNum(hotelData.base_grand_total),
+                markup_amount: Math.round((totalPrice - toNum(hotelData.base_grand_total)) * 100) / 100,
+                price: totalPrice,
+                total_price: totalPrice,
+                markup_type: 'percentage',
+                markup_value: 0
             };
-        } else if (typeof enquiryProApplyDmcMarkup === 'function' && totalPrice > 0) {
-            const applied = enquiryProApplyDmcMarkup(totalPrice, 'hotel');
-            hotelMarkupMeta = applied;
-            totalPrice = toNum(applied.price) || totalPrice;
         }
-        // Option 1: online display price → Avg Cost and Sell are the same (per-night avg).
-        const perNight = nights > 0 ? (totalPrice / nights) : totalPrice;
-        const avg = perNightHint > 0 ? perNightHint : perNight;
+        // Never re-apply DMC here — modal already stamped hotel + DMC + total.
+        const hotelBase = hotelMarkupMeta
+            ? toNum(hotelMarkupMeta.hotel_price != null ? hotelMarkupMeta.hotel_price : hotelMarkupMeta.base_price)
+            : totalPrice;
+        const perNight = nights > 0 ? (hotelBase / nights) : hotelBase;
+        const avg = perNight;
+        if (booking && typeof booking === 'object' && hotelMarkupMeta) {
+            booking.online_price_breakdown = hotelMarkupMeta;
+            booking.dmc_profile_markup = hotelMarkupMeta;
+        }
         const mealPlan = hotelData.mealPlan || 'Not specified';
         const roomType = hotelData.roomType || 'Standard';
         const bedType = hotelData.bedType || '';
@@ -251,17 +280,18 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
             api_environment: hotelData.api_environment || (booking && booking.api_environment) || '',
             totalPrice: totalPrice,
             grand_total: totalPrice,
+            base_grand_total: hotelBase,
             dmc_profile_markup: hotelMarkupMeta,
+            online_price_breakdown: hotelMarkupMeta,
             price_payload: {
-                room_total: totalPrice,
+                room_total: hotelBase,
                 meal_total: 0,
                 grand_total: totalPrice,
                 nights: nights,
                 is_online: true,
                 dmc_profile_markup: hotelMarkupMeta,
-                base_grand_total: hotelMarkupMeta
-                    ? Math.max(0, totalPrice - toNum(hotelMarkupMeta.markup_amount))
-                    : totalPrice
+                online_price_breakdown: hotelMarkupMeta,
+                base_grand_total: hotelBase
             },
             transferIds: [],
             hotelTransfer: null,
@@ -643,14 +673,38 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
         const checkInTime = onlineHotel.check_in_time || src.check_in_time || '15:00:00';
         const checkOutTime = onlineHotel.check_out_time || src.check_out_time || '12:00:00';
 
+        const stamp = src.online_price_breakdown
+            || src.dmc_profile_markup
+            || (src.price_payload && (src.price_payload.online_price_breakdown || src.price_payload.dmc_profile_markup))
+            || (snap.online_price_breakdown || snap.dmc_profile_markup)
+            || (booking.online_price_breakdown || booking.dmc_profile_markup)
+            || null;
+        const hotelPrice = stamp
+            ? (toNum(stamp.hotel_price != null ? stamp.hotel_price : stamp.base_price) || Math.max(0, stayTotal - toNum(stamp.markup_amount)))
+            : stayTotal;
+        const priceStamp = stamp ? {
+            currency: stamp.currency || currency,
+            hotel_price: hotelPrice,
+            base_price: hotelPrice,
+            markup_amount: toNum(stamp.markup_amount),
+            markup_type: stamp.markup_type || 'percentage',
+            markup_value: toNum(stamp.markup_value),
+            markup_kind: 'hotel',
+            price: stayTotal,
+            total_price: stayTotal,
+            dmc_id: stamp.dmc_id || null
+        } : null;
         const pricePayload = {
-            room_total: stayTotal,
+            room_total: hotelPrice,
             meal_total: 0,
+            base_grand_total: hotelPrice,
             grand_total: stayTotal,
             nights: nights,
             currency: currency,
             is_online: true,
-            breakdown: []
+            breakdown: [],
+            dmc_profile_markup: priceStamp,
+            online_price_breakdown: priceStamp
         };
 
         return {
@@ -683,9 +737,13 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
             adhoc_price: null,
             price_payload: pricePayload,
             helperPriceResult: Object.assign({}, pricePayload),
-            room_total: stayTotal,
+            room_total_base: hotelPrice,
+            room_total: hotelPrice,
             meal_total: 0,
+            base_grand_total: hotelPrice,
             grand_total: stayTotal,
+            dmc_profile_markup: priceStamp,
+            online_price_breakdown: priceStamp,
             meal_plan: mealPlan,
             hotel_name: hotelName,
             hotel_unique_id: hotelId,

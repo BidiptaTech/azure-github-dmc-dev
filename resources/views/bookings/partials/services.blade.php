@@ -1465,11 +1465,19 @@
             html += '<button type="button" class="btn btn-sm svc-btn svc-btn-approve" onclick="' + opts.onApprove + '">' +
                 '<i class="ri-check-line me-1"></i>Approve</button>';
         }
-        if (opts.canReject && opts.onReject) {
+        var tourId = opts.tourId != null ? Number(opts.tourId) : NaN;
+        var activeCount = Number.isFinite(tourId)
+            ? Number((w.tourActiveServiceCounts || {})[tourId] ?? NaN)
+            : NaN;
+        var blockOrderCancel = Number.isFinite(activeCount) && activeCount <= 1;
+        if (opts.canReject && opts.onReject && !blockOrderCancel) {
             html += '<button type="button" class="btn btn-sm svc-btn svc-btn-reject" onclick="window.__cancelWithoutRefund=false;' + opts.onReject + '">' +
                 '<i class="ri-close-line me-1"></i>Cancel with refund</button>';
             html += '<button type="button" class="btn btn-sm svc-btn svc-btn-cancel-zero" onclick="window.__cancelWithoutRefund=true;' + opts.onReject + '">' +
                 '<i class="ri-close-circle-line me-1"></i>Cancel without refund</button>';
+        } else if (opts.canReject && blockOrderCancel) {
+            html += '<span class="text-muted small align-self-center" title="Only one service — cancel the tour instead">' +
+                '<i class="ri-information-line me-1"></i>Cancel tour to refund</span>';
         }
         return html;
     };

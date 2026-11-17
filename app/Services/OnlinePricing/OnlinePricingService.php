@@ -31,7 +31,54 @@ class OnlinePricingService
             return $hotels;
         }
 
-        return $this->hotelApplier->apply($hotels, $context);
+        // Apply supplier (admin) markup on rates only. DMC hotel markup is applied once
+        // in the online booking UI so the modal can show: base → markup → total (e.g. 35 → 3.50 → 38.50).
+        $adminOnly = new MarkupContext(
+            adminRule: $context->adminRule,
+            dmcRule: null,
+            dmcId: $context->dmcId,
+            supplierCode: $context->supplierCode,
+            serviceType: $context->serviceType,
+        );
+
+        $hotels = $context->adminRule
+            ? $this->hotelApplier->apply($hotels, $adminOnly)
+            : $hotels;
+
+        return $this->stampHotelMarkupContext($hotels, $context);
+    }
+
+    /**
+     * Keep the full admin+DMC rule stamp on rooms for recheck, without changing amounts again.
+     *
+     * @param  array<int, array<string, mixed>>  $hotels
+     * @return array<int, array<string, mixed>>
+     */
+    private function stampHotelMarkupContext(array $hotels, MarkupContext $context): array
+    {
+        $payload = $context->toArray();
+
+        return array_map(function (array $hotel) use ($payload) {
+            $rooms = $hotel['rooms'] ?? null;
+            if (! is_array($rooms) || $rooms === []) {
+                return $hotel;
+            }
+
+            $hotel['rooms'] = array_map(function ($room) use ($payload) {
+                if (! is_array($room)) {
+                    return $room;
+                }
+
+                $room['markup'] = $payload;
+                if (isset($room['booking']) && is_array($room['booking'])) {
+                    $room['booking']['markup'] = $payload;
+                }
+
+                return $room;
+            }, $rooms);
+
+            return $hotel;
+        }, $hotels);
     }
 
     /**

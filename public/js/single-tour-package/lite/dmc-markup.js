@@ -124,18 +124,13 @@
     /** Footer totals block used by price panels / modals. */
     function totalsHtml(applied, cur) {
         applied = applied || apply(0, 'other');
-        var html = '<div class="stp-lite-hotel-breakup-totals">';
-        if (Number(applied.markup_amount || 0) > 0) {
-            html +=
-                '<div class="stp-lite-hotel-breakup-total is-markup">' +
-                '<span><strong>Markup Amount:</strong></span>' +
-                '<strong>' + moneyTxt(cur, applied.markup_amount) + '</strong></div>';
-        }
-        html +=
+        // Markup Amount is already shown in summaryRowsHtml — only Total here (avoid duplicate).
+        return (
+            '<div class="stp-lite-hotel-breakup-totals">' +
             '<div class="stp-lite-hotel-breakup-total">' +
             '<span><strong>Total Price:</strong></span>' +
-            '<strong>' + moneyTxt(cur, applied.price) + '</strong></div></div>';
-        return html;
+            '<strong>' + moneyTxt(cur, applied.price) + '</strong></div></div>'
+        );
     }
 
     /**

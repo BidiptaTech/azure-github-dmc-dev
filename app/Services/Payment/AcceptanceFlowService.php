@@ -2,6 +2,7 @@
 
 namespace App\Services\Payment;
 
+use App\Models\Order;
 use App\Models\Tour;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -28,6 +29,7 @@ class AcceptanceFlowService
 
         $breakdown = $this->classificationService->amountBreakdown($tour);
         $onlineAmount = (float) ($breakdown['online_amount'] ?? 0);
+        $settlementCurrency = (string) ($breakdown['currency'] ?? $this->classificationService->resolveTourCurrency($tour));
         $onlinePaid = $this->onlinePortionSettled($tour);
         $onlinePaidAmount = $onlinePaid
             ? $this->sumVerifiedOnlinePayments($tour, $onlineAmount)
@@ -38,8 +40,9 @@ class AcceptanceFlowService
             $onlinePaid,
             $onlineAmount,
             (float) ($breakdown['offline_amount'] ?? 0),
-            (string) ($breakdown['currency'] ?? $this->classificationService->resolveTourCurrency($tour)),
+            $settlementCurrency,
             $onlinePaidAmount,
+            $this->resolveOnlineCurrency($tour, $settlementCurrency),
         );
     }
 
@@ -53,6 +56,7 @@ class AcceptanceFlowService
         float $offlineAmount,
         string $currency = 'SGD',
         float $onlinePaidAmount = 0.0,
+        ?string $onlineCurrency = null,
     ): array {
         $onlineAmount = round($onlineAmount, 4);
         $offlineAmount = round($offlineAmount, 4);
@@ -60,8 +64,11 @@ class AcceptanceFlowService
         if ($onlinePaid && $onlinePaidAmount <= 0 && $onlineAmount > 0) {
             $onlinePaidAmount = $onlineAmount;
         }
-        $money = static function (float $amount) use ($currency): string {
-            return strtoupper(trim($currency)).' '.number_format($amount, 2, '.', '');
+        $currency = strtoupper(trim($currency)) ?: 'SGD';
+        $onlineCurrency = strtoupper(trim((string) ($onlineCurrency ?: $currency))) ?: $currency;
+        // Online amount labels use the currency charged for online services (may differ from settlement).
+        $moneyOnline = static function (float $amount) use ($onlineCurrency): string {
+            return $onlineCurrency.' '.number_format($amount, 2, '.', '');
         };
 
         if ($classification === OrderClassificationService::ONLINE) {
@@ -77,9 +84,10 @@ class AcceptanceFlowService
                 'negotiable_amount' => 0.0,
                 'payable_now' => $onlineAmount > 0 ? $onlineAmount : $offlineAmount,
                 'currency' => $currency,
+                'online_currency' => $onlineCurrency,
                 'button_label' => 'Pay full amount',
                 'hint' => $onlinePaid && $onlinePaidAmount > 0
-                    ? 'Online payment complete: '.$money($onlinePaidAmount).'. All services are online.'
+                    ? 'Online payment complete: '.$moneyOnline($onlinePaidAmount).'. All services are online.'
                     : 'All services are online. Pay the full amount to confirm. Negotiation is not available.',
             ];
         }
@@ -98,9 +106,10 @@ class AcceptanceFlowService
                     'negotiable_amount' => $offlineAmount,
                     'payable_now' => $onlineAmount,
                     'currency' => $currency,
+                    'online_currency' => $onlineCurrency,
                     'button_label' => 'Pay now',
                     'hint' => $onlineAmount > 0
-                        ? 'Pay online services first ('.$money($onlineAmount).'). Negotiation applies only to the offline total.'
+                        ? 'Pay online services first ('.$moneyOnline($onlineAmount).'). Negotiation applies only to the offline total.'
                         : 'Pay every online service first. Negotiation applies only to the offline total.',
                 ];
             }
@@ -117,9 +126,10 @@ class AcceptanceFlowService
                 'negotiable_amount' => $offlineAmount,
                 'payable_now' => 0.0,
                 'currency' => $currency,
+                'online_currency' => $onlineCurrency,
                 'button_label' => 'Negotiate',
                 'hint' => $onlinePaidAmount > 0
-                    ? 'Online payment complete: '.$money($onlinePaidAmount).'. Negotiate the offline total only.'
+                    ? 'Online payment complete: '.$moneyOnline($onlinePaidAmount).'. Negotiate the offline total only.'
                     : 'Online services are paid. Negotiate the offline total only.',
             ];
         }
@@ -136,9 +146,59 @@ class AcceptanceFlowService
             'negotiable_amount' => $offlineAmount,
             'payable_now' => 0.0,
             'currency' => $currency,
+            'online_currency' => $onlineCurrency,
             'button_label' => 'Negotiate',
             'hint' => null,
         ];
+    }
+
+    /**
+     * Currency the online portion was (or will be) charged in — not the offline settlement currency.
+     * Prefers verified online payment_details.currency, then online order currency.
+     */
+    public function resolveOnlineCurrency(Tour $tour, string $fallback = 'SGD'): string
+    {
+        $fallback = strtoupper(trim($fallback)) ?: 'SGD';
+
+        $raw = $tour->payment_details ?? null;
+        if (is_string($raw) && trim($raw) !== '') {
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : [];
+        }
+        if (is_array($raw)) {
+            foreach ($raw as $payment) {
+                if (! is_array($payment) || (int) ($payment['status'] ?? 0) !== 1) {
+                    continue;
+                }
+                if (strtolower(trim((string) ($payment['payment_for'] ?? ''))) !== 'online') {
+                    continue;
+                }
+                $code = strtoupper(trim((string) ($payment['currency'] ?? '')));
+                if (preg_match('/^[A-Z]{3}$/', $code)) {
+                    return $code;
+                }
+            }
+        }
+
+        $tourId = (int) ($tour->tour_id ?? $tour->getKey());
+        if ($tourId > 0) {
+            $onlineCurrencies = Order::query()
+                ->where('tour_id', $tourId)
+                ->whereRaw("LOWER(TRIM(COALESCE(order_type, ''))) = ?", ['online'])
+                ->pluck('currency')
+                ->map(fn ($c) => strtoupper(trim((string) $c)))
+                ->filter(fn ($c) => (bool) preg_match('/^[A-Z]{3}$/', $c))
+                ->unique()
+                ->values();
+            if ($onlineCurrencies->count() === 1) {
+                return (string) $onlineCurrencies->first();
+            }
+            if ($onlineCurrencies->isNotEmpty()) {
+                return (string) $onlineCurrencies->first();
+            }
+        }
+
+        return $fallback;
     }
 
     /**

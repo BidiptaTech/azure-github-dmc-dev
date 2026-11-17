@@ -19,6 +19,7 @@
 <script>
     window.bookingCurrency = @json($pageCurrency);
     window.tourNegotiationHistory = @json($tourNegotiationHistory ?? []);
+    window.tourActiveServiceCounts = @json($tourActiveServiceCounts ?? []);
     window.rejectServicePageTourStatus = 'Definite';
 </script>
 
@@ -1043,6 +1044,9 @@
                     <tbody>
                         @forelse($tours as $key => $tour)
                         @php
+                            $allowOrderCancel = (int) ($tourActiveServiceCounts[$tour->tour_id] ?? 0) > 1;
+                        @endphp
+                        @php
                             // Determine execution status and corresponding CSS class
                             $executionStatusClass = '';
                             $executionStatus = '';
@@ -1412,15 +1416,22 @@
                                             }
                                         }
                                     }
+                                    // Live classify: all-online tours must not keep an offline Add Payment due.
+                                    $paymentAcceptance = app(\App\Services\Payment\AcceptanceFlowService::class)->forTour($tour);
+                                    $paymentClassification = (string) ($paymentAcceptance['classification']
+                                        ?? app(\App\Services\Payment\OrderClassificationService::class)->classifyTour($tour)
+                                        ?: ($tour->order_classification ?? ''));
                                     $collection = \App\Helpers\CommonHelper::resolveOfflineCollectionAmounts(
                                         (float) $baseAmount,
                                         (float) $taxAmount,
                                         (float) $finalAmount,
                                         is_array($paymentData) ? $paymentData : null,
-                                        (string) ($tour->order_classification ?? ''),
+                                        $paymentClassification,
                                         (bool) $taxIncluded,
                                         (bool) $onlineTaxIncluded,
-                                        isset($taxResult['taxable_base']) ? (float) $taxResult['taxable_base'] : null
+                                        isset($taxResult['taxable_base']) ? (float) $taxResult['taxable_base'] : null,
+                                        ! empty($paymentAcceptance['online_paid']),
+                                        (float) ($paymentAcceptance['online_paid_amount'] ?? $paymentAcceptance['online_amount'] ?? 0)
                                     );
                                     $baseAmount = $collection['base_amount'];
                                     $taxAmount = $collection['tax_amount'];
@@ -1726,6 +1737,7 @@
         $pageCurrency = $currency ?? 'SGD';
         $svc = $serviceCell['svc'];
         $serviceData = $serviceCell['serviceData'];
+        $allowOrderCancel = (int) ($tourActiveServiceCounts[$tour->tour_id] ?? 0) > 1;
     @endphp
 
     @if(isset($svc['hotel']) && $svc['hotel'] > 0)
@@ -2253,10 +2265,14 @@
                                                         <i class="ri-check-line me-1"></i>Approve
                                                     </button>
                                                     @endif
-                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                                                    @if($allowOrderCancel && (auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138))
                                                     <button type="button" class="btn btn-sm btn-outline-danger px-3" onclick="rejectIndividualHotel({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }})" title="Reject this hotel booking">
                                                         <i class="ri-close-line me-1"></i>Cancel
                                                     </button>
+                                                    @elseif(! $allowOrderCancel)
+                                                    <span class="text-muted small align-self-center" title="Only one service — cancel the tour instead">
+                                                        <i class="ri-information-line me-1"></i>Cancel tour to refund
+                                                    </span>
                                                     @endif
                                                 </div>
                                                 @elseif($hotelOrder->is_approve == 1)
@@ -2267,13 +2283,17 @@
                                                     <button type="button" class="btn btn-sm btn-outline-info px-3" onclick="openHotelMailPreview({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }})" title="Preview email for this hotel booking">
                                                         <i class="ri-mail-line me-1"></i>Mail Preview
                                                     </button>
-                                                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138)
+                                                    @if($allowOrderCancel && (auth()->user()->role_id == 11 || auth()->user()->role_id == 34 || auth()->user()->role_id == 33 || auth()->user()->role_id == 37 || auth()->user()->role_id == 38 || auth()->user()->role_id == 124 || auth()->user()->role_id == 125 || auth()->user()->role_id == 128 || auth()->user()->role_id == 129 || auth()->user()->role_id == 130 || auth()->user()->role_id == 131 || auth()->user()->role_id == 132 || auth()->user()->role_id == 134 || auth()->user()->role_id == 135 || auth()->user()->role_id == 136 || auth()->user()->role_id == 137 || auth()->user()->role_id == 138))
                                                     <button type="button" class="btn btn-sm btn-outline-danger px-3" onclick="window.__cancelWithoutRefund=false; rejectIndividualHotel({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }}, {{ $hotelOrder->booking_id ?? $hotelOrder->id ?? 'null' }})" title="Cancel this hotel booking with refund">
                                                         <i class="ri-close-line me-1"></i>Cancel with refund
                                                     </button>
                                                     <button type="button" class="btn btn-sm btn-outline-secondary px-3 svc-btn-cancel-zero" onclick="window.__cancelWithoutRefund=true; rejectIndividualHotel({{ $tour->tour_id }}, {{ $hotelOrderIndex }}, {{ $bookingIndex }}, {{ $hotelOrder->booking_id ?? $hotelOrder->id ?? 'null' }})" title="Cancel this hotel booking without refund">
                                                         <i class="ri-close-circle-line me-1"></i>Cancel without refund
                                                     </button>
+                                                    @elseif(! $allowOrderCancel)
+                                                    <span class="text-muted small align-self-center" title="Only one service — cancel the tour instead">
+                                                        <i class="ri-information-line me-1"></i>Cancel tour to refund
+                                                    </span>
                                                     @endif
                                                 </div>
                                                 @endif
@@ -3415,15 +3435,26 @@
             }
         }
         $taxableBase = isset($taxResult['taxable_base']) ? (float) $taxResult['taxable_base'] : null;
+        $paymentAcceptance = app(\App\Services\Payment\AcceptanceFlowService::class)->forTour($tour);
+        $paymentClassification = (string) ($paymentAcceptance['classification']
+            ?? app(\App\Services\Payment\OrderClassificationService::class)->classifyTour($tour)
+            ?: ($tour->order_classification ?? ''));
+        // Keep stored classification in sync so offline panel / Add Payment stay correct.
+        // Use live classification in-memory; do not save Tour from a GET view.
+        if ($paymentClassification === 'online') {
+            $tour->setAttribute('order_classification', 'online');
+        }
         $collection = \App\Helpers\CommonHelper::resolveOfflineCollectionAmounts(
             (float) $baseAmount,
             (float) $taxAmount,
             (float) $finalAmount,
             is_array($paymentData) ? $paymentData : null,
-            (string) ($tour->order_classification ?? ''),
+            $paymentClassification,
             (bool) $taxIncluded,
             (bool) $onlineTaxIncluded,
-            $taxableBase
+            $taxableBase,
+            ! empty($paymentAcceptance['online_paid']),
+            (float) ($paymentAcceptance['online_paid_amount'] ?? $paymentAcceptance['online_amount'] ?? 0)
         );
         $baseAmount = $collection['base_amount'];
         $taxAmount = $collection['tax_amount'];
@@ -7638,6 +7669,7 @@ function generateIndividualHotelContent(hotelBooking, modalId, tourId, hotelOrde
 
             if (hasAnyPermission && window.buildProfessionalServiceActionButtons) {
                 buttonsContainer.innerHTML = window.buildProfessionalServiceActionButtons({
+                    tourId: tourId,
                     canEdit: canEdit,
                     canApprove: canApprove,
                     canReject: canReject,
@@ -17150,6 +17182,7 @@ function generateIndividualLocalTransportContent(localTransportData, modalId, to
                 if (canEdit || canReject) {
                     if (window.buildProfessionalServiceActionButtons) {
                         buttonsHTML = window.buildProfessionalServiceActionButtons({
+                            tourId: tourId,
                             canEdit: canEdit,
                             canReject: canReject,
                             onEdit: `editIndividualLocalTransport(${tourId}, ${localTransportOrderIndex}, ${bookingIndex})`,
