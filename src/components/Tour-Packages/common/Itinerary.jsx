@@ -25,8 +25,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Tabs,
-  Tab,
   CircularProgress,
   Snackbar,
   Alert
@@ -64,6 +62,15 @@ import TransportComponent from '../../Tour-Packages/Local-Transport';
 import PickupDropComponent from '../../Tour-Packages/PickUp-Drop';
 import SimpleCustomerInfo from './SimpleCustomerInfo';
 import ServicesSummaryModal from './ServicesSummaryModal';
+
+const SERVICE_TABS = [
+  { id: "hotels", label: "Hotels", icon: HotelIcon, color: "#3554D1" },
+  { id: "attractions", label: "Attractions", icon: AttractionsIcon, color: "#f44336" },
+  { id: "guides", label: "Guides", icon: PersonIcon, color: "#2196f3" },
+  { id: "restaurants", label: "Restaurants", icon: RestaurantIcon, color: "#ff9800" },
+  { id: "transport", label: "Transport", icon: DirectionsCarIcon, color: "#4caf50" },
+  { id: "ports", label: "Ports", icon: FlightIcon, color: "#795548" },
+];
 
 export default function Itinerary({ onBookingSuccess }) {
   const navigate = useNavigate();
@@ -471,8 +478,10 @@ export default function Itinerary({ onBookingSuccess }) {
       console.log("Local Transports:", categorizedServices.localTransports);
     }
   }, [categorizedServices, packageData]);
-  // State for active service tab
-  const [activeServiceTab, setActiveServiceTab] = useState(0);
+  // State for active service tab + day (reduces long vertical scrolling)
+  const [activeServiceTab, setActiveServiceTab] = useState("hotels");
+  const [activeDayIndex, setActiveDayIndex] = useState(0);
+  const [activePortTab, setActivePortTab] = useState("arrival");
   
   // State for summary modal
   const [summaryModalOpen, setSummaryModalOpen] = useState(false);
@@ -521,13 +530,13 @@ export default function Itinerary({ onBookingSuccess }) {
     }
     return datesArray;
   }, [searchCriteria]);
-  
-  // Mock hotel data for the top section
-  const mockHotel = {
-    name: "Hotel Boss",
-    location: "Little India • 3 Star",
-    image: "https://source.unsplash.com/random/600x400/?hotel"
-  };
+
+  useEffect(() => {
+    if (dates.length === 0) return;
+    if (activeDayIndex >= dates.length) {
+      setActiveDayIndex(0);
+    }
+  }, [dates.length, activeDayIndex]);
 
   // If no dates available, show a message
   if (dates.length === 0) {
@@ -607,286 +616,275 @@ export default function Itinerary({ onBookingSuccess }) {
           transition: 'margin-right 0.3s ease',
           width: shouldShowSidebar() ? '75%' : '100%',
         }}>
-          {/* Top Level Hotel Section */}
-          <Paper elevation={0} sx={{ p: 2, mb: 2, borderRadius: '13px', border: '1px solid #e4eaf3' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-              <Box 
-                sx={{ 
-                  bgcolor: '#eef3ff', 
-                  color: '#3554D1', 
-                  p: 0.5, 
-                  borderRadius: '8px', 
-                  mr: 0.8,
-                  display: 'flex'
-                }}
-              >
-                <HotelIcon sx={{ fontSize: '1rem' }} />
-              </Box>
-              <Typography variant="h6" sx={{ fontSize: '1.05rem', fontWeight: 700, color: '#14213d' }}>Hotels</Typography>
-            </Box>
-            
-            {/* Hotel Component */}
-            <HotelComponent />
+          {/* Service tabs — polished partner-style itinerary builder */}
+          {(() => {
+            const activeTabMeta = SERVICE_TABS.find((t) => t.id === activeServiceTab) || SERVICE_TABS[0];
+            const ActiveIcon = activeTabMeta.icon;
+            const needsDayPicker = activeServiceTab !== "hotels" && activeServiceTab !== "ports";
+            const activeDate = dates[activeDayIndex];
+            const tourDates = dates.map((d) => d.format("YYYY-MM-DD"));
 
-          </Paper>
+            const dayHeader = activeDate ? (
+              <div className="tp-day-banner">
+                <span className="tp-day-banner__badge">Day {activeDayIndex + 1}</span>
+                <div className="tp-day-banner__copy">
+                  <strong>{activeDate.format("ddd, D MMM YYYY")}</strong>
+                </div>
+              </div>
+            ) : null;
 
-          
-          
-          {/* Transports and Activities Section */}
-          <Paper elevation={0} sx={{ p: 2, mb: 2, borderRadius: '13px', border: '1px solid #e4eaf3' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-              <Box 
-                sx={{ 
-                  bgcolor: '#eef3ff', 
-                  color: '#3554D1', 
-                  p: 0.5, 
-                  borderRadius: '8px', 
-                  mr: 0.8,
-                  display: 'flex'
-                }}
-              >
-                <DirectionsCarIcon sx={{ fontSize: '1rem' }} />
-              </Box>
-              <Typography variant="h6" sx={{ fontSize: '1.05rem', fontWeight: 700, color: '#14213d' }}>Transports and other services</Typography>
-            </Box>
-            
-            
-            {/* Day by Day Transportation and Activities */}
-            {dates.map((date, index) => (
-              <Box key={index} id={`day-${index + 1}`} sx={{ mb: 2 }}>
-                {/* Day Plan Navigation for this specific day */}
-                <Paper elevation={1} sx={{ p: 1.5, mb: 1.5, borderRadius: 1.5, bgcolor: '#fafbfc' }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                    <Box 
-                      sx={{ 
-                        bgcolor: '#e3f2fd', 
-                        color: '#1976d2', 
-                        p: 0.4, 
-                        borderRadius: '50%', 
-                        mr: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
+            return (
+              <Paper elevation={0} className="tp-itinerary-shell" sx={{ mb: 2 }}>
+                <div className="tp-itinerary-shell__bar">
+                  <div className="tp-itinerary-shell__bar-left">
+                    <div
+                      className="tp-itinerary-shell__icon"
+                      style={{ color: activeTabMeta.color, background: `${activeTabMeta.color}14` }}
                     >
-                      <CalendarTodayIcon sx={{ fontSize: '0.8rem' }} />
-                    </Box>
-                    <Typography variant="subtitle2" sx={{ color: '#37474f', fontSize: '0.8rem', fontWeight: 500 }}>Day {index + 1} Navigation</Typography>
-                  </Box>
-                  
-                  {/* Horizontal Day Navigation */}
-                  <Box sx={{ 
-                    display: 'flex', 
-                    gap: 1, 
-                    flexWrap: 'wrap', 
-                    justifyContent: 'center',
-                    mb: 0.5
-                  }}>
-                    {dates.map((navDate, navIndex) => (
-                      <Box
-                        key={navIndex}
+                      <ActiveIcon sx={{ fontSize: "1rem" }} />
+                    </div>
+                    <div>
+                      <h2 className="tp-itinerary-shell__title">{activeTabMeta.label}</h2>
+                      <p className="tp-itinerary-shell__lede">
+                        {activeServiceTab === "hotels" && "Stays for the full trip"}
+                        {activeServiceTab === "attractions" && "Experiences for the selected day"}
+                        {activeServiceTab === "guides" && "Guides for the selected day"}
+                        {activeServiceTab === "restaurants" && "Dining for the selected day"}
+                        {activeServiceTab === "transport" && "Transfers for the selected day"}
+                        {activeServiceTab === "ports" && "Arrival & departure logistics"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="tp-itinerary-shell__meta">
+                    <span>{dates.length} day{dates.length === 1 ? "" : "s"}</span>
+                    <span>·</span>
+                    <span>{selectedCity || "Destination"}</span>
+                  </div>
+                </div>
+
+                <div className="tp-service-tabs" role="tablist" aria-label="Itinerary services">
+                  {SERVICE_TABS.map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = activeServiceTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={isActive}
+                        className={`tp-service-tabs__btn${isActive ? " is-active" : ""}`}
                         onClick={() => {
-                          // Scroll to the corresponding day section
-                          const dayElement = document.getElementById(`day-${navIndex + 1}`);
-                          if (dayElement) {
-                            dayElement.scrollIntoView({ 
-                              behavior: 'smooth', 
-                              block: 'start' 
-                            });
-                          }
-                        }}
-                        sx={{
-                          minWidth: '60px',
-                          p: 1,
-                          textAlign: 'center',
-                          bgcolor: navIndex === index ? '#e8f5e8' : '#f8f9fa',
-                          color: navIndex === index ? '#2e7d32' : '#5f6368',
-                          border: '1px solid',
-                          borderColor: navIndex === index ? '#4caf50' : '#e0e0e0',
-                          borderRadius: 1,
-                          cursor: 'pointer',
-                          transition: 'all 0.3s ease',
-                          boxShadow: navIndex === index ? '0 1px 4px rgba(76, 175, 80, 0.2)' : '0 1px 2px rgba(0,0,0,0.1)',
-                          '&:hover': {
-                            bgcolor: navIndex === index ? '#d4edda' : '#e3f2fd',
-                            borderColor: navIndex === index ? '#45a049' : '#2196f3',
-                            transform: 'translateY(-1px)',
-                            boxShadow: navIndex === index ? '0 2px 8px rgba(76, 175, 80, 0.3)' : '0 2px 8px rgba(33, 150, 243, 0.2)'
-                          }
+                          setActiveServiceTab(tab.id);
+                          setActiveDayIndex(0);
+                          if (tab.id === "ports") setActivePortTab("arrival");
                         }}
                       >
-                        <Typography 
-                          variant="caption" 
-                          sx={{ 
-                            fontWeight: 600, 
-                            display: 'block',
-                            mb: 0.3, 
-                            fontSize: '0.65rem',
-                            lineHeight: 1.1,
-                            color: 'inherit'
-                          }}
-                        >
-                          Day {navIndex + 1}
-                        </Typography>
-                        <Typography 
-                          variant="caption" 
-                          sx={{ 
-                            display: 'block',
-                            mb: 0.2, 
-                            fontSize: '0.6rem',
-                            lineHeight: 1,
-                            opacity: 0.9,
-                            color: 'inherit'
-                          }}
-                        >
-                          {navDate.format('MMM DD')}
-                        </Typography>
-                        <Typography 
-                          variant="caption" 
-                          sx={{ 
-                            display: 'block',
-                            fontSize: '0.55rem',
-                            lineHeight: 1,
-                            opacity: 0.8,
-                            color: 'inherit'
-                          }}
-                        >
-                          {navDate.format('ddd')}
-                        </Typography>
-                      </Box>
-                    ))}
-                  </Box>
-                </Paper>
+                        <Icon sx={{ fontSize: "0.95rem" }} />
+                        <span>{tab.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
 
-                {/* Day Header */}
-                <Box 
-                  sx={{ 
-                    bgcolor: 'primary.main', 
-                    color: 'white', 
-                    p: 1, 
-                    borderRadius: 0.8,
-                    mb: 1
-                  }}
-                >
-                  <Typography variant="subtitle1" sx={{ fontSize: '0.9rem' }}>
-                    Day {index + 1}, {date.format('Do MMMM')}, {date.format('dddd')}
-                  </Typography>
-                </Box>
-
-                {/* First Day - Place Port Component at the beginning */}
-                {index === 0 && (
-                  <Box sx={{ mb: 1 }}>
-                    <Paper elevation={1} sx={{ p: 1.5, borderLeft: '3px solid #1976d2' }}>
-                      <PickupDropComponent 
-                        mode="entry"
-                        date={date}
-                        entryPorts={categorizedServices.entryPorts}
-                        tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
-                      />
-                    </Paper>
-                  </Box>
+                {needsDayPicker && (
+                  <div className="tp-day-picker">
+                    <div className="tp-day-picker__label">
+                      <CalendarTodayIcon sx={{ fontSize: "0.85rem" }} />
+                      <span>Day</span>
+                    </div>
+                    <div className="tp-day-picker__row">
+                      {dates.map((navDate, navIndex) => {
+                        const isActive = navIndex === activeDayIndex;
+                        return (
+                          <button
+                            key={navIndex}
+                            type="button"
+                            className={`tp-day-chip${isActive ? " is-active" : ""}`}
+                            onClick={() => setActiveDayIndex(navIndex)}
+                            title={`${navDate.format("dddd, D MMM YYYY")}`}
+                          >
+                            <strong>D{navIndex + 1}</strong>
+                            <span>{navDate.format("D MMM")}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 )}
 
-                {/* Attraction Component */}
-                <Box sx={{ mb: 1 }}>
-                  <Paper elevation={1} sx={{ p: 0, borderLeft: '3px solid #f44336' }}>
-                    
-                    <AttractionComponent 
-                      date={date}
-                      dayIndex={index}
-                      attractionspack={categorizedServices.attractions}
-                      tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
-                    />
-                  </Paper>
-                </Box>
+                <div className="tp-itinerary-panel">
+                  {activeServiceTab === "hotels" && <HotelComponent />}
 
-                {/* Guide Component */}
-                <Box sx={{ mb: 1 }}>
-                  <Paper elevation={1} sx={{ p: 1.5, borderLeft: '3px solid #2196f3' }}>
-                    <GuideComponent 
-                      date={date}
-                      dayIndex={index}
-                      guidespack={categorizedServices.guides}
-                      tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
-                    />
-                  </Paper>
-                </Box>
+                  {activeServiceTab === "attractions" && activeDate && (
+                    <div className="tp-itinerary-panel__section">
+                      {dayHeader}
+                      <div className="tp-itinerary-panel__card tp-itinerary-panel__card--attractions">
+                        <AttractionComponent
+                          date={activeDate}
+                          dayIndex={activeDayIndex}
+                          attractionspack={categorizedServices.attractions}
+                          tourDates={tourDates}
+                        />
+                      </div>
+                    </div>
+                  )}
 
-                {/* Restaurant Component */}
-                <Box sx={{ mb: 1 }}>
-                  <Paper elevation={1} sx={{ p: 1.5, borderLeft: '3px solid #ff9800' }}>
-                    <Typography variant="subtitle2" fontWeight={500} sx={{ mb: 0.5, fontSize: '0.8rem' }}>Restaurant</Typography>
-                    <RestaurantComponent 
-                      date={date}
-                      dayIndex={index}
-                      restaurantspack={categorizedServices.restaurants}
-                      tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
-                    />
-                  </Paper>
-                </Box>
+                  {activeServiceTab === "guides" && activeDate && (
+                    <div className="tp-itinerary-panel__section">
+                      {dayHeader}
+                      <div className="tp-itinerary-panel__card tp-itinerary-panel__card--guides">
+                        <GuideComponent
+                          date={activeDate}
+                          dayIndex={activeDayIndex}
+                          guidespack={categorizedServices.guides}
+                          tourDates={tourDates}
+                        />
+                      </div>
+                    </div>
+                  )}
 
-                {/* Transport Component */}
-                <Box sx={{ mb: 1 }}>
-                  <Paper elevation={1} sx={{ p: 1.5, borderLeft: '3px solid #2196f3' }}>
-                    <TransportComponent 
-                      dayIndex={index}
-                      date={date}
-                      PointToPoint={categorizedServices.travelPoints}
-                      Hourly={categorizedServices.travelHourly}
-                      LocalTransports={categorizedServices.localTransports}
-                      tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
-                    />
-                  </Paper>
-                </Box>
+                  {activeServiceTab === "restaurants" && activeDate && (
+                    <div className="tp-itinerary-panel__section">
+                      {dayHeader}
+                      <div className="tp-itinerary-panel__card tp-itinerary-panel__card--restaurants">
+                        <RestaurantComponent
+                          date={activeDate}
+                          dayIndex={activeDayIndex}
+                          restaurantspack={categorizedServices.restaurants}
+                          tourDates={tourDates}
+                        />
+                      </div>
+                    </div>
+                  )}
 
-                {/* Last Day - Place Port Component at the end */}
-                {index === dates.length - 1 && (
-                  <Box sx={{ mb: 1 }}>
-                    <Paper elevation={1} sx={{ p: 1.5, borderLeft: '3px solid #1976d2' }}>
-                      <PickupDropComponent 
-                        mode="exit"
-                        date={date}
-                        exitPorts={categorizedServices.exitPorts}
-                        tourDates={dates.map(d => d.format('YYYY-MM-DD'))}
-                      />
-                    </Paper>
-                  </Box>
-                )}
-                
-                {index < dates.length - 1 && <Divider sx={{ my: 1.5 }} />}
-              </Box>
-            ))}
-          </Paper>
+                  {activeServiceTab === "transport" && activeDate && (
+                    <div className="tp-itinerary-panel__section">
+                      {dayHeader}
+                      <div className="tp-itinerary-panel__card tp-itinerary-panel__card--transport">
+                        <TransportComponent
+                          dayIndex={activeDayIndex}
+                          date={activeDate}
+                          PointToPoint={categorizedServices.travelPoints}
+                          Hourly={categorizedServices.travelHourly}
+                          LocalTransports={categorizedServices.localTransports}
+                          tourDates={tourDates}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {activeServiceTab === "ports" && (
+                    <div className="tp-port-tabs-wrap">
+                      <div className="tp-port-tabs" role="tablist" aria-label="Port logistics">
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={activePortTab === "arrival"}
+                          className={`tp-port-tabs__btn${activePortTab === "arrival" ? " is-active is-arrival" : ""}`}
+                          onClick={() => setActivePortTab("arrival")}
+                        >
+                          <span className="tp-port-tabs__dot tp-port-tabs__dot--in" />
+                          Arrival
+                          <em>Day 1 · {dates[0].format("D MMM")}</em>
+                        </button>
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={activePortTab === "departure"}
+                          className={`tp-port-tabs__btn${activePortTab === "departure" ? " is-active is-departure" : ""}`}
+                          onClick={() => setActivePortTab("departure")}
+                        >
+                          <span className="tp-port-tabs__dot tp-port-tabs__dot--out" />
+                          Departure
+                          <em>Day {dates.length} · {dates[dates.length - 1].format("D MMM")}</em>
+                        </button>
+                      </div>
+
+                      {activePortTab === "arrival" && (
+                        <div className="tp-port-block">
+                          <div className="tp-day-banner tp-day-banner--arrival">
+                            <span className="tp-day-banner__badge">Arrival</span>
+                            <div className="tp-day-banner__copy">
+                              <strong>Day 1 · {dates[0].format("dddd")}</strong>
+                              <span>{dates[0].format("D MMMM YYYY")}</span>
+                            </div>
+                          </div>
+                          <div className="tp-itinerary-panel__card tp-itinerary-panel__card--ports">
+                            <PickupDropComponent
+                              mode="entry"
+                              date={dates[0]}
+                              entryPorts={categorizedServices.entryPorts}
+                              tourDates={tourDates}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {activePortTab === "departure" && (
+                        <div className="tp-port-block">
+                          <div className="tp-day-banner tp-day-banner--departure">
+                            <span className="tp-day-banner__badge">Departure</span>
+                            <div className="tp-day-banner__copy">
+                              <strong>Day {dates.length} · {dates[dates.length - 1].format("dddd")}</strong>
+                              <span>{dates[dates.length - 1].format("D MMMM YYYY")}</span>
+                            </div>
+                          </div>
+                          <div className="tp-itinerary-panel__card tp-itinerary-panel__card--ports">
+                            <PickupDropComponent
+                              mode="exit"
+                              date={dates[dates.length - 1]}
+                              exitPorts={categorizedServices.exitPorts}
+                              tourDates={tourDates}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </Paper>
+            );
+          })()}
           
           {/* Customer Information Section - Added just before Trip Summary */}
           <SimpleCustomerInfo />
           
           {/* Summary section */}
-          <Paper elevation={2} sx={{ mt: 2, p: 2 }}>
-            <Typography variant="subtitle1" gutterBottom sx={{ fontSize: '0.9rem' }}>Trip Summary</Typography>
-            <Grid container spacing={1.5}>
-              <Grid item xs={12} md={8}>
-                <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
-                  {dates.length} day{dates.length !== 1 ? 's' : ''} in {selectedCity}, {selectedCountry}
+          <Paper elevation={0} className="tp-trip-summary" sx={{ mt: 2, p: 2.2 }}>
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
+              <Box>
+                <Typography sx={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#8a96ad", mb: 0.4 }}>
+                  Trip summary
                 </Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem' }}>
-                  {searchCriteria.guests?.adults || 1} Adult{parseInt(searchCriteria.guests?.adults) !== 1 ? 's' : ''} •
-                  {searchCriteria.guests?.children > 0 ? ` ${searchCriteria.guests.children} Child${parseInt(searchCriteria.guests.children) !== 1 ? 'ren' : ''} •` : ''}
-                  {dates.length - 1} Night{dates.length - 1 !== 1 ? 's' : ''}
+                <Typography sx={{ fontSize: "0.95rem", fontWeight: 700, color: "#192944" }}>
+                  {dates.length} day{dates.length !== 1 ? "s" : ""} in {selectedCity}, {selectedCountry}
                 </Typography>
-              </Grid>
-              <Grid item xs={12} md={4} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 1.5 }}>
-                <Button 
-                  variant="outlined" 
-                  color="primary" 
-                  size="small"
-                  onClick={() => setSummaryModalOpen(true)}
-                  sx={{ fontSize: '0.75rem' }}
-                >
-                  View Summary
-                </Button>
-              </Grid>
-            </Grid>
+                <Typography sx={{ fontSize: "0.78rem", color: "#748097", mt: 0.3 }}>
+                  {searchCriteria.guests?.adults || 1} Adult{parseInt(searchCriteria.guests?.adults) !== 1 ? "s" : ""}
+                  {searchCriteria.guests?.children > 0
+                    ? ` · ${searchCriteria.guests.children} Child${parseInt(searchCriteria.guests.children) !== 1 ? "ren" : ""}`
+                    : ""}
+                  {" · "}
+                  {dates.length - 1} Night{dates.length - 1 !== 1 ? "s" : ""}
+                </Typography>
+              </Box>
+              <Button
+                variant="outlined"
+                color="primary"
+                size="small"
+                onClick={() => setSummaryModalOpen(true)}
+                sx={{
+                  fontSize: "0.78rem",
+                  fontWeight: 700,
+                  textTransform: "none",
+                  borderRadius: "999px",
+                  px: 2,
+                  borderColor: "#d7deed",
+                }}
+              >
+                View summary
+              </Button>
+            </Box>
           </Paper>
           
           {/* Book Package Button Section - nazwane with Validation */}

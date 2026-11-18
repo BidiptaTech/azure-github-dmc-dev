@@ -193,7 +193,7 @@ const softPulse = keyframes`
   50% { opacity: 0.9; transform: scale(1.02); }
 `;
 
-const ProjectDemo = () => {
+const ProjectDemo = ({ embedded = false }) => {
   const theme = useTheme();
   const [step, setStep] = useState(1);
 
@@ -318,25 +318,31 @@ const ProjectDemo = () => {
 
   return (
     <>
-      <MetaComponent meta={metadata} />
-      <LandingNavbar />
+      {!embedded && (
+        <>
+          <MetaComponent meta={metadata} />
+          <LandingNavbar />
+        </>
+      )}
 
       <Box
         sx={{
-          py: { xs: 3, md: 4 },
-          px: 2,
-          minHeight: "100vh",
+          py: embedded ? { xs: 1, md: 2 } : { xs: 3, md: 4 },
+          px: embedded ? 0 : 2,
+          minHeight: embedded ? "auto" : "100vh",
           background:
             theme.palette.mode === "light"
               ? "linear-gradient(160deg, #f0f9ff 0%, #e0f2fe 30%, #ede9fe 70%, #f5f3ff 100%)"
               : "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(99,102,241,0.15), transparent), radial-gradient(circle at bottom,#0f172a,#020617)",
+          borderRadius: embedded ? 2 : 0,
         }}
       >
-        <Container maxWidth="lg">
+        <Container maxWidth="lg" disableGutters={embedded}>
           <Box
             sx={{
               textAlign: "center",
               mb: 3,
+              px: embedded ? 2 : 0,
               animation: `${fadeInUp} 0.6s ease-out`,
             }}
           >
@@ -1279,7 +1285,7 @@ const ProjectDemo = () => {
         </Alert>
       </Snackbar>
 
-      <Footer />
+      {!embedded && <Footer />}
     </>
   );
 };
