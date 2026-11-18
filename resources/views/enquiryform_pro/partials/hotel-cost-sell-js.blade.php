@@ -1121,7 +1121,9 @@
                 + '<div class="ep-mk-summary-row is-total">'
                 + '<span>Total Price</span>'
                 + '<span class="ep-mk-amt">' + epEscape(epMoney(cur, totalAmt)) + '</span>'
-                + '</div>';
+                + '</div>'
+                // DMC currency differs → exchange rate (incl. conversion commission) + total in DMC currency.
+                + (window.StpDmcFx ? window.StpDmcFx.rowsHtml(totalAmt, markup.currency || cur, 'ep-mk-summary-row', 'ep-mk-amt') : '');
         } else if (typeof enquiryProDmcMarkupSummaryHtml === 'function') {
             markupSummaryHtml = enquiryProDmcMarkupSummaryHtml(markup, cur);
         }

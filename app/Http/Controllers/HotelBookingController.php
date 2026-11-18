@@ -2940,6 +2940,24 @@ class HotelBookingController extends Controller
 
                 $credentials = $this->onlineHotelCredentials($supplierCode, $bookingRow);
 
+                // TravClicks vendor credit must cover the vendor cost before we book.
+                $supplierCredit = app(\App\Services\SupplierCredit\SupplierCreditService::class);
+                $vendorCost = \App\Services\SupplierCredit\SupplierCreditService::hotelCostFromRecheck($recheckResult);
+                try {
+                    $supplierCredit->assertSufficient(
+                        $supplierCode,
+                        (string) ($recheckResult['api_environment'] ?? $credentials['api_environment'] ?? ''),
+                        $vendorCost['amount'],
+                        $vendorCost['currency'],
+                    );
+                } catch (\App\Services\SupplierCredit\SupplierCreditInsufficientException $e) {
+                    return response()->json([
+                        'success' => false,
+                        'supplier_credit_insufficient' => true,
+                        'message' => $e->getMessage(),
+                    ], 422);
+                }
+
                 $bookingDetails = $bookingService->bookFromRecheckResult(
                     $recheckResult,
                     $bookingRow,
@@ -2952,6 +2970,14 @@ class HotelBookingController extends Controller
                     (int) $hotelOrder->id,
                     $bookingIndex,
                     $recheckToken,
+                );
+
+                // Vendor confirmed → deduct TravClicks credit with that vendor (idempotent).
+                $supplierCredit->recordHotelBooking(
+                    is_array($bookingDetails) ? $bookingDetails : [],
+                    (int) $hotelOrder->tour_id,
+                    (int) $hotelOrder->id,
+                    $referenceId,
                 );
             }
 
@@ -3019,6 +3045,7 @@ class HotelBookingController extends Controller
                 $freshHotelOrder = DB::table('orders')->where('id', $hotelOrder->id)->first() ?? $hotelOrder;
                 $commissionCredit = app(OnlineServiceCommissionCreditService::class)
                     ->creditOnApprove($freshHotelOrder, Tour::where('tour_id', $tourId)->first());
+                $this->syncOnlinePaymentHold((int) $tourId);
             }
 
             // Send confirmation email to hotel (hotels.email) using mail-preview style subject/body
@@ -3466,6 +3493,7 @@ class HotelBookingController extends Controller
                 'deleted_at' => now()
             ]);
 
+            $this->syncOnlinePaymentHold((int) $tourId);
             CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             return response()->json([
@@ -3672,6 +3700,25 @@ class HotelBookingController extends Controller
                         ], 422);
                     }
 
+                    // TravClicks' own vendor credit ledger must also cover it.
+                    $supplierCredit = app(\App\Services\SupplierCredit\SupplierCreditService::class);
+                    $attractionVendor = $orderService->resolveSupplierContext($booking);
+                    $attractionCurrency = strtoupper(trim((string) ($booking['currency'] ?? 'SGD'))) ?: 'SGD';
+                    try {
+                        $supplierCredit->assertSufficient(
+                            $attractionVendor['supplier_code'],
+                            $attractionVendor['environment'],
+                            (float) $requiredAmount,
+                            $attractionCurrency,
+                        );
+                    } catch (\App\Services\SupplierCredit\SupplierCreditInsufficientException $e) {
+                        return response()->json([
+                            'success' => false,
+                            'supplier_credit_insufficient' => true,
+                            'message' => $e->getMessage(),
+                        ], 422);
+                    }
+
                     Log::info('Attraction online approval: paying saved orders.order_ref_no', [
                         'tour_id' => $tourId,
                         'local_order_id' => $attractionOrder->id,
@@ -3697,6 +3744,27 @@ class HotelBookingController extends Controller
 
                     $booking['external_payment_completed'] = true;
                     $booking['external_order_status'] = 'paid';
+
+                    // Vendor took the credits → record the deduction (idempotent per order ref).
+                    $supplierCredit->recordBookingDebit([
+                        'supplier_code' => $attractionVendor['supplier_code'],
+                        'environment' => $attractionVendor['environment'],
+                        'amount' => (float) $requiredAmount,
+                        'currency' => $attractionCurrency,
+                        'service_type' => 'attraction',
+                        'tour_id' => (int) $tourId,
+                        'order_id' => (int) $attractionOrder->id,
+                        'supplier_booking_reference' => $savedExternalRef,
+                        'agency_reference' => $referenceId,
+                        'idempotency_key' => 'booking_debit:attraction:'.$attractionOrder->id.':'.$savedExternalRef,
+                        'description' => 'Attraction paid with vendor · Tour #'.(int) $tourId,
+                        'metadata' => [
+                            'channel' => 'approve',
+                            'attraction_name' => $booking['attractionName'] ?? $booking['name'] ?? null,
+                            'vendor_credits_balance_before' => $creditsBalance,
+                        ],
+                    ]);
+
                     $writeBookingIntoData();
                     DB::table('orders')->where('id', $attractionOrder->id)->update([
                         'order_ref_no' => $savedExternalRef,
@@ -3865,6 +3933,7 @@ class HotelBookingController extends Controller
                 $freshAttractionOrder = DB::table('orders')->where('id', $attractionOrder->id)->first() ?? $attractionOrder;
                 $commissionCredit = app(OnlineServiceCommissionCreditService::class)
                     ->creditOnApprove($freshAttractionOrder, Tour::where('tour_id', $tourId)->first());
+                $this->syncOnlinePaymentHold((int) $tourId);
             }
 
             // Prepare success message with upload information
@@ -4364,6 +4433,17 @@ class HotelBookingController extends Controller
                     'message' => $voucherCancelResult['message'] ?? null,
                     'provider_status' => $voucherCancelResult['provider_status'] ?? null,
                 ];
+
+                // Vendor refunded the credits → return to TravClicks vendor credit (review on reconcile).
+                app(\App\Services\SupplierCredit\SupplierCreditService::class)->recordCancellationRefund([
+                    'order_id' => (int) $attractionOrder->id,
+                    'tour_id' => (int) $tourId,
+                    'service_type' => 'attraction',
+                    'charge_reported' => false,
+                    'supplier_booking_reference' => $voucherCode,
+                    'metadata' => ['voucher_code' => $voucherCode, 'trigger' => 'reject_voucher'],
+                ]);
+
                 if (isset($attractionData[$bookingIndex]) && is_array($attractionData[$bookingIndex])) {
                     $attractionData[$bookingIndex] = $booking;
                 } elseif (isset($attractionData[0]) && is_array($attractionData[0])) {
@@ -4408,6 +4488,7 @@ class HotelBookingController extends Controller
                 'deleted_at' => now()
             ]);
 
+            $this->syncOnlinePaymentHold((int) $tourId);
             CommonHelper::maybeRevertTourStatusToNewEnquiry((int) $tourId);
 
             $message = 'Attraction booking rejected successfully';
@@ -6611,6 +6692,19 @@ class HotelBookingController extends Controller
     /**
      * @param  array<string, mixed>  $booking
      */
+    /**
+     * Online payment hold: apply this approval / rejection (deduct share, settle when done).
+     * Never blocks the booking response.
+     */
+    private function syncOnlinePaymentHold(int $tourId): void
+    {
+        try {
+            app(\App\Services\Payment\PaymentOrchestrator::class)->syncOnlineHold($tourId);
+        } catch (\Throwable $e) {
+            Log::error('online_hold_sync_after_booking_failed', ['tour_id' => $tourId, 'error' => $e->getMessage()]);
+        }
+    }
+
     private function resolveOnlineHotelSupplierCode(array $booking): string
     {
         $code = strtolower(trim((string) (

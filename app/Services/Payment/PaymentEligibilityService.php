@@ -142,7 +142,7 @@ class PaymentEligibilityService
             'payment_stage' => $stage,
             'payment_recipient' => $recipient,
             'currency' => $currency,
-            'payable_amount' => round($payable, 4),
+            'payable_amount' => round($payable, 2),
             'amount_readonly' => $stage === 'supplier_initial',
             'acceptance' => $this->acceptanceSnapshot(
                 $tour,
@@ -364,7 +364,7 @@ class PaymentEligibilityService
             }
         }
 
-        return round($paid, 4);
+        return round($paid, 2);
     }
 
     protected function hasPendingPayment(Tour $tour): bool
@@ -550,7 +550,7 @@ class PaymentEligibilityService
             $paid += (float) ($p['amount'] ?? 0);
         }
 
-        return max(0, round($total - $paid, 4));
+        return max(0, round($total - $paid, 2));
     }
 
     /**
@@ -577,7 +577,7 @@ class PaymentEligibilityService
             return [
                 'available' => false,
                 'reason' => 'No payable amount on this booking.',
-                'available_balance' => round($balance, 4),
+                'available_balance' => round($balance, 2),
                 'required_amount' => 0.0,
                 'currency' => $currency,
                 'source_dmc_id' => $dmcId,
@@ -593,8 +593,8 @@ class PaymentEligibilityService
                 : ($balance <= 0
                     ? "No {$currency} balance in the DMC wallet."
                     : "Insufficient DMC wallet balance ({$currency} {$balance} available, {$amount} required)."),
-            'available_balance' => round($balance, 4),
-            'required_amount' => round($amount, 4),
+            'available_balance' => round($balance, 2),
+            'required_amount' => round($amount, 2),
             'currency' => $currency,
             'source_dmc_id' => $dmcId,
         ];

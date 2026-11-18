@@ -591,6 +591,31 @@ class OnlineAttractionOrderService
      * @param  array<string, mixed>  $attraction
      * @return array{0: string, 1: array<string, string|null>}
      */
+    /**
+     * Vendor code + API environment that payOrder()/createOrder() will use (for credit tracking).
+     *
+     * @param  array<string, mixed>  $attraction
+     * @return array{supplier_code: string, environment: string}
+     */
+    public function resolveSupplierContext(array $attraction): array
+    {
+        $supplierCode = (string) ($attraction['supplier_code'] ?? self::DEFAULT_SUPPLIER_CODE) ?: self::DEFAULT_SUPPLIER_CODE;
+        $cityName = trim((string) ($attraction['city'] ?? ''));
+        if ($cityName !== '') {
+            try {
+                $resolved = $this->resolver->resolveForCityName($cityName);
+                $supplierCode = $resolved['supplier']->code ?? $supplierCode;
+            } catch (Throwable) {
+                // keep stored code
+            }
+        }
+
+        return [
+            'supplier_code' => $supplierCode,
+            'environment' => $this->apiEnvironment->resolveForRecord($attraction),
+        ];
+    }
+
     private function resolveSupplier(array $attraction): array
     {
         $supplierCode = (string) ($attraction['supplier_code'] ?? self::DEFAULT_SUPPLIER_CODE);

@@ -70,11 +70,11 @@ class WalletAmountRegressionTest extends TestCase
 
     public function test_cross_currency_conversion_still_charges_once(): void
     {
-        // 124 USD -> SGD at 1.2810801878 plus 6.5%: the figure that was wrongly charged for an SGD tour.
+        // 124 USD -> SGD at 1.2810801878 plus 6.5% (money rounded to 2dp): the figure that was wrongly charged for an SGD tour.
         $quoted = (new FxConversionCharge)->apply(124.0, 1.2810801878, 6.5, true);
 
-        $this->assertEquals(169.1794, $quoted['destination_amount']);
-        $this->assertEquals(10.3255, $quoted['fee']);
+        $this->assertEquals(169.18, $quoted['destination_amount']);
+        $this->assertEquals(10.33, $quoted['fee']);
     }
 
     protected function orchestrator(?WalletService $wallet = null)
@@ -120,17 +120,17 @@ class WalletAmountRegressionTest extends TestCase
             'order_amount' => 124.0,
             'order_currency' => 'USD',
             'exchange_rate' => 1.2810801878,
-            'conversion_charge' => 10.3255,
+            'conversion_charge' => 10.33,
             'payment_for' => 'online',
         ];
-        $row = $this->row($this->orchestrator(), 169.1794, 'SGD', $meta, 169.1794);
+        $row = $this->row($this->orchestrator(), 169.18, 'SGD', $meta, 169.18);
 
         $this->assertSame(124.0, $row['amount']);          // outstanding is measured in the order currency
         $this->assertSame('USD', $row['currency']);
         $this->assertSame(1.2810801878, $row['exchange_rate']);
-        $this->assertSame(169.1794, $row['wallet_amount']);
+        $this->assertSame(169.18, $row['wallet_amount']);
         $this->assertSame('SGD', $row['wallet_currency']);
-        $this->assertSame(10.3255, $row['conversion_charge']);
+        $this->assertSame(10.33, $row['conversion_charge']);
         $this->assertSame('online', $row['payment_for']);
     }
 
