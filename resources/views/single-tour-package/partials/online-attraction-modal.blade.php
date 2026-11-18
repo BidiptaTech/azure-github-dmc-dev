@@ -501,20 +501,92 @@
         }
     }
 
-    function getMainGuestLimits() {
-        const mainMale = parseInt(document.getElementById('male')?.value, 10) || 0;
-        const mainFemale = parseInt(document.getElementById('female')?.value, 10) || 0;
-        const mainAdultsField = parseInt(document.getElementById('adults')?.value, 10) || 1;
-        const mainChildren = parseInt(document.getElementById('children')?.value, 10) || 0;
-        const mainInfants = parseInt(document.getElementById('infants')?.value, 10) || 0;
+    /**
+     * Read guest counts from Enquiry Pro header fields or LITE/classic hidden fields.
+     * Pro: adultCountInput / adultManInput / adultWomenInput / childCountInput / infantCountInput
+     * LITE: adults / male / female / children / infants
+     */
+    function readMainAttractionFormGuestSnapshot() {
+        if (typeof readMainFormGuestSnapshot === 'function') {
+            return readMainFormGuestSnapshot();
+        }
 
-        const maxAdults = Math.max(1, (mainMale + mainFemale) > 0 ? (mainMale + mainFemale) : mainAdultsField);
+        const hasProGuestFields = !!(
+            document.getElementById('adultCountInput')
+            || document.getElementById('adultManInput')
+            || document.getElementById('childCountInput')
+            || document.getElementById('infantCountInput')
+        );
+
+        let male = 0;
+        let female = 0;
+        let adults = 0;
+        let children = 0;
+        let infants = 0;
+
+        if (hasProGuestFields) {
+            male = parseInt(document.getElementById('adultManInput')?.value, 10) || 0;
+            female = parseInt(document.getElementById('adultWomenInput')?.value, 10) || 0;
+            adults = parseInt(document.getElementById('adultCountInput')?.value, 10) || 0;
+            children = parseInt(document.getElementById('childCountInput')?.value, 10) || 0;
+            infants = parseInt(document.getElementById('infantCountInput')?.value, 10) || 0;
+        } else {
+            male = parseInt(document.getElementById('male')?.value, 10) || 0;
+            female = parseInt(document.getElementById('female')?.value, 10) || 0;
+            adults = parseInt(document.getElementById('adults')?.value, 10) || 0;
+            children = parseInt(document.getElementById('children')?.value, 10) || 0;
+            infants = parseInt(document.getElementById('infants')?.value, 10) || 0;
+        }
+
+        if (male + female === 0 && adults > 0) {
+            male = adults;
+            female = 0;
+        } else if (adults <= 0 && (male + female) > 0) {
+            adults = male + female;
+        }
+
+        const maxAdults = Math.max(1, (male + female) > 0 ? (male + female) : Math.max(1, adults || 1));
+
+        let childAges = [];
+        if (children > 0) {
+            for (let i = 1; i <= children; i++) {
+                const sel = document.getElementById('childAge' + i);
+                if (sel) {
+                    childAges.push(parseInt(sel.value, 10) || 0);
+                }
+            }
+        }
+        if (childAges.length === 0) {
+            try {
+                const raw = document.getElementById('enquiryProChildAges')?.value
+                    || document.getElementById('child_ages')?.value
+                    || '[]';
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) {
+                    childAges = parsed.map(function (a) { return parseInt(a, 10); }).filter(function (a) { return !isNaN(a); });
+                }
+            } catch (e) {
+                childAges = [];
+            }
+        }
 
         return {
+            male: male,
+            female: female,
             adults: maxAdults,
-            children: mainChildren,
-            infants: mainInfants,
-            totalPax: maxAdults + mainChildren + mainInfants,
+            children: Math.max(0, children),
+            infants: Math.max(0, infants),
+            childAges: childAges,
+        };
+    }
+
+    function getMainGuestLimits() {
+        const snap = readMainAttractionFormGuestSnapshot();
+        return {
+            adults: snap.adults,
+            children: snap.children,
+            infants: snap.infants,
+            totalPax: snap.adults + snap.children + snap.infants,
         };
     }
 
@@ -552,28 +624,17 @@
     }
 
     function loadOnlineAttractionGuestStateFromMain() {
-        const mainMale = parseInt(document.getElementById('male')?.value, 10) || 0;
-        const mainFemale = parseInt(document.getElementById('female')?.value, 10) || 0;
-        const mainAdults = parseInt(document.getElementById('adults')?.value, 10) || 1;
-        const mainChildren = parseInt(document.getElementById('children')?.value, 10) || 0;
-        const mainInfants = parseInt(document.getElementById('infants')?.value, 10) || 0;
+        const snap = readMainAttractionFormGuestSnapshot();
 
-        onlineAttractionGuestState.male = mainMale;
-        onlineAttractionGuestState.female = mainFemale;
-        if (mainMale + mainFemale === 0) {
-            onlineAttractionGuestState.male = mainAdults;
+        onlineAttractionGuestState.male = snap.male;
+        onlineAttractionGuestState.female = snap.female;
+        if (snap.male + snap.female === 0) {
+            onlineAttractionGuestState.male = snap.adults;
             onlineAttractionGuestState.female = 0;
         }
-        onlineAttractionGuestState.children = mainChildren;
-        onlineAttractionGuestState.infants = mainInfants;
-
-        try {
-            const raw = document.getElementById('child_ages')?.value || '[]';
-            const parsed = JSON.parse(raw);
-            onlineAttractionGuestState.childAges = Array.isArray(parsed) ? parsed.map(function (a) { return parseInt(a, 10); }).filter(function (a) { return !isNaN(a); }) : [];
-        } catch (e) {
-            onlineAttractionGuestState.childAges = [];
-        }
+        onlineAttractionGuestState.children = snap.children;
+        onlineAttractionGuestState.infants = snap.infants;
+        onlineAttractionGuestState.childAges = Array.isArray(snap.childAges) ? snap.childAges.slice() : [];
 
         clampOnlineAttractionGuestState();
     }

@@ -819,10 +819,19 @@ class OnlineAttractionOrderService
             $ticketSku = $ticketId;
         }
 
+        // Prefer cost / provider unit — Pro stores sell (with DMC markup) in adult_price
+        $unit = (float) (
+            $attraction['adultCost']
+            ?? $attraction['ticket_details']['adult_cost']
+            ?? $attraction['adultPrice']
+            ?? $attraction['ticket_details']['adult_price']
+            ?? 0
+        );
+
         return [
             'sku_id' => $ticketSku,
             'ticket_id' => $ticketId,
-            'adult_price' => (float) ($attraction['ticket_details']['adult_price'] ?? 0),
+            'adult_price' => $unit,
         ];
     }
 
@@ -1007,7 +1016,10 @@ class OnlineAttractionOrderService
     }
 
     /**
-     * Provider net total (not DMC markup). /order/create validates this against catalog price.
+     * Provider net total (not DMC markup). /order/create validates:
+     * total_amount === catalog_unit_price × item_quantity_1 (single SKU line).
+     * Do not mix adult/child sell prices from the Pro form — that caused
+     * "Total amount discrepancy" (e.g. 3×$1 + 1×$6 = $9 vs expected 4×$1 = $4).
      *
      * @param  array<string, mixed>  $attraction
      * @param  array{sku_id?: string, ticket_id?: string, adult_price?: float}  $ticket
@@ -1026,22 +1038,27 @@ class OnlineAttractionOrderService
         $wantPremium = stripos((string) ($attraction['ticketName'] ?? $attraction['ticketId'] ?? ''), 'premium') !== false;
         $unit = ($wantPremium && $high > 0) ? $high : $low;
 
+        // Prefer live/resolved catalog unit from the ticket SKU
         $ticketUnit = (float) ($ticket['adult_price'] ?? 0);
         if ($ticketUnit > 0) {
             $unit = $ticketUnit;
         }
 
+        // Fall back to provider cost fields only (never sell / DMC markup)
         if ($unit <= 0) {
-            $unit = (float) ($attraction['ticket_details']['adult_price'] ?? $attraction['adultPrice'] ?? 0);
+            $unit = (float) (
+                $attraction['adultCost']
+                ?? $attraction['ticket_details']['adult_cost']
+                ?? $attraction['adultPrice']
+                ?? $attraction['ticket_details']['adult_price']
+                ?? 0
+            );
         }
 
-        $childUnit = (float) ($attraction['ticket_details']['child_price'] ?? $unit);
-        $total = ($adults * $unit) + ($children * $childUnit);
-        if ($total <= 0) {
-            $total = $unit * $quantity;
-        }
+        $qty = max(1, $quantity > 0 ? $quantity : ($adults + $children));
+        $total = $unit * $qty;
 
-        return number_format($total, 2, '.', '');
+        return number_format(max(0, $total), 2, '.', '');
     }
 
     /**

@@ -1910,7 +1910,7 @@ window.enquiryProCancelOrderUrl = @json(url('/api/orders/__ID__/cancel'));
             <div class="section-header">
                 <span>Attractions</span>
                 <div class="d-flex align-items-center flex-wrap justify-content-end">
-                    {{-- @if(\App\Helpers\CommonHelper::masterDmcOnlineApiEnabled(auth()->user()))
+                    @if(\App\Helpers\CommonHelper::masterDmcOnlineApiEnabled(auth()->user()))
                     <div class="ep-online-source-toggle" title="Offline = catalog attractions · Online = live SG Attractions (Lite flow, no transfer)">
                         <div class="form-check form-check-inline">
                             <input class="form-check-input ep-attraction-source-type" type="radio" name="epAttractionSourceType" id="epAttractionSourceOffline" value="offline" checked>
@@ -1921,7 +1921,7 @@ window.enquiryProCancelOrderUrl = @json(url('/api/orders/__ID__/cancel'));
                             <label class="form-check-label" for="epAttractionSourceOnline">Online</label>
                         </div>
                     </div>
-                    @endif --}}
+                    @endif
                     <button class="btn btn-sm btn-light btn-xs" onclick="openTourModal()">+ Add</button>
                     <button class="btn btn-sm btn-light btn-xs ms-1" onclick="removeSelectedTours()">- Remove</button>
                 </div>

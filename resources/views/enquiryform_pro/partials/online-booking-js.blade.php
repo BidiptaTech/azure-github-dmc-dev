@@ -281,7 +281,10 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
         const adultP = toNum(payload.adultPrice);
         const childP = toNum(payload.childPrice);
         const infantP = 0;
-        // Option 1: online display unit prices → cost === sell
+        // Provider net units (create-order). Sell may gain DMC markup below.
+        let adultSell = adultP;
+        let childSell = childP;
+        let infantSell = infantP;
         const visitDate = ymdOnly(payload.visitDate) || headerDates().start;
         const timeSlot = payload.timeSlot || '10:00';
         let dateTime = visitDate;
@@ -296,12 +299,13 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
         if (typeof enquiryProApplyDmcMarkup === 'function' && total > 0) {
             const applied = enquiryProApplyDmcMarkup(total, 'other');
             attractionMarkupMeta = applied;
-            // Bake markup into unit sells so list + breakdown match Lite Get Price total
+            // Bake markup into unit sells only — keep adultCost/childCost as provider net
             if (toNum(applied.markup_amount) > 0 && total > 0) {
                 const factor = toNum(applied.price) / total;
                 if (factor > 0 && Number.isFinite(factor)) {
-                    // keep cost as base; sell becomes marked-up unit
-                    // adultCost/childCost stay at base below
+                    adultSell = Math.round(adultP * factor * 100) / 100;
+                    childSell = Math.round(childP * factor * 100) / 100;
+                    infantSell = Math.round(infantP * factor * 100) / 100;
                 }
                 total = toNum(applied.price) || total;
             }
@@ -318,13 +322,13 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
             visitTime: timeSlot,
             adultsQty: adults,
             adultCost: adultP,
-            adultSell: adultP,
+            adultSell: adultSell,
             childQty: children,
             childCost: childP,
-            childSell: childP,
+            childSell: childSell,
             infantQty: infants,
             infantCost: infantP,
-            infantSell: infantP,
+            infantSell: infantSell,
             transferId: null,
             transferInfo: null,
             guideId: null,
@@ -912,33 +916,38 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
                     row.transfer_options = null;
                     row.transport = null;
                     row.mode = 'online';
-                    // Online: cost === sell (unit + line totals for orders.cost_price)
-                    row.adultCost = toNum(src.adultCost || src.adultSell);
+                    // Provider net unit stays on cost; sell may include DMC markup for display only.
+                    // Create-order must use cost (never sell) — see OnlineAttractionOrderService::providerTotalAmount.
+                    row.adultCost = toNum(src.adultCost || src.adultPrice || src.adultSell);
+                    row.childCost = toNum(src.childCost || src.childPrice || src.childSell);
+                    row.infantCost = toNum(src.infantCost || src.infantPrice || src.infantSell);
                     row.adultSell = toNum(src.adultSell || src.adultCost);
-                    row.childCost = toNum(src.childCost || src.childSell);
                     row.childSell = toNum(src.childSell || src.childCost);
-                    row.infantCost = toNum(src.infantCost || src.infantSell);
                     row.infantSell = toNum(src.infantSell || src.infantCost);
                     const adults = Math.max(0, parseInt(row.adultsQty || row.adultCount || src.adultsQty, 10) || 0);
                     const children = Math.max(0, parseInt(row.childQty || row.childCount || src.childQty, 10) || 0);
                     const infants = Math.max(0, parseInt(row.infantQty || row.infants || src.infantQty, 10) || 0);
-                    const lineTotal = toNum(src.totalPrice || src.grand_total) ||
+                    const providerLine = (row.adultCost * adults) + (row.childCost * children) + (row.infantCost * infants);
+                    const sellLine = toNum(src.totalPrice || src.grand_total) ||
                         (row.adultSell * adults + row.childSell * children + row.infantSell * infants);
-                    row.totalPrice = lineTotal;
-                    row.grand_total = lineTotal;
-                    row.cost = lineTotal;
-                    row.sell = lineTotal;
-                    row.cost_price = lineTotal;
+                    row.totalPrice = sellLine;
+                    row.grand_total = sellLine;
+                    row.cost = providerLine > 0 ? providerLine : sellLine;
+                    row.sell = sellLine;
+                    row.cost_price = row.cost;
+                    row.provider_unit_price = row.adultCost;
+                    row.provider_total_amount = providerLine > 0 ? providerLine : sellLine;
                     if (row.ticket_details) {
+                        // adult_price / child_price = provider net (API create-order), not sell
                         row.ticket_details.adult_cost = row.adultCost;
                         row.ticket_details.adult_sell = row.adultSell;
-                        row.ticket_details.adult_price = row.adultSell;
+                        row.ticket_details.adult_price = row.adultCost;
                         row.ticket_details.child_cost = row.childCost;
                         row.ticket_details.child_sell = row.childSell;
-                        row.ticket_details.child_price = row.childSell;
+                        row.ticket_details.child_price = row.childCost;
                         row.ticket_details.infant_cost = row.infantCost;
                         row.ticket_details.infant_sell = row.infantSell;
-                        row.ticket_details.infant_price = row.infantSell;
+                        row.ticket_details.infant_price = row.infantCost;
                     }
                     return row;
                 });
