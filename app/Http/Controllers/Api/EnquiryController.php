@@ -1293,14 +1293,9 @@ class EnquiryController extends Controller
     {
         $user = auth()->user();
         $agent_id = $request->agent_id ?? $user->agent_id;
-        $dmc_id = $request->dmc_id;
 
         if (!$agent_id) {
             return response()->json(['message' => 'Agent ID not found'], 400);
-        }
-
-        if (!$dmc_id) {
-            return response()->json(['message' => 'DMC ID not found'], 400);
         }
 
         $currentAgent = Agent::where('agent_id', $agent_id)->first();
@@ -1313,7 +1308,6 @@ class EnquiryController extends Controller
 
         $query = Tour::with(['booking'])
             ->where('agent_id', $agent_id)
-            ->where('dmc_id', $dmc_id)
             ->whereNotNull('multi_enq_id')
             ->where('multi_enq_id', '!=', '')
             ->whereIn('tour_status', ['New Enquiry', 'Prospect', 'Tentative']);
