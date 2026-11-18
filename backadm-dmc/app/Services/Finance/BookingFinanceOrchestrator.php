@@ -152,8 +152,8 @@ class BookingFinanceOrchestrator
         // Use the commission already stored on the tour. Do not invent a 50/50
         // split — that credited commission again after the selling price (which
         // already includes DMC markup) was debited from the wallet.
-        $markup = round((float) ($tour->travclicks_markup ?? 0), 4);
-        $commission = round((float) ($tour->dmc_commission ?? 0), 4);
+        $markup = round((float) ($tour->travclicks_markup ?? 0), 2);
+        $commission = round((float) ($tour->dmc_commission ?? 0), 2);
         $dmcId = (int) ($tour->dmc_id ?? 0);
         if ($commission > 0 && $dmcId > 0 && $ledger->tourCreditExists((int) ($tour->tour_id ?? $tour->getKey()), 'dmc', $dmcId)) {
             $commission = 0.0;
@@ -331,8 +331,8 @@ class BookingFinanceOrchestrator
 
             if (! $alreadyRecorded && $amount > 0) {
                 $details[] = [
-                    'amount' => round($amount, 4),
-                    'original_amount' => round($amount, 4),
+                    'amount' => round($amount, 2),
+                    'original_amount' => round($amount, 2),
                     'currency' => $currency,
                     'exchange_rate' => 1,
                     'transaction_id' => $financeRef ?: ('wallet-'.($tour->tour_id ?? $tour->getKey())),

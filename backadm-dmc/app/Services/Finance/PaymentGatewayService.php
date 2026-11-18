@@ -55,7 +55,7 @@ class PaymentGatewayService
         \Stripe\Stripe::setApiKey($secret);
 
         $currency = strtolower((string) ($data['currency_code'] ?? 'usd'));
-        $amountMinor = (int) round(((float) $data['amount']) * 100);
+        $amountMinor = self::toMinorUnits((float) $data['amount'], $currency);
         if ($amountMinor <= 0) {
             throw new RuntimeException('Stripe amount must be positive');
         }
@@ -83,7 +83,7 @@ class PaymentGatewayService
                     isset($data['travclicks_markup']) ? (float) $data['travclicks_markup'] : null
                 );
 
-            $feeMinor = (int) round($feeMajor * 100);
+            $feeMinor = self::toMinorUnits($feeMajor, $currency);
             if ($feeMinor > 0 && $feeMinor < $amountMinor) {
                 $params['application_fee_amount'] = $feeMinor;
             }
@@ -112,12 +112,25 @@ class PaymentGatewayService
     public function captureStripePaymentIntent(string $paymentIntentId, ?float $amount = null): array
     {
         $this->configureStripe();
+        $intent = \Stripe\PaymentIntent::retrieve($paymentIntentId);
         $params = [];
         if ($amount !== null) {
-            $params['amount_to_capture'] = (int) round($amount * 100);
+            $params['amount_to_capture'] = self::toMinorUnits($amount, (string) $intent->currency);
         }
 
-        return \Stripe\PaymentIntent::retrieve($paymentIntentId)->capture($params)->toArray();
+        return $intent->capture($params)->toArray();
+    }
+
+    /**
+     * Server-side read of a PaymentIntent (verify an authorisation instead of trusting the browser).
+     *
+     * @return array<string, mixed>
+     */
+    public function retrieveStripePaymentIntent(string $paymentIntentId): array
+    {
+        $this->configureStripe();
+
+        return \Stripe\PaymentIntent::retrieve($paymentIntentId)->toArray();
     }
 
     /**
@@ -158,7 +171,15 @@ class PaymentGatewayService
             $pi = (string) ($refundData['stripe_payment_intent_id'] ?? $refundData['gateway_refund_reference']);
             $params = [];
             if (! empty($refundData['refund_amount'])) {
-                $params['amount'] = (int) round(((float) $refundData['refund_amount']) * 100);
+                $refundCurrency = (string) ($refundData['currency'] ?? $refundData['currency_code'] ?? '');
+                if ($refundCurrency === '') {
+                    try {
+                        $refundCurrency = (string) \Stripe\PaymentIntent::retrieve($pi)->currency;
+                    } catch (\Throwable) {
+                        $refundCurrency = '';
+                    }
+                }
+                $params['amount'] = self::toMinorUnits((float) $refundData['refund_amount'], $refundCurrency);
             }
             try {
                 \Stripe\Refund::create(array_merge(['payment_intent' => $pi], $params));
@@ -188,7 +209,7 @@ class PaymentGatewayService
         string $idempotencyKey,
     ): array {
         $this->configureStripe();
-        $minor = (int) round($amount * 100);
+        $minor = self::toMinorUnits($amount, $currency);
         if ($minor <= 0) {
             throw new RuntimeException('Transfer amount must be positive');
         }
@@ -199,6 +220,28 @@ class PaymentGatewayService
             'destination' => $destinationAccountId,
             'metadata' => $metadata,
         ], ['idempotency_key' => $idempotencyKey])->toArray();
+    }
+
+    /**
+     * Stripe zero-decimal currencies (amount is sent as-is, not ×100).
+     * https://docs.stripe.com/currencies#zero-decimal
+     */
+    public const STRIPE_ZERO_DECIMAL = [
+        'bif', 'clp', 'djf', 'gnf', 'jpy', 'kmf', 'krw', 'mga',
+        'pyg', 'rwf', 'ugx', 'vnd', 'vuv', 'xaf', 'xof', 'xpf',
+    ];
+
+    /**
+     * Major amount (e.g. 123.45) → Stripe minor units for the currency.
+     */
+    public static function toMinorUnits(float $amount, ?string $currency): int
+    {
+        $cur = strtolower(trim((string) $currency));
+        if (in_array($cur, self::STRIPE_ZERO_DECIMAL, true)) {
+            return (int) round($amount);
+        }
+
+        return (int) round(round($amount, 2) * 100);
     }
 
     protected function configureStripe(): void

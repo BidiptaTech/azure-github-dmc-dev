@@ -72,7 +72,7 @@ class CommissionSettlementService
             }
         }
         if ($walletCharged <= 0) {
-            $walletCharged = round((float) $breakdown['charged_amount'] + $conversion, 4);
+            $walletCharged = round((float) $breakdown['charged_amount'] + $conversion, 2);
         }
 
         $method = (string) ($attempt['payment_method'] ?? '');
@@ -220,12 +220,12 @@ class CommissionSettlementService
             : 0.0;
 
         // alreadyDmc is in DMC home currency when online_approve converted; due starts in order currency.
-        $dmcDueOrder = round((float) $breakdown['dmc_commission'], 4);
+        $dmcDueOrder = round((float) $breakdown['dmc_commission'], 2);
         if ($alreadyDmc > 0) {
             $alreadyInOrder = $orderCurrency === $dmcHomeCurrency
                 ? $alreadyDmc
                 : (Country::convertAmount($alreadyDmc, $dmcHomeCurrency, $orderCurrency) ?? $alreadyDmc);
-            $dmcDueOrder = round(max(0, $dmcDueOrder - (float) $alreadyInOrder), 4);
+            $dmcDueOrder = round(max(0, $dmcDueOrder - (float) $alreadyInOrder), 2);
         }
 
         if ($dmcDueOrder > 0 && $dmcId > 0) {
@@ -236,7 +236,7 @@ class CommissionSettlementService
                 if ($dmcHomeCurrency !== $orderCurrency) {
                     $converted = Country::convertAmount($dmcDueOrder, $orderCurrency, $dmcHomeCurrency);
                     if ($converted !== null && $converted > 0) {
-                        $creditAmount = round((float) $converted, 4);
+                        $creditAmount = round((float) $converted, 2);
                     } else {
                         // Keep credit in order currency only if FX rate is missing
                         $creditCurrency = $orderCurrency;
@@ -370,6 +370,6 @@ class CommissionSettlementService
 
         $fee = DB::table('currency_conversion_snapshots')->where('id', $snapshotId)->value('fee_or_spread');
 
-        return round((float) $fee, 4);
+        return round((float) $fee, 2);
     }
 }

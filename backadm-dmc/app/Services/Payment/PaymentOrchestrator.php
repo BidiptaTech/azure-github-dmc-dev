@@ -142,6 +142,10 @@ class PaymentOrchestrator
                 ),
                 'user_remarks' => trim((string) ($input['user_remarks'] ?? $input['remarks'] ?? '')),
                 'user_transaction_id' => trim((string) ($input['transaction_id'] ?? '')),
+                // Hold full amount → deduct per booked service → capture once / release rest.
+                'hold_mode' => (bool) config('payment.online_hold.enabled', true)
+                    && ($eligibility['payment_stage'] ?? '') === 'supplier_initial'
+                    && in_array($method, ['wallet', 'stripe'], true),
             ]),
         ]);
 
@@ -175,6 +179,20 @@ class PaymentOrchestrator
         }
         if (empty($attempt['stripe_payment_intent_id'])) {
             throw new RuntimeException('No Stripe PaymentIntent on this attempt.');
+        }
+
+        // Hold flow: card is authorised only; capture happens once services are booked.
+        if ($supplierResults === [] && $this->isHoldAttempt($attempt)) {
+            $intent = $this->paymentGatewayService->retrieveStripePaymentIntent((string) $attempt['stripe_payment_intent_id']);
+            if (($intent['status'] ?? '') !== 'requires_capture') {
+                throw new RuntimeException('Card payment is not authorised yet (status: '.($intent['status'] ?? 'unknown').').');
+            }
+            $held = $this->moneyFromMinor((int) ($intent['amount_capturable'] ?? 0), (string) ($intent['currency'] ?? ''));
+            if (abs($held - (float) $attempt['requested_amount']) > 0.01) {
+                throw new RuntimeException('Authorised card amount does not match the payment amount.');
+            }
+
+            return $this->openHold($tour, $attemptUuid);
         }
 
         $bookedAmount = $this->persistSupplierOutcomes((int) $attempt['id'], (int) $attempt['tour_id'], $supplierResults);
@@ -233,6 +251,11 @@ class PaymentOrchestrator
         }
         if (($attempt['status'] ?? '') === 'completed') {
             return ['attempt' => $attempt, 'confirmed' => true, 'idempotent_replay' => true];
+        }
+
+        // Hold flow: an empty "complete" (e.g. old page JS) must not commit the whole hold.
+        if ($supplierResults === [] && $this->isHoldAttempt($attempt) && ! empty($attempt['wallet_reservation_ref'])) {
+            return $this->openHold($tour, $attemptUuid);
         }
 
         $bookedAmount = $this->persistSupplierOutcomes((int) $attempt['id'], (int) $attempt['tour_id'], $supplierResults);
@@ -310,6 +333,409 @@ class PaymentOrchestrator
             'payment_index' => $paymentIndex,
             'commission' => $commission,
         ];
+    }
+
+    /* ------------------------------------------------------------------
+     | Online payment hold
+     |
+     | 1. Pay   → full amount HELD (Stripe manual-capture / wallet reservation).
+     |            Tour is unlocked for booking exactly as before.
+     | 2. Book  → each online service approved with its vendor takes its share:
+     |            wallet commits that share immediately; Stripe accumulates.
+     | 3. Settle→ when every service is booked or removed (or the hold is near expiry):
+     |            Stripe captures the booked total ONCE, wallet releases the rest.
+     |            Unbooked share goes back to the payer.
+     * ------------------------------------------------------------------ */
+
+    /**
+     * @param  array<string, mixed>  $attempt
+     */
+    public function isHoldAttempt(array $attempt): bool
+    {
+        $meta = (array) ($attempt['metadata'] ?? []);
+
+        return ! empty($meta['hold_mode'])
+            && ($attempt['payment_stage'] ?? '') === 'supplier_initial'
+            && in_array($attempt['payment_method'] ?? '', ['wallet', 'stripe'], true);
+    }
+
+    /**
+     * Mark the attempt as held, split the hold across the online services, unlock the tour.
+     *
+     * @return array<string, mixed>
+     */
+    public function openHold(Tour $tour, string $attemptUuid): array
+    {
+        return DB::transaction(function () use ($tour, $attemptUuid) {
+            $row = DB::table('payment_attempts')->where('attempt_uuid', $attemptUuid)->lockForUpdate()->first();
+            $attempt = $row ? $this->normalizeAttempt((array) $row) : null;
+            if (! $attempt) {
+                throw new RuntimeException('Payment attempt not found.');
+            }
+            $meta = (array) ($attempt['metadata'] ?? []);
+
+            if (empty($meta['hold_opened_at'])) {
+                $shares = $this->computeHoldShares($tour, $attempt);
+                if ($shares === []) {
+                    throw new RuntimeException('No online services found to hold this payment against.');
+                }
+
+                $meta = array_merge($meta, [
+                    'hold_opened_at' => now()->toIso8601String(),
+                    'hold_shares' => $shares,
+                    'hold_status' => 'held',
+                ]);
+                $this->updateAttempt((int) $attempt['id'], [
+                    'status' => 'authorized',
+                    'authorized_amount' => (float) $attempt['requested_amount'],
+                    'metadata' => $meta,
+                ]);
+                $attempt = $this->findAttemptByUuid($attemptUuid) ?? $attempt;
+
+                $this->advanceAcceptance($tour, $attempt);
+
+                $isCard = ($attempt['payment_method'] ?? '') === 'stripe';
+                $this->recordAutoVerifiedWalletPayment(
+                    $tour,
+                    (float) $attempt['requested_amount'],
+                    (string) ($attempt['currency_code'] ?? 'SGD'),
+                    $isCard ? (string) $attempt['stripe_payment_intent_id'] : ($attempt['wallet_reservation_ref'] ?? null),
+                    $attemptUuid,
+                    $meta,
+                    (float) $attempt['requested_amount'],
+                    [
+                        'payment_type' => $isCard ? 'stripe' : 'wallet',
+                        'remarks' => $isCard
+                            ? 'Card payment on hold — charged as each service is booked'
+                            : 'Wallet amount on hold — deducted as each service is booked',
+                        'payment_hold' => 'held',
+                        'hold_amount' => round((float) $attempt['requested_amount'], 2),
+                        'hold_currency' => (string) $attempt['currency_code'],
+                        '_track_label' => $isCard ? 'Card Payment Held' : 'Wallet Payment Held',
+                    ]
+                );
+            }
+
+            return [
+                'attempt' => $this->findAttemptByUuid($attemptUuid),
+                'confirmed' => true,
+                'hold' => true,
+                'message' => ($attempt['payment_method'] ?? '') === 'stripe'
+                    ? 'Card authorised. The amount is on hold and is charged as each service is booked; anything not booked is released.'
+                    : 'Amount held in your wallet. It is deducted as each service is booked; anything not booked is released.',
+            ];
+        });
+    }
+
+    /**
+     * Apply booked / removed services to open holds of a tour; settle when nothing is pending.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function syncOnlineHold(int $tourId, bool $force = false, string $reason = 'all_services_resolved'): array
+    {
+        $results = [];
+        $attempts = DB::table('payment_attempts')
+            ->where('tour_id', $tourId)
+            ->where('status', 'authorized')
+            ->where('payment_stage', 'supplier_initial')
+            ->orderBy('id')
+            ->get();
+
+        foreach ($attempts as $row) {
+            $attempt = $this->normalizeAttempt((array) $row);
+            if (! $this->isHoldAttempt($attempt) || empty($attempt['metadata']['hold_opened_at'])) {
+                continue;
+            }
+            try {
+                $results[] = $this->syncHoldAttempt($attempt, $force, $reason);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('online_hold_sync_failed', [
+                    'tour_id' => $tourId,
+                    'attempt' => $attempt['attempt_uuid'] ?? null,
+                    'error' => $e->getMessage(),
+                ]);
+                $this->updateAttempt((int) $attempt['id'], ['last_error' => $e->getMessage()]);
+            }
+        }
+
+        return $results;
+    }
+
+    /**
+     * @param  array<string, mixed>  $attempt
+     * @return array<string, mixed>
+     */
+    protected function syncHoldAttempt(array $attempt, bool $force, string $reason): array
+    {
+        return DB::transaction(function () use ($attempt, $force, $reason) {
+            // Serialize concurrent approvals / scheduler runs on the same hold.
+            $locked = DB::table('payment_attempts')->where('id', $attempt['id'])->lockForUpdate()->first();
+            $attempt = $this->normalizeAttempt((array) $locked);
+            if (($attempt['status'] ?? '') !== 'authorized') {
+                return ['attempt_uuid' => $attempt['attempt_uuid'], 'state' => 'already_settled'];
+            }
+
+            $meta = (array) ($attempt['metadata'] ?? []);
+            $shares = (array) ($meta['hold_shares'] ?? []);
+            $isWallet = ($attempt['payment_method'] ?? '') === 'wallet';
+            $done = DB::table('supplier_booking_outcomes')
+                ->where('payment_attempt_id', $attempt['id'])
+                ->pluck('status', 'order_id')
+                ->all();
+
+            $pending = 0;
+            foreach ($shares as $orderId => $share) {
+                $orderId = (int) $orderId;
+                if (array_key_exists($orderId, $done)) {
+                    continue;
+                }
+                $order = DB::table('orders')->where('id', $orderId)->first();
+                $approved = $order && (bool) $order->is_approve;
+
+                if ($approved) {
+                    if ($isWallet && (float) $share > 0) {
+                        // Deduct this service's share from the held amount now.
+                        $this->walletService->commitReservation([
+                            'idempotency_key' => 'hold:'.$attempt['attempt_uuid'].':order:'.$orderId.':commit',
+                            'reservation_reference' => $attempt['wallet_reservation_ref'],
+                            'commit_amount' => (float) $share,
+                            'tour_id' => $attempt['tour_id'],
+                            'ledger_description' => 'Held amount deducted · service booked · order #'.$orderId,
+                            'metadata' => ['order_id' => $orderId, 'payment_attempt_uuid' => $attempt['attempt_uuid']],
+                        ]);
+                    }
+                    $this->insertHoldOutcome($attempt, $orderId, 'booked', (float) $share, $order);
+                    $done[$orderId] = 'booked';
+                } elseif (! $order || ! empty($order->deleted_at) || $force) {
+                    $this->insertHoldOutcome($attempt, $orderId, $force && $order && empty($order->deleted_at) ? 'expired' : 'failed', (float) $share, $order);
+                    $done[$orderId] = 'failed';
+                } else {
+                    $pending++;
+                }
+            }
+
+            if ($pending > 0) {
+                return ['attempt_uuid' => $attempt['attempt_uuid'], 'state' => 'holding', 'pending_services' => $pending];
+            }
+
+            return $this->settleHold($attempt, $force ? $reason : 'all_services_resolved');
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $attempt
+     */
+    protected function insertHoldOutcome(array $attempt, int $orderId, string $status, float $share, ?object $order): void
+    {
+        $details = $order && is_string($order->booking_details ?? null) ? (json_decode($order->booking_details, true) ?: []) : [];
+        DB::table('supplier_booking_outcomes')->insert([
+            'outcome_uuid' => (string) Str::uuid(),
+            'tour_id' => (int) $attempt['tour_id'],
+            'order_id' => $orderId,
+            'payment_attempt_id' => (int) $attempt['id'],
+            'supplier_api_id' => $details['supplier_code'] ?? null,
+            'supplier_booking_reference' => $order->reference_id ?? $order->order_ref_no ?? null,
+            'status' => $status,
+            'quoted_amount' => round($share, 2),
+            'booked_amount' => $status === 'booked' ? round($share, 2) : null,
+            'currency_code' => $attempt['currency_code'] ?? null,
+            'request_meta' => json_encode(['source' => 'online_hold', 'service_type' => $order->type ?? null]),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    /**
+     * Capture booked total once (Stripe) / release the remainder (wallet), then finalize records.
+     *
+     * @param  array<string, mixed>  $attempt
+     * @return array<string, mixed>
+     */
+    protected function settleHold(array $attempt, string $reason): array
+    {
+        $outcomes = DB::table('supplier_booking_outcomes')
+            ->where('payment_attempt_id', $attempt['id'])
+            ->get();
+        $booked = round((float) $outcomes->where('status', 'booked')->sum('booked_amount'), 2);
+        $requested = round((float) $attempt['requested_amount'], 2);
+        $booked = min($booked, $requested);
+        $release = round(max(0, $requested - $booked), 2);
+        $meta = (array) ($attempt['metadata'] ?? []);
+        $gateway = [];
+
+        if (($attempt['payment_method'] ?? '') === 'stripe') {
+            $pi = (string) $attempt['stripe_payment_intent_id'];
+            try {
+                $gateway = $booked > 0
+                    ? $this->paymentGatewayService->captureStripePaymentIntent($pi, $booked)
+                    : $this->paymentGatewayService->cancelStripePaymentIntent($pi);
+            } catch (\Throwable $e) {
+                $this->updateAttempt((int) $attempt['id'], [
+                    'status' => 'capture_failed',
+                    'last_error' => $e->getMessage(),
+                    'metadata' => array_merge($meta, ['hold_status' => 'capture_failed']),
+                ]);
+                \Illuminate\Support\Facades\Log::critical('online_hold_capture_failed', [
+                    'attempt' => $attempt['attempt_uuid'],
+                    'tour_id' => $attempt['tour_id'],
+                    'booked' => $booked,
+                    'error' => $e->getMessage(),
+                ]);
+
+                return ['attempt_uuid' => $attempt['attempt_uuid'], 'state' => 'capture_failed', 'error' => $e->getMessage()];
+            }
+        } elseif (! empty($attempt['wallet_reservation_ref'])) {
+            $gateway = $this->walletService->releaseReservation([
+                'idempotency_key' => 'hold:'.$attempt['attempt_uuid'].':release',
+                'reservation_reference' => $attempt['wallet_reservation_ref'],
+                'tour_id' => $attempt['tour_id'],
+                'ledger_description' => 'Held amount released · services not booked',
+            ]);
+        }
+
+        $holdStatus = $booked <= 0 ? 'released' : ($release > 0 ? 'partially_captured' : 'captured');
+        $this->updateAttempt((int) $attempt['id'], [
+            'status' => $booked > 0 ? 'completed' : 'cancelled',
+            'captured_amount' => $booked,
+            'released_amount' => $release,
+            'metadata' => array_merge($meta, [
+                'hold_status' => $holdStatus,
+                'hold_settled_at' => now()->toIso8601String(),
+                'hold_settle_reason' => $reason,
+                'hold_gateway' => array_intersect_key((array) $gateway, array_flip(['id', 'status', 'amount_received', 'finance_reference', 'released_amount'])),
+            ]),
+        ]);
+
+        $tour = Tour::query()->where('tour_id', (int) $attempt['tour_id'])->first();
+        if ($tour) {
+            $this->finalizeHeldPaymentRow($tour, $attempt, $booked, $requested, $holdStatus);
+            if ($booked > 0) {
+                $supplierResults = $outcomes->map(fn ($o) => [
+                    'order_id' => (int) $o->order_id,
+                    'status' => (string) $o->status,
+                    'booked_amount' => (float) ($o->booked_amount ?? 0),
+                ])->all();
+                $settled = $this->findAttemptByUuid((string) $attempt['attempt_uuid']) ?? $attempt;
+                $settled['authorized_amount'] = $booked; // commission statement: what was actually charged
+                $this->recordCommission($tour, $settled, $supplierResults);
+            }
+        }
+
+        \Illuminate\Support\Facades\Log::info('online_hold_settled', [
+            'attempt' => $attempt['attempt_uuid'],
+            'tour_id' => $attempt['tour_id'],
+            'method' => $attempt['payment_method'],
+            'held' => $requested,
+            'charged' => $booked,
+            'released' => $release,
+            'reason' => $reason,
+        ]);
+
+        return [
+            'attempt_uuid' => $attempt['attempt_uuid'],
+            'state' => $holdStatus,
+            'held' => $requested,
+            'charged' => $booked,
+            'released' => $release,
+        ];
+    }
+
+    /**
+     * Payment Details row: on hold → final charged amount (or declined when nothing was booked).
+     *
+     * @param  array<string, mixed>  $attempt
+     */
+    protected function finalizeHeldPaymentRow(Tour $tour, array $attempt, float $booked, float $requested, string $holdStatus): void
+    {
+        $tour->refresh();
+        $details = json_decode((string) ($tour->payment_details ?? '[]'), true) ?: [];
+        $uuid = (string) $attempt['attempt_uuid'];
+        $meta = (array) ($attempt['metadata'] ?? []);
+
+        foreach ($details as $idx => $row) {
+            if (! is_array($row) || ($row['payment_attempt_uuid'] ?? null) !== $uuid) {
+                continue;
+            }
+            $currency = (string) ($attempt['currency_code'] ?? 'SGD');
+            $fresh = $booked > 0
+                ? $this->walletPaymentRow($booked, $currency, $row['transaction_id'] ?? null, $uuid, $meta, $requested)
+                : [];
+            $isCard = ($attempt['payment_method'] ?? '') === 'stripe';
+            $details[$idx] = array_merge($row, $fresh, [
+                'payment_type' => $isCard ? 'stripe' : 'wallet',
+                'transaction_id' => $row['transaction_id'] ?? $uuid,
+                'payment_hold' => $holdStatus,
+                'hold_amount' => round($requested, 2),
+                'hold_currency' => $currency,
+                'charged_amount' => round($booked, 2),
+                'released_amount' => round(max(0, $requested - $booked), 2),
+                'status' => $booked > 0 ? 1 : 2,
+                'remarks' => match ($holdStatus) {
+                    'captured' => ($isCard ? 'Card' : 'Wallet').' charged in full — all services booked',
+                    'partially_captured' => ($isCard ? 'Card' : 'Wallet').' charged for booked services only; '
+                        .number_format(max(0, $requested - $booked), 2).' '.$currency.' released',
+                    default => 'No service could be booked — full hold released',
+                },
+            ]);
+            break;
+        }
+
+        $tour->payment_details = json_encode(array_values($details));
+        $tour->save();
+    }
+
+    /**
+     * Split the held amount across the tour's online services by their selling price.
+     * Last service takes the rounding remainder so shares always sum to the held amount.
+     *
+     * @param  array<string, mixed>  $attempt
+     * @return array<int, float>  order_id => share (attempt currency)
+     */
+    protected function computeHoldShares(Tour $tour, array $attempt): array
+    {
+        $orders = Order::query()
+            ->where('tour_id', (int) $attempt['tour_id'])
+            ->whereNull('deleted_at')
+            ->whereRaw("LOWER(COALESCE(order_type, '')) = 'online'")
+            ->orderBy('id')
+            ->get();
+        if ($orders->isEmpty()) {
+            return [];
+        }
+
+        $breakdown = app(CommissionBreakdownService::class);
+        $weights = [];
+        foreach ($orders as $order) {
+            $line = $breakdown->lineForOrder($order, $tour);
+            $weights[(int) $order->getKey()] = max(0.0, (float) ($line['charged_amount'] ?? 0) ?: (float) ($line['agent_price'] ?? 0));
+        }
+        $total = array_sum($weights);
+        $count = count($weights);
+        $held = round((float) $attempt['requested_amount'], 2);
+
+        $shares = [];
+        $allocated = 0.0;
+        $i = 0;
+        foreach ($weights as $orderId => $weight) {
+            $i++;
+            if ($i === $count) {
+                $shares[$orderId] = round($held - $allocated, 2);
+                break;
+            }
+            $share = $total > 0 ? round($held * $weight / $total, 2) : round($held / $count, 2);
+            $shares[$orderId] = $share;
+            $allocated = round($allocated + $share, 2);
+        }
+
+        return $shares;
+    }
+
+    protected function moneyFromMinor(int $minor, string $currency): float
+    {
+        return in_array(strtolower($currency), \App\Services\Finance\PaymentGatewayService::STRIPE_ZERO_DECIMAL, true)
+            ? (float) $minor
+            : round($minor / 100, 2);
     }
 
     /**
@@ -405,14 +831,20 @@ class PaymentOrchestrator
         string $attemptUuid,
         array $attemptMeta = [],
         float $requestedAmount = 0.0,
+        array $overrides = [],
     ): int {
         $tour->refresh();
         $prevStatus = (string) ($tour->tour_status ?? '');
         $currency = strtoupper(trim($currency)) ?: 'SGD';
         $paymentDate = now()->toDateString();
 
-        $paymentData = $this->walletPaymentRow($amount, $currency, $financeReference, $attemptUuid, $attemptMeta, $requestedAmount)
-            + ['date' => now()->format('Y-m-d H:i:s'), 'payment_date' => $paymentDate];
+        $paymentData = array_merge(
+            $this->walletPaymentRow($amount, $currency, $financeReference, $attemptUuid, $attemptMeta, $requestedAmount),
+            $overrides
+        ) + ['date' => now()->format('Y-m-d H:i:s'), 'payment_date' => $paymentDate];
+        $trackLabel = (string) ($overrides['_track_label'] ?? 'Wallet Payment Auto Verified');
+        $trackType = (string) ($overrides['payment_type'] ?? 'wallet');
+        unset($paymentData['_track_label']);
 
         $paymentDetails = json_decode((string) ($tour->payment_details ?? '[]'), true) ?: [];
         if (! is_array($paymentDetails)) {
@@ -453,14 +885,14 @@ class PaymentOrchestrator
                 null,
                 auth()->user()->name ?? null,
                 auth()->id(),
-                'Wallet Payment Auto Verified',
+                $trackLabel,
                 null,
                 null,
                 null,
                 $amount,
                 $currency,
                 $paymentDate,
-                'wallet',
+                $trackType,
             );
         } catch (\Throwable) {
             // Tracking must not roll back a successful wallet deduct.
@@ -501,8 +933,8 @@ class PaymentOrchestrator
         $userTxn = trim((string) ($attemptMeta['user_transaction_id'] ?? ''));
         $userRemarks = trim((string) ($attemptMeta['user_remarks'] ?? ''));
         $row = [
-            'amount' => round($orderAmount, 4),
-            'original_amount' => round($orderAmount, 4),
+            'amount' => round($orderAmount, 2),
+            'original_amount' => round($orderAmount, 2),
             'currency' => $converted ? $orderCurrency : $walletCurrency,
             'exchange_rate' => $converted ? (float) ($attemptMeta['exchange_rate'] ?? 1) : 1,
             // Prefer cashier-entered reference; fall back to wallet ledger / attempt id.
@@ -518,9 +950,9 @@ class PaymentOrchestrator
         ];
         if ($converted) {
             $row += [
-                'wallet_amount' => round($walletAmount, 4),
+                'wallet_amount' => round($walletAmount, 2),
                 'wallet_currency' => $walletCurrency,
-                'conversion_charge' => round((float) ($attemptMeta['conversion_charge'] ?? 0) * $ratio, 4),
+                'conversion_charge' => round((float) ($attemptMeta['conversion_charge'] ?? 0) * $ratio, 2),
                 // Fee is in wallet/destination currency — keep percent for statement display.
                 'conversion_charge_percent' => (float) (
                     $attemptMeta['conversion_charge_percent']
@@ -560,6 +992,29 @@ class PaymentOrchestrator
             'authorized_amount' => $amount,
             'wallet_reservation_ref' => $reservationRef,
         ]);
+
+        if ($this->isHoldAttempt($attempt)) {
+            try {
+                return $this->openHold($tour, (string) $attempt['attempt_uuid']);
+            } catch (\Throwable $e) {
+                // Could not open the hold → give the reservation back.
+                try {
+                    $this->walletService->releaseReservation([
+                        'idempotency_key' => $attempt['idempotency_key'].':rollback',
+                        'reservation_reference' => $reservationRef,
+                        'release_amount' => $amount,
+                    ]);
+                } catch (\Throwable $releaseError) {
+                    \Illuminate\Support\Facades\Log::error('wallet_rollback_failed', [
+                        'attempt' => $attempt['attempt_uuid'],
+                        'error' => $releaseError->getMessage(),
+                    ]);
+                }
+                $this->updateAttempt((int) $attempt['id'], ['status' => 'failed', 'last_error' => $e->getMessage()]);
+
+                throw $e;
+            }
+        }
 
         // Quoted amount is committed now. An explicit supplier-result payload can
         // still reduce or release funds via completeWalletAfterSupplier.
@@ -724,7 +1179,7 @@ class PaymentOrchestrator
             }
         }
 
-        return round($booked, 4);
+        return round($booked, 2);
     }
 
     /**
