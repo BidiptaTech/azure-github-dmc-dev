@@ -330,6 +330,22 @@ class EditTourController extends Controller
             // Never revert tour_status here — update must keep Definite / Confirmed / etc. unchanged.
             // (maybeRevertTourStatusToNewEnquiry is for real service remove/reject only.)
 
+            if ($refundStatus) {
+                $walletRefunds = app(\App\Services\Payment\TravclicksOnlineWalletRefundService::class);
+                foreach ($toDelete as $order) {
+                    if (in_array((int) ($order->booking_id ?? 0), $withoutRefundIds, true)) {
+                        continue;
+                    }
+                    if (strtolower(trim((string) ($order->order_type ?? ''))) !== 'online') {
+                        continue;
+                    }
+                    $fresh = Order::withTrashed()->find($order->id);
+                    if ($fresh && (bool) ($fresh->is_refund ?? false)) {
+                        $walletRefunds->tryAutoRefund($fresh, $tour);
+                    }
+                }
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Services cleared.',

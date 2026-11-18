@@ -4434,7 +4434,7 @@ class HotelBookingController extends Controller
                     'provider_status' => $voucherCancelResult['provider_status'] ?? null,
                 ];
 
-                // Vendor refunded the credits → return to TravClicks vendor credit (review on reconcile).
+                // Vendor refunded the credits → return to TravClicks vendor credit (auto-verified).
                 app(\App\Services\SupplierCredit\SupplierCreditService::class)->recordCancellationRefund([
                     'order_id' => (int) $attractionOrder->id,
                     'tour_id' => (int) $tourId,
@@ -4443,6 +4443,11 @@ class HotelBookingController extends Controller
                     'supplier_booking_reference' => $voucherCode,
                     'metadata' => ['voucher_code' => $voucherCode, 'trigger' => 'reject_voucher'],
                 ]);
+
+                app(\App\Services\Payment\SupplierCancellationStatusService::class)->markConfirmed(
+                    $attractionOrder,
+                    (string) ($voucherCancelResult['message'] ?? 'Supplier voucher cancellation confirmed.')
+                );
 
                 if (isset($attractionData[$bookingIndex]) && is_array($attractionData[$bookingIndex])) {
                     $attractionData[$bookingIndex] = $booking;
@@ -4477,6 +4482,15 @@ class HotelBookingController extends Controller
 
             app(\App\Services\JobsheetRemovalService::class)->deleteForOrder($attractionOrder);
 
+            $walletAuto = null;
+            if ($isOnline && $hasVoucher) {
+                $fresh = \App\Models\Order::withTrashed()->find($attractionOrder->id);
+                if ($fresh) {
+                    $walletAuto = app(\App\Services\Payment\TravclicksOnlineWalletRefundService::class)
+                        ->afterOnlineCancelConfirmed($fresh, Tour::where('tour_id', $tourId)->first());
+                }
+            }
+
             // Log successful rejection
             Log::info('Attraction booking rejected successfully', [
                 'tour_id' => $tourId,
@@ -4485,6 +4499,7 @@ class HotelBookingController extends Controller
                 'is_online' => $isOnline,
                 'voucher_code' => $hasVoucher ? $voucherCode : null,
                 'voucher_cancel_message' => $voucherCancelResult['message'] ?? null,
+                'wallet_auto_refund' => $walletAuto,
                 'deleted_at' => now()
             ]);
 
@@ -4493,7 +4508,9 @@ class HotelBookingController extends Controller
 
             $message = 'Attraction booking rejected successfully';
             if ($isOnline && $hasVoucher) {
-                $message = 'Online attraction voucher cancelled and booking rejected successfully.';
+                $message = ! empty($walletAuto['credited'])
+                    ? 'Online attraction cancelled and TravClicks refunded to the DMC wallet automatically.'
+                    : 'Online attraction voucher cancelled and booking rejected successfully.';
             }
 
             return response()->json([
@@ -4506,6 +4523,7 @@ class HotelBookingController extends Controller
                     'voucher_code' => $hasVoucher ? $voucherCode : null,
                     'voucher_cancel' => $voucherCancelResult,
                     'is_online_attraction' => $isOnline,
+                    'wallet_auto_refund' => $walletAuto,
                     'deleted_at' => now()->toISOString()
                 ]
             ]);

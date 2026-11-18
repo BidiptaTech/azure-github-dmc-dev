@@ -4403,10 +4403,17 @@ class BookingsController extends Controller
         
         $currency = CommonHelper::getDmcCurrencyByCountry();
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
+        $isTravclicksRefunds = in_array((int) ($user->role_id ?? 0), [1, 2, 3, 4], true);
+
+        // TravClicks: auto credit any online cancel already past supplier checks
+        // (fixes Refunded to DMC still 0 after cancel without manual verify).
+        if ($isTravclicksRefunds && $tours->isNotEmpty()) {
+            $this->autoCreditPendingTravclicksOnlineRefunds($tours);
+        }
+
         // Money summary first so service refund max can cap to negotiated+tax (Tour total / Paid).
         $this->attachTourMoneySummary($tours);
         $this->attachRefundPrices($tours);
-        $isTravclicksRefunds = in_array((int) ($user->role_id ?? 0), [1, 2, 3, 4], true);
         if ($isTravclicksRefunds) {
             $this->attachTravclicksDmcWalletFx($tours);
         } else {
@@ -4418,6 +4425,44 @@ class BookingsController extends Controller
         $this->attachTourRefundPrices($tours);
         $this->hydrateDestinationCreatedAt($tours);
         return view('bookings.refunds', compact('tours', 'country_tax', 'currency'));
+    }
+
+    /**
+     * Auto-run TravClicks → DMC wallet credit for online refunds that already
+     * passed supplier-cancel checks (no manual Credit DMC Wallet / verify).
+     *
+     * @param  \Illuminate\Support\Collection|array<int, mixed>  $tours
+     */
+    private function autoCreditPendingTravclicksOnlineRefunds($tours): void
+    {
+        $wallet = app(\App\Services\Payment\TravclicksOnlineWalletRefundService::class);
+        $cancelStatus = app(SupplierCancellationStatusService::class);
+
+        foreach ($tours as $tour) {
+            $tourId = (int) ($tour->tour_id ?? 0);
+            if ($tourId <= 0) {
+                continue;
+            }
+
+            $ordersQuery = Order::withTrashed()
+                ->where('tour_id', $tourId)
+                ->where('bookingType', 'booking')
+                ->where('is_refund', 1)
+                ->whereRaw("LOWER(TRIM(COALESCE(order_type, ''))) = ?", ['online']);
+            if (Schema::hasColumn('orders', 'travclicks_refunded')) {
+                $ordersQuery->where(function ($q) {
+                    $q->whereNull('travclicks_refunded')->orWhere('travclicks_refunded', false);
+                });
+            }
+            $orders = $ordersQuery->get();
+
+            foreach ($orders as $order) {
+                if ($cancelStatus->isBlockingWalletCredit($order)) {
+                    continue;
+                }
+                $wallet->tryAutoRefund($order, $tour instanceof Tour ? $tour : Tour::where('tour_id', $tourId)->first());
+            }
+        }
     }
 
     /**
@@ -5021,15 +5066,24 @@ class BookingsController extends Controller
             $status = $statusService->read($order);
             $softFailed = is_array($result) && ! empty($result['soft_failed']);
             $allowsWallet = $statusService->allowsWalletCredit($order);
+            $walletAuto = is_array($result) ? ($result['wallet_auto_refund'] ?? null) : null;
+            if ($allowsWallet && ! $softFailed && empty($walletAuto['credited'])) {
+                $order->refresh();
+                $walletAuto = app(\App\Services\Payment\TravclicksOnlineWalletRefundService::class)
+                    ->tryAutoRefund($order, Tour::where('tour_id', $tourId)->first());
+            }
 
             return response()->json([
                 'success' => ! $softFailed && $allowsWallet,
-                'message' => $allowsWallet
-                    ? 'Supplier cancellation confirmed. You can now credit the DMC wallet.'
-                    : ('Supplier cancellation still '.strtoupper((string) ($status['status'] ?? 'failed'))
-                        .'. '.trim((string) ($status['last_error'] ?: $status['message'] ?? 'Retry again or mark resolved.'))),
+                'message' => ! empty($walletAuto['credited'])
+                    ? (string) ($walletAuto['message'] ?? 'Supplier cancellation confirmed and DMC wallet credited automatically.')
+                    : ($allowsWallet
+                        ? 'Supplier cancellation confirmed. TravClicks wallet credit is ready.'
+                        : ('Supplier cancellation still '.strtoupper((string) ($status['status'] ?? 'failed'))
+                            .'. '.trim((string) ($status['last_error'] ?: $status['message'] ?? 'Retry again or mark resolved.')))),
                 'supplier_cancellation' => $status,
                 'blocks_wallet' => ! $allowsWallet,
+                'wallet_auto_refund' => $walletAuto,
                 'result' => $result,
             ], $allowsWallet ? 200 : 422);
         } catch (\Exception $e) {
@@ -5087,11 +5141,18 @@ class BookingsController extends Controller
             $statusService->markResolvedManual($order, $reason);
             $status = $statusService->read($order);
 
+            $order->refresh();
+            $walletAuto = app(\App\Services\Payment\TravclicksOnlineWalletRefundService::class)
+                ->tryAutoRefund($order, Tour::where('tour_id', $tourId)->first());
+
             return response()->json([
                 'success' => true,
-                'message' => 'Supplier cancellation marked resolved. Wallet credit is now allowed.',
+                'message' => ! empty($walletAuto['credited'])
+                    ? (string) ($walletAuto['message'] ?? 'Supplier cancellation resolved and DMC wallet credited automatically.')
+                    : 'Supplier cancellation marked resolved. Wallet credit is now allowed.',
                 'supplier_cancellation' => $status,
                 'blocks_wallet' => false,
+                'wallet_auto_refund' => $walletAuto,
             ]);
         } catch (\Exception $e) {
             return response()->json([

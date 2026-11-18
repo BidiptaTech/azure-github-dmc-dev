@@ -862,6 +862,17 @@ class SingleTourPackageController extends Controller
                 CommonHelper::maybeRevertTourStatusToNewEnquiry($tourId);
             });
 
+            $walletAuto = null;
+            if (! $supplierCancelSoftFailed
+                && strtolower(trim((string) ($order->order_type ?? ''))) === 'online'
+            ) {
+                $fresh = Order::withTrashed()->find($order->id);
+                if ($fresh) {
+                    $walletAuto = app(\App\Services\Payment\TravclicksOnlineWalletRefundService::class)
+                        ->afterOnlineCancelConfirmed($fresh, $tour);
+                }
+            }
+
             $message = 'Order cancelled successfully';
             if (is_array($voucherCancelResult) && ! empty($voucherCancelResult['success'])) {
                 $message = 'Online attraction voucher cancelled and booking removed successfully.';
@@ -870,6 +881,8 @@ class SingleTourPackageController extends Controller
                 }
             } elseif ($supplierCancelSoftFailed) {
                 $message = 'Service removed and queued for refund, but supplier cancellation failed or is pending. TravClicks must retry or mark resolved before wallet credit.';
+            } elseif (! empty($walletAuto['credited'])) {
+                $message = 'Order cancelled and TravClicks refunded to the DMC wallet automatically.';
             }
 
             return response()->json([
@@ -881,6 +894,7 @@ class SingleTourPackageController extends Controller
                         ? ($voucherCancelResult['voucher_code'] ?? null)
                         : null,
                     'supplier_cancel_soft_failed' => $supplierCancelSoftFailed,
+                    'wallet_auto_refund' => $walletAuto,
                 ],
             ]);
         } catch (\Exception $e) {

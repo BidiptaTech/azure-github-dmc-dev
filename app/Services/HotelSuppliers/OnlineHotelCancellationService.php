@@ -78,10 +78,17 @@ class OnlineHotelCancellationService
                 'supplier_code' => (string) ($details['supplier_code'] ?? ''),
             ]);
 
-            return is_array($details['cancellation'] ?? null) ? $details['cancellation'] : [
+            $order->refresh();
+            $walletAuto = app(\App\Services\Payment\TravclicksOnlineWalletRefundService::class)
+                ->afterOnlineCancelConfirmed($order);
+
+            $payload = is_array($details['cancellation'] ?? null) ? $details['cancellation'] : [
                 'status' => 'confirmed',
                 'already_cancelled' => true,
             ];
+            $payload['wallet_auto_refund'] = $walletAuto;
+
+            return $payload;
         }
 
         if (! $this->wasConfirmedWithSupplier($details)) {
@@ -233,6 +240,12 @@ class OnlineHotelCancellationService
                 ],
             ]);
         }
+
+        // After all cancel scenario checks: auto-verify TravClicks refund → DMC wallet.
+        $order->refresh();
+        $walletAuto = app(\App\Services\Payment\TravclicksOnlineWalletRefundService::class)
+            ->afterOnlineCancelConfirmed($order);
+        $result['wallet_auto_refund'] = $walletAuto;
 
         Log::info('Online hotel cancelled with supplier', [
             'order_id' => $order->id,
