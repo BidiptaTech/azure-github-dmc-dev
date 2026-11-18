@@ -1309,6 +1309,31 @@
      */
     function ensureHotelMarkupOnPriceData(data) {
         if (!data || typeof data !== 'object') return data;
+        // Online stay already stamped (TravClicks hotel + DMC once) — never mark up again.
+        if (data.is_online || data.isOnlineHotel || data.hotelSourceType === 'online' || data.online_price_breakdown) {
+            var onlineStamp = data.online_price_breakdown || data.dmc_profile_markup || null;
+            if (onlineStamp) {
+                var hPrice = Number(onlineStamp.hotel_price != null ? onlineStamp.hotel_price : onlineStamp.base_price) || 0;
+                var tPrice = Number(onlineStamp.total_price != null ? onlineStamp.total_price : onlineStamp.price) || Number(data.grand_total || 0);
+                var mAmt = Number(onlineStamp.markup_amount || 0) || 0;
+                return Object.assign({}, data, {
+                    room_total_base: hPrice > 0 ? hPrice : Number(data.room_total_base || data.base_grand_total || 0),
+                    room_total: hPrice > 0 ? hPrice : Number(data.room_total || 0),
+                    base_grand_total: hPrice > 0 ? hPrice : Number(data.base_grand_total || 0),
+                    grand_total: tPrice > 0 ? tPrice : Number(data.grand_total || 0),
+                    dmc_profile_markup: Object.assign({}, onlineStamp, {
+                        hotel_price: hPrice,
+                        base_price: hPrice,
+                        markup_amount: mAmt,
+                        price: tPrice,
+                        total_price: tPrice,
+                        markup_kind: 'hotel'
+                    }),
+                    online_price_breakdown: onlineStamp
+                });
+            }
+            return data;
+        }
         var rule = resolveHotelMarkupRule();
         var cwb = data.child_with_bed || null;
         var cnb = data.child_without_bed || null;
@@ -1970,6 +1995,41 @@
         };
     }
 
+    function resolveOnlinePriceStamp(row) {
+        if (!row || typeof row !== 'object') return null;
+        return row.online_price_breakdown
+            || row.dmc_profile_markup
+            || (row.price_payload && (row.price_payload.online_price_breakdown || row.price_payload.dmc_profile_markup))
+            || (row.helperPriceResult && (row.helperPriceResult.online_price_breakdown || row.helperPriceResult.dmc_profile_markup))
+            || (row.onlineHotelBooking && (row.onlineHotelBooking.online_price_breakdown || row.onlineHotelBooking.dmc_profile_markup))
+            || null;
+    }
+
+    function buildOnlineHotelBreakdownHtml(stamp, cur, nights) {
+        stamp = stamp || {};
+        cur = cur || 'SGD';
+        nights = Math.max(1, parseInt(nights, 10) || 1);
+        var hotelAmt = Number(stamp.hotel_price != null ? stamp.hotel_price : stamp.base_price) || 0;
+        var mkAmt = Number(stamp.markup_amount || 0) || 0;
+        var totalAmt = Number(stamp.total_price != null ? stamp.total_price : stamp.price) || (hotelAmt + mkAmt);
+        var perNight = nights > 0 ? Math.round((hotelAmt / nights) * 100) / 100 : hotelAmt;
+        // Footer (modalTotals) shows Hotel / DMC / Total — same as add-modal.
+        var html = ''
+            + '<div class="text-muted mb-2" style="font-size:0.72rem;">'
+            + moneyTxt(cur, perNight) + '/night' + nightsSuffix(nights)
+            + ' · Hotel price includes TravClicks · DMC added once'
+            + '</div>';
+        return {
+            html: html,
+            grand: totalAmt,
+            markupAmount: mkAmt,
+            baseGrand: hotelAmt,
+            markupMeta: stamp,
+            hotelPrice: hotelAmt,
+            totalPrice: totalAmt
+        };
+    }
+
     function openHotelPricePopup(row) {
         ensurePriceModal();
         var modalEl = document.getElementById('stpLiteHotelPriceModal');
@@ -1985,57 +2045,112 @@
             var name = String(row.hotel_name || 'Hotel').split('(')[0].trim();
             if (titleEl) titleEl.textContent = name + ' — Price breakdown';
 
-            var helper = row.price_payload || row.helperPriceResult || null;
-            if (typeof helper === 'string') {
-                try { helper = JSON.parse(helper); } catch (e) { helper = null; }
-            }
-            function helperRoomLooksEmpty(h) {
-                if (!h || typeof h !== 'object') return true;
-                if (Number(h.room_total || 0) > 0) return false;
-                if (Array.isArray(h.breakdown)) {
-                    for (var i = 0; i < h.breakdown.length; i++) {
-                        var n = h.breakdown[i] || {};
-                        if (Number(n.room_price != null ? n.room_price : (n.room_base || 0)) > 0) {
-                            return false;
+            var isOnlineRow = !!(row.isOnlineHotel || row.hotelSourceType === 'online' || row.priceMode === 'online');
+            var onlineStamp = isOnlineRow ? resolveOnlinePriceStamp(row) : null;
+            var built;
+
+            if (isOnlineRow) {
+                if (!onlineStamp) {
+                    // Legacy online row without stamp — do not re-apply DMC on already-final total.
+                    var legacyTotal = Number(row.grand_total != null ? row.grand_total : (row.totalPrice != null ? row.totalPrice : row.price)) || 0;
+                    var legacyBase = Number(row.base_grand_total != null ? row.base_grand_total : legacyTotal) || legacyTotal;
+                    onlineStamp = {
+                        hotel_price: legacyBase,
+                        base_price: legacyBase,
+                        markup_amount: Math.max(0, Math.round((legacyTotal - legacyBase) * 100) / 100),
+                        total_price: legacyTotal,
+                        price: legacyTotal,
+                        markup_type: 'percentage',
+                        markup_value: 0,
+                        currency: cur
+                    };
+                }
+                var nightsOnline = parseInt(
+                    (row.price_payload && row.price_payload.nights)
+                        || row.nights
+                        || 0,
+                    10
+                ) || nightsBetweenYmd(row.stay_start || (row.bookingDate && row.bookingDate[0]), row.stay_end || (row.bookingDate && row.bookingDate[1])) || 1;
+                built = buildOnlineHotelBreakdownHtml(onlineStamp, cur, nightsOnline);
+            } else {
+                var helper = row.price_payload || row.helperPriceResult || null;
+                if (typeof helper === 'string') {
+                    try { helper = JSON.parse(helper); } catch (e) { helper = null; }
+                }
+                function helperRoomLooksEmpty(h) {
+                    if (!h || typeof h !== 'object') return true;
+                    if (Number(h.room_total || 0) > 0) return false;
+                    if (Array.isArray(h.breakdown)) {
+                        for (var i = 0; i < h.breakdown.length; i++) {
+                            var n = h.breakdown[i] || {};
+                            if (Number(n.room_price != null ? n.room_price : (n.room_base || 0)) > 0) {
+                                return false;
+                            }
                         }
                     }
+                    return true;
                 }
-                return true;
-            }
-            if (!helper || typeof helper !== 'object') {
-                helper = buildFallbackPriceDataFromRow(row);
-            } else if (helperRoomLooksEmpty(helper) && Number(row.grand_total || row.totalPrice || 0) > 0) {
-                helper = buildFallbackPriceDataFromRow(row);
-            }
-            if (isAdHocRow(row)) {
-                var adhocAmt = resolveAdHocPriceFromRow(row);
-                if (adhocAmt != null) {
-                    helper = applyAdHocToPriceData(helper, adhocAmt);
+                if (!helper || typeof helper !== 'object') {
+                    helper = buildFallbackPriceDataFromRow(row);
+                } else if (helperRoomLooksEmpty(helper) && Number(row.grand_total || row.totalPrice || 0) > 0) {
+                    helper = buildFallbackPriceDataFromRow(row);
+                }
+                if (isAdHocRow(row)) {
+                    var adhocAmt = resolveAdHocPriceFromRow(row);
+                    if (adhocAmt != null) {
+                        helper = applyAdHocToPriceData(helper, adhocAmt);
+                    } else {
+                        helper = ensureHotelMarkupOnPriceData(helper);
+                    }
                 } else {
                     helper = ensureHotelMarkupOnPriceData(helper);
                 }
-            } else {
-                helper = ensureHotelMarkupOnPriceData(helper);
+
+                built = buildBreakdownHtml(helper, rooms, cur, {
+                    mealPlan: row.meal_plan || helper.meal_plan || '',
+                    isAdHoc: !!(helper.is_adhoc || isAdHocRow(row)),
+                    infants: savedInfantsFromRow(row)
+                });
             }
 
-            var built = buildBreakdownHtml(helper, rooms, cur, {
-                mealPlan: row.meal_plan || helper.meal_plan || '',
-                isAdHoc: !!(helper.is_adhoc || isAdHocRow(row)),
-                infants: savedInfantsFromRow(row)
-            });
-            var modalTotals =
-                '    <div class="stp-lite-hotel-breakup-totals">' +
-                (Number(built.markupAmount || 0) > 0
-                    ? ('      <div class="stp-lite-hotel-breakup-total is-markup">' +
-                        '        <span><strong>Markup Amount:</strong></span>' +
-                        '        <strong>' + cur + ' ' + Number(built.markupAmount || 0).toFixed(2) + '</strong>' +
-                        '      </div>')
-                    : '') +
-                '      <div class="stp-lite-hotel-breakup-total">' +
-                '        <span><strong>Total Price:</strong></span>' +
-                '        <strong>' + cur + ' ' + Number(built.grand || 0).toFixed(2) + '</strong>' +
-                '      </div>' +
-                '    </div>';
+            var modalTotals;
+            if (isOnlineRow && onlineStamp) {
+                var mkType = String(onlineStamp.markup_type || 'percentage').toLowerCase();
+                var mkVal = Number(onlineStamp.markup_value || 0);
+                var mkTitle = 'DMC Markup';
+                if (Number(built.markupAmount || 0) > 0 && mkVal > 0) {
+                    mkTitle = mkType === 'flat' ? 'DMC Markup (flat)' : ('DMC Markup (' + mkVal + '%)');
+                }
+                modalTotals =
+                    '    <div class="stp-lite-hotel-breakup-totals">' +
+                    '      <div class="stp-lite-hotel-breakup-total">' +
+                    '        <span><strong>Hotel Price</strong> <small class="text-muted">(TravClicks)</small></span>' +
+                    '        <strong>' + cur + ' ' + Number(built.baseGrand || 0).toFixed(2) + '</strong>' +
+                    '      </div>' +
+                    '      <div class="stp-lite-hotel-breakup-total is-markup">' +
+                    '        <span><strong>' + mkTitle + ':</strong></span>' +
+                    '        <strong>' + cur + ' ' + Number(built.markupAmount || 0).toFixed(2) + '</strong>' +
+                    '      </div>' +
+                    '      <div class="stp-lite-hotel-breakup-total">' +
+                    '        <span><strong>Total Price:</strong></span>' +
+                    '        <strong>' + cur + ' ' + Number(built.grand || 0).toFixed(2) + '</strong>' +
+                    '      </div>' +
+                    '    </div>';
+            } else {
+                modalTotals =
+                    '    <div class="stp-lite-hotel-breakup-totals">' +
+                    (Number(built.markupAmount || 0) > 0
+                        ? ('      <div class="stp-lite-hotel-breakup-total is-markup">' +
+                            '        <span><strong>Markup Amount:</strong></span>' +
+                            '        <strong>' + cur + ' ' + Number(built.markupAmount || 0).toFixed(2) + '</strong>' +
+                            '      </div>')
+                        : '') +
+                    '      <div class="stp-lite-hotel-breakup-total">' +
+                    '        <span><strong>Total Price:</strong></span>' +
+                    '        <strong>' + cur + ' ' + Number(built.grand || 0).toFixed(2) + '</strong>' +
+                    '      </div>' +
+                    '    </div>';
+            }
             bodyEl.innerHTML =
                 '<div class="stp-lite-hotel-breakup-card is-modal">' +
                 '  <div class="stp-lite-hotel-breakup-body p-2">' +
@@ -2135,6 +2250,12 @@
                 personsLabel = personsN + ' pax';
             }
             var grand = Number(row.grand_total != null ? row.grand_total : (row.totalPrice != null ? row.totalPrice : row.price) || 0);
+            // Prefer hotel/row currency (e.g. online SGD) over panel DMC currency.
+            var onlineStampCur = resolveOnlinePriceStamp(row);
+            var rowCur = row.currency
+                || (onlineStampCur && onlineStampCur.currency)
+                || (row.price_payload && row.price_payload.currency)
+                || cur;
             var childBits = [];
             if (parseInt(childrenWithBedN, 10) > 0 || row.childWithBedEnabled || childBedFlagOn(row, 'with')) childBits.push('Child w/ bed');
             if (parseInt(childrenNoBedN, 10) > 0 || row.childWithoutBedEnabled || childBedFlagOn(row, 'without')) childBits.push('Child w/o bed');
@@ -2161,7 +2282,7 @@
                 '  </td>' +
                 '  <td><small>' + esc(mealPlan) + '</small></td>' +
                 '  <td><small>' + esc(stayLabel) + '</small></td>' +
-                '  <td class="text-end fw-semibold text-nowrap">' + cur + ' ' + grand.toFixed(2) + '</td>' +
+                '  <td class="text-end fw-semibold text-nowrap">' + esc(rowCur) + ' ' + grand.toFixed(2) + '</td>' +
                 '  <td>' +
                 '    <div class="form-check mb-0">' +
                 '      <input class="form-check-input hotel-is-supplement" type="checkbox" data-idx="' + idx + '"' +
@@ -3317,7 +3438,55 @@
         var checkOut = dates.checkOut;
         var nights = nightsBetweenYmd(checkIn, checkOut) ||
             (Array.isArray(hotelData.nights) ? hotelData.nights.length : 0) || 1;
-        var price = Number(hotelData.price || hotelData.combinedRoomTotal || 0) || 0;
+        var price = Number(hotelData.price || hotelData.combinedRoomTotal || hotelData.grand_total || 0) || 0;
+        // Same stamp as add-modal: hotel (TravClicks) + DMC once + total.
+        var stamp = hotelData.online_price_breakdown
+            || hotelData.dmc_profile_markup
+            || (hotelData.onlineHotelBooking && hotelData.onlineHotelBooking.online_price_breakdown)
+            || (hotelData.onlineHotelBooking && hotelData.onlineHotelBooking.dmc_profile_markup)
+            || null;
+        var hotelPrice = stamp
+            ? (Number(stamp.hotel_price != null ? stamp.hotel_price : stamp.base_price) || 0)
+            : (Number(hotelData.base_grand_total) || 0);
+        var mkAmt = stamp ? (Number(stamp.markup_amount) || 0) : 0;
+        var totalPrice = stamp
+            ? (Number(stamp.total_price != null ? stamp.total_price : stamp.price) || price)
+            : price;
+        if (!(totalPrice > 0)) totalPrice = price;
+        if (!(hotelPrice > 0)) {
+            hotelPrice = mkAmt > 0 ? Math.max(0, Math.round((totalPrice - mkAmt) * 100) / 100) : totalPrice;
+        }
+        if (!(mkAmt > 0) && totalPrice > hotelPrice + 0.009) {
+            mkAmt = Math.round((totalPrice - hotelPrice) * 100) / 100;
+        }
+        var supplierCode = String(
+            hotelData.onlineHotelSource
+            || (hotelData.onlineHotelBooking && hotelData.onlineHotelBooking.supplier_code)
+            || (hotelData.onlineHotelRaw && hotelData.onlineHotelRaw.supplier_code)
+            || ''
+        ).toLowerCase();
+        var isMgBedbank = supplierCode === 'mg_bedbank' || supplierCode === 'mgbedbank' || supplierCode === 'mg';
+        // MG Bedbank is always SGD; other online suppliers keep their price currency.
+        var onlineCur = isMgBedbank
+            ? 'SGD'
+            : ((stamp && stamp.currency)
+                || hotelData.currency
+                || (hotelData.onlineHotelRaw && hotelData.onlineHotelRaw.currency)
+                || currencyLabel(root)
+                || 'SGD');
+        var priceStamp = {
+            currency: onlineCur,
+            hotel_price: hotelPrice,
+            base_price: hotelPrice,
+            markup_amount: mkAmt,
+            markup_type: (stamp && stamp.markup_type) || 'percentage',
+            markup_value: stamp ? (Number(stamp.markup_value) || 0) : 0,
+            markup_kind: 'hotel',
+            price: totalPrice,
+            total_price: totalPrice,
+            dmc_id: (stamp && stamp.dmc_id) || null
+        };
+        price = totalPrice;
         var persons = parseInt(hotelData.selectedPersons, 10) || 1;
         var rooms = parseInt(hotelData.numberOfRooms, 10) || 1;
         var roomType = hotelData.roomType || hotelData.room_type || '';
@@ -3326,6 +3495,10 @@
         var hotelId = hotelData.id || '';
         var hotelName = hotelData.name || '';
         var onlineBooking = hotelData.onlineHotelBooking || null;
+        if (onlineBooking && typeof onlineBooking === 'object') {
+            onlineBooking.online_price_breakdown = priceStamp;
+            onlineBooking.dmc_profile_markup = priceStamp;
+        }
         var onlineHotel = (onlineBooking && onlineBooking.hotel) || {};
         var customer = (window.StpLiteGuests && window.StpLiteGuests.getCustomerDataForServices)
             ? window.StpLiteGuests.getCustomerDataForServices()
@@ -3339,13 +3512,17 @@
                 moment(checkOut, 'YYYY-MM-DD').format('MMM D, YYYY');
         }
         var pricePayload = {
-            room_total: price,
+            room_total_base: hotelPrice,
+            room_total: hotelPrice,
             meal_total: 0,
-            grand_total: price,
+            base_grand_total: hotelPrice,
+            grand_total: totalPrice,
             nights: nights,
-            currency: currencyLabel(root),
+            currency: priceStamp.currency,
             is_online: true,
-            breakdown: []
+            breakdown: [],
+            dmc_profile_markup: priceStamp,
+            online_price_breakdown: priceStamp
         };
 
         return {
@@ -3413,11 +3590,11 @@
                     meal_plan: mealPlan
                 }]
             }],
-            totalPrice: price,
-            price: price,
-            cost: price,
-            sell: price,
-            cost_price: price,
+            totalPrice: totalPrice,
+            price: totalPrice,
+            cost: hotelPrice,
+            sell: totalPrice,
+            cost_price: hotelPrice,
             transfer_options: null,
             child_with_bed: null,
             child_without_bed: null,
@@ -3431,7 +3608,7 @@
             supplement: false,
             is_supplement: false,
             remarks: hotelData.remarks || '',
-            currency: currencyLabel(root),
+            currency: priceStamp.currency || currencyLabel(root),
             hotel_unique_id: hotelId,
             hotel_name: hotelName,
             hotel_id: hotelId,
@@ -3449,9 +3626,13 @@
             stay_start: checkIn,
             stay_end: checkOut,
             stay_label: stayLabel,
-            room_total: price,
+            room_total_base: hotelPrice,
+            room_total: hotelPrice,
             meal_total: 0,
-            grand_total: price,
+            base_grand_total: hotelPrice,
+            grand_total: totalPrice,
+            dmc_profile_markup: priceStamp,
+            online_price_breakdown: priceStamp,
             price_payload: pricePayload,
             helperPriceResult: pricePayload,
             isOnlineHotel: true,

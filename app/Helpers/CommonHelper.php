@@ -11191,13 +11191,46 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     }
 
     /**
+     * Active booking-type services still on the tour (not soft-deleted).
+     */
+    public static function countActiveBookingServices(int $tourId): int
+    {
+        if ($tourId <= 0) {
+            return 0;
+        }
+
+        return (int) Order::query()
+            ->where('tour_id', $tourId)
+            ->where('bookingType', 'booking')
+            ->whereNull('deleted_at')
+            ->count();
+    }
+
+    /**
+     * Block order-level cancel when the tour has only one service left — use Cancel Tour instead.
+     */
+    public static function guardAgainstLastServiceOrderCancel(int $tourId): void
+    {
+        if (self::countActiveBookingServices($tourId) <= 1) {
+            throw new \Illuminate\Http\Exceptions\HttpResponseException(response()->json([
+                'success' => false,
+                'message' => 'This tour has only one service. Cancel the tour instead of cancelling the order.',
+            ], 422));
+        }
+    }
+
+    /**
      * Merge refund flag into order update payloads when tour_status is Definite or Actual (same as booking reject flow).
      *
      * @param  array<string, mixed>  $updateData
      * @return array<string, mixed>
      */
-    public static function withDefiniteOrActualTourIsRefundFlag(int $tourId, array $updateData): array
+    public static function withDefiniteOrActualTourIsRefundFlag(int $tourId, array $updateData, bool $guardLastService = false): array
     {
+        if ($guardLastService) {
+            self::guardAgainstLastServiceOrderCancel($tourId);
+        }
+
         $status = Tour::where('tour_id', $tourId)->value('tour_status');
         if (in_array($status ?? '', ['Definite', 'Actual'], true)) {
             $updateData['is_refund'] = 1;
@@ -13260,9 +13293,15 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         ?string $orderClassification,
         bool $taxIncluded = false,
         bool $onlineTaxIncluded = false,
-        ?float $taxableBase = null
+        ?float $taxableBase = null,
+        bool $onlinePortionSettled = false,
+        ?float $onlineSettledAmount = null
     ): array {
-        $excludeOnline = strtolower(trim((string) $orderClassification)) !== 'online';
+        $classification = strtolower(trim((string) $orderClassification));
+        $isOnlineOnly = $classification === 'online';
+        // Mix/offline: online payments must not reduce the offline invoice.
+        // Online-only: there is no offline due — collection is the online ledger only.
+        $excludeOnline = ! $isOnlineOnly;
         $onlinePaid = 0.0;
         $offlinePaid = 0.0;
 
@@ -13285,7 +13324,22 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $base = round($baseAmount, 2);
         $tax = round($taxAmount, 2);
         $final = round($finalAmount, 2);
-        $paid = $excludeOnline ? $offlinePaid : round($onlinePaid + $offlinePaid, 2);
+
+        if ($isOnlineOnly) {
+            // All-online tour: after supplier online payment, nothing remains for Add Payment.
+            if ($onlinePortionSettled || $onlinePaid > 0.009) {
+                $settled = round(max($onlinePaid, (float) ($onlineSettledAmount ?? 0), $final), 2);
+                $onlinePaid = max($onlinePaid, $settled);
+                $paid = $settled;
+                $remaining = 0.0;
+            } else {
+                $paid = $onlinePaid;
+                $remaining = max(0, round($final - $paid, 2));
+            }
+        } else {
+            $paid = $offlinePaid;
+            $remaining = max(0, round($final - $paid, 2));
+        }
 
         // Mix: invoice the offline taxable base only (online stay on the online panel).
         if ($excludeOnline && $onlineTaxIncluded && $taxableBase !== null && $taxableBase > 0.009) {
@@ -13299,6 +13353,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 } else {
                     $final = round($base + $tax, 2);
                 }
+                $paid = $offlinePaid;
+                $remaining = max(0, round($final - $paid, 2));
             }
         }
 
@@ -13310,7 +13366,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             'base_amount' => $base,
             'tax_amount' => $tax,
             'final_amount' => $final,
-            'remaining_amount' => max(0, round($final - $paid, 2)),
+            'remaining_amount' => $remaining,
         ];
     }
 

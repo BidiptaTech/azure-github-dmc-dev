@@ -218,7 +218,7 @@
                                 <td>{{ $country->tax_percentage }}</td>
                                 <td>{{ $country->gateway_percentage }}</td>
                                 <td>{{ $country->commission_percentage }}</td>
-                                <td>{{ $country->current_rate !== null && $country->current_rate !== '' ? $country->current_rate : '—' }}</td>
+                                <td>{{ $country->current_rate !== null && $country->current_rate !== '' ? rtrim(rtrim(number_format((float) $country->current_rate, 2, '.', ''), '0'), '.') : '—' }}</td>
                                 @endif
                                 @if($showRemitanceAndExchange)
                                     @php

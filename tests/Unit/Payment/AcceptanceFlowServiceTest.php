@@ -42,7 +42,14 @@ class AcceptanceFlowServiceTest extends TestCase
         $this->assertSame('negotiate_offline', $after['next_action']);
         $this->assertSame(700.0, $after['negotiable_amount']);
         $this->assertSame(300.0, $after['online_paid_amount']);
+        $this->assertSame('SGD', $after['online_currency']);
         $this->assertStringContainsString('Online payment complete: SGD 300.00', $after['hint']);
+
+        // Mix settlement can be USD while online services were paid in SGD.
+        $mixedFx = $service->describe(OrderClassificationService::MIX, true, 319, 244, 'USD', 319, 'SGD');
+        $this->assertSame('USD', $mixedFx['currency']);
+        $this->assertSame('SGD', $mixedFx['online_currency']);
+        $this->assertStringContainsString('Online payment complete: SGD 319.00', $mixedFx['hint']);
     }
 
     public function test_offline_keeps_negotiation(): void

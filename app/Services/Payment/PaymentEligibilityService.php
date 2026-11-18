@@ -192,6 +192,7 @@ class PaymentEligibilityService
             $offlineAmount,
             $currency,
             $onlineSettled ? $onlineAmount : 0.0,
+            $acceptanceFlow->resolveOnlineCurrency($tour, $currency),
         );
     }
 
