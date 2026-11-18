@@ -47,6 +47,17 @@ return [
         'currency_fallback' => env('STRIPE_CURRENCY_FALLBACK', 'usd'),
     ],
 
+    /*
+     * Online services paid up front (supplier_initial): hold the full amount, deduct each
+     * service as it is booked with the vendor, then capture once / release the remainder.
+     * Stripe card holds expire after ~7 days, so holds are force-settled before that.
+     */
+    'online_hold' => [
+        'enabled' => filter_var(env('PAYMENT_ONLINE_HOLD_ENABLED', true), FILTER_VALIDATE_BOOL),
+        'stripe_max_days' => (int) env('PAYMENT_ONLINE_HOLD_STRIPE_MAX_DAYS', 6),
+        'wallet_max_days' => (int) env('PAYMENT_ONLINE_HOLD_WALLET_MAX_DAYS', 30),
+    ],
+
     'stages' => [
         'none' => 'none',
         'supplier_initial' => 'supplier_initial',

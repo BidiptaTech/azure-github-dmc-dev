@@ -136,6 +136,18 @@
                                 <span>Total Price</span>
                                 <span class="online-mk-amt" id="onlineMkTotalAmt">—</span>
                             </div>
+                            {{-- Shown only when the DMC's own currency differs from the service currency --}}
+                            <div id="onlineMkDmcFx" class="d-none mt-1 pt-1" style="border-top: 1px dashed #bfdbfe;">
+                                <div class="online-mk-summary-row">
+                                    <span>Exchange rate</span>
+                                    <span id="onlineMkFxRate" style="font-size: 0.75rem;">—</span>
+                                </div>
+                                <div class="online-mk-summary-row is-total">
+                                    <span>Total in your currency (<span id="onlineMkDmcCur">—</span>)</span>
+                                    <span class="online-mk-amt" id="onlineMkDmcTotalAmt">—</span>
+                                </div>
+                                <small class="text-muted d-block" style="font-size: 0.68rem;">Indicative — your wallet is charged at the rate on the payment date.</small>
+                            </div>
                         </div>
 
                         {{-- Compact MG cancellation summary (1–2 lines) for the selected room --}}
@@ -363,6 +375,89 @@
     const fetchUrl = @json(route('fetch-online-hotels'));
     const roomsUrl = @json(route('fetch-online-hotel-rooms'));
     const csrfToken = @json(csrf_token());
+    /** DMC wallet currency + SGD-pivot rates (1 SGD = X CUR) for the "your currency" preview. */
+    const onlineDmcFxCtx = @json(\App\Services\OnlinePricing\DmcCurrencyPreview::forCurrentUser());
+
+    /**
+     * Shared "your currency" conversion for every online price breakdown (add modal,
+     * after-add breakdown, Lite + Pro, hotels + attractions).
+     *
+     * Mirrors FxConversionCharge (what the DMC wallet is actually charged):
+     *   effective rate = base rate × (1 + conversion commission %), rounded to 6 dp
+     *   amount        = service amount × effective rate (IDR → whole rupiah, others 2 dp)
+     */
+    window.StpDmcFx = window.StpDmcFx || (function () {
+        function esc(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+            });
+        }
+        function fmt(n, dp) {
+            // Fixed locale so every browser shows 508,404 (not 5,08,404 / 508.404).
+            return (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp });
+        }
+        function quote(amount, fromCurrency) {
+            const ctx = onlineDmcFxCtx || {};
+            const to = String(ctx.currency || '').toUpperCase();
+            const from = String(fromCurrency || 'SGD').toUpperCase();
+            if (!/^[A-Z]{3}$/.test(to) || !/^[A-Z]{3}$/.test(from) || to === from) return null;
+            const rates = ctx.sgd_rates || {};
+            const fromRate = from === 'SGD' ? 1 : Number(rates[from]);
+            // DMC-currency pivot rate already includes the conversion commission (server-side).
+            const toRate = Number(ctx.dmc_effective_sgd_rate);
+            if (!(fromRate > 0) || !(toRate > 0)) return null;
+            const rate = Math.round((toRate / fromRate) * 1e6) / 1e6;
+            const raw = (Number(amount) || 0) * rate;
+            const pct = ctx.fx_charge_percent == null ? null : Math.max(0, Number(ctx.fx_charge_percent) || 0);
+            return {
+                from: from,
+                to: to,
+                charge_percent: pct, // null for DMC users (TravClicks-only detail)
+                rate: rate,
+                amount: to === 'IDR' ? Math.round(raw) : Math.round(raw * 100) / 100
+            };
+        }
+        function rateText(fx) {
+            const dp = fx.rate >= 1 ? 2 : 4;
+            return '1 ' + fx.from + ' = ' + fmt(fx.rate, dp) + ' ' + fx.to;
+        }
+        function chargeText(fx) {
+            // Only TravClicks admins receive the % — DMC users see the rate without this note.
+            return fx.charge_percent != null && fx.charge_percent > 0
+                ? 'incl. ' + fmt(fx.charge_percent, 2).replace(/\.00$/, '') + '% currency conversion'
+                : '';
+        }
+        /** Two summary rows; rowClass lets each screen reuse its own row styling. */
+        function rowsHtml(amount, fromCurrency, rowClass, amtClass) {
+            const fx = quote(amount, fromCurrency);
+            if (!fx || !(fx.amount > 0)) return '';
+            rowClass = rowClass || 'd-flex justify-content-between';
+            amtClass = amtClass || '';
+            const note = chargeText(fx);
+            return '<div class="' + esc(rowClass) + '" style="border-top:1px dashed #bfdbfe; margin-top:4px; padding-top:4px;">'
+                + '<span>Exchange rate' + (note ? ' <small class="text-muted">(' + esc(note) + ')</small>' : '') + '</span>'
+                + '<span>' + esc(rateText(fx)) + '</span></div>'
+                + '<div class="' + esc(rowClass) + ' is-total" style="font-weight:600;">'
+                + '<span>Total in your currency (' + esc(fx.to) + ')</span>'
+                + '<span class="' + esc(amtClass) + '">' + esc(fx.to + ' ' + fmt(fx.amount, fx.to === 'IDR' ? 0 : 2)) + '</span></div>'
+                + '<small class="text-muted d-block" style="font-size:0.68rem;">Indicative — your wallet is charged at the rate on the payment date.</small>';
+        }
+        /** Compact one-liner for table cells / cards: "≈ IDR 508,404 @ 14,443.30". */
+        function subHtml(amount, fromCurrency) {
+            const fx = quote(amount, fromCurrency);
+            if (!fx || !(fx.amount > 0)) return '';
+            const note = chargeText(fx);
+            return '<div class="text-muted stp-dmc-fx-sub" style="font-size:0.68rem; line-height:1.2; white-space:nowrap;" title="'
+                + esc(rateText(fx) + (note ? ' (' + note + ')' : '') + ' · indicative') + '">'
+                + '≈ ' + esc(fx.to + ' ' + fmt(fx.amount, fx.to === 'IDR' ? 0 : 2))
+                + ' <span style="opacity:.8;">@ ' + esc(fmt(fx.rate, fx.rate >= 1 ? 2 : 4)) + '</span></div>';
+        }
+        return { quote: quote, rateText: rateText, chargeText: chargeText, rowsHtml: rowsHtml, subHtml: subHtml, fmt: fmt };
+    })();
+    function onlineDmcFxQuote(amount, fromCurrency) {
+        return window.StpDmcFx.quote(amount, fromCurrency);
+    }
+    window.stpDmcFxQuote = onlineDmcFxQuote;
 
     let onlineHotelsCache = [];
     /** Full unfiltered list from the last Fetch Hotels response. */
@@ -1518,6 +1613,23 @@
             hint.textContent = markupAmt > 0
                 ? 'Hotel price includes TravClicks · DMC added once'
                 : 'Hotel price includes TravClicks · no DMC markup';
+        }
+
+        // DMC base currency differs (e.g. IDR vs SGD): show rate + total in DMC currency.
+        const fxBox = document.getElementById('onlineMkDmcFx');
+        if (fxBox) {
+            // Display only — computed on screen, never saved with the hotel.
+            const fx = onlineDmcFxQuote(total > 0 ? total : hotelPrice, cur);
+            if (fx && fx.amount > 0) {
+                const note = window.StpDmcFx.chargeText(fx);
+                document.getElementById('onlineMkFxRate').textContent = window.StpDmcFx.rateText(fx) + (note ? ' (' + note + ')' : '');
+                document.getElementById('onlineMkDmcCur').textContent = fx.to;
+                document.getElementById('onlineMkDmcTotalAmt').textContent = fx.to + ' '
+                    + window.StpDmcFx.fmt(fx.amount, fx.to === 'IDR' ? 0 : 2);
+                fxBox.classList.remove('d-none');
+            } else {
+                fxBox.classList.add('d-none');
+            }
         }
 
         box.classList.remove('d-none');

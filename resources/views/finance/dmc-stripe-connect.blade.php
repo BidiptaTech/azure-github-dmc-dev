@@ -113,9 +113,26 @@
                                     creates a new Stripe onboarding for that country (address is not forced to USA).
                                 </small>
                             @endif
-                            <div class="small mt-1">
-                                Selected currency: <strong id="selected-currency">{{ !empty($account['default_currency']) ? strtoupper($account['default_currency']) : '—' }}</strong>
-                            </div>
+                        </div>
+
+                        @php
+                            $selectedCurrency = strtoupper((string) old(
+                                'default_currency',
+                                !empty($account['default_currency']) ? $account['default_currency'] : ($dmcCurrency ?? '')
+                            ));
+                        @endphp
+                        <div class="mb-3">
+                            <label for="default_currency" class="form-label fw-semibold">Default currency <span class="text-danger">*</span></label>
+                            <select name="default_currency" id="default_currency" class="form-select" required>
+                                @foreach(($currencyOptions ?? []) as $cur)
+                                    <option value="{{ $cur }}" @selected($selectedCurrency === $cur)>
+                                        {{ $cur }}@if(!empty($dmcCurrency) && $cur === $dmcCurrency) — your DMC currency @endif
+                                    </option>
+                                @endforeach
+                            </select>
+                            <small class="text-muted">
+                                Defaults to your DMC currency{{ !empty($dmcCurrency) ? ' ('.$dmcCurrency.')' : '' }}. This is the default currency set on your Stripe account; it can differ from the business country's currency.
+                            </small>
                         </div>
 
                         <div class="d-flex flex-wrap gap-2 align-items-center">
@@ -164,19 +181,6 @@
 
 @section('scripts')
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-    var select = document.getElementById('country_code');
-    var label = document.getElementById('selected-currency');
-    if (!select || !label || select.disabled) return;
-
-    function syncCurrency() {
-        var opt = select.options[select.selectedIndex];
-        var currency = opt && opt.getAttribute('data-currency') ? opt.getAttribute('data-currency') : '';
-        label.textContent = currency ? currency.toUpperCase() : '—';
-    }
-
-    select.addEventListener('change', syncCurrency);
-    syncCurrency();
-});
+// Default currency is chosen independently of the business country (pre-filled with the DMC currency).
 </script>
 @endsection

@@ -969,12 +969,17 @@
     window.enquiryProDmcMarkupSummaryHtml = function (applied, cur) {
         applied = applied || window.enquiryProApplyDmcMarkup(0, 'other');
         cur = cur || 'SGD';
+        // Every service (online + offline): total in the DMC's own currency when it differs. Display only.
+        const fxRows = window.StpDmcFx
+            ? window.StpDmcFx.rowsHtml(applied.price || applied.base_price || 0, cur, 'ep-mk-summary-row', 'ep-mk-amt')
+            : '';
         if (!(Number(applied.markup_amount || 0) > 0) && !(Number(applied.markup_value || 0) > 0)) {
             return ''
                 + '<div class="ep-mk-summary-row is-total">'
                 + '<span>Total Price</span>'
                 + '<span class="ep-mk-amt">' + esc(money(cur, applied.price || applied.base_price || 0)) + '</span>'
-                + '</div>';
+                + '</div>'
+                + fxRows;
         }
         let typeLabel = String(Number(applied.markup_value || 0)) + '%';
         if (String(applied.markup_type || '').toLowerCase() === 'flat') {
@@ -992,7 +997,8 @@
             + '<div class="ep-mk-summary-row is-total">'
             + '<span>Total Price</span>'
             + '<span class="ep-mk-amt">' + esc(money(cur, applied.price)) + '</span>'
-            + '</div>';
+            + '</div>'
+            + fxRows;
     };
 
     function lineHtml(label, amount, cur) {

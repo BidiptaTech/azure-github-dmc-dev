@@ -1694,6 +1694,13 @@
                                     <div data-i18n="Online Api Master">Online Api Master</div>
                                 </a>
                             </li>
+                            @if((int) auth()->user()->role_id === 1)
+                            <li class="menu-item @if(Request::is('supplier-credits*')) active @endif">
+                                <a href="{{ route('supplier-credits.index') }}" class="menu-link">
+                                    <div data-i18n="Vendor Credit">Vendor Credit</div>
+                                </a>
+                            </li>
+                            @endif
                             @endif
                         @endif
                         @if(in_array(auth()->user()->role_id, [11, 33,34,37,38, 77, 84, 128, 131, 132, 134, 135, 137, 138]))
