@@ -23,6 +23,7 @@ import { resetPackages } from "@/slice/tour-packages/prePackagesSlice";
 import { setDmcFromAuth } from "@/slice/dmc/dmcSlice";
 import { ClearLists } from "@/slice/common/TourlistSlice";
 import { resetAgentList } from "@/slice/common/agentListSlice";
+import DemoRequestDialog from "@/components/login/DemoRequestDialog";
 import "@/styles/dmc-signin.scss";
 
 const CLOUD_FEATURES = [
@@ -564,6 +565,7 @@ function DmcLoginDialog({ open, onClose }) {
 function DmcSignIn() {
   const [paused, setPaused] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
+  const [demoOpen, setDemoOpen] = useState(false);
 
   return (
     <div className="dmc-signin-page">
@@ -695,17 +697,19 @@ function DmcSignIn() {
                 and group bookings, from proposal to final service.
               </p>
             </div>
-            <a
+            <button
+              type="button"
               className="dmc-demo-link"
-              href="mailto:admin@travclicks.com?subject=TravOS%20demo%20request"
+              onClick={() => setDemoOpen(true)}
             >
               Request a Demo →
-            </a>
+            </button>
           </div>
         </section>
       </main>
 
       <DmcLoginDialog open={loginOpen} onClose={() => setLoginOpen(false)} />
+      <DemoRequestDialog open={demoOpen} onClose={() => setDemoOpen(false)} />
     </div>
   );
 }

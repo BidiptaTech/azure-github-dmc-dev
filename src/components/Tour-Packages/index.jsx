@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { Box } from "@mui/material";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import Hero1 from "@/components/hero/hero-1";
@@ -80,19 +79,14 @@ export default function TourPackages({ mode = "packages" } = {}) {
         </div>
       ) : (
         <>
-          <div className="partner-hero">
-            <div>
-              <div className="partner-kicker">
+          <div className="tp-builder-toolbar">
+            <div className="tp-builder-toolbar__copy">
+              <span className="tp-builder-toolbar__kicker">
                 {isPlanMode ? "Trip builder" : "Tour packages"}
-              </div>
-              <h1 className="partner-title">
+              </span>
+              <h1 className="tp-builder-toolbar__title">
                 {isPlanMode ? "Build your itinerary" : "Build your package itinerary"}
               </h1>
-              <p className="partner-lede">
-                {isPlanMode
-                  ? "Add hotels, ports, attractions, dining and more into one journey."
-                  : "Add hotels, ports, attractions, dining and more into one package."}
-              </p>
             </div>
             <button
               type="button"
@@ -103,10 +97,8 @@ export default function TourPackages({ mode = "packages" } = {}) {
             </button>
           </div>
 
-          <section className="partner-card partner-tour-packages__itinerary">
-            <Box className="partner-tour-packages__itinerary-body" sx={{ py: 1 }}>
-              <Itinerary onBookingSuccess={handleBookingSuccess} />
-            </Box>
+          <section className="partner-tour-packages__itinerary">
+            <Itinerary onBookingSuccess={handleBookingSuccess} />
           </section>
         </>
       )}
