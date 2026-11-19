@@ -159,9 +159,12 @@ class EnquiryController extends Controller
         }
 
         if (! $currentEnquiry && $tour) {
-            $actualForRow = $primaryOffer
-                ? (float) $primaryOffer['actual_amount']
-                : (float) ($request->input('actual_amount', 0));
+            $frozenActual = $this->resolveFrozenActualAmount(
+                (int) $tour->tour_id,
+                null,
+                $primaryOffer,
+                $request
+            );
 
             $currentEnquiry = Enquiry::create([
                 'tour_id' => $tour->tour_id,
@@ -173,7 +176,7 @@ class EnquiryController extends Controller
                 'receiver_type' => '',
                 'current_position' => '',
                 'amount' => 0,
-                'actual_amount' => $actualForRow,
+                'actual_amount' => $frozenActual,
                 'gross_amount' => \App\Helpers\CommonHelper::calculateTourGrossAmount($tour),
                 'comment' => '',
                 'negotiation_details' => $offers ?: null,
@@ -196,17 +199,26 @@ class EnquiryController extends Controller
             $tour->refresh();
         }
 
-        // Read before updating: amount = incoming (what came to me), actualAmount = outgoing (what I am sending)
-        $amount = $currentEnquiry->amount ?? 0;
+        // List baseline (actual_amount) is frozen for the negotiation thread.
+        // Only the negotiated offer (amount) changes on each OM counter.
         $comment = $request->comment ?? '';
-        $actualAmount = $price;
+        $frozenActual = $this->resolveFrozenActualAmount(
+            (int) $tour->tour_id,
+            $currentEnquiry,
+            $primaryOffer,
+            $request
+        );
+        if (! empty($offers)) {
+            $offers = $this->freezeNegotiationOfferActuals($offers, (int) $tour->tour_id, $frozenActual);
+            $primaryOffer = $offers[0] ?? $primaryOffer;
+        }
 
         $currentEnquiry->sender_id = $currentUser->userId;
         $currentEnquiry->sender_type = 'OM';
         $currentEnquiry->receiver_id = 0;
         $currentEnquiry->receiver_type = '';
         $currentEnquiry->current_position = '';
-        $currentEnquiry->actual_amount = $currentEnquiry->actual_amount ?? 0;
+        $currentEnquiry->actual_amount = $frozenActual;
         // Reset the gross baseline to the current gross for this negotiation round so that
         // services added afterwards are added on top of this newly agreed amount.
         if ($primaryOffer && (float) ($primaryOffer['gross'] ?? 0) > 0) {
@@ -233,9 +245,9 @@ class EnquiryController extends Controller
                 $tourStatus,
                 "Prospect",
                 null,
-                $amount,
+                $price,
                 $comment,
-                $actualAmount,
+                $frozenActual,
                 $changedByName,
                 $changedByUserId,
                 offers: $offers
@@ -252,9 +264,9 @@ class EnquiryController extends Controller
                 $tourStatus,
                 "Tentative",
                 null,
-                $amount,
+                $price,
                 $comment,
-                $actualAmount,
+                $frozenActual,
                 $changedByName,
                 $changedByUserId,
                 offers: $offers
@@ -272,9 +284,9 @@ class EnquiryController extends Controller
                 $tourStatus,
                 $tourStatus,
                 null,
-                $amount,
+                $price,
                 $comment,
-                $actualAmount,
+                $frozenActual,
                 $changedByName,
                 $changedByUserId,
                 offers: $offers
@@ -382,5 +394,93 @@ class EnquiryController extends Controller
         $enquiry->save();
 
         return response()->json(['status' => 'success', 'message' => 'Asst. Manager removed successfully']);
+    }
+
+    /**
+     * Resolve the frozen list/payable baseline for a tour negotiation thread.
+     * actual_amount must not follow each new counter — only amount does.
+     */
+    private function resolveFrozenActualAmount(
+        int $tourId,
+        ?Enquiry $current,
+        ?array $primaryOffer,
+        Request $request
+    ): float {
+        $currentVal = (float) ($current->actual_amount ?? 0);
+        if ($currentVal > 0) {
+            return round($currentVal, 2);
+        }
+
+        $rootVal = Enquiry::where('tour_id', $tourId)
+            ->where('actual_amount', '>', 0)
+            ->orderBy('created_at')
+            ->value('actual_amount');
+        if ($rootVal !== null && (float) $rootVal > 0) {
+            return round((float) $rootVal, 2);
+        }
+
+        if ($primaryOffer && (float) ($primaryOffer['actual_amount'] ?? 0) > 0) {
+            return round((float) $primaryOffer['actual_amount'], 2);
+        }
+
+        $fromRequest = (float) $request->input('actual_amount', 0);
+        if ($fromRequest > 0) {
+            return round($fromRequest, 2);
+        }
+
+        return 0.0;
+    }
+
+    /**
+     * Keep per-country actual_amount aligned with the first frozen baseline in the thread.
+     *
+     * @param  array<int, array<string, mixed>>  $offers
+     * @return array<int, array<string, mixed>>
+     */
+    private function freezeNegotiationOfferActuals(array $offers, int $tourId, float $frozenRowActual): array
+    {
+        $priorDetails = Enquiry::where('tour_id', $tourId)
+            ->whereNotNull('negotiation_details')
+            ->orderBy('created_at')
+            ->value('negotiation_details');
+
+        if (is_string($priorDetails)) {
+            $decoded = json_decode($priorDetails, true);
+            $priorDetails = is_array($decoded) ? $decoded : [];
+        }
+        if (! is_array($priorDetails)) {
+            $priorDetails = [];
+        }
+
+        $priorByKey = [];
+        foreach ($priorDetails as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $key = mb_strtolower(trim((string) ($row['country'] ?? '')))
+                .'|'.strtoupper(trim((string) ($row['currency'] ?? '')));
+            $priorActual = (float) ($row['actual_amount'] ?? 0);
+            if ($priorActual > 0 && ! isset($priorByKey[$key])) {
+                $priorByKey[$key] = round($priorActual, 2);
+            }
+        }
+
+        foreach ($offers as &$offer) {
+            if (! is_array($offer)) {
+                continue;
+            }
+            $key = mb_strtolower(trim((string) ($offer['country'] ?? '')))
+                .'|'.strtoupper(trim((string) ($offer['currency'] ?? '')));
+            if (isset($priorByKey[$key])) {
+                $offer['actual_amount'] = $priorByKey[$key];
+            } elseif ($frozenRowActual > 0 && count($offers) === 1) {
+                $offer['actual_amount'] = round($frozenRowActual, 2);
+            } else {
+                $offer['actual_amount'] = round((float) ($offer['actual_amount'] ?? 0), 2);
+            }
+        }
+        unset($offer);
+
+        return $offers;
     }
 }
