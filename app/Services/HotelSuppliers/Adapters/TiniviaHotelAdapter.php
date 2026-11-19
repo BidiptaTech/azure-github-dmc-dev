@@ -42,7 +42,7 @@ class TiniviaHotelAdapter implements HotelSupplierAdapter
                 'payload' => $payload,
             ]);
 
-            throw new RuntimeException('Tinivia hotel search failed: ' . $reason);
+            throw new RuntimeException('Online hotel search failed: ' . $reason);
         }
 
         return [
@@ -62,7 +62,7 @@ class TiniviaHotelAdapter implements HotelSupplierAdapter
         $hotelCode = trim($hotelCode);
 
         if ($hotelCode === '') {
-            throw new RuntimeException('A hotel code is required to check Tinivia availability.');
+            throw new RuntimeException('A hotel code is required to check online hotel availability.');
         }
 
         $client = new TiniviaClient($credentials);
@@ -83,7 +83,7 @@ class TiniviaHotelAdapter implements HotelSupplierAdapter
                 'payload' => $payload,
             ]);
 
-            throw new RuntimeException('Tinivia availability check failed: ' . $reason);
+            throw new RuntimeException('Online hotel availability check failed: ' . $reason);
         }
 
         $rawHotel = null;

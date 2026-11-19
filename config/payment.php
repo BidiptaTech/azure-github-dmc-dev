@@ -47,6 +47,21 @@ return [
         'currency_fallback' => env('STRIPE_CURRENCY_FALLBACK', 'usd'),
     ],
 
+    /*
+     * Online services paid up front (supplier_initial): hold the full amount, deduct each
+     * service as it is booked with the vendor, then capture once / release the remainder.
+     * Stripe card holds expire after ~7 days, so holds are force-settled before that.
+     */
+    'online_hold' => [
+        'enabled' => filter_var(env('PAYMENT_ONLINE_HOLD_ENABLED', true), FILTER_VALIDATE_BOOL),
+        'stripe_max_days' => (int) env('PAYMENT_ONLINE_HOLD_STRIPE_MAX_DAYS', 6),
+        'wallet_max_days' => (int) env('PAYMENT_ONLINE_HOLD_WALLET_MAX_DAYS', 30),
+        // After Pay Now, book the online services with the vendors automatically (no approve dialog).
+        'auto_book' => filter_var(env('PAYMENT_ONLINE_AUTO_BOOK', true), FILTER_VALIDATE_BOOL),
+        // Display due date = free-cancellation date − N days (D-1, D-2, …).
+        'display_due_days_before' => max(1, (int) env('PAYMENT_ONLINE_DISPLAY_DUE_DAYS_BEFORE', 1)),
+    ],
+
     'stages' => [
         'none' => 'none',
         'supplier_initial' => 'supplier_initial',

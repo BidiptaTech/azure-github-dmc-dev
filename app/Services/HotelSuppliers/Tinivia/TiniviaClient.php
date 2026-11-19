@@ -77,7 +77,7 @@ class TiniviaClient
         $apiKey = $this->credential('api_key');
 
         if ($baseUrl === '' || $apiKey === '') {
-            throw new RuntimeException('Tinivia credentials are incomplete (base URL and API key required).');
+            throw new RuntimeException('Online hotel credentials are incomplete. Please contact TravClicks.');
         }
 
         $timeout = (int) $this->credential('timeout', '30');
@@ -95,13 +95,13 @@ class TiniviaClient
                 'payload' => $payload,
             ]);
 
-            throw new RuntimeException("Tinivia {$endpoint} failed with HTTP " . $response->status());
+            throw new RuntimeException("Online hotel {$endpoint} failed with HTTP ".$response->status());
         }
 
         $body = $response->json();
 
         if (! is_array($body)) {
-            throw new RuntimeException("Tinivia {$endpoint} returned an invalid response.");
+            throw new RuntimeException("Online hotel {$endpoint} returned an invalid response.");
         }
 
         return $body;

@@ -156,6 +156,11 @@
         var total = foc ? 0 : calcCardTotal(card);
         el.textContent = foc ? 'FOC' : ((currency || 'SGD') + ' ' + money(total));
         el.classList.toggle('is-foc', foc);
+        // Display only: total in the DMC's own currency (incl. conversion commission).
+        var fxEl = card.querySelector('[data-misc-line-fx]');
+        if (fxEl) {
+            fxEl.innerHTML = (!foc && window.StpDmcFx) ? window.StpDmcFx.subHtml(total, currency || 'SGD') : '';
+        }
     }
 
     function findItemById(root, itemId) {
@@ -303,6 +308,7 @@
             '    <div class="stp-lite-misc-card__total">' +
             '      <span class="stp-lite-misc-card__total-label">Total Price</span>' +
             '      <strong data-misc-line-total>' + T.esc(cur) + ' ' + money(previewTotal) + '</strong>' +
+            '      <div data-misc-line-fx></div>' +
             '    </div>' +
             '    <div class="stp-lite-misc-card__actions">' +
             (isEditing

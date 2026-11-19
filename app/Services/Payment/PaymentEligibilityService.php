@@ -56,6 +56,12 @@ class PaymentEligibilityService
             : $payable;
         // Settlement currency = confirmed negotiation currency (enquiry.currency).
         $currency = $this->resolveSettlementCurrency($tour);
+        if ($stage === 'supplier_initial') {
+            // Pay Now for online services: the payable IS the online services' sell, which is
+            // priced in the services' own currency (e.g. SGD). Using the negotiation/user
+            // currency here (e.g. IDR) would charge "SGD 35.20" as "IDR 35.20".
+            $currency = strtoupper(app(AcceptanceFlowService::class)->resolveOnlineCurrency($tour, $currency));
+        }
         $dmcId = (int) ($tour->dmc_id ?? 0);
         $agentId = (int) ($tour->agent_id ?? 0);
 
@@ -142,7 +148,7 @@ class PaymentEligibilityService
             'payment_stage' => $stage,
             'payment_recipient' => $recipient,
             'currency' => $currency,
-            'payable_amount' => round($payable, 4),
+            'payable_amount' => round($payable, 2),
             'amount_readonly' => $stage === 'supplier_initial',
             'acceptance' => $this->acceptanceSnapshot(
                 $tour,
@@ -364,7 +370,7 @@ class PaymentEligibilityService
             }
         }
 
-        return round($paid, 4);
+        return round($paid, 2);
     }
 
     protected function hasPendingPayment(Tour $tour): bool
@@ -550,7 +556,7 @@ class PaymentEligibilityService
             $paid += (float) ($p['amount'] ?? 0);
         }
 
-        return max(0, round($total - $paid, 4));
+        return max(0, round($total - $paid, 2));
     }
 
     /**
@@ -577,7 +583,7 @@ class PaymentEligibilityService
             return [
                 'available' => false,
                 'reason' => 'No payable amount on this booking.',
-                'available_balance' => round($balance, 4),
+                'available_balance' => round($balance, 2),
                 'required_amount' => 0.0,
                 'currency' => $currency,
                 'source_dmc_id' => $dmcId,
@@ -593,8 +599,8 @@ class PaymentEligibilityService
                 : ($balance <= 0
                     ? "No {$currency} balance in the DMC wallet."
                     : "Insufficient DMC wallet balance ({$currency} {$balance} available, {$amount} required)."),
-            'available_balance' => round($balance, 4),
-            'required_amount' => round($amount, 4),
+            'available_balance' => round($balance, 2),
+            'required_amount' => round($amount, 2),
             'currency' => $currency,
             'source_dmc_id' => $dmcId,
         ];

@@ -72,7 +72,9 @@ class OnlineAttractionCancellationService
         $result = $this->orderService->cancelVoucher($voucherCode, $reason, $booking);
 
         if (empty($result['success'])) {
-            $message = (string) ($result['message'] ?: 'Failed to cancel the online attraction voucher with the supplier.');
+            $message = \App\Support\SupplierFacingCopy::mask(
+                (string) ($result['message'] ?: 'Failed to cancel the online attraction voucher with the supplier.')
+            );
             $this->cancellationStatus->markFailed($order, $message);
 
             if ($softFailOnError) {
@@ -101,14 +103,34 @@ class OnlineAttractionCancellationService
         $this->writeBookingPayload($order, $booking);
         $this->cancellationStatus->markConfirmed($order, (string) ($result['message'] ?? 'Supplier voucher cancellation confirmed.'));
 
+        // Vendor refunds the credits on voucher cancel (full debit; auto-verified).
+        app(\App\Services\SupplierCredit\SupplierCreditService::class)->recordCancellationRefund([
+            'order_id' => (int) $order->id,
+            'tour_id' => (int) ($order->tour_id ?? 0) ?: null,
+            'service_type' => 'attraction',
+            'charge_reported' => false,
+            'supplier_booking_reference' => $voucherCode,
+            'metadata' => ['voucher_code' => $voucherCode, 'trigger' => 'service_cancel'],
+        ]);
+
+        // After all cancel scenario checks: auto-verify TravClicks refund → DMC wallet.
+        $order->refresh();
+        $walletAuto = app(\App\Services\Payment\TravclicksOnlineWalletRefundService::class)
+            ->afterOnlineCancelConfirmed($order);
+
         Log::info('Online attraction voucher cancelled with supplier (edit remove)', [
             'order_id' => $order->id,
             'booking_id' => $order->booking_id,
             'voucher_code' => $voucherCode,
             'message' => $result['message'] ?? null,
+            'wallet_auto_refund' => $walletAuto,
         ]);
 
-        return array_merge($result, ['voucher_code' => $voucherCode, 'status' => 'confirmed']);
+        return array_merge($result, [
+            'voucher_code' => $voucherCode,
+            'status' => 'confirmed',
+            'wallet_auto_refund' => $walletAuto,
+        ]);
     }
 
     /**

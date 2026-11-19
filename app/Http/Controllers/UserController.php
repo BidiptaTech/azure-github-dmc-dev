@@ -3821,10 +3821,18 @@ class UserController extends Controller
         $request->validate([
             'hotel_markup_value' => 'nullable|numeric|min:0',
             'other_markup_value' => 'nullable|numeric|min:0',
+            'online_display_due_days' => 'nullable|integer|in:1,2,3,4,5,7,14',
         ]);
+
+        $existing = is_array($user->markup_json) ? $user->markup_json : [];
 
         // Profile markup is percentage-only (type is readonly in the UI).
         $user->markup_json = [
+            // D-N for auto-approved online bookings (display due = free cancel − N days).
+            'online_display_due_days' => (int) $request->input(
+                'online_display_due_days',
+                $existing['online_display_due_days'] ?? config('payment.online_hold.display_due_days_before', 1)
+            ),
             'hotel' => [
                 'markup_type' => 'percentage',
                 'markup_value' => round((float) $request->input('hotel_markup_value', 0), 2),

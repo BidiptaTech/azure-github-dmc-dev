@@ -240,6 +240,21 @@
                                         </div>
                                     </div>
                                 </div>
+                                @php
+                                    $onlineDueDays = (int) old('online_display_due_days', $markupJson['online_display_due_days'] ?? config('payment.online_hold.display_due_days_before', 1));
+                                @endphp
+                                <div class="col-md-6">
+                                    <div class="border rounded-3 p-3 h-100" style="background:#f8f9fa;">
+                                        <h6 class="mb-1">Online bookings — display due date</h6>
+                                        <small class="text-muted d-block mb-3">Online services are booked and approved automatically after payment. Display due date = free cancellation date minus:</small>
+                                        <label for="online_display_due_days" class="form-label">Days before free cancellation</label>
+                                        <select class="form-select" id="online_display_due_days" name="online_display_due_days">
+                                            @foreach([1 => 'D-1 (1 day before)', 2 => 'D-2 (2 days before)', 3 => 'D-3 (3 days before)', 4 => 'D-4 (4 days before)', 5 => 'D-5 (5 days before)', 7 => 'D-7 (1 week before)', 14 => 'D-14 (2 weeks before)'] as $d => $label)
+                                                <option value="{{ $d }}" @selected($onlineDueDays === $d)>{{ $label }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

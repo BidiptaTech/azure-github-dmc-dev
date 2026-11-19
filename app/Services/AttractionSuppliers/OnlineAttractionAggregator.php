@@ -154,7 +154,8 @@ class OnlineAttractionAggregator
             'provider_total' => $providerMeta['total'] ?? $count,
             'provider_pages' => $providerMeta['pages'],
             'supplier_code' => $supplier?->code ?? $supplierCode,
-            'supplier_name' => $supplier?->name ?? config('suppliers.' . $supplierCode . '.label', $supplierCode),
+            // DMC must only see TravClicks — never the underlying attraction vendor brand.
+            'supplier_name' => \App\Support\SupplierFacingCopy::publicSupplierName(),
             'country_id' => $countryId,
             'city' => $resolvedCityName,
             'api_environment' => $environment,

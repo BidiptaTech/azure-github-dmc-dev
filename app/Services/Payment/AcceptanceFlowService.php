@@ -58,9 +58,9 @@ class AcceptanceFlowService
         float $onlinePaidAmount = 0.0,
         ?string $onlineCurrency = null,
     ): array {
-        $onlineAmount = round($onlineAmount, 4);
-        $offlineAmount = round($offlineAmount, 4);
-        $onlinePaidAmount = round(max(0.0, $onlinePaidAmount), 4);
+        $onlineAmount = round($onlineAmount, 2);
+        $offlineAmount = round($offlineAmount, 2);
+        $onlinePaidAmount = round(max(0.0, $onlinePaidAmount), 2);
         if ($onlinePaid && $onlinePaidAmount <= 0 && $onlineAmount > 0) {
             $onlinePaidAmount = $onlineAmount;
         }
@@ -212,7 +212,7 @@ class AcceptanceFlowService
             $raw = is_array($decoded) ? $decoded : [];
         }
         if (! is_array($raw)) {
-            return round(max(0.0, $fallbackOnlineAmount), 4);
+            return round(max(0.0, $fallbackOnlineAmount), 2);
         }
 
         $paid = 0.0;
@@ -226,9 +226,9 @@ class AcceptanceFlowService
             $paid += (float) ($payment['amount'] ?? 0);
         }
 
-        $paid = round($paid, 4);
+        $paid = round($paid, 2);
 
-        return $paid > 0 ? $paid : round(max(0.0, $fallbackOnlineAmount), 4);
+        return $paid > 0 ? $paid : round(max(0.0, $fallbackOnlineAmount), 2);
     }
 
     public function onlinePortionSettled(Tour $tour): bool
@@ -243,10 +243,18 @@ class AcceptanceFlowService
             return false;
         }
 
+        // Completed, or an online payment currently HELD while its services are being booked
+        // (hold flow) — either way the customer must not be asked to pay again.
         return DB::table('payment_attempts')
             ->where('tour_id', $tourId)
             ->where('payment_stage', 'supplier_initial')
-            ->where('status', 'completed')
+            ->where(function ($q) {
+                $q->where('status', 'completed')
+                    ->orWhere(function ($held) {
+                        $held->where('status', 'authorized')
+                            ->whereRaw("(metadata::jsonb ->> 'hold_opened_at') IS NOT NULL");
+                    });
+            })
             ->exists();
     }
 }

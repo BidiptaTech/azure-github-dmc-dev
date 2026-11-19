@@ -92,7 +92,7 @@ class Country extends Model
             return null;
         }
 
-        return round($amount * $rate, 4);
+        return round($amount * $rate, 2);
     }
 
     /**

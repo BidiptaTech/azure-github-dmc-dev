@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Services\ApiEnvironmentResolver;
 use App\Services\Payment\SupplierCancellationStatusService;
 use App\Services\SupplierConfigResolver;
+use App\Services\SupplierCredit\SupplierCreditService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -77,10 +78,17 @@ class OnlineHotelCancellationService
                 'supplier_code' => (string) ($details['supplier_code'] ?? ''),
             ]);
 
-            return is_array($details['cancellation'] ?? null) ? $details['cancellation'] : [
+            $order->refresh();
+            $walletAuto = app(\App\Services\Payment\TravclicksOnlineWalletRefundService::class)
+                ->afterOnlineCancelConfirmed($order);
+
+            $payload = is_array($details['cancellation'] ?? null) ? $details['cancellation'] : [
                 'status' => 'confirmed',
                 'already_cancelled' => true,
             ];
+            $payload['wallet_auto_refund'] = $walletAuto;
+
+            return $payload;
         }
 
         if (! $this->wasConfirmedWithSupplier($details)) {
@@ -150,9 +158,13 @@ class OnlineHotelCancellationService
             ]);
 
             $message = 'Failed to cancel the online hotel reservation with the supplier.';
-            $this->cancellationStatus->markFailed($order, $e->getMessage() ?: $message, [
-                'supplier_code' => $supplierCode,
-            ]);
+            $this->cancellationStatus->markFailed(
+                $order,
+                \App\Support\SupplierFacingCopy::mask($e->getMessage() ?: $message),
+                [
+                    'supplier_code' => $supplierCode,
+                ]
+            );
 
             if ($softFailOnError) {
                 return [
@@ -160,7 +172,7 @@ class OnlineHotelCancellationService
                     'soft_failed' => true,
                     'message' => $message,
                     'supplier_code' => $supplierCode,
-                    'error' => $e->getMessage(),
+                    'error' => \App\Support\SupplierFacingCopy::mask($e->getMessage()),
                 ];
             }
 
@@ -214,6 +226,30 @@ class OnlineHotelCancellationService
             'Supplier cancellation confirmed.',
             ['supplier_code' => (string) ($result['supplier_code'] ?? $supplierCode)]
         );
+
+        // Vendor cancelled → return (debit − cancellation charge) to TravClicks vendor credit.
+        if (empty($result['simulated'])) {
+            $charges = is_array($result['cancellation_charges'] ?? null) ? $result['cancellation_charges'] : null;
+            app(SupplierCreditService::class)->recordCancellationRefund([
+                'order_id' => (int) $order->id,
+                'tour_id' => (int) ($order->tour_id ?? 0) ?: null,
+                'service_type' => 'hotel',
+                'cancellation_charge' => $charges !== null ? (float) ($charges['amount'] ?? 0) : null,
+                'charge_currency' => $charges !== null ? (string) ($charges['currency'] ?? '') : null,
+                'charge_reported' => $charges !== null,
+                'supplier_booking_reference' => SupplierCreditService::hotelSupplierReference($details),
+                'metadata' => [
+                    'supplier_cancel_status' => $result['status'] ?? null,
+                    'already_cancelled' => (bool) ($result['already_cancelled'] ?? false),
+                ],
+            ]);
+        }
+
+        // After all cancel scenario checks: auto-verify TravClicks refund → DMC wallet.
+        $order->refresh();
+        $walletAuto = app(\App\Services\Payment\TravclicksOnlineWalletRefundService::class)
+            ->afterOnlineCancelConfirmed($order);
+        $result['wallet_auto_refund'] = $walletAuto;
 
         Log::info('Online hotel cancelled with supplier', [
             'order_id' => $order->id,

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Country;
 use App\Models\User;
 use App\Services\AttractionSuppliers\OnlineAttractionAggregator;
+use App\Support\SupplierFacingCopy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -113,12 +114,12 @@ class OnlineAttractionController extends Controller
                 'dmc_id' => $dmcId,
                 'city' => $city !== '' ? $city : null,
                 'visit_date' => $visitDate,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ], 422);
         } catch (Throwable $e) {
             Log::error('API online attraction lists exception', [
@@ -213,12 +214,12 @@ class OnlineAttractionController extends Controller
                 'dmc_id' => $dmcId,
                 'sku_id' => $skuId,
                 'city' => $city !== '' ? $city : null,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ], 422);
         } catch (Throwable $e) {
             Log::error('API online attraction details exception', [
@@ -272,7 +273,7 @@ class OnlineAttractionController extends Controller
         } catch (Throwable $e) {
             Log::warning('API online attraction details catalog lookup skipped', [
                 'sku_id' => $skuId,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ]);
         }
 

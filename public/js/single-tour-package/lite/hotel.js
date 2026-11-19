@@ -323,6 +323,7 @@
             '            <span><strong>Total Price:</strong></span>' +
             '            <strong class="hotel-breakup-grand">' + esc(currency) + ' 0.00</strong>' +
             '          </div>' +
+            '          <div class="hotel-breakup-fx"></div>' +
             '        </div>' +
             '      </div>' +
             '    </div>' +
@@ -1806,6 +1807,11 @@
             markupWrap.classList.toggle('d-none', !(Number(built.markupAmount || 0) > 0));
         }
         if (grandEl) grandEl.textContent = cur + ' ' + Number(built.grand || 0).toFixed(2);
+        var fxEl = root.querySelector('.hotel-breakup-fx');
+        if (fxEl) {
+            // Display only: rate (incl. conversion commission) + total in the DMC's currency.
+            fxEl.innerHTML = window.StpDmcFx ? window.StpDmcFx.rowsHtml(built.grand, cur, 'stp-lite-hotel-breakup-total') : '';
+        }
 
         panel.classList.remove('d-none');
         if (body) body.classList.remove('d-none');
@@ -2135,6 +2141,10 @@
                     '        <span><strong>Total Price:</strong></span>' +
                     '        <strong>' + cur + ' ' + Number(built.grand || 0).toFixed(2) + '</strong>' +
                     '      </div>' +
+                    // DMC currency differs → exchange rate (incl. conversion commission) + total in DMC currency.
+                    (window.StpDmcFx
+                        ? window.StpDmcFx.rowsHtml(built.grand, onlineStamp.currency || cur, 'stp-lite-hotel-breakup-total')
+                        : '') +
                     '    </div>';
             } else {
                 modalTotals =
@@ -2149,6 +2159,7 @@
                     '        <span><strong>Total Price:</strong></span>' +
                     '        <strong>' + cur + ' ' + Number(built.grand || 0).toFixed(2) + '</strong>' +
                     '      </div>' +
+                    (window.StpDmcFx ? window.StpDmcFx.rowsHtml(built.grand, cur, 'stp-lite-hotel-breakup-total') : '') +
                     '    </div>';
             }
             bodyEl.innerHTML =
@@ -2282,7 +2293,7 @@
                 '  </td>' +
                 '  <td><small>' + esc(mealPlan) + '</small></td>' +
                 '  <td><small>' + esc(stayLabel) + '</small></td>' +
-                '  <td class="text-end fw-semibold text-nowrap">' + esc(rowCur) + ' ' + grand.toFixed(2) + '</td>' +
+                '  <td class="text-end fw-semibold text-nowrap">' + esc(rowCur) + ' ' + grand.toFixed(2) + (window.StpDmcFx ? window.StpDmcFx.subHtml(grand, rowCur) : '') + '</td>' +
                 '  <td>' +
                 '    <div class="form-check mb-0">' +
                 '      <input class="form-check-input hotel-is-supplement" type="checkbox" data-idx="' + idx + '"' +

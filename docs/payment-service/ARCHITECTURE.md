@@ -30,3 +30,9 @@ flowchart LR
 ## Wallet
 
 Agent spend is DMC-scoped via `wallet.source_dmc_id`. Reserve → commit/release for supplier-initial flows.
+
+## Multi-vendor online booking (design)
+
+One `supplier_initial` payment → fan-out hotel/attraction books (Tinivia / MG / Hotelbeds / attractions) → capture booked amount only.
+
+See [SUPPLIER_BOOKING_ORCHESTRATION.md](./SUPPLIER_BOOKING_ORCHESTRATION.md) for saga, line identity, and schema.

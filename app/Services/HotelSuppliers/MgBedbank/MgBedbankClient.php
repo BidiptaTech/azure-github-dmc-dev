@@ -114,7 +114,7 @@ class MgBedbankClient
 
         if ($baseUrl === '' || $agencyCode === '' || $username === '' || $password === '') {
             throw new RuntimeException(
-                'MG Bedbank credentials are incomplete (base URL, agency code, username and password required).'
+                'Online hotel credentials are incomplete. Please contact TravClicks.'
             );
         }
 
@@ -139,13 +139,13 @@ class MgBedbankClient
                 'body' => $response->body(),
             ]);
 
-            throw new RuntimeException("MG Bedbank {$endpoint} failed with HTTP " . $response->status());
+            throw new RuntimeException("Online hotel {$endpoint} failed with HTTP ".$response->status());
         }
 
         $body = $response->json();
 
         if (! is_array($body)) {
-            throw new RuntimeException("MG Bedbank {$endpoint} returned an invalid response.");
+            throw new RuntimeException("Online hotel {$endpoint} returned an invalid response.");
         }
 
         return $body;
