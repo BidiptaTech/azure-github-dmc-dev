@@ -35,7 +35,8 @@ class MarkupCalculator
     }
 
     /**
-     * Final customer-facing price — always rounded up to the nearest whole unit.
+     * Final customer-facing price — keep cents (e.g. 1.00 + 7% = 1.07).
+     * Do not ceil to whole units: that turned SGD 1.07 into 2.00 on attractions.
      */
     private function finalizePrice(float $price): float
     {
@@ -43,6 +44,6 @@ class MarkupCalculator
             return 0.0;
         }
 
-        return ceil($price);
+        return round($price, 2);
     }
 }

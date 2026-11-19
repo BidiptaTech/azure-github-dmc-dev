@@ -3921,7 +3921,27 @@ class HotelBookingController extends Controller
             
             // Merge existing files with new uploaded files
             $allFiles = array_merge($existingFiles, $uploadedFiles);
-            $upload_files = !empty($allFiles) ? json_encode($allFiles) : null;
+
+            // Online attraction: auto-attach voucher image/download URLs into View Files.
+            if ($isOnline && ! empty($orderVouchers) && is_array($orderVouchers)) {
+                foreach ($orderVouchers as $voucherRow) {
+                    if (! is_array($voucherRow)) {
+                        continue;
+                    }
+                    foreach (['voucher', 'voucher_url', 'voucher_image', 'download_link', 'download_url'] as $voucherKey) {
+                        $voucherUrl = trim((string) ($voucherRow[$voucherKey] ?? ''));
+                        if ($voucherUrl === '' || ! preg_match('#^https?://#i', $voucherUrl)) {
+                            continue;
+                        }
+                        if (! in_array($voucherUrl, $allFiles, true)) {
+                            $allFiles[] = $voucherUrl;
+                        }
+                        break;
+                    }
+                }
+            }
+
+            $upload_files = !empty($allFiles) ? json_encode(array_values($allFiles)) : null;
 
             // Update the orders table with approval data
             $updateData = [
@@ -3934,6 +3954,12 @@ class HotelBookingController extends Controller
             ];
             if ($isOnline && $savedExternalRef) {
                 $updateData['order_ref_no'] = $savedExternalRef;
+                if (is_array($booking)) {
+                    $booking['order_reference_id'] = $savedExternalRef;
+                    $booking['external_order_ref_id'] = $savedExternalRef;
+                    $booking['attraction_order_ref_id'] = $savedExternalRef;
+                    $writeBookingIntoData();
+                }
                 if (is_array($attractionData)) {
                     $updateData['data'] = json_encode($attractionData);
                 }

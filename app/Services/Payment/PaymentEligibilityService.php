@@ -163,6 +163,9 @@ class PaymentEligibilityService
                 (float) ($breakdown['offline_amount'] ?? 0),
                 $currency,
             ),
+            'online_services' => $stage === 'supplier_initial'
+                ? $this->onlineServicesForPayModal($tour)
+                : [],
             'fx' => $fx,
             'breakdown' => $breakdown,
             'outstanding_balance' => $stage === 'dmc_collection'
@@ -175,7 +178,127 @@ class PaymentEligibilityService
                 'stripe_mode' => $settings['stripe_mode'],
             ],
             'methods' => $methods,
+            'redirect_url' => $this->postPayRedirectUrl($classification, $stage, (string) ($tour->tour_status ?? '')),
         ];
+    }
+
+    /**
+     * Unpaid online services shown (read-only) on the Pay Now modal.
+     * Attractions include the SG Attractions order_ref so the payer sees the reference before Wallet pay.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    protected function onlineServicesForPayModal(Tour $tour): array
+    {
+        $tourId = (int) ($tour->tour_id ?? $tour->getKey());
+        if ($tourId <= 0) {
+            return [];
+        }
+
+        $orders = Order::query()
+            ->where('tour_id', $tourId)
+            ->whereNull('deleted_at')
+            ->orderBy('id')
+            ->get();
+
+        $services = [];
+        foreach ($orders as $order) {
+            $orderType = strtolower(trim((string) ($order->order_type ?? '')));
+            if ($orderType !== OrderClassificationService::ONLINE) {
+                continue;
+            }
+            if ((int) ($order->is_approve ?? 0) === 1) {
+                continue;
+            }
+
+            $type = strtolower(trim((string) ($order->type ?? '')));
+            $data = is_string($order->data) ? (json_decode($order->data, true) ?: []) : (is_array($order->data) ? $order->data : []);
+            $row = is_array($data[0] ?? null) ? $data[0] : (is_array($data) ? $data : []);
+
+            $name = '';
+            $reference = '';
+            $currency = strtoupper(trim((string) ($order->currency ?? $row['currency'] ?? 'SGD'))) ?: 'SGD';
+            $amount = $this->classificationService->resolveOrderAmount($order);
+
+            if ($type === 'attraction') {
+                $name = trim((string) (
+                    $row['AttractionName']
+                    ?? $row['attraction_name']
+                    ?? $row['attractionName']
+                    ?? $row['name']
+                    ?? 'Online attraction'
+                ));
+                $reference = (string) (\App\Services\AttractionSuppliers\OnlineAttractionOrderService::extractSavedRef($order, $row) ?? '');
+                if ($reference === '') {
+                    $reference = trim((string) (
+                        $row['order_reference_id']
+                        ?? $row['external_order_ref_id']
+                        ?? $row['attraction_order_ref_id']
+                        ?? $order->order_ref_no
+                        ?? ''
+                    ));
+                }
+                $ticket = trim((string) ($row['ticketName'] ?? $row['ticket_name'] ?? ''));
+                $visit = trim((string) ($row['bookingDate'] ?? $row['date'] ?? ''));
+            } elseif ($type === 'hotel') {
+                $name = trim((string) (
+                    $row['hotelDetails']['hotel_name']
+                    ?? $row['onlineHotelBooking']['hotel']['name']
+                    ?? $row['hotel_name']
+                    ?? $row['name']
+                    ?? 'Online hotel'
+                ));
+                $reference = trim((string) (
+                    $order->order_ref_no
+                    ?? $row['supplier_reference']
+                    ?? $row['booking_reference']
+                    ?? ''
+                ));
+                $ticket = '';
+                $visit = trim((string) ($row['check_in'] ?? $row['checkIn'] ?? ''));
+            } else {
+                $name = trim((string) ($row['name'] ?? ucfirst($type ?: 'Service')));
+                $reference = trim((string) ($order->order_ref_no ?? ''));
+                $ticket = '';
+                $visit = '';
+            }
+
+            if ($name === '') {
+                $name = ucfirst($type ?: 'Online service');
+            }
+
+            $services[] = [
+                'order_id' => (int) $order->id,
+                'type' => $type ?: 'service',
+                'name' => $name,
+                'ticket_name' => $ticket ?? '',
+                'visit_date' => $visit ?? '',
+                'order_ref' => $reference,
+                'amount' => round((float) $amount, 2),
+                'currency' => $currency,
+                'is_approved' => false,
+            ];
+        }
+
+        return $services;
+    }
+
+    /**
+     * After full online Pay Now from New Enquiries, land on Definite.
+     */
+    protected function postPayRedirectUrl(string $classification, string $stage, string $tourStatus): ?string
+    {
+        if ($stage !== 'supplier_initial') {
+            return null;
+        }
+        if ($classification !== OrderClassificationService::ONLINE) {
+            return null;
+        }
+        if (in_array($tourStatus, ['Definite', 'Actual'], true)) {
+            return null;
+        }
+
+        return url('/bookings/definite');
     }
 
     /**
