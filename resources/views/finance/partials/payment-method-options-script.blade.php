@@ -156,6 +156,11 @@
     }
 
     function maxOrderAmount(tourId) {
+        // Online services due: the server payable (only unpaid services) is the exact amount.
+        const elig = window.__paymentEligibility?.[tourId];
+        if (elig?.amount_readonly && Number(elig.payable_amount) > 0) {
+            return Number(elig.payable_amount);
+        }
         const hidden = document.getElementById(`payment_amount${tourId}`);
         const fromData = parseFloat(hidden?.dataset?.maxOrder || '');
         if (Number.isFinite(fromData) && fromData > 0) {
@@ -220,7 +225,9 @@
         }
 
         const { fx, walletCur, orderCur, converted } = fxCurrencies(eligibility);
-        const maxOrder = maxOrderAmount(tourId);
+        const maxOrder = eligibility?.amount_readonly && Number(eligibility.payable_amount) > 0
+            ? Number(eligibility.payable_amount)
+            : maxOrderAmount(tourId);
         const orderSeed = maxOrder > 0
             ? maxOrder
             : (parseFloat(orderHidden.value) || Number(eligibility?.payable_amount || 0) || 0);
@@ -502,6 +509,26 @@
             }
         });
 
+        // Online services due (e.g. a service added after the tour was paid): Wallet / Online only.
+        const onlineDue = eligibility.payment_stage === 'supplier_initial';
+        Array.from(selectEl.options).forEach((opt) => {
+            if (!opt.value || opt.value === 'wallet' || opt.value === 'stripe') {
+                return;
+            }
+            const m = eligibility.methods.find((x) => x.code === opt.value || x.legacy_value === opt.value);
+            if (onlineDue && m && !m.available) {
+                opt.disabled = true;
+                opt.dataset.tcStageDisabled = '1';
+                opt.dataset.reason = 'Online services are paid by Wallet or Online Payment.';
+                if (selectEl.value === opt.value) {
+                    selectEl.value = '';
+                }
+            } else if (opt.dataset.tcStageDisabled === '1') {
+                opt.disabled = false;
+                delete opt.dataset.tcStageDisabled;
+            }
+        });
+
         let msg = `Stage: ${eligibility.payment_stage}. Recipient: ${eligibility.payment_recipient}.`;
         const walletMethod = eligibility.methods.find((m) => m.code === 'wallet');
         if (walletMethod && !walletMethod.available && walletMethod.reason) {
@@ -674,6 +701,15 @@
                 #tcPayOverlay .tc-pay-totals .is-charged{font-weight:700;color:#0f172a;}
                 #tcPayOverlay .tc-pay-totals .is-released{color:#b45309;}
                 #tcPayOverlay .tc-pay-ok{min-width:140px;}
+                #tcPayOverlay .tc-pay-card.is-wide{max-width:520px;}
+                #tcPayOverlay .tc-pay-badge.up{background:#fee2e2;color:#991b1b;} #tcPayOverlay .tc-pay-badge.down{background:#dcfce7;color:#166534;}
+                #tcPayOverlay .tc-pay-badge.same{background:#f1f5f9;color:#475569;} #tcPayOverlay .tc-pay-badge.warn{background:#fef3c7;color:#92400e;}
+                #tcPayOverlay .tc-pay-prices{display:block;margin-top:4px;font-size:.8rem;color:#334155;}
+                #tcPayOverlay .tc-pay-prices s{color:#94a3b8;margin-right:4px;}
+                #tcPayOverlay .tc-pay-prices b.up{color:#b91c1c;} #tcPayOverlay .tc-pay-prices b.down{color:#15803d;}
+                #tcPayOverlay .tc-pay-totals .is-diff-up{color:#b91c1c;} #tcPayOverlay .tc-pay-totals .is-diff-down{color:#15803d;}
+                #tcPayOverlay .tc-pay-totals .is-wallet{color:#64748b;font-size:.78rem;}
+                #tcPayOverlay .tc-pay-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
                 body.tc-pay-busy{overflow:hidden;}
             `;
             document.head.appendChild(st);
@@ -722,6 +758,7 @@
                     return '<li class="' + cls + '">' + mark + ' ' + esc(s) + '</li>';
                 }).join('') + '</ul>'
                 : '';
+            el.querySelector('.tc-pay-card').classList.remove('is-wide');
             el.querySelector('.tc-pay-card').innerHTML =
                 '<div class="tc-pay-spinner" aria-hidden="true"></div>'
                 + '<div class="tc-pay-title">' + esc(title || 'Processing…') + '</div>'
@@ -740,6 +777,7 @@
         function finish(kind, title, bodyHtml, onClose, closingText) {
             const el = overlay();
             const icon = { ok: '✓', warn: '!', bad: '✕', info: 'i' }[kind] || 'i';
+            el.querySelector('.tc-pay-card').classList.remove('is-wide');
             el.querySelector('.tc-pay-card').innerHTML =
                 '<div class="tc-pay-icon ' + kind + '" aria-hidden="true">' + icon + '</div>'
                 + '<div class="tc-pay-title">' + esc(title) + '</div>'
@@ -812,21 +850,104 @@
                 hide, '');
         }
 
-        return { busy: busy, hide: hide, result: result, finish: finish, fail: fail };
+        /** Two-button dialog → Promise<boolean> (true = confirmed). */
+        function confirm(kind, title, bodyHtml, okText, cancelText) {
+            return new Promise(function (resolve) {
+                const el = overlay();
+                const card = el.querySelector('.tc-pay-card');
+                const icon = { ok: '✓', warn: '!', bad: '✕', info: 'i' }[kind] || 'i';
+                card.classList.add('is-wide');
+                card.innerHTML =
+                    '<div class="tc-pay-icon ' + kind + '" aria-hidden="true">' + icon + '</div>'
+                    + '<div class="tc-pay-title">' + esc(title) + '</div>'
+                    + bodyHtml
+                    + '<div class="tc-pay-actions">'
+                    + '<button type="button" class="btn btn-outline-secondary tc-pay-cancel">' + esc(cancelText || 'Cancel') + '</button>'
+                    + '<button type="button" class="btn btn-primary tc-pay-ok">' + esc(okText || 'Continue') + '</button>'
+                    + '</div>';
+                el.hidden = false;
+                lock();
+                const ok = card.querySelector('.tc-pay-ok');
+                ok.focus();
+                ok.addEventListener('click', function () { resolve(true); });
+                card.querySelector('.tc-pay-cancel').addEventListener('click', function () { resolve(false); });
+            });
+        }
+
+        /**
+         * Live price check before paying: quoted vs current price per online service.
+         * @param check  price-check response
+         * @param walletEstimate  optional {currency, amount} the wallet will be charged
+         */
+        function priceReview(check, walletEstimate) {
+            const items = Array.isArray(check.items) ? check.items : [];
+            const cur = check.currency || '';
+            const changed = !!check.changed;
+            const list = '<ul class="tc-pay-list">' + items.map(function (it) {
+                const c = it.currency || cur;
+                const diff = Number(it.difference || 0);
+                const badge = {
+                    increased: ['up', 'Price increased'],
+                    decreased: ['down', 'Price reduced'],
+                    unverified: ['warn', 'Not verified'],
+                }[it.status] || ['same', 'No change'];
+                let prices;
+                if (it.status === 'increased' || it.status === 'decreased') {
+                    prices = '<span class="tc-pay-prices">Quoted <s>' + money(c, it.old_price) + '</s> → Now <b class="'
+                        + (diff > 0 ? 'up' : 'down') + '">' + money(c, it.new_price) + '</b> ('
+                        + (diff > 0 ? '+' : '−') + money(c, Math.abs(diff)) + ')</span>';
+                } else {
+                    prices = '<span class="tc-pay-prices">Price: <b>' + money(c, it.new_price) + '</b></span>';
+                }
+                return '<li><span class="tc-pay-badge ' + badge[0] + '">' + badge[1] + '</span>'
+                    + '<span><span class="tc-pay-name">' + esc(it.name || it.type || 'Service') + '</span>'
+                    + prices
+                    + (it.message ? '<span class="tc-pay-why">' + esc(it.message) + '</span>' : '')
+                    + '</span></li>';
+            }).join('') + '</ul>';
+
+            const diff = Number(check.difference || 0);
+            const totals = '<div class="tc-pay-totals">'
+                + (changed ? '<div><span>Previously quoted</span><span><s>' + money(cur, check.old_total) + '</s></span></div>' : '')
+                + (changed ? '<div class="' + (diff > 0 ? 'is-diff-up' : 'is-diff-down') + '"><span>Difference</span><span>'
+                    + (diff > 0 ? '+' : '−') + money(cur, Math.abs(diff)) + '</span></div>' : '')
+                + '<div class="is-charged"><span>' + (changed ? 'New amount to pay' : 'Amount to pay') + '</span><span>'
+                    + money(cur, check.new_total) + '</span></div>'
+                + (walletEstimate && walletEstimate.amount > 0
+                    ? '<div class="is-wallet"><span>≈ from your wallet (incl. conversion)</span><span>'
+                        + money(walletEstimate.currency, walletEstimate.amount) + '</span></div>'
+                    : '')
+                + '</div>';
+
+            const sub = changed
+                ? '<div class="tc-pay-sub" style="margin-bottom:4px">The supplier\'s live price changed since this service was quoted. '
+                    + 'You will be charged the <b>current</b> price shown below. Nothing has been charged yet.</div>'
+                : '<div class="tc-pay-sub" style="margin-bottom:4px">Some services could not be verified with the supplier right now. '
+                    + 'You can still pay — anything that cannot be booked is released back automatically.</div>';
+
+            return confirm(changed ? 'warn' : 'info',
+                changed ? 'Price updated by supplier' : 'Please confirm',
+                sub + list + totals,
+                changed ? 'Accept new price & pay' : 'Continue to pay',
+                'Cancel');
+        }
+
+        return { busy: busy, hide: hide, result: result, finish: finish, fail: fail, confirm: confirm, priceReview: priceReview };
     })();
     window.TcPayUi = PayUi;
 
     /** Show the outcome of a Pay Now (hold → auto-booking) and refresh the page on OK. */
-    function showPayOutcome(done, fallbackMessage) {
+    function showPayOutcome(done, fallbackMessage, onClose) {
+        const close = typeof onClose === 'function' ? onClose : function () { window.location.reload(); };
         if (done && done.hold) {
-            PayUi.result(done, function () { window.location.reload(); });
+            PayUi.result(done, close);
             return;
         }
         PayUi.finish('ok', 'Payment successful',
             '<div class="tc-pay-sub">' + String((done && done.message) || fallbackMessage || 'Payment processed successfully.')
                 .replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; })
                 + '</div><br>',
-            function () { window.location.reload(); }, 'Refreshing…');
+            close, 'Refreshing…');
     }
 
     async function initiatePayment(tourId, paymentMethod, amount, extra = {}) {
@@ -851,6 +972,63 @@
             throw new Error(json.message || 'Payment initiation failed');
         }
         return json.data;
+    }
+
+    async function postJson(path, body) {
+        const res = await fetch(`${PAYMENT_SERVICE_BASE}/tours/${path}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrf,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify(body || {}),
+        });
+        const json = await parseJsonResponse(res);
+        if (!res.ok || !json.success) {
+            throw new Error(json.message || 'Request failed');
+        }
+        return json.data;
+    }
+
+    /**
+     * Before paying for online services: recheck each unpaid service's live supplier price.
+     * Unchanged → continue silently. Changed → show quoted vs current, and the payer must accept
+     * (orders are re-priced, so exactly the new total is charged).
+     * Resolves { token, eligibility|null } or null when the payer cancels.
+     */
+    async function confirmLivePrices(tourId, eligibility) {
+        PayUi.busy('Checking latest prices…',
+            'Confirming the live price and availability of each online service with the supplier. Nothing is charged yet.');
+        const check = await postJson(`${tourId}/price-check`, {});
+        if (!check.requires_acceptance && !check.unverified) {
+            return { token: check.token, eligibility: null };
+        }
+
+        let walletEstimate = null;
+        const { fx, walletCur, converted } = fxCurrencies(eligibility || {});
+        if (converted && Number(fx.exchange_rate || 0) > 0) {
+            walletEstimate = { currency: walletCur, amount: roundMoney(orderToDmc(check.new_total, fx), walletCur) };
+        }
+
+        const ok = await PayUi.priceReview(check, walletEstimate);
+        if (!ok) {
+            PayUi.hide();
+            return null;
+        }
+        if (!check.requires_acceptance) {
+            return { token: check.token, eligibility: null };
+        }
+
+        PayUi.busy('Updating to the current price…', 'Please wait and do not close or refresh this page.');
+        const accepted = await postJson(`${tourId}/price-accept`, { price_check_token: check.token });
+        const fresh = accepted.eligibility || null;
+        if (fresh) {
+            window.__paymentEligibility = window.__paymentEligibility || {};
+            window.__paymentEligibility[tourId] = fresh;
+        }
+        return { token: check.token, eligibility: fresh };
     }
 
     async function confirmStripeCard(stripePayload) {
@@ -893,12 +1071,33 @@
 
         try {
             if (btn) btn.disabled = true;
+
+            // Online services: confirm today's supplier price first (only unpaid services are charged).
+            let elig = window.__paymentEligibility?.[tourId] || null;
+            if (!elig) {
+                elig = (await fetchEligibility(tourId))?.data || null;
+            }
+            const extra = {};
+            let amount = amountEl ? amountEl.value : null;
+            if (elig?.payment_stage === 'supplier_initial') {
+                const priced = await confirmLivePrices(tourId, elig);
+                if (!priced) {
+                    return; // payer cancelled — nothing charged
+                }
+                extra.price_check_token = priced.token;
+                if (priced.eligibility) {
+                    amount = priced.eligibility.payable_amount;
+                    if (amountEl) amountEl.value = amount;
+                    applyMethodsToSelect(typeEl, priced.eligibility);
+                }
+            }
+
             if (method === 'wallet') {
                 PayUi.busy('Processing payment…', 'Holding the amount and booking each online service with its supplier. Please do not close or refresh this page.', 2);
             } else {
                 PayUi.busy('Processing payment…', 'Please wait and do not close or refresh this page.', 0);
             }
-            const result = await initiatePayment(tourId, method, amountEl ? amountEl.value : null);
+            const result = await initiatePayment(tourId, method, amount, extra);
 
             let done = result;
             if (method === 'stripe' && result.stripe?.client_secret) {
@@ -1021,13 +1220,24 @@
         return modal;
     }
 
-    async function openAcceptancePay(tourId) {
+    /**
+     * @param opts  optional { title, hint, onDone(done), onCancel() } — used by the edit-tour page
+     *              (pay for newly added online services right after saving). Default: reload.
+     */
+    async function openAcceptancePay(tourId, opts = {}) {
         try {
             const payload = await fetchEligibility(tourId);
             const eligibility = payload.data || {};
             const modalEl = ensureAcceptanceModal();
-            document.getElementById('acceptancePayTitle').textContent = eligibility.acceptance?.button_label || 'Payment';
-            document.getElementById('acceptancePayHint').textContent = eligibility.acceptance?.hint || '';
+            const onDone = typeof opts.onDone === 'function' ? opts.onDone : null;
+            let paid = false;
+            if (typeof opts.onCancel === 'function' && window.bootstrap?.Modal) {
+                modalEl.addEventListener('hidden.bs.modal', function () {
+                    if (!paid) opts.onCancel();
+                }, { once: true });
+            }
+            document.getElementById('acceptancePayTitle').textContent = opts.title || eligibility.acceptance?.button_label || 'Payment';
+            document.getElementById('acceptancePayHint').textContent = opts.hint || eligibility.acceptance?.hint || '';
             const amountEl = document.getElementById('acceptancePayAmount');
             const fx = eligibility.fx || {};
             const payable = Number(eligibility.payable_amount || 0);
@@ -1091,14 +1301,37 @@
                 try {
                     const userRemarks = (document.getElementById('acceptancePayRemarks')?.value || '').trim();
                     const transactionId = (document.getElementById('acceptancePayTransactionId')?.value || '').trim();
+
+                    // Confirm today's supplier price first; a change must be accepted before paying.
+                    const priced = await confirmLivePrices(tourId, eligibility);
+                    if (!priced) {
+                        return; // payer cancelled — nothing charged
+                    }
+                    let payAmount = eligibility.payable_amount;
+                    if (priced.eligibility) {
+                        payAmount = priced.eligibility.payable_amount;
+                        const pfx = priced.eligibility.fx || {};
+                        const showW = pfx.wallet_currency && pfx.wallet_currency !== priced.eligibility.currency
+                            && Number(pfx.wallet_payable_amount) > 0;
+                        amountEl.value = showW
+                            ? `${Number(pfx.wallet_payable_amount).toFixed(2)} ${pfx.wallet_currency}`
+                            : `${Number(payAmount).toFixed(2)} ${priced.eligibility.currency || ''}`.trim();
+                        const newWallet = (priced.eligibility.methods || []).find((m) => m.code === method);
+                        if (newWallet && !newWallet.available) {
+                            throw new Error((newWallet.reason || 'This payment method is not available for the new amount.')
+                                + ' The price has been updated — choose another method or top up and pay again.');
+                        }
+                    }
+
                     if (method === 'wallet') {
                         PayUi.busy('Processing payment…', 'Holding the amount and booking each online service with its supplier. Please do not close or refresh this page.', 2);
                     } else {
                         PayUi.busy('Processing payment…', 'Please wait and do not close or refresh this page.', 0);
                     }
-                    const result = await initiatePayment(tourId, method, eligibility.payable_amount, {
+                    const result = await initiatePayment(tourId, method, payAmount, {
                         user_remarks: userRemarks,
                         transaction_id: transactionId || undefined,
+                        price_check_token: priced.token,
                     });
                     let done = result;
                     if (method === 'stripe' && result.stripe?.client_secret) {
@@ -1115,14 +1348,22 @@
 
                     // Held payment → online services were booked automatically with the suppliers
                     // (no Approve window). Show the per-service outcome; OK refreshes.
+                    paid = true;
                     if (done && done.hold) {
                         if (window.bootstrap?.Modal) {
                             window.bootstrap.Modal.getOrCreateInstance(modalEl).hide();
                         }
-                        showPayOutcome(done);
+                        showPayOutcome(done, null, onDone ? function () { onDone(done); } : null);
                         return;
                     }
                     PayUi.hide();
+                    if (onDone) {
+                        if (window.bootstrap?.Modal) {
+                            window.bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+                        }
+                        onDone(done);
+                        return;
+                    }
 
                     // Close pay modal, then open the same online-hotel approve flow used on confirmed.
                     if (window.bootstrap?.Modal) {
@@ -1152,7 +1393,26 @@
             }
         } catch (e) {
             alert(e.message || 'Unable to open payment options');
+            if (typeof opts.onCancel === 'function') opts.onCancel();
         }
+    }
+
+    /**
+     * Pay whatever online services are still unpaid on this tour (e.g. just added in edit).
+     * Resolves 'none' (nothing due), 'paid' (payment + booking finished, result window closed)
+     * or 'cancelled' (window closed without paying).
+     */
+    async function payOnlineDue(tourId, opts = {}) {
+        const elig = (await fetchEligibility(tourId))?.data || {};
+        if (elig.payment_stage !== 'supplier_initial' || !(Number(elig.payable_amount) > 0)) {
+            return 'none';
+        }
+        return new Promise(function (resolve) {
+            openAcceptancePay(tourId, Object.assign({}, opts, {
+                onDone: function () { resolve('paid'); },
+                onCancel: function () { resolve('cancelled'); },
+            }));
+        });
     }
 
     // DMC-first amount field: validate typed DMC, clamp to max, sync hidden order amount.
@@ -1226,6 +1486,7 @@
         initiatePayment,
         confirmStripeCard,
         openAcceptancePay,
+        payOnlineDue,
         syncOrderFromDmcPay,
         seedDmcPayFromOrder,
     };

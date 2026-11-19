@@ -86,6 +86,17 @@ class PaymentOrchestrator
             throw new RuntimeException('Cannot pay an empty order.');
         }
 
+        // Online services are paid at today's supplier price: the payer must have seen the
+        // live price (and accepted any change) right before paying.
+        $priceCheck = null;
+        if (($eligibility['payment_stage'] ?? '') === 'supplier_initial' && in_array($method, ['wallet', 'stripe'], true)) {
+            $priceCheck = app(OnlinePriceCheckService::class)->assertConfirmed(
+                $tour,
+                (string) ($input['price_check_token'] ?? ''),
+                (float) $eligibility['payable_amount'],
+            );
+        }
+
         $currency = (string) $eligibility['currency'];
         $orderAmount = $amount;
         $orderCurrency = $currency;
@@ -153,6 +164,8 @@ class PaymentOrchestrator
                 ),
                 'user_remarks' => trim((string) ($input['user_remarks'] ?? $input['remarks'] ?? '')),
                 'user_transaction_id' => trim((string) ($input['transaction_id'] ?? '')),
+                // What the payer saw: quoted vs live price per service at payment time.
+                'price_check' => $priceCheck,
                 // Hold full amount → deduct per booked service → capture once / release rest.
                 'hold_mode' => (bool) config('payment.online_hold.enabled', true)
                     && ($eligibility['payment_stage'] ?? '') === 'supplier_initial'
@@ -806,14 +819,8 @@ class PaymentOrchestrator
      */
     protected function computeHoldShares(Tour $tour, array $attempt): array
     {
-        $orders = Order::query()
-            ->where('tour_id', (int) $attempt['tour_id'])
-            ->whereNull('deleted_at')
-            ->whereRaw("LOWER(COALESCE(order_type, '')) = 'online'")
-            // Already booked (paid by an earlier payment) — never hold/charge them again.
-            ->where(fn ($q) => $q->whereNull('is_approve')->orWhere('is_approve', false))
-            ->orderBy('id')
-            ->get();
+        // Only services not paid yet: booked / earlier-paid services are never held or charged again.
+        $orders = $this->classificationService->unpaidOnlineOrders($tour);
         if ($orders->isEmpty()) {
             return [];
         }

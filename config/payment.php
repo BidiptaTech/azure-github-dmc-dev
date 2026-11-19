@@ -60,6 +60,8 @@ return [
         'auto_book' => filter_var(env('PAYMENT_ONLINE_AUTO_BOOK', true), FILTER_VALIDATE_BOOL),
         // Display due date = free-cancellation date − N days (D-1, D-2, …).
         'display_due_days_before' => max(1, (int) env('PAYMENT_ONLINE_DISPLAY_DUE_DAYS_BEFORE', 1)),
+        // Before Pay Now: recheck live supplier prices; a changed price must be accepted first.
+        'require_price_check' => filter_var(env('PAYMENT_ONLINE_REQUIRE_PRICE_CHECK', true), FILTER_VALIDATE_BOOL),
     ],
 
     'stages' => [

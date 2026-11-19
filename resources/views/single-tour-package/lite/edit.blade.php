@@ -141,6 +141,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
 
 @include('single-tour-package.lite.scripts.bootstrap-config')
+{{-- Pay for newly added online services right after Save (TravclicksPaymentService.payOnlineDue) --}}
+@include('finance.partials.payment-method-options-script')
 
 <script>
 window.STP_LITE_EDIT = {
