@@ -159,7 +159,7 @@ class OrderCostPriceHelper
     }
 
     /**
-     * Online hotel: cost === sell (live API stay total).
+     * Online hotel: cost === sell (live API stay total, including DMC markup when present).
      */
     private static function resolveOnlineHotelStayCost(array $item): float
     {
@@ -167,10 +167,23 @@ class OrderCostPriceHelper
         $helper = is_array($item['helperPriceResult'] ?? null) ? $item['helperPriceResult'] : [];
         $booking = is_array($item['onlineHotelBooking'] ?? null) ? $item['onlineHotelBooking'] : [];
         $selection = is_array($booking['selection'] ?? null) ? $booking['selection'] : [];
+        $stamp = is_array($item['online_price_breakdown'] ?? null)
+            ? $item['online_price_breakdown']
+            : (is_array($item['dmc_profile_markup'] ?? null) ? $item['dmc_profile_markup'] : []);
+        if ($stamp === [] && is_array($payload['online_price_breakdown'] ?? null)) {
+            $stamp = $payload['online_price_breakdown'];
+        }
+        if ($stamp === [] && is_array($payload['dmc_profile_markup'] ?? null)) {
+            $stamp = $payload['dmc_profile_markup'];
+        }
 
-        $stay = self::firstNumeric($item, [
-            'grand_total', 'room_total', 'totalPrice', 'price',
-        ]);
+        // Prefer marked-up stamp total over base room_total.
+        $stay = self::firstNumeric($stamp, ['total_price', 'price']);
+        if ($stay <= 0) {
+            $stay = self::firstNumeric($item, [
+                'grand_total', 'totalPrice', 'price', 'room_total',
+            ]);
+        }
         if ($stay <= 0) {
             $stay = self::firstNumeric($payload, ['grand_total', 'room_total']);
         }

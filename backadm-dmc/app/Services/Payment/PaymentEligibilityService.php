@@ -54,8 +54,13 @@ class PaymentEligibilityService
         $amount = $requestedAmount !== null && $requestedAmount > 0
             ? (float) $requestedAmount
             : $payable;
-        // Settlement currency = confirmed negotiation currency (enquiry.currency).
-        $currency = $this->resolveSettlementCurrency($tour);
+        // Online supplier-initial / full-online pay: use order quote currency (e.g. SGD hotel),
+        // then FX to DMC wallet (IDR). Do not treat tours.user_currency (DMC home) as the order
+        // currency — that caused Pro Pay Now to show "38.85 IDR" instead of converting SGD→IDR.
+        // After negotiation, settle in enquiry/confirmed currency as before.
+        $currency = ($stage === 'supplier_initial' || $classification === OrderClassificationService::ONLINE)
+            ? strtoupper((string) $this->classificationService->resolveTourCurrency($tour))
+            : $this->resolveSettlementCurrency($tour);
         if ($stage === 'supplier_initial') {
             // Pay Now for online services: the payable IS the online services' sell, which is
             // priced in the services' own currency (e.g. SGD). Using the negotiation/user
