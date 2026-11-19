@@ -11,6 +11,7 @@ use App\Services\OnlinePricing\OnlinePricingService;
 use App\Services\SupplierConfigResolver;
 use App\Services\AttractionSuppliers\OnlineAttractionOrderService;
 use App\Services\Payment\OnlineServiceCommissionCreditService;
+use App\Support\SupplierFacingCopy;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -2758,13 +2759,23 @@ class HotelBookingController extends Controller
                 ?? ($booking['onlineHotelBooking']['room']['cancellation_policy_type'] ?? '')
             );
 
+            // Price now vs quoted (auto-booking never books above the paid price; the confirm
+            // dialog is skipped when already paid and the price did not go up).
+            $onlinePaid = $this->tourOnlinePaymentReceived((int) $hotelOrder->tour_id);
+            $quoted = (float) ($recheckResult['stored_price'] ?? 0);
+            $nowPrice = ! empty($recheckResult['markup_applied'])
+                ? (float) ($recheckResult['customer_price'] ?? 0)
+                : (float) (($recheckResult['supplier_gross_price'] ?? 0) ?: ($recheckResult['supplier_net_price'] ?? 0));
+            $priceIncreased = $quoted > 0 && $nowPrice > $quoted + 0.009;
+
             return response()->json([
                 'success' => true,
                 'message' => 'Hotel availability rechecked successfully.',
                 'recheck_token' => $token,
                 'data' => [
                     'supplier_code' => $recheckResult['supplier_code'],
-                    'supplier_label' => $this->onlineHotelSupplierLabel($recheckResult['supplier_code']),
+                    // DMC must never see vendor brand — always TravClicks.
+                    'supplier_label' => SupplierFacingCopy::publicSupplierName(),
                     'hotel_name' => $recheckResult['hotel_name'],
                     'room_name' => $recheckResult['room_name'],
                     'meal_plan_name' => $recheckResult['meal_plan_name'],
@@ -2783,6 +2794,9 @@ class HotelBookingController extends Controller
                     'api_environment' => $recheckResult['api_environment'] ?? null,
                     'cancellation_policy_type' => $cancellationPolicyType !== '' ? $cancellationPolicyType : null,
                     'cancellation_policies' => $cancellationPolicies,
+                    'online_paid' => $onlinePaid,
+                    'price_increased' => $priceIncreased,
+                    'auto_confirm' => $onlinePaid && ! $priceIncreased,
                 ],
             ]);
         } catch (\Throwable $e) {
@@ -2793,7 +2807,7 @@ class HotelBookingController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ], 422);
         }
     }
@@ -2857,7 +2871,7 @@ class HotelBookingController extends Controller
             } catch (\RuntimeException $e) {
                 return response()->json([
                     'success' => false,
-                    'message' => $e->getMessage(),
+                    'message' => SupplierFacingCopy::mask($e->getMessage()),
                 ], 404);
             }
 
@@ -2885,12 +2899,20 @@ class HotelBookingController extends Controller
                 $referenceId = 'ONLINE-' . (int) $hotelOrder->tour_id . '-' . (int) $hotelOrder->id . '-' . (int) $bookingIndex;
             }
 
+            if ($isOnlineOrder && $this->onlineServicePaymentReleased((int) $hotelOrder->tour_id, (int) $hotelOrder->id)) {
+                return response()->json([
+                    'success' => false,
+                    'payment_released' => true,
+                    'message' => 'This online hotel could not be booked automatically and its payment was released. Please collect the payment again (Pay Now) — it will then be booked automatically.',
+                ], 422);
+            }
+
             if ($isOnlineOrder) {
                 if (! $request->boolean('confirm_online_booking')) {
                     return response()->json([
                         'success' => false,
                         'requires_recheck' => true,
-                        'message' => 'Please recheck availability and confirm the updated supplier price before approving this online hotel booking.',
+                        'message' => 'Please recheck availability and confirm the updated price before approving this online hotel booking.',
                     ], 422);
                 }
 
@@ -2912,7 +2934,7 @@ class HotelBookingController extends Controller
                 } catch (\RuntimeException $e) {
                     return response()->json([
                         'success' => false,
-                        'message' => $e->getMessage(),
+                        'message' => SupplierFacingCopy::mask($e->getMessage()),
                     ], 422);
                 }
 
@@ -2954,7 +2976,8 @@ class HotelBookingController extends Controller
                     return response()->json([
                         'success' => false,
                         'supplier_credit_insufficient' => true,
-                        'message' => $e->getMessage(),
+                        // Already written for DMC (no vendor brand); mask as a safety net.
+                        'message' => SupplierFacingCopy::mask($e->getMessage()),
                     ], 422);
                 }
 
@@ -3087,7 +3110,9 @@ class HotelBookingController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'An error occurred while approving hotel booking: ' . $e->getMessage()
+                'message' => SupplierFacingCopy::mask(
+                    'An error occurred while approving hotel booking: '.$e->getMessage()
+                ),
             ], 500);
         }
     }
@@ -3634,6 +3659,14 @@ class HotelBookingController extends Controller
                 ]);
             }
 
+            if ($isOnline && $this->onlineServicePaymentReleased((int) $tourId, (int) $attractionOrder->id)) {
+                return response()->json([
+                    'success' => false,
+                    'payment_released' => true,
+                    'message' => 'This online attraction could not be booked automatically and its payment was released. Please collect the payment again (Pay Now) — it will then be booked automatically.',
+                ], 422);
+            }
+
             if ($isOnline) {
                 $orderService = app(OnlineAttractionOrderService::class);
                 $alreadyPaid = OnlineAttractionOrderService::isProviderPaymentComplete($attractionOrder, $booking);
@@ -3678,7 +3711,9 @@ class HotelBookingController extends Controller
                     if ($creditsBalance === null) {
                         return response()->json([
                             'success' => false,
-                            'message' => $credits['message'] ?: 'Unable to verify AttractionsSG credit balance. Booking was not approved.',
+                            'message' => SupplierFacingCopy::mask(
+                                $credits['message'] ?: 'Unable to verify online attractions credit balance. Booking was not approved.'
+                            ),
                             'credits_insufficient' => false,
                         ], 422);
                     }
@@ -3715,7 +3750,7 @@ class HotelBookingController extends Controller
                         return response()->json([
                             'success' => false,
                             'supplier_credit_insufficient' => true,
-                            'message' => $e->getMessage(),
+                            'message' => SupplierFacingCopy::mask($e->getMessage()),
                         ], 422);
                     }
 
@@ -3731,14 +3766,16 @@ class HotelBookingController extends Controller
                     if (! empty($payResult['credits_insufficient'])) {
                         return response()->json([
                             'success' => false,
-                            'message' => $payResult['message'] ?: 'Credits balance is not enough',
+                            'message' => SupplierFacingCopy::mask($payResult['message'] ?: 'Credits balance is not enough'),
                             'credits_insufficient' => true,
                         ], 422);
                     }
                     if (empty($payResult['success'])) {
                         return response()->json([
                             'success' => false,
-                            'message' => $payResult['message'] ?: 'External attraction payment failed. Booking was not approved.',
+                            'message' => SupplierFacingCopy::mask(
+                                $payResult['message'] ?: 'External attraction payment failed. Booking was not approved.'
+                            ),
                         ], 422);
                     }
 
@@ -6708,8 +6745,67 @@ class HotelBookingController extends Controller
     }
 
     /**
-     * @param  array<string, mixed>  $booking
+     * True when the tour's online services are paid: a verified online payment row, or an
+     * online payment held/completed through the payment service (wallet / Stripe hold).
      */
+    private function tourOnlinePaymentReceived(int $tourId): bool
+    {
+        if ($tourId <= 0) {
+            return false;
+        }
+
+        if (DB::table('payment_attempts')
+            ->where('tour_id', $tourId)
+            ->where('payment_stage', 'supplier_initial')
+            ->whereIn('status', ['authorized', 'completed'])
+            ->exists()) {
+            return true;
+        }
+
+        $raw = DB::table('tours')->where('tour_id', $tourId)->value('payment_details');
+        $rows = is_string($raw) ? (json_decode($raw, true) ?: []) : [];
+        foreach (is_array($rows) ? $rows : [] as $row) {
+            if (is_array($row)
+                && (int) ($row['status'] ?? 0) === 1
+                && strtolower(trim((string) ($row['payment_for'] ?? ''))) === 'online'
+                && (float) ($row['amount'] ?? 0) > 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * True when auto-booking failed for this online service and its share of the hold was
+     * released, and no newer held payment covers it → it must not be booked unpaid.
+     */
+    private function onlineServicePaymentReleased(int $tourId, int $orderId): bool
+    {
+        $released = DB::table('supplier_booking_outcomes')
+            ->where('tour_id', $tourId)
+            ->where('order_id', $orderId)
+            ->whereIn('status', ['failed', 'expired'])
+            ->exists();
+        if (! $released) {
+            return false;
+        }
+
+        // A newer payment hold that includes this service re-authorises the booking.
+        foreach (DB::table('payment_attempts')
+            ->where('tour_id', $tourId)
+            ->where('status', 'authorized')
+            ->where('payment_stage', 'supplier_initial')
+            ->pluck('metadata') as $raw) {
+            $meta = json_decode((string) $raw, true) ?: [];
+            if (array_key_exists($orderId, (array) ($meta['hold_shares'] ?? []))) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /**
      * Online payment hold: apply this approval / rejection (deduct share, settle when done).
      * Never blocks the booking response.
@@ -6723,6 +6819,9 @@ class HotelBookingController extends Controller
         }
     }
 
+    /**
+     * @param  array<string, mixed>  $booking
+     */
     private function resolveOnlineHotelSupplierCode(array $booking): string
     {
         $code = strtolower(trim((string) (
@@ -6753,9 +6852,10 @@ class HotelBookingController extends Controller
 
     private function onlineHotelSupplierLabel(string $supplierCode): string
     {
-        $code = app(OnlineHotelBookingServiceFactory::class)->credentialCode($supplierCode);
+        // Kept for call-sites; DMC-facing label is always TravClicks (never vendor brand).
+        unset($supplierCode);
 
-        return (string) config("suppliers.{$code}.label", $code);
+        return SupplierFacingCopy::publicSupplierName();
     }
 
     /**

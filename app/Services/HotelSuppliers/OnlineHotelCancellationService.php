@@ -158,9 +158,13 @@ class OnlineHotelCancellationService
             ]);
 
             $message = 'Failed to cancel the online hotel reservation with the supplier.';
-            $this->cancellationStatus->markFailed($order, $e->getMessage() ?: $message, [
-                'supplier_code' => $supplierCode,
-            ]);
+            $this->cancellationStatus->markFailed(
+                $order,
+                \App\Support\SupplierFacingCopy::mask($e->getMessage() ?: $message),
+                [
+                    'supplier_code' => $supplierCode,
+                ]
+            );
 
             if ($softFailOnError) {
                 return [
@@ -168,7 +172,7 @@ class OnlineHotelCancellationService
                     'soft_failed' => true,
                     'message' => $message,
                     'supplier_code' => $supplierCode,
-                    'error' => $e->getMessage(),
+                    'error' => \App\Support\SupplierFacingCopy::mask($e->getMessage()),
                 ];
             }
 

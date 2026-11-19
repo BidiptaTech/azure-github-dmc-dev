@@ -40,6 +40,17 @@ class PaymentOrchestrator
             return ['attempt' => $existing, 'idempotent_replay' => true];
         }
 
+        // Never take a second payment while this tour's online payment is held / being booked.
+        $openHold = DB::table('payment_attempts')
+            ->where('tour_id', (int) ($tour->tour_id ?? $tour->getKey()))
+            ->where('payment_stage', 'supplier_initial')
+            ->where('status', 'authorized')
+            ->whereRaw("(metadata::jsonb ->> 'hold_opened_at') IS NOT NULL")
+            ->exists();
+        if ($openHold) {
+            throw new RuntimeException('A payment for this tour is already on hold while its online services are being booked. Please wait for it to finish.');
+        }
+
         // Evaluate wallet/FX against the amount being paid (e.g. 300 SGD), not always full remaining.
         $requestedAmount = isset($input['amount']) && is_numeric($input['amount'])
             ? (float) $input['amount']
@@ -366,7 +377,8 @@ class PaymentOrchestrator
      */
     public function openHold(Tour $tour, string $attemptUuid): array
     {
-        return DB::transaction(function () use ($tour, $attemptUuid) {
+        $justOpened = false;
+        $result = DB::transaction(function () use ($tour, $attemptUuid, &$justOpened) {
             $row = DB::table('payment_attempts')->where('attempt_uuid', $attemptUuid)->lockForUpdate()->first();
             $attempt = $row ? $this->normalizeAttempt((array) $row) : null;
             if (! $attempt) {
@@ -384,7 +396,10 @@ class PaymentOrchestrator
                     'hold_opened_at' => now()->toIso8601String(),
                     'hold_shares' => $shares,
                     'hold_status' => 'held',
+                    // Background auto-booking runs as the user who paid (API env / permissions).
+                    'paid_by_user_id' => auth()->id(),
                 ]);
+                $justOpened = true;
                 $this->updateAttempt((int) $attempt['id'], [
                     'status' => 'authorized',
                     'authorized_amount' => (float) $attempt['requested_amount'],
@@ -392,28 +407,9 @@ class PaymentOrchestrator
                 ]);
                 $attempt = $this->findAttemptByUuid($attemptUuid) ?? $attempt;
 
+                // Unlock the tour for booking. No Payment Details row yet: a hold is not a payment.
+                // The row is written once, at settlement, with the amount actually charged.
                 $this->advanceAcceptance($tour, $attempt);
-
-                $isCard = ($attempt['payment_method'] ?? '') === 'stripe';
-                $this->recordAutoVerifiedWalletPayment(
-                    $tour,
-                    (float) $attempt['requested_amount'],
-                    (string) ($attempt['currency_code'] ?? 'SGD'),
-                    $isCard ? (string) $attempt['stripe_payment_intent_id'] : ($attempt['wallet_reservation_ref'] ?? null),
-                    $attemptUuid,
-                    $meta,
-                    (float) $attempt['requested_amount'],
-                    [
-                        'payment_type' => $isCard ? 'stripe' : 'wallet',
-                        'remarks' => $isCard
-                            ? 'Card payment on hold — charged as each service is booked'
-                            : 'Wallet amount on hold — deducted as each service is booked',
-                        'payment_hold' => 'held',
-                        'hold_amount' => round((float) $attempt['requested_amount'], 2),
-                        'hold_currency' => (string) $attempt['currency_code'],
-                        '_track_label' => $isCard ? 'Card Payment Held' : 'Wallet Payment Held',
-                    ]
-                );
             }
 
             return [
@@ -425,6 +421,86 @@ class PaymentOrchestrator
                     : 'Amount held in your wallet. It is deducted as each service is booked; anything not booked is released.',
             ];
         });
+
+        // Hold is committed → book the online services with the vendors (no approve dialog).
+        // A failure here never undoes the payment hold; the scheduler retries pending holds.
+        if ($justOpened && config('payment.online_hold.auto_book', true)) {
+            try {
+                \App\Jobs\AutoBookOnlineServicesJob::dispatch(
+                    (int) ($tour->tour_id ?? $tour->getKey()),
+                    $attemptUuid,
+                    auth()->id()
+                );
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('online_auto_booking_dispatch_failed', [
+                    'attempt' => $attemptUuid,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            $result['attempt'] = $this->findAttemptByUuid($attemptUuid);
+            $summary = (array) (($result['attempt']['metadata'] ?? [])['auto_booking'] ?? []);
+            $result['auto_booking'] = $summary;
+            $result['message'] = $this->autoBookingMessage($result['attempt'] ?? [], $summary);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Plain-language result shown after Pay Now.
+     *
+     * @param  array<string, mixed>  $attempt
+     * @param  array<string, mixed>  $summary
+     */
+    protected function autoBookingMessage(array $attempt, array $summary): string
+    {
+        if ($summary === []) {
+            return 'Payment received and held. Your online services are being booked with the suppliers; '
+                .'booked services are charged and anything that cannot be booked is released.';
+        }
+
+        $booked = (int) ($summary['booked'] ?? 0);
+        $failed = (int) ($summary['failed'] ?? 0);
+        $total = $booked + $failed;
+        $cur = (string) ($attempt['currency_code'] ?? '');
+        $charged = (float) ($attempt['captured_amount'] ?? 0);
+        $released = (float) ($attempt['released_amount'] ?? 0);
+
+        if ($failed === 0) {
+            return "All {$total} online service(s) booked with the suppliers. Charged {$cur} ".number_format($charged, 2).'.';
+        }
+        if ($booked === 0) {
+            return "None of the {$total} online service(s) could be booked. The full amount ({$cur} "
+                .number_format($released, 2).') has been released.';
+        }
+
+        return "{$booked} of {$total} online service(s) booked. Charged {$cur} ".number_format($charged, 2)
+            ."; {$cur} ".number_format($released, 2).' released for the service(s) that could not be booked.';
+    }
+
+    /**
+     * Auto-booking could not book this service → record it so its share of the hold is released.
+     */
+    public function recordHoldServiceFailure(int $attemptId, int $orderId, string $reason): void
+    {
+        $row = DB::table('payment_attempts')->where('id', $attemptId)->first();
+        if (! $row) {
+            return;
+        }
+        $attempt = $this->normalizeAttempt((array) $row);
+        $shares = (array) ($attempt['metadata']['hold_shares'] ?? []);
+        if (! array_key_exists($orderId, $shares)
+            || DB::table('supplier_booking_outcomes')->where('payment_attempt_id', $attemptId)->where('order_id', $orderId)->exists()) {
+            return;
+        }
+
+        $order = DB::table('orders')->where('id', $orderId)->first();
+        $this->insertHoldOutcome($attempt, $orderId, 'failed', (float) $shares[$orderId], $order);
+        DB::table('supplier_booking_outcomes')
+            ->where('payment_attempt_id', $attemptId)
+            ->where('order_id', $orderId)
+            ->update(['error_message' => mb_substr($reason, 0, 2000), 'updated_at' => now()]);
     }
 
     /**
@@ -652,7 +728,43 @@ class PaymentOrchestrator
         $details = json_decode((string) ($tour->payment_details ?? '[]'), true) ?: [];
         $uuid = (string) $attempt['attempt_uuid'];
         $meta = (array) ($attempt['metadata'] ?? []);
+        $isCard = ($attempt['payment_method'] ?? '') === 'stripe';
 
+        $hasRow = false;
+        foreach ($details as $row) {
+            if (is_array($row) && ($row['payment_attempt_uuid'] ?? null) === $uuid) {
+                $hasRow = true;
+                break;
+            }
+        }
+
+        // Normal case: no row during the hold → record the actual charge now (one row only).
+        if (! $hasRow) {
+            if ($booked <= 0) {
+                return; // nothing charged → nothing to show
+            }
+            $this->recordAutoVerifiedWalletPayment(
+                $tour,
+                $booked,
+                (string) ($attempt['currency_code'] ?? 'SGD'),
+                $isCard ? (string) ($attempt['stripe_payment_intent_id'] ?? '') : ($attempt['wallet_reservation_ref'] ?? null),
+                $uuid,
+                $meta,
+                $requested,
+                [
+                    'payment_type' => $isCard ? 'stripe' : 'wallet',
+                    'remarks' => $holdStatus === 'partially_captured'
+                        ? ($isCard ? 'Card' : 'Wallet').' payment — charged for booked services only'
+                        : ($isCard ? 'Card payment — auto verified' : 'Wallet payment — auto verified'),
+                    'charged_amount' => round($booked, 2),
+                    '_track_label' => $isCard ? 'Card Payment Auto Verified' : 'Wallet Payment Auto Verified',
+                ]
+            );
+
+            return;
+        }
+
+        // Legacy rows written at hold time (before this change): turn into the final charge.
         foreach ($details as $idx => $row) {
             if (! is_array($row) || ($row['payment_attempt_uuid'] ?? null) !== $uuid) {
                 continue;
@@ -698,6 +810,8 @@ class PaymentOrchestrator
             ->where('tour_id', (int) $attempt['tour_id'])
             ->whereNull('deleted_at')
             ->whereRaw("LOWER(COALESCE(order_type, '')) = 'online'")
+            // Already booked (paid by an earlier payment) — never hold/charge them again.
+            ->where(fn ($q) => $q->whereNull('is_approve')->orWhere('is_approve', false))
             ->orderBy('id')
             ->get();
         if ($orders->isEmpty()) {

@@ -56,6 +56,12 @@ class PaymentEligibilityService
             : $payable;
         // Settlement currency = confirmed negotiation currency (enquiry.currency).
         $currency = $this->resolveSettlementCurrency($tour);
+        if ($stage === 'supplier_initial') {
+            // Pay Now for online services: the payable IS the online services' sell, which is
+            // priced in the services' own currency (e.g. SGD). Using the negotiation/user
+            // currency here (e.g. IDR) would charge "SGD 35.20" as "IDR 35.20".
+            $currency = strtoupper(app(AcceptanceFlowService::class)->resolveOnlineCurrency($tour, $currency));
+        }
         $dmcId = (int) ($tour->dmc_id ?? 0);
         $agentId = (int) ($tour->agent_id ?? 0);
 

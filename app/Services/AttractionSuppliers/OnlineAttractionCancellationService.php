@@ -72,7 +72,9 @@ class OnlineAttractionCancellationService
         $result = $this->orderService->cancelVoucher($voucherCode, $reason, $booking);
 
         if (empty($result['success'])) {
-            $message = (string) ($result['message'] ?: 'Failed to cancel the online attraction voucher with the supplier.');
+            $message = \App\Support\SupplierFacingCopy::mask(
+                (string) ($result['message'] ?: 'Failed to cancel the online attraction voucher with the supplier.')
+            );
             $this->cancellationStatus->markFailed($order, $message);
 
             if ($softFailOnError) {

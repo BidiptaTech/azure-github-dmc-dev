@@ -219,12 +219,11 @@ class CommissionSettlementService
             ? $this->ledger->sumTourCommissionCredits($tourId, 'dmc', $dmcId, 'online_markup_commission')
             : 0.0;
 
-        // alreadyDmc is in DMC home currency when online_approve converted; due starts in order currency.
+        // Due is in order currency. Measure what approve already credited in that same currency
+        // (row by row from its original amount/currency) so nothing is credited twice.
         $dmcDueOrder = round((float) $breakdown['dmc_commission'], 2);
         if ($alreadyDmc > 0) {
-            $alreadyInOrder = $orderCurrency === $dmcHomeCurrency
-                ? $alreadyDmc
-                : (Country::convertAmount($alreadyDmc, $dmcHomeCurrency, $orderCurrency) ?? $alreadyDmc);
+            $alreadyInOrder = $this->ledger->sumTourCommissionCreditsIn($tourId, 'dmc', $dmcId, $orderCurrency, 'online_markup_commission');
             $dmcDueOrder = round(max(0, $dmcDueOrder - (float) $alreadyInOrder), 2);
         }
 

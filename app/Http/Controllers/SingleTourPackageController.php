@@ -43,6 +43,7 @@ use App\Services\AttractionSuppliers\OnlineAttractionCancellationService;
 use App\Services\AttractionSuppliers\OnlineAttractionAggregator;
 use App\Services\AttractionSuppliers\OnlineAttractionOrderService;
 use App\Services\EnquiryAmountTopUpService;
+use App\Support\SupplierFacingCopy;
 
 class SingleTourPackageController extends Controller
 {
@@ -799,7 +800,7 @@ class SingleTourPackageController extends Controller
                 try {
                     app(\App\Services\Payment\SupplierCancellationStatusService::class)->markFailed(
                         $order,
-                        $e->getMessage() ?: 'Unexpected supplier cancellation error.'
+                        SupplierFacingCopy::mask($e->getMessage() ?: 'Unexpected supplier cancellation error.')
                     );
                 } catch (\Throwable $statusError) {
                     Log::warning('Could not persist supplier cancellation failed status', [
@@ -810,7 +811,7 @@ class SingleTourPackageController extends Controller
 
                 $voucherCancelResult = [
                     'success' => false,
-                    'message' => $e->getMessage(),
+                    'message' => SupplierFacingCopy::mask($e->getMessage()),
                     'soft_failed' => true,
                     'status' => 'failed',
                 ];
@@ -3801,7 +3802,7 @@ class SingleTourPackageController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ], 422);
         } catch (\Throwable $e) {
             Log::error('Online hotel search exception', [
@@ -3811,7 +3812,7 @@ class SingleTourPackageController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error fetching online hotels: ' . $e->getMessage(),
+                'message' => SupplierFacingCopy::mask('Error fetching online hotels: ' . $e->getMessage()),
             ], 500);
         }
     }
@@ -3851,7 +3852,7 @@ class SingleTourPackageController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ], 422);
         } catch (\Throwable $e) {
             Log::error('Online hotel room search exception', [
@@ -3862,7 +3863,7 @@ class SingleTourPackageController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error fetching hotel rooms: ' . $e->getMessage(),
+                'message' => SupplierFacingCopy::mask('Error fetching hotel rooms: ' . $e->getMessage()),
             ], 500);
         }
     }
@@ -3912,7 +3913,7 @@ class SingleTourPackageController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ], 422);
         } catch (\Throwable $e) {
             Log::error('Online attraction search exception', [
@@ -3922,7 +3923,7 @@ class SingleTourPackageController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error fetching online attractions: ' . $e->getMessage(),
+                'message' => SupplierFacingCopy::mask('Error fetching online attractions: ' . $e->getMessage()),
             ], 500);
         }
     }
@@ -3950,7 +3951,7 @@ class SingleTourPackageController extends Controller
         } catch (\RuntimeException $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ], 422);
         } catch (\Throwable $e) {
             Log::error('Online attraction tickets exception', [
@@ -3960,7 +3961,7 @@ class SingleTourPackageController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error fetching attraction tickets: ' . $e->getMessage(),
+                'message' => SupplierFacingCopy::mask('Error fetching attraction tickets: ' . $e->getMessage()),
             ], 500);
         }
     }

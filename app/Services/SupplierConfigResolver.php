@@ -128,7 +128,15 @@ class SupplierConfigResolver
         $label = $this->label($code);
         $envLabel = $this->environmentLabel($environment);
 
-        return "{$label} {$envLabel} API credentials are not configured. Set them in Supplier Master → API Credentials.";
+        // Log-friendly detail stays in caller logs; DMC-facing text must not name the vendor.
+        \Illuminate\Support\Facades\Log::warning('Online supplier credentials missing', [
+            'supplier_code' => $code,
+            'supplier_label' => $label,
+            'environment' => $environment,
+            'environment_label' => $envLabel,
+        ]);
+
+        return 'Online service credentials are not configured. Please contact TravClicks.';
     }
 
     /**

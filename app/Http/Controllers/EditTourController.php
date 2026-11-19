@@ -287,7 +287,9 @@ class EditTourController extends Controller
                     try {
                         app(\App\Services\Payment\SupplierCancellationStatusService::class)->markFailed(
                             $order,
-                            $cancelError->getMessage() ?: 'Unexpected supplier cancellation error.'
+                            \App\Support\SupplierFacingCopy::mask(
+                                $cancelError->getMessage() ?: 'Unexpected supplier cancellation error.'
+                            )
                         );
                     } catch (\Throwable $statusError) {
                         Log::warning('Could not persist supplier cancellation failed status', [
