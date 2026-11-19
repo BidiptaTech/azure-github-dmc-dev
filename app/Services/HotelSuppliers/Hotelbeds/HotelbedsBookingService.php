@@ -56,7 +56,7 @@ class HotelbedsBookingService implements OnlineHotelBookingService
         $parsed = $this->parseCheckRateResponse($checkRateBody, $context);
 
         if ($parsed['rate_key'] === '') {
-            throw new RuntimeException('Hotelbeds CheckRate did not return a bookable rateKey.');
+            throw new RuntimeException('Rate recheck did not return a bookable rate key.');
         }
 
         $comparison = $this->priceComparison->compare(
@@ -115,13 +115,13 @@ class HotelbedsBookingService implements OnlineHotelBookingService
         $agencyBookingId = trim($agencyBookingId);
 
         if ($agencyBookingId === '') {
-            throw new RuntimeException('Agency booking ID (reference ID) is required for Hotelbeds booking.');
+            throw new RuntimeException('Agency booking ID (reference ID) is required for this online hotel booking.');
         }
 
         $rateKey = trim((string) ($recheckResult['rate_key'] ?? ''));
 
         if ($rateKey === '') {
-            throw new RuntimeException('The Hotelbeds rateKey is missing. Please recheck availability again.');
+            throw new RuntimeException('The rate key is missing. Please recheck availability again.');
         }
 
         $adults = max(1, (int) ($recheckResult['adults'] ?? $booking['selected_adults'] ?? 1));
@@ -235,7 +235,7 @@ class HotelbedsBookingService implements OnlineHotelBookingService
         $rateKey = trim((string) ($storedRoom['rate_key'] ?? $rawRate['rateKey'] ?? ''));
 
         if ($rateKey === '') {
-            throw new RuntimeException('Hotelbeds rateKey is missing from the stored enquiry. Re-search the hotel.');
+            throw new RuntimeException('The rate key is missing from the stored enquiry. Re-search the hotel.');
         }
 
         $paxInfo = (string) ($search['pax_info'] ?? '');
@@ -437,7 +437,7 @@ class HotelbedsBookingService implements OnlineHotelBookingService
         }
 
         if (! is_array($hotel)) {
-            throw new RuntimeException('Hotelbeds CheckRate returned no hotel data.');
+            throw new RuntimeException('Rate recheck returned no hotel data.');
         }
 
         $room = null;
@@ -461,7 +461,7 @@ class HotelbedsBookingService implements OnlineHotelBookingService
         }
 
         if (! is_array($rate) || ! is_array($room)) {
-            throw new RuntimeException('Hotelbeds CheckRate returned no bookable rate.');
+            throw new RuntimeException('Rate recheck returned no bookable rate.');
         }
 
         $net = (float) ($rate['net'] ?? 0);

@@ -287,7 +287,9 @@ class EditTourController extends Controller
                     try {
                         app(\App\Services\Payment\SupplierCancellationStatusService::class)->markFailed(
                             $order,
-                            $cancelError->getMessage() ?: 'Unexpected supplier cancellation error.'
+                            \App\Support\SupplierFacingCopy::mask(
+                                $cancelError->getMessage() ?: 'Unexpected supplier cancellation error.'
+                            )
                         );
                     } catch (\Throwable $statusError) {
                         Log::warning('Could not persist supplier cancellation failed status', [
@@ -329,6 +331,22 @@ class EditTourController extends Controller
             // Lite edit save clears all services then immediately re-stores them.
             // Never revert tour_status here — update must keep Definite / Confirmed / etc. unchanged.
             // (maybeRevertTourStatusToNewEnquiry is for real service remove/reject only.)
+
+            if ($refundStatus) {
+                $walletRefunds = app(\App\Services\Payment\TravclicksOnlineWalletRefundService::class);
+                foreach ($toDelete as $order) {
+                    if (in_array((int) ($order->booking_id ?? 0), $withoutRefundIds, true)) {
+                        continue;
+                    }
+                    if (strtolower(trim((string) ($order->order_type ?? ''))) !== 'online') {
+                        continue;
+                    }
+                    $fresh = Order::withTrashed()->find($order->id);
+                    if ($fresh && (bool) ($fresh->is_refund ?? false)) {
+                        $walletRefunds->tryAutoRefund($fresh, $tour);
+                    }
+                }
+            }
 
             return response()->json([
                 'success' => true,

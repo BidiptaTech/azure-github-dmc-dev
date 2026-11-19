@@ -184,7 +184,7 @@ class MgBedbankHotelAdapter implements TwoStepHotelSupplierAdapter
         $hotelCode = trim($hotelCode);
 
         if ($hotelCode === '') {
-            throw new RuntimeException('A hotel code is required to check MG Bedbank availability.');
+            throw new RuntimeException('A hotel code is required to check online hotel availability.');
         }
 
         $client = new MgBedbankClient($credentials);
@@ -266,7 +266,7 @@ class MgBedbankHotelAdapter implements TwoStepHotelSupplierAdapter
                 return null;
             }
 
-            throw new RuntimeException('MG Bedbank hotel search failed: ' . $reason);
+            throw new RuntimeException('Online hotel search failed: ' . $reason);
         }
 
         return $body;
@@ -324,9 +324,12 @@ class MgBedbankHotelAdapter implements TwoStepHotelSupplierAdapter
         }
 
         if ($country === '' || $cityCode === '') {
+            Log::warning('Online hotel destination codes missing for city', [
+                'city' => $request->cityName,
+                'hint' => 'Run php artisan mg-bedbank:sync-destinations or set codes on the city record.',
+            ]);
             throw new RuntimeException(
-                "MG Bedbank has no destination code for [{$request->cityName}]. "
-                . 'Run `php artisan mg-bedbank:sync-destinations`, or set the codes on the city record.'
+                "Online hotels are not configured for [{$request->cityName}]. Please contact TravClicks."
             );
         }
 
@@ -359,7 +362,7 @@ class MgBedbankHotelAdapter implements TwoStepHotelSupplierAdapter
         $map = json_decode($mapJson, true);
 
         if (! is_array($map)) {
-            throw new RuntimeException('MG Bedbank destination map must be valid JSON.');
+            throw new RuntimeException('Online hotel destination map must be valid JSON.');
         }
 
         $needle = strtolower(trim($request->cityName));
@@ -406,7 +409,7 @@ class MgBedbankHotelAdapter implements TwoStepHotelSupplierAdapter
         $body = $client->getHotelList($destination['country'], $destination['city']);
 
         if ($reason = $client->failureReason($body)) {
-            throw new RuntimeException('MG Bedbank hotel list failed: ' . $reason);
+            throw new RuntimeException('Online hotel list failed: ' . $reason);
         }
 
         $catalogue = [];

@@ -1,6 +1,6 @@
 /* === STP LITE: attraction.js ===
  * Attraction tickets — cascade → Transfer/Guide extras → Get Price → Add → list
- * Online: reuses partials/online-attraction-modal.blade.php (SG Attractions API)
+ * Online: reuses partials/online-attraction-modal.blade.php (TravClicks online attractions)
  * Payload: attraction_data
  * === */
 (function (window, document) {

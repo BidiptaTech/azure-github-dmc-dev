@@ -1401,6 +1401,48 @@ class WalletLedgerService
     /**
      * Sum of booking_credit amounts already posted for a tour + purpose (source currency in metadata preferred).
      */
+    /**
+     * Commission already credited for a tour, expressed in $targetCurrency.
+     * Each row uses its original amount + currency (source_amount / source_currency) when stamped,
+     * otherwise the credited amount in the wallet's currency — converted only when it differs.
+     */
+    public function sumTourCommissionCreditsIn(int $tourId, string $ownerType, int $ownerId, string $targetCurrency, string $purpose = 'online_markup_commission'): float
+    {
+        if ($tourId <= 0 || ! Schema::hasTable('wallet_ledger')) {
+            return 0.0;
+        }
+        $target = strtoupper(trim($targetCurrency));
+
+        $rows = DB::table('wallet_ledger as l')
+            ->join('wallet as w', 'w.id', '=', 'l.wallet_id')
+            ->where('l.tour_id', $tourId)
+            ->where('l.ledger_entry_type', 'booking_credit')
+            ->where('w.wallet_owner_type', $ownerType)
+            ->where('w.wallet_owner_id', $ownerId)
+            ->whereRaw("COALESCE(l.ledger_metadata->>'purpose', '') = ?", [$purpose])
+            ->get(['l.credit_amount', 'l.ledger_metadata', 'w.wallet_currency_code']);
+
+        $sum = 0.0;
+        foreach ($rows as $row) {
+            $meta = is_string($row->ledger_metadata ?? null)
+                ? (json_decode((string) $row->ledger_metadata, true) ?: [])
+                : (is_array($row->ledger_metadata ?? null) ? $row->ledger_metadata : []);
+            if (isset($meta['source_amount']) && is_numeric($meta['source_amount'])) {
+                $amount = (float) $meta['source_amount'];
+                $currency = strtoupper(trim((string) ($meta['source_currency'] ?? $target)));
+            } else {
+                $amount = (float) ($row->credit_amount ?? 0);
+                $currency = strtoupper(trim((string) $row->wallet_currency_code));
+            }
+            if ($currency !== '' && $target !== '' && $currency !== $target) {
+                $amount = (float) (\App\Models\Country::convertAmount($amount, $currency, $target) ?? $amount);
+            }
+            $sum += $amount;
+        }
+
+        return round($sum, 2);
+    }
+
     public function sumTourCommissionCredits(int $tourId, string $ownerType, int $ownerId, string $purpose = 'online_markup_commission'): float
     {
         if ($tourId <= 0 || ! Schema::hasTable('wallet_ledger')) {
