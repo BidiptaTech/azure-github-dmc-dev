@@ -192,9 +192,12 @@ class PaymentEligibilityService
         string $currency,
     ): array {
         $acceptanceFlow = app(AcceptanceFlowService::class);
-        $onlineSettled = $acceptanceFlow->onlinePortionSettled($tour)
+        $unpaid = $this->classificationService->unpaidOnlineAmount($tour);
+        $onlineSettled = $unpaid <= 0.009 && (
+            $acceptanceFlow->onlinePortionSettled($tour)
             || $stage === 'offline_negotiation'
-            || ($classification === OrderClassificationService::ONLINE && $stage !== 'supplier_initial');
+            || ($classification === OrderClassificationService::ONLINE && $stage !== 'supplier_initial')
+        );
 
         return $acceptanceFlow->describe(
             $classification,
@@ -202,8 +205,9 @@ class PaymentEligibilityService
             $onlineAmount,
             $offlineAmount,
             $currency,
-            $onlineSettled ? $onlineAmount : 0.0,
+            $onlineSettled ? $onlineAmount : max(0.0, $onlineAmount - $unpaid),
             $acceptanceFlow->resolveOnlineCurrency($tour, $currency),
+            $unpaid,
         );
     }
 
@@ -217,6 +221,11 @@ class PaymentEligibilityService
         }
 
         if ($stage === 'supplier_initial') {
+            // Only online services not paid yet — services paid earlier are never charged again.
+            $unpaid = $this->classificationService->unpaidOnlineAmount($tour);
+            if ($unpaid > 0.009) {
+                return $unpaid;
+            }
             if ($classification === OrderClassificationService::MIX) {
                 return (float) $breakdown['online_amount'];
             }

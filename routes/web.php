@@ -952,6 +952,10 @@ Route::get('/clear', function () {
         // Payment service (eligibility, orchestration, settings, Stripe Connect)
         Route::get('/payment-service/tours/{tourId}/eligibility', [PaymentServiceController::class, 'eligibility'])
             ->name('payment-service.eligibility');
+        Route::post('/payment-service/tours/{tourId}/price-check', [PaymentServiceController::class, 'priceCheck'])
+            ->name('payment-service.price-check');
+        Route::post('/payment-service/tours/{tourId}/price-accept', [PaymentServiceController::class, 'priceAccept'])
+            ->name('payment-service.price-accept');
         Route::post('/payment-service/tours/{tourId}/pay', [PaymentServiceController::class, 'initiate'])
             ->name('payment-service.initiate');
         Route::post('/payment-service/tours/{tourId}/wallet/complete', [PaymentServiceController::class, 'completeWallet'])
