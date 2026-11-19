@@ -1332,10 +1332,17 @@
                                     $latestCounter = ($latestComment && (float) ($latestComment->amount ?? 0) > 0)
                                         ? (float) $latestComment->amount
                                         : 0;
-                                    $capFromNegotiation = $latestCounter > 0;
-                                    $currentActualAmount = $capFromNegotiation ? $latestCounter : $netNegotiationBase;
-                                    $settlementFromNegotiation = $capFromNegotiation;
-                                    $settlementAmount = $currentActualAmount;
+                                    // List baseline stays on actual_amount — never treat OM counter as the new list.
+                                    $frozenList = (float) ($latestComment->actual_amount ?? 0);
+                                    if ($frozenList <= 0 && $latestAgentComment) {
+                                        $frozenList = (float) ($latestAgentComment->actual_amount ?? 0);
+                                    }
+                                    $capFromNegotiation = $frozenList > 0 || $latestCounter > 0;
+                                    $currentActualAmount = $frozenList > 0
+                                        ? $frozenList
+                                        : ($latestCounter > 0 ? $latestCounter : $netNegotiationBase);
+                                    $settlementFromNegotiation = $latestCounter > 0;
+                                    $settlementAmount = $latestCounter > 0 ? $latestCounter : $currentActualAmount;
                                     $lastAgentAmount = ($latestAgentComment && (float) ($latestAgentComment->amount ?? 0) > 0)
                                         ? (float) $latestAgentComment->amount
                                         : null;
@@ -3180,12 +3187,11 @@ function testServices() {
         function syncDmcPrimaryNegotiationAmount() {
             const firstOffer = document.querySelector('#newEnquiryCountryBlocks .dmc-nego-offer-input');
             const priceInput = document.getElementById('new_enquiry_current_price');
-            const actualAmtField = document.getElementById('new_enquiry_modal_actual_amount');
             if (!firstOffer) {
                 return;
             }
+            // Only sync negotiated offer. actual_amount stays as the frozen list baseline set on modal open.
             if (priceInput) priceInput.value = firstOffer.value || '';
-            if (actualAmtField) actualAmtField.value = firstOffer.getAttribute('data-max') || '';
         }
 
         function findAgentOfferForGroup(agentOffers, group) {
@@ -3286,9 +3292,8 @@ function testServices() {
             // Counter price is read-only — always follow calculated payable (markup/discount).
             offerInput.value = String(pricing.payable);
             const amountHidden = card.querySelector('.dmc-nego-offer-hidden');
-            const actualHidden = card.querySelector('input[name*="[actual_amount]"]');
+            // Keep actual_amount frozen (list baseline). Only amount/offer follows payable.
             if (amountHidden) amountHidden.value = String(pricing.payable);
-            if (actualHidden) actualHidden.value = String(pricing.payable);
             if (typeof syncDmcPrimaryNegotiationAmount === 'function') {
                 syncDmcPrimaryNegotiationAmount();
             }
@@ -3321,6 +3326,8 @@ function testServices() {
                 const gross = Number(group.gross || 0);
                 const agentOffer = findAgentOfferForGroup(agentOffers, group);
                 const agentAmount = agentOffer ? parseFloat(agentOffer.amount) : NaN;
+                const priorActual = agentOffer ? parseFloat(agentOffer.actual_amount) : NaN;
+                const frozenActual = (Number.isFinite(priorActual) && priorActual > 0) ? priorActual : payable;
                 const defaultCounter = Number.isFinite(agentAmount) && agentAmount > 0
                     ? agentAmount
                     : (Number.isFinite(fallbackPrice) && fallbackPrice > 0 && index === 0 ? fallbackPrice : (payable > 0 ? payable : ''));
@@ -3374,7 +3381,7 @@ function testServices() {
                     '<div class="form-text text-muted mt-1">Tour prices already include markup · Offer = gross − discount.</div>' +
                     '<input type="hidden" name="offers[' + index + '][country]" value="' + escAttr(country) + '">' +
                     '<input type="hidden" name="offers[' + index + '][currency]" value="' + escAttr(currency) + '">' +
-                    '<input type="hidden" name="offers[' + index + '][actual_amount]" value="' + payable + '">' +
+                    '<input type="hidden" name="offers[' + index + '][actual_amount]" value="' + frozenActual + '">' +
                     '<input type="hidden" name="offers[' + index + '][gross]" value="' + gross + '">' +
                     '<input type="hidden" name="offers[' + index + '][markup_type]" value="' + escAttr(markupType) + '">' +
                     '<input type="hidden" name="offers[' + index + '][discount_type]" value="' + escAttr(discountType) + '">' +
@@ -3423,6 +3430,10 @@ function testServices() {
 
             var prevPrice = parseNegotiationAttr(button.getAttribute('data-price'));
             var prevComment = button.getAttribute('data-comment') || '';
+            var actualAmtField = document.getElementById('new_enquiry_modal_actual_amount');
+            if (actualAmtField) {
+                actualAmtField.value = button.getAttribute('data-actual') || '';
+            }
             if (displayComment) {
                 displayComment.textContent = prevComment || '—';
             }
@@ -3620,6 +3631,9 @@ function testServices() {
             const isLocked = button.getAttribute('data-negotiation-locked') === '1';
             const lastAgentOffer = parseNegotiationAttr(lastAgentOfferAttr);
             const lastRemark = button.getAttribute('data-last-comment') || '';
+            if (actualInput) {
+                actualInput.value = button.getAttribute('data-actual') || '';
+            }
 
             let countryGroups = [];
             try { countryGroups = JSON.parse(button.getAttribute('data-country-groups') || '[]'); } catch (e) { countryGroups = []; }
@@ -3656,6 +3670,8 @@ function testServices() {
                         const country = group.country || currency || ('Country ' + (index + 1));
                         const payable = Number(group.payable || 0);
                         const gross = Number(group.gross || 0);
+                        const rowListActual = parseFloat(button.getAttribute('data-actual') || '0') || 0;
+                        const frozenActual = (countryGroups.length === 1 && rowListActual > 0) ? rowListActual : payable;
                         const profileMk = (typeof resolveNegotiationMarkupForGroup === 'function')
                             ? resolveNegotiationMarkupForGroup(group, currency)
                             : { hotelType: 'percentage', otherType: 'percentage', hotelRaw: 0, otherRaw: 0, hotelSuffix: '%', otherSuffix: '%', markupType: 'percentage' };
@@ -3694,7 +3710,7 @@ function testServices() {
                             '<label class="form-label fw-semibold">Offer Amount (' + escAttr(currency) + ')</label>' +
                             '<input type="number" class="form-control agent-nego-offer-input bg-light" min="0" step="0.01" readonly tabindex="-1" ' +
                                 'data-index="' + index + '" data-max="' + payable + '" data-country="' + escAttr(country) + '" data-currency="' + escAttr(currency) + '" ' +
-                                'data-gross="' + gross + '" data-hotel-gross="' + split.hotelGross + '" data-other-gross="' + split.otherGross + '" data-other-markup-gross="' + (split.otherMarkupGross != null ? split.otherMarkupGross : split.otherGross) + '" data-other-count="' + (split.otherCount || 0) + '" data-payable="' + payable + '" ' +
+                                'data-gross="' + gross + '" data-hotel-gross="' + split.hotelGross + '" data-other-gross="' + split.otherGross + '" data-other-markup-gross="' + (split.otherMarkupGross != null ? split.otherMarkupGross : split.otherGross) + '" data-other-count="' + (split.otherCount || 0) + '" data-payable="' + payable + '" data-list-actual="' + frozenActual + '" ' +
                                 'data-hotel-markup-raw="' + hotelRaw + '" data-other-markup-raw="' + otherRaw + '" ' +
                                 'data-markup-type="' + escAttr(markupType) + '" data-hotel-markup-type="' + escAttr(hotelMarkupType) + '" data-other-markup-type="' + escAttr(otherMarkupType) + '" data-discount-type="' + escAttr(discountType) + '" ' +
                                 'value="' + (payable > 0 ? payable : '0') + '" placeholder="Auto-calculated offer">' +
@@ -3702,7 +3718,7 @@ function testServices() {
                             '<div class="form-text text-muted mt-1">Tour prices already include markup · Offer = gross − discount</div>' +
                             '<input type="hidden" name="offers[' + index + '][country]" value="' + escAttr(country) + '">' +
                             '<input type="hidden" name="offers[' + index + '][currency]" value="' + escAttr(currency) + '">' +
-                            '<input type="hidden" name="offers[' + index + '][actual_amount]" class="agent-nego-actual-hidden" value="' + payable + '">' +
+                            '<input type="hidden" name="offers[' + index + '][actual_amount]" class="agent-nego-actual-hidden" value="' + frozenActual + '">' +
                             '<input type="hidden" name="offers[' + index + '][gross]" value="' + gross + '">' +
                             '<input type="hidden" name="offers[' + index + '][markup_type]" value="' + escAttr(markupType) + '">' +
                             '<input type="hidden" name="offers[' + index + '][discount_type]" value="' + escAttr(discountType) + '">' +
@@ -3813,13 +3829,12 @@ function testServices() {
             }
 
             const offerHidden = card.querySelector('.agent-nego-offer-hidden');
-            const actualHidden = card.querySelector('.agent-nego-actual-hidden');
             const hotelHidden = card.querySelector('.agent-nego-hotel-hidden');
             const otherHidden = card.querySelector('.agent-nego-other-hidden');
             const discountHidden = card.querySelector('.agent-nego-discount-hidden');
             const discountTypeHidden = card.querySelector('input[name*="[discount_type]"]');
             if (offerHidden) offerHidden.value = String(payable);
-            if (actualHidden) actualHidden.value = String(payable);
+            // Do not overwrite actual_amount — frozen list baseline from card render / prior thread.
             if (hotelHidden) hotelHidden.value = String(hotelRaw);
             if (otherHidden) otherHidden.value = String(otherRaw);
             if (discountHidden) discountHidden.value = String(discountRaw);
@@ -3900,11 +3915,16 @@ function testServices() {
             const actualInput = document.getElementById('agent_negotiation_actual_amount');
             if (!firstOffer) {
                 if (amountHidden) amountHidden.value = '';
-                if (actualInput) actualInput.value = '';
                 return;
             }
             if (amountHidden) amountHidden.value = firstOffer.value || '';
-            if (actualInput) actualInput.value = firstOffer.getAttribute('data-payable') || '';
+            // Preserve frozen list baseline on actual_amount when already set.
+            if (actualInput && !String(actualInput.value || '').trim()) {
+                const firstActual = document.querySelector('#agentNegotiationCountryBlocks .agent-nego-actual-hidden');
+                actualInput.value = (firstActual && firstActual.value)
+                    ? firstActual.value
+                    : (firstOffer.getAttribute('data-list-actual') || firstOffer.getAttribute('data-payable') || '');
+            }
         }
         window.submitAgentNegotiation = function(action) {
             if (agentNegotiationActionsDisabled) {
@@ -4107,7 +4127,12 @@ function testServices() {
                                     }
                                     const country = input.getAttribute('data-country') || '';
                                     const currency = input.getAttribute('data-currency') || '';
-                                    const payable = input.getAttribute('data-payable') || input.getAttribute('data-max') || '0';
+                                    const listActualHidden = card ? card.querySelector('.agent-nego-actual-hidden') : null;
+                                    const payable = (listActualHidden && listActualHidden.value)
+                                        || input.getAttribute('data-list-actual')
+                                        || input.getAttribute('data-payable')
+                                        || input.getAttribute('data-max')
+                                        || '0';
                                     const gross = input.getAttribute('data-gross') || '0';
                                     const amount = input.value || '';
                                     const markupType = input.getAttribute('data-markup-type') || 'flat';
@@ -4139,7 +4164,13 @@ function testServices() {
                                 const firstOffer = agentOfferInputs[0];
                                 priceEl.value = firstOffer.value || amountInput.value;
                                 if (actualAmtEl) {
-                                    actualAmtEl.value = firstOffer.getAttribute('data-payable') || firstOffer.getAttribute('data-max') || '';
+                                    const firstActual = document.querySelector('#agentNegotiationCountryBlocks .agent-nego-actual-hidden');
+                                    actualAmtEl.value = (firstActual && firstActual.value)
+                                        || firstOffer.getAttribute('data-list-actual')
+                                        || actualAmtEl.value
+                                        || firstOffer.getAttribute('data-payable')
+                                        || firstOffer.getAttribute('data-max')
+                                        || '';
                                 }
                             } else {
                                 const actualCap = rowBtn
