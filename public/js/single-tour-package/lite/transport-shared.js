@@ -2515,7 +2515,7 @@
                     '<span class="stp-lite-svc-header-total-amt">' + esc(currency) + ' ' + total.toFixed(2) + '</span>' +
                     (hdrFx && hdrFx.amount > 0
                         ? ' <small class="text-muted" title="' + esc(window.StpDmcFx.rateText(hdrFx)) + ' · indicative">≈ '
-                            + esc(hdrFx.to + ' ' + window.StpDmcFx.fmt(hdrFx.amount, hdrFx.to === 'IDR' ? 0 : 2)) + '</small>'
+                            + esc(hdrFx.to + ' ' + window.StpDmcFx.fmt(hdrFx.amount, 2)) + '</small>'
                         : '');
                 el.classList.remove('d-none');
             } else {

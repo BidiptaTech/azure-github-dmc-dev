@@ -35,7 +35,7 @@ class MarkupCalculator
     }
 
     /**
-     * Final customer-facing price — always rounded up to the nearest whole unit.
+     * Final online sell price — keep exact cents (no whole-unit ceil).
      */
     private function finalizePrice(float $price): float
     {
@@ -43,6 +43,6 @@ class MarkupCalculator
             return 0.0;
         }
 
-        return ceil($price);
+        return round($price, 2);
     }
 }
