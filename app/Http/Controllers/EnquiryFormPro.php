@@ -356,9 +356,31 @@ class EnquiryFormPro extends Controller
             $country = $fromFallback[0] ?? '';
         }
 
-        $currency = trim((string) ($payload['currency'] ?? ''));
-        if ($currency === '' && $country !== '') {
+        // Online hotel/attraction quotes often use SGD even when city is Bali/IDR — prefer payload currency.
+        $currency = strtoupper(trim((string) ($payload['currency'] ?? '')));
+        if ($currency === '' && is_array($payload['price_payload'] ?? null)) {
+            $currency = strtoupper(trim((string) ($payload['price_payload']['currency'] ?? '')));
+        }
+        if ($currency === '' && is_array($payload['dmc_profile_markup'] ?? null)) {
+            $currency = strtoupper(trim((string) ($payload['dmc_profile_markup']['currency'] ?? '')));
+        }
+        if ($currency === '' && is_array($payload['online_price_breakdown'] ?? null)) {
+            $currency = strtoupper(trim((string) ($payload['online_price_breakdown']['currency'] ?? '')));
+        }
+        if ($currency === '' && is_array($payload['onlineHotelBooking'] ?? null)) {
+            $currency = strtoupper(trim((string) ($payload['onlineHotelBooking']['currency'] ?? '')));
+        }
+        $isOnlineService = ! empty($payload['isOnlineHotel'])
+            || ($payload['hotelSourceType'] ?? '') === 'online'
+            || strtolower((string) ($payload['priceMode'] ?? '')) === 'online'
+            || ! empty($payload['isOnlineAttraction'])
+            || ($payload['attractionSourceType'] ?? '') === 'online'
+            || strtolower((string) ($payload['mode'] ?? '')) === 'online';
+        if ($currency === '' && $country !== '' && ! $isOnlineService) {
             $currency = strtoupper(trim((string) (Country::where('name', $country)->value('currency') ?? '')));
+        }
+        if ($currency === '' && $isOnlineService) {
+            $currency = 'SGD';
         }
 
         return [

@@ -56,8 +56,8 @@ class OnlineServiceCommissionCreditService
             }
 
             $line = $this->breakdownService->lineForOrder($order, $tour);
-            $adminAmt = round((float) ($line['travclicks_commission'] ?? 0), 4);
-            $dmcAmt = round((float) ($line['dmc_commission'] ?? 0), 4);
+            $adminAmt = round((float) ($line['travclicks_commission'] ?? 0), 2);
+            $dmcAmt = round((float) ($line['dmc_commission'] ?? 0), 2);
 
             if ($adminAmt <= 0 && $dmcAmt <= 0) {
                 return [
@@ -314,7 +314,7 @@ class OnlineServiceCommissionCreditService
 
         if ($dmcCurrency === $sourceCurrency || $dmcCurrency === '') {
             return [
-                'amount' => round($sourceAmount, 4),
+                'amount' => round($sourceAmount, 2),
                 'currency' => $dmcCurrency !== '' ? $dmcCurrency : $sourceCurrency,
                 'fx' => $fx,
             ];
@@ -326,7 +326,7 @@ class OnlineServiceCommissionCreditService
             $fx['exchange_rate'] = $sourceAmount > 0 ? round($converted / $sourceAmount, 8) : 1.0;
 
             return [
-                'amount' => round((float) $converted, 4),
+                'amount' => round((float) $converted, 2),
                 'currency' => $dmcCurrency,
                 'fx' => $fx,
             ];
@@ -338,7 +338,7 @@ class OnlineServiceCommissionCreditService
         $fx['fallback'] = 'countries.current_rate_unavailable';
 
         return [
-            'amount' => round($sourceAmount, 4),
+            'amount' => round($sourceAmount, 2),
             'currency' => $sourceCurrency,
             'fx' => $fx,
         ];

@@ -504,49 +504,91 @@
                     sell: perNight
                 };
             });
-            // Online totalPrice is already stay total for all rooms — don't multiply rooms again
-            const avg = perNight;
-            const stay = stayTotal > 0
+            // Use the exact stamp from the add-modal (hotel TravClicks price + DMC + total).
+            // Do not recalculate — both places must show the same numbers.
+            const stamp = source.online_price_breakdown
+                || (source.onlineHotelBooking && source.onlineHotelBooking.online_price_breakdown)
+                || source.dmc_profile_markup
+                || (source.price_payload && source.price_payload.dmc_profile_markup)
+                || null;
+            const stayFinal = stayTotal > 0
                 ? Math.round(stayTotal * 100) / 100
                 : Math.round(perNight * nights.length * 100) / 100;
-            const roomStay = stay;
-            // Prefer stored markup from online booking; else apply DMC hotel profile
-            let markup = null;
-            const storedMk = source.dmc_profile_markup
-                || (source.price_payload && source.price_payload.dmc_profile_markup)
-                || (source.onlineHotelBooking && source.onlineHotelBooking.markup)
-                || null;
-            if (storedMk && Number(storedMk.markup_amount || 0) > 0) {
-                markup = {
-                    base_price: Math.max(0, stay - Number(storedMk.markup_amount || 0)),
-                    markup_amount: Number(storedMk.markup_amount || 0),
-                    price: stay,
-                    markup_type: storedMk.markup_type || 'percentage',
-                    markup_value: Number(storedMk.markup_value || 0),
-                    markup_kind: 'hotel',
-                    dmc_id: storedMk.dmc_id || null
-                };
-            } else if (typeof enquiryProApplyDmcMarkup === 'function') {
-                // Treat current stay as base and show marked-up total (Lite Get Price parity)
-                markup = enquiryProApplyDmcMarkup(stay, 'hotel');
-            } else {
-                markup = { base_price: stay, markup_amount: 0, price: stay, markup_type: 'percentage', markup_value: 0 };
+
+            let hotelPrice = stayFinal;
+            let mkAmt = 0;
+            let totalPrice = stayFinal;
+            let mkType = 'percentage';
+            let mkVal = 0;
+            let mkDmcId = null;
+
+            if (stamp) {
+                const stampedHotel = Number(stamp.hotel_price != null ? stamp.hotel_price : stamp.base_price);
+                const stampedMk = Number(stamp.markup_amount || 0);
+                const stampedTotal = Number(stamp.total_price != null ? stamp.total_price : stamp.price);
+                if (Number.isFinite(stampedHotel) && stampedHotel > 0) {
+                    hotelPrice = Math.round(stampedHotel * 100) / 100;
+                }
+                if (Number.isFinite(stampedMk) && stampedMk > 0) {
+                    mkAmt = Math.round(stampedMk * 100) / 100;
+                }
+                if (Number.isFinite(stampedTotal) && stampedTotal > 0) {
+                    totalPrice = Math.round(stampedTotal * 100) / 100;
+                } else if (mkAmt > 0) {
+                    totalPrice = Math.round((hotelPrice + mkAmt) * 100) / 100;
+                }
+                mkType = stamp.markup_type || 'percentage';
+                mkVal = Number(stamp.markup_value || 0);
+                mkDmcId = stamp.dmc_id || null;
+            } else if (typeof enquiryProSplitDmcMarkupFromFinal === 'function' && stayFinal > 0) {
+                const split = enquiryProSplitDmcMarkupFromFinal(stayFinal, 'hotel');
+                hotelPrice = Number(split.base_price) || stayFinal;
+                mkAmt = Number(split.markup_amount) || 0;
+                totalPrice = stayFinal;
+                mkType = split.markup_type || 'percentage';
+                mkVal = Number(split.markup_value || 0);
+                mkDmcId = split.dmc_id || null;
             }
+
+            const markup = {
+                hotel_price: hotelPrice,
+                base_price: hotelPrice,
+                markup_amount: mkAmt,
+                price: totalPrice,
+                total_price: totalPrice,
+                markup_type: mkType,
+                markup_value: mkVal,
+                markup_kind: 'hotel',
+                dmc_id: mkDmcId,
+                currency: (stamp && stamp.currency) || source.currency || 'SGD'
+            };
+
+            const basePerNight = nights.length ? Math.round((hotelPrice / nights.length) * 100) / 100 : hotelPrice;
+            nights.forEach(function (n) {
+                n.roomCostBase = basePerNight;
+                n.roomCost = basePerNight;
+                n.cost = basePerNight;
+                n.roomSellBase = basePerNight;
+                n.roomSell = basePerNight;
+                n.sell = basePerNight;
+            });
             return {
                 combo,
                 nights,
-                avgCost: avg,
-                avgSell: avg,
-                staySellTotal: markup.base_price != null ? markup.base_price : stay,
-                stayCostTotal: stay,
-                roomCostTotal: roomStay,
-                roomSellTotal: markup.base_price != null ? markup.base_price : roomStay,
+                avgCost: basePerNight,
+                avgSell: basePerNight,
+                staySellTotal: hotelPrice,
+                stayCostTotal: hotelPrice,
+                roomCostTotal: hotelPrice,
+                roomSellTotal: hotelPrice,
                 mealCostTotal: 0,
                 mealSellTotal: 0,
                 fairSellTotal: 0,
                 fairCostTotal: 0,
                 rooms: rooms,
-                dmcMarkup: markup
+                dmcMarkup: markup,
+                onlineStayFinal: totalPrice,
+                onlinePriceStamp: markup
             };
         }
 
@@ -970,9 +1012,22 @@
                 </div>`;
         }).join('');
 
-        const markup = data.dmcMarkup || window.enquiryProHotelSellWithMarkup(
-            data.staySellBase != null ? data.staySellBase : (data.staySellAllRooms || data.staySellTotal || 0)
-        );
+        const isOnlineBreakdown = !!(data.onlinePriceStamp || data.onlineStayFinal);
+        const markup = data.dmcMarkup
+            || data.onlinePriceStamp
+            || (!isOnlineBreakdown
+                ? window.enquiryProHotelSellWithMarkup(
+                    data.staySellBase != null ? data.staySellBase : (data.staySellAllRooms || data.staySellTotal || 0)
+                )
+                : {
+                    base_price: data.staySellTotal || 0,
+                    hotel_price: data.staySellTotal || 0,
+                    markup_amount: 0,
+                    price: data.onlineStayFinal || data.staySellTotal || 0,
+                    total_price: data.onlineStayFinal || data.staySellTotal || 0,
+                    markup_type: 'percentage',
+                    markup_value: 0
+                });
         const csRow = function (label, costAmt, sellAmt) {
             return '<div class="ep-pd-summary-row"><span style="color:#475569;"><strong>' + label + '</strong></span>'
                 + '<span>C ' + epFmt(costAmt || 0) + ' · <span style="color:#198754;font-weight:600;">S ' + epFmt(sellAmt || 0) + '</span></span></div>';
@@ -995,10 +1050,18 @@
             + '<span>C ' + epFmt(data.avgCost) + ' · <span style="color:#198754;font-weight:700;">S ' + epFmt(data.avgSell) + '</span></span></div>';
 
         let sellTotalRows = '';
-        sellTotalRows += formulaRow(
-            '<strong>Room Cost</strong> ' + epEscape(epMoney(cur, roomUnit)) + '/night' + epNightsSuffix(nightCount) + roomSuffix,
-            data.roomSellTotal || 0
-        );
+        if (isOnlineBreakdown) {
+            sellTotalRows += formulaRow(
+                '<strong>Hotel Price</strong> <small class="text-muted">(TravClicks)</small> '
+                    + epEscape(epMoney(cur, roomUnit)) + '/night' + epNightsSuffix(nightCount) + roomSuffix,
+                Number(markup.hotel_price != null ? markup.hotel_price : markup.base_price) || data.roomSellTotal || 0
+            );
+        } else {
+            sellTotalRows += formulaRow(
+                '<strong>Room Cost</strong> ' + epEscape(epMoney(cur, roomUnit)) + '/night' + epNightsSuffix(nightCount) + roomSuffix,
+                data.roomSellTotal || 0
+            );
+        }
         if ((data.fairSellTotal || 0) > 0) {
             sellTotalRows += formulaRow(
                 '<strong>Fair Charge</strong> ' + epEscape(epMoney(cur, fairUnit)) + '/night' + epNightsSuffix(nightCount) + roomSuffix,
@@ -1032,9 +1095,38 @@
             );
         }
 
-        const markupSummaryHtml = (typeof enquiryProDmcMarkupSummaryHtml === 'function')
-            ? enquiryProDmcMarkupSummaryHtml(markup, cur)
-            : '';
+        let markupSummaryHtml = '';
+        if (isOnlineBreakdown) {
+            // Same 3 lines as the add-modal — exact stamp, markup once.
+            const hotelAmt = Number(markup.hotel_price != null ? markup.hotel_price : markup.base_price) || 0;
+            const mkAmt = Number(markup.markup_amount || 0);
+            const totalAmt = Number(markup.total_price != null ? markup.total_price : markup.price) || hotelAmt;
+            const mkType = String(markup.markup_type || 'percentage').toLowerCase();
+            const mkVal = Number(markup.markup_value || 0);
+            let mkLabel = 'DMC Markup';
+            if (mkAmt > 0 && mkVal > 0) {
+                mkLabel = mkType === 'flat'
+                    ? ('DMC Markup (flat)')
+                    : ('DMC Markup (' + mkVal + '%)');
+            }
+            markupSummaryHtml = ''
+                + '<div class="ep-mk-summary-row">'
+                + '<span><strong>Hotel Price</strong> <small class="text-muted">(TravClicks)</small></span>'
+                + '<span class="ep-mk-amt">' + epEscape(epMoney(cur, hotelAmt)) + '</span>'
+                + '</div>'
+                + '<div class="ep-mk-summary-row is-markup">'
+                + '<span><strong>' + epEscape(mkLabel) + '</strong></span>'
+                + '<span class="ep-mk-amt">' + epEscape(epMoney(cur, mkAmt)) + '</span>'
+                + '</div>'
+                + '<div class="ep-mk-summary-row is-total">'
+                + '<span>Total Price</span>'
+                + '<span class="ep-mk-amt">' + epEscape(epMoney(cur, totalAmt)) + '</span>'
+                + '</div>'
+                // DMC currency differs → exchange rate (incl. conversion commission) + total in DMC currency.
+                + (window.StpDmcFx ? window.StpDmcFx.rowsHtml(totalAmt, markup.currency || cur, 'ep-mk-summary-row', 'ep-mk-amt') : '');
+        } else if (typeof enquiryProDmcMarkupSummaryHtml === 'function') {
+            markupSummaryHtml = enquiryProDmcMarkupSummaryHtml(markup, cur);
+        }
 
         return `
             <div class="ep-pd-wrap">
@@ -1051,9 +1143,9 @@
                     ${costSellRows}
                 </div>
 
-                <div class="ep-pd-section-label">Total (sell + markup)</div>
+                <div class="ep-pd-section-label">${isOnlineBreakdown ? 'Price breakdown' : 'Total (sell + markup)'}</div>
                 <div class="ep-pd-summary">
-                    ${sellTotalRows}
+                    ${isOnlineBreakdown ? '' : sellTotalRows}
                     ${markupSummaryHtml ? `<div style="margin-top:8px;">${markupSummaryHtml}</div>` : ''}
                 </div>
             </div>`;

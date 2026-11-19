@@ -69,10 +69,18 @@ class OrderClassificationService
     public function persistClassification(Tour $tour): string
     {
         $classification = $this->classifyTour($tour);
+        $tourId = (int) ($tour->tour_id ?? $tour->getKey());
 
-        $tour->forceFill([
-            'order_classification' => $classification,
-        ])->save();
+        // Targeted update only — avoid $tour->save() which can write dirty attrs
+        // for columns missing locally (e.g. previous_exchange_rate).
+        if ($tourId > 0) {
+            Tour::query()
+                ->where('tour_id', $tourId)
+                ->update(['order_classification' => $classification]);
+        }
+
+        $tour->setAttribute('order_classification', $classification);
+        $tour->syncOriginalAttribute('order_classification');
 
         return $classification;
     }
@@ -100,9 +108,9 @@ class OrderClassificationService
             }
         }
 
-        $total = round($online + $offline, 4);
+        $total = round($online + $offline, 2);
         if ($total <= 0 && is_numeric($tour->selling_price ?? null)) {
-            $total = round((float) $tour->selling_price, 4);
+            $total = round((float) $tour->selling_price, 2);
             if ($offline <= 0 && $online <= 0) {
                 $offline = $total;
             }
@@ -110,8 +118,8 @@ class OrderClassificationService
 
         return [
             'classification' => $this->classifyFromTypes($orders->pluck('order_type')),
-            'online_amount' => round($online, 4),
-            'offline_amount' => round($offline, 4),
+            'online_amount' => round($online, 2),
+            'offline_amount' => round($offline, 2),
             'total_amount' => $total,
             'currency' => $this->resolveTourCurrency($tour),
         ];
@@ -241,11 +249,11 @@ class OrderClassificationService
 
         $fromServices = is_array($data) ? $this->sumServiceSellAmount($data) : 0.0;
         if ($fromServices > 0) {
-            return round($fromServices, 4);
+            return round($fromServices, 2);
         }
 
         if (isset($order->cost_price) && is_numeric($order->cost_price) && (float) $order->cost_price > 0) {
-            return round((float) $order->cost_price, 4);
+            return round((float) $order->cost_price, 2);
         }
 
         return 0.0;
@@ -282,12 +290,12 @@ class OrderClassificationService
                 }
             }
 
-            return round($sum, 4);
+            return round($sum, 2);
         }
 
         foreach (['selling_price', 'totalPrice', 'total_price', 'grand_total', 'price', 'amount', 'net_price'] as $key) {
             if (isset($data[$key]) && is_numeric($data[$key]) && (float) $data[$key] > 0) {
-                return round((float) $data[$key], 4);
+                return round((float) $data[$key], 2);
             }
         }
 

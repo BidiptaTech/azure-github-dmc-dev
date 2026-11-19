@@ -168,12 +168,12 @@ class FxConversionCharge
     public function apply(float $sourceAmount, float $rate, float $percent, bool $currenciesDiffer): array
     {
         $rate = $rate > 0 ? $rate : 1.0;
-        $converted = round($sourceAmount * $rate, 4);
+        $converted = round($sourceAmount * $rate, 2);
         $fee = 0.0;
 
         if ($currenciesDiffer && $percent > 0 && $converted > 0) {
-            $fee = round($converted * ($percent / 100), 4);
-            $converted = round($converted + $fee, 4);
+            $fee = round($converted * ($percent / 100), 2);
+            $converted = round($converted + $fee, 2);
         }
 
         return [

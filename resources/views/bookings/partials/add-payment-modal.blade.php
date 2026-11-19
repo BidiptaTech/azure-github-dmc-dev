@@ -9,7 +9,7 @@
         : app(\App\Services\Payment\AcceptanceFlowService::class)->forTour($tour);
     $apOnlinePaid = ! empty($apAcceptance['online_paid']);
     $apOnlinePaidAmount = (float) ($apAcceptance['online_paid_amount'] ?? $apAcceptance['online_amount'] ?? 0);
-    $apOnlineCurrency = strtoupper(trim((string) ($apAcceptance['currency'] ?? $apTourCurrency)));
+    $apOnlineCurrency = strtoupper(trim((string) ($apAcceptance['online_currency'] ?? $apAcceptance['currency'] ?? $apTourCurrency)));
     $apOnlineHint = (string) ($apAcceptance['hint'] ?? '');
     $apShowOnlinePaidBanner = $apOnlinePaid && $apOnlinePaidAmount > 0;
 @endphp

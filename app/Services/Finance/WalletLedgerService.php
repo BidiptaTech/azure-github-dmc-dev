@@ -257,6 +257,23 @@ class WalletLedgerService
             }
 
             $wallet = $this->walletFromReservation($reservationRef);
+
+            // Retried call with the same key → return the original commit, never debit twice.
+            $idempotencyKey = trim((string) ($data['idempotency_key'] ?? ''));
+            if ($replay = $this->ledgerReplay('commit', $reservationRef, $idempotencyKey)) {
+                return $this->ok([
+                    'finance_reference' => $replay->finance_reference,
+                    'reservation_reference' => $reservationRef,
+                    'committed_amount' => (string) $replay->debit_amount,
+                    'idempotent_replay' => true,
+                ]);
+            }
+
+            // Never commit more than this reservation still holds (other tours share the wallet).
+            $remaining = $this->reservationRemaining($reservationRef);
+            if ($amount - $remaining > 0.009) {
+                throw new RuntimeException("Commit exceeds reservation: remaining={$remaining}, required={$amount}", 402);
+            }
             $reserved = (float) ($wallet->reserved_balance ?? 0);
             if ($reserved < $amount) {
                 throw new RuntimeException("Insufficient reserved balance: reserved={$reserved}, required={$amount}", 402);
@@ -283,9 +300,10 @@ class WalletLedgerService
                 (string) $wallet->wallet_currency_code,
                 (string) ($data['ledger_description'] ?? 'Wallet reservation commit'),
                 $data['tour_id'] ?? null,
-                metadata: array_merge($data['metadata'] ?? [], [
+                metadata: array_merge($data['metadata'] ?? [], array_filter([
                     'reservation_reference' => $reservationRef,
-                ]),
+                    'idempotency_key' => $idempotencyKey !== '' ? $idempotencyKey : null,
+                ])),
             );
 
             return $this->ok([
@@ -311,10 +329,23 @@ class WalletLedgerService
             }
 
             $wallet = $this->walletFromReservation($reservationRef);
+
+            $idempotencyKey = trim((string) ($data['idempotency_key'] ?? ''));
+            if ($replay = $this->ledgerReplay('release', $reservationRef, $idempotencyKey)) {
+                return $this->ok([
+                    'finance_reference' => $replay->finance_reference,
+                    'reservation_reference' => $reservationRef,
+                    'released_amount' => (string) $replay->credit_amount,
+                    'idempotent_replay' => true,
+                ]);
+            }
+
             $reserved = (float) ($wallet->reserved_balance ?? 0);
+            // Only this reservation's remaining hold — never other tours' reservations on the same wallet.
+            $remaining = $this->reservationRemaining($reservationRef);
             $releaseAmount = isset($data['release_amount'])
-                ? $this->money($data['release_amount'])
-                : $reserved;
+                ? min($this->money($data['release_amount']), $this->money($remaining))
+                : $this->money($remaining);
 
             if ($releaseAmount <= 0) {
                 return $this->ok([
@@ -350,7 +381,10 @@ class WalletLedgerService
                 (string) $wallet->wallet_currency_code,
                 (string) ($data['ledger_description'] ?? 'Wallet reservation release'),
                 $data['tour_id'] ?? null,
-                metadata: ['reservation_reference' => $reservationRef],
+                metadata: array_filter([
+                    'reservation_reference' => $reservationRef,
+                    'idempotency_key' => $idempotencyKey !== '' ? $idempotencyKey : null,
+                ]),
             );
 
             return $this->ok([
@@ -732,10 +766,10 @@ class WalletLedgerService
         $dmcPct = (float) ($data['dmc_commission_percent'] ?? 0);
         $agentPct = (float) ($data['agent_markup_percent'] ?? 0);
 
-        $travclicksMarkup = round($supplierCost * $markupPct / 100, 4);
+        $travclicksMarkup = round($supplierCost * $markupPct / 100, 2);
         $travclicksPrice = $supplierCost + $travclicksMarkup;
-        $dmcCommission = round($travclicksPrice * $dmcPct / 100, 4);
-        $agentMarkup = round($travclicksPrice * $agentPct / 100, 4);
+        $dmcCommission = round($travclicksPrice * $dmcPct / 100, 2);
+        $agentMarkup = round($travclicksPrice * $agentPct / 100, 2);
         $sellingPrice = $travclicksPrice + $dmcCommission + $agentMarkup;
 
         return $this->ok([
@@ -877,7 +911,7 @@ class WalletLedgerService
     public function applicationFeeAmount(float $chargeAmount, ?float $travclicksMarkup = null): float
     {
         if ($travclicksMarkup !== null && $travclicksMarkup > 0) {
-            return round(min($travclicksMarkup, $chargeAmount), 4);
+            return round(min($travclicksMarkup, $chargeAmount), 2);
         }
 
         $percent = (float) config('payment.stripe.application_fee_percent', 0);
@@ -885,7 +919,7 @@ class WalletLedgerService
             return 0.0;
         }
 
-        return round($chargeAmount * $percent / 100, 4);
+        return round($chargeAmount * $percent / 100, 2);
     }
 
     protected function getOrCreateWallet(
@@ -980,6 +1014,42 @@ class WalletLedgerService
             "No DMC-scoped agent wallet for agent={$agentId} dmc={$sourceDmcId} currency={$currency}",
             402
         );
+    }
+
+    /**
+     * Amount still held by one reservation: reserved − committed − released (2 dp).
+     */
+    public function reservationRemaining(string $reservationRef): float
+    {
+        $reserved = (float) DB::table('wallet_ledger')
+            ->where('finance_reference', $reservationRef)
+            ->where('ledger_entry_type', 'reserve')
+            ->sum('debit_amount');
+
+        $committed = (float) DB::table('wallet_ledger')
+            ->where('ledger_entry_type', 'commit')
+            ->whereRaw("ledger_metadata->>'reservation_reference' = ?", [$reservationRef])
+            ->sum('debit_amount');
+
+        $released = (float) DB::table('wallet_ledger')
+            ->where('ledger_entry_type', 'release')
+            ->whereRaw("ledger_metadata->>'reservation_reference' = ?", [$reservationRef])
+            ->sum('credit_amount');
+
+        return max(0.0, round($reserved - $committed - $released, 2));
+    }
+
+    protected function ledgerReplay(string $type, string $reservationRef, string $idempotencyKey): ?object
+    {
+        if ($idempotencyKey === '') {
+            return null;
+        }
+
+        return DB::table('wallet_ledger')
+            ->where('ledger_entry_type', $type)
+            ->whereRaw("ledger_metadata->>'reservation_reference' = ?", [$reservationRef])
+            ->whereRaw("ledger_metadata->>'idempotency_key' = ?", [$idempotencyKey])
+            ->first();
     }
 
     protected function walletFromReservation(string $reservationRef): object
@@ -1323,7 +1393,7 @@ class WalletLedgerService
         }
 
         return [
-            'amount' => round($sum, 4),
+            'amount' => round($sum, 2),
             'currency' => $currency ? strtoupper((string) $currency) : null,
         ];
     }
@@ -1359,7 +1429,7 @@ class WalletLedgerService
             }
         }
 
-        return round($sum, 4);
+        return round($sum, 2);
     }
 
     /**
@@ -1448,7 +1518,7 @@ class WalletLedgerService
 
     protected function money(mixed $value): float
     {
-        return round((float) $value, 4);
+        return round((float) $value, 2);
     }
 
     /**

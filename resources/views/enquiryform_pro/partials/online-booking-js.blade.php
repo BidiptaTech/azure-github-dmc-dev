@@ -156,37 +156,79 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
             : nightsBetween(checkIn, checkOut);
         const rooms = parseInt(hotelData.numberOfRooms, 10) || 1;
         const persons = parseInt(hotelData.selectedPersons, 10) || 1;
-        // Stay total (Lite parity) — never treat pricePerNight as grand total.
-        let totalPrice = toNum(hotelData.price || hotelData.combinedRoomTotal || hotelData.customRoomPrice);
+        // Stay total — never treat pricePerNight as grand total.
+        // Prefer modal stamp so add-modal and after-add show the same Hotel / DMC / Total.
+        const stamp = hotelData.online_price_breakdown
+            || hotelData.dmc_profile_markup
+            || (booking && booking.online_price_breakdown)
+            || (booking && booking.dmc_profile_markup)
+            || null;
+        let totalPrice = toNum(hotelData.price || hotelData.combinedRoomTotal || hotelData.customRoomPrice || hotelData.grand_total);
         const perNightHint = toNum(hotelData.pricePerNight);
         if (totalPrice <= 0 && perNightHint > 0) {
             totalPrice = Math.round(perNightHint * nights * 100) / 100;
         }
-        // DMC hotel markup meta for Price breakdown (Lite parity)
         let hotelMarkupMeta = null;
-        const bookingMk = (booking && booking.markup) ? booking.markup : null;
-        if (bookingMk && toNum(bookingMk.markup_amount) > 0) {
+        if (stamp) {
+            const hotelPrice = toNum(stamp.hotel_price != null ? stamp.hotel_price : stamp.base_price);
+            const mkAmt = toNum(stamp.markup_amount);
+            const stampedTotal = toNum(stamp.total_price != null ? stamp.total_price : stamp.price);
+            const markedTotal = stampedTotal > 0 ? stampedTotal : (totalPrice > 0 ? totalPrice : (hotelPrice + mkAmt));
+            hotelMarkupMeta = {
+                currency: stamp.currency || hotelData.currency || null,
+                hotel_price: hotelPrice > 0 ? hotelPrice : Math.max(0, markedTotal - mkAmt),
+                base_price: hotelPrice > 0 ? hotelPrice : Math.max(0, markedTotal - mkAmt),
+                markup_amount: mkAmt,
+                markup_type: stamp.markup_type || 'percentage',
+                markup_value: toNum(stamp.markup_value),
+                markup_kind: 'hotel',
+                price: markedTotal,
+                total_price: markedTotal,
+                dmc_id: stamp.dmc_id || null
+            };
+            totalPrice = markedTotal;
+        } else if (toNum(hotelData.base_grand_total) > 0 && totalPrice > toNum(hotelData.base_grand_total) + 0.009) {
+            // Price already includes markup — peel for meta, do not mark up again.
             hotelMarkupMeta = {
                 markup_kind: 'hotel',
-                markup_type: bookingMk.markup_type || 'percentage',
-                markup_value: toNum(bookingMk.markup_value),
-                markup_amount: toNum(bookingMk.markup_amount),
-                dmc_id: bookingMk.dmc_id || null
+                hotel_price: toNum(hotelData.base_grand_total),
+                base_price: toNum(hotelData.base_grand_total),
+                markup_amount: Math.round((totalPrice - toNum(hotelData.base_grand_total)) * 100) / 100,
+                price: totalPrice,
+                total_price: totalPrice,
+                markup_type: 'percentage',
+                markup_value: 0,
+                currency: hotelData.currency || null
             };
-        } else if (typeof enquiryProApplyDmcMarkup === 'function' && totalPrice > 0) {
-            const applied = enquiryProApplyDmcMarkup(totalPrice, 'hotel');
-            hotelMarkupMeta = applied;
-            totalPrice = toNum(applied.price) || totalPrice;
         }
-        // Option 1: online display price → Avg Cost and Sell are the same (per-night avg).
-        const perNight = nights > 0 ? (totalPrice / nights) : totalPrice;
-        const avg = perNightHint > 0 ? perNightHint : perNight;
+        const city = hotelData.city || firstCity();
+        const country = (typeof resolveCountryForCity === 'function' ? resolveCountryForCity(city) : '') || '';
+        // Online supplier quote currency (e.g. Bali hotel priced in SGD) — not destination local currency.
+        const currency = resolveOnlineServiceCurrency(
+            hotelData.currency || (booking && booking.currency) || (stamp && stamp.currency),
+            country
+        );
+        // Bake Pro DMC hotel markup when modal stamp had none (breakdown shows 422.10; save must match).
+        hotelMarkupMeta = ensureOnlineHotelMarkup(totalPrice, currency, hotelMarkupMeta);
+        if (hotelMarkupMeta) {
+            totalPrice = toNum(hotelMarkupMeta.total_price != null ? hotelMarkupMeta.total_price : hotelMarkupMeta.price) || totalPrice;
+            hotelMarkupMeta.currency = hotelMarkupMeta.currency || currency;
+        }
+        const hotelBase = hotelMarkupMeta
+            ? toNum(hotelMarkupMeta.hotel_price != null ? hotelMarkupMeta.hotel_price : hotelMarkupMeta.base_price)
+            : totalPrice;
+        const perNightBase = nights > 0 ? (hotelBase / nights) : hotelBase;
+        const perNightSell = nights > 0 ? (totalPrice / nights) : totalPrice;
+        if (booking && typeof booking === 'object' && hotelMarkupMeta) {
+            booking.online_price_breakdown = hotelMarkupMeta;
+            booking.dmc_profile_markup = hotelMarkupMeta;
+            if (!booking.currency) booking.currency = currency;
+        }
         const mealPlan = hotelData.mealPlan || 'Not specified';
         const roomType = hotelData.roomType || 'Standard';
         const bedType = hotelData.bedType || '';
         const hotelName = hotelData.name || 'Online Hotel';
         const hotelId = hotelData.id || ('online-' + Date.now());
-        const city = hotelData.city || firstCity();
 
         return {
             id: newId('hotel-online'),
@@ -194,10 +236,8 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
             hotel_unique_id: hotelId,
             hotelName: hotelName,
             destination: city,
-            country: (typeof resolveCountryForCity === 'function' ? resolveCountryForCity(city) : '') || '',
-            currency: (typeof resolveCurrencyForCountry === 'function'
-                ? resolveCurrencyForCountry(typeof resolveCountryForCity === 'function' ? resolveCountryForCity(city) : '')
-                : '') || '',
+            country: country,
+            currency: currency,
             check_in_time: (booking.hotel && booking.hotel.check_in_time) || null,
             check_out_time: (booking.hotel && booking.hotel.check_out_time) || null,
             roomId: hotelData.roomId || (booking.room && booking.room.code) || '',
@@ -221,11 +261,11 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
             mealPax: persons,
             extraBedAvailable: false,
             supplement: false,
-            roomPrice: avg,
-            cost: avg,
-            sell: avg,
-            avgCost: avg,
-            avgSell: avg,
+            roomPrice: perNightSell,
+            cost: perNightBase,
+            sell: perNightSell,
+            avgCost: perNightBase,
+            avgSell: perNightSell,
             extraBedPrice: 0,
             extraBedCostPrice: 0,
             cwbPrice: 0,
@@ -251,17 +291,19 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
             api_environment: hotelData.api_environment || (booking && booking.api_environment) || '',
             totalPrice: totalPrice,
             grand_total: totalPrice,
+            base_grand_total: hotelBase,
             dmc_profile_markup: hotelMarkupMeta,
+            online_price_breakdown: hotelMarkupMeta,
             price_payload: {
-                room_total: totalPrice,
+                room_total: hotelBase,
                 meal_total: 0,
                 grand_total: totalPrice,
                 nights: nights,
+                currency: currency,
                 is_online: true,
                 dmc_profile_markup: hotelMarkupMeta,
-                base_grand_total: hotelMarkupMeta
-                    ? Math.max(0, totalPrice - toNum(hotelMarkupMeta.markup_amount))
-                    : totalPrice
+                online_price_breakdown: hotelMarkupMeta,
+                base_grand_total: hotelBase
             },
             transferIds: [],
             hotelTransfer: null,
@@ -269,7 +311,14 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
             selectedPersons: persons,
             remarks: hotelData.remarks || '',
             nightsList: Array.isArray(hotelData.nights) ? hotelData.nights.slice() : [],
-            onlineAddSnapshot: hotelData
+            onlineAddSnapshot: Object.assign({}, hotelData, {
+                currency: currency,
+                price: totalPrice,
+                combinedRoomTotal: totalPrice,
+                customRoomPrice: totalPrice,
+                dmc_profile_markup: hotelMarkupMeta,
+                online_price_breakdown: hotelMarkupMeta
+            })
         };
     }
 
@@ -294,6 +343,9 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
             dateTime = visitDate + 'T' + hhmm;
         }
         const city = payload.cityValue || firstCity();
+        const country = (typeof resolveCountryForCity === 'function' ? resolveCountryForCity(city) : '') || '';
+        // Online attraction quote currency from modal (usually SGD), not destination local currency.
+        const currency = resolveOnlineServiceCurrency(payload.currency, country);
         let total = toNum(payload.totalPrice) || ((adultP * adults) + (childP * children));
         let attractionMarkupMeta = null;
         if (typeof enquiryProApplyDmcMarkup === 'function' && total > 0) {
@@ -309,11 +361,17 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
                 }
                 total = toNum(applied.price) || total;
             }
+            if (attractionMarkupMeta && typeof attractionMarkupMeta === 'object') {
+                attractionMarkupMeta.currency = attractionMarkupMeta.currency || currency;
+            }
         }
 
         return {
             id: newId('tour-online'),
             destination: city,
+            city: city,
+            country: country,
+            currency: currency,
             attractionId: payload.attractionId || payload.skuId || '',
             attractionName: payload.attractionName || 'Online Attraction',
             ticketId: payload.ticketId || payload.ticketSkuId || payload.providerTicketId || '',
@@ -354,7 +412,7 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
             remarks: payload.remarks || '',
             Selection: 'withoutTransport',
             transfer_options: null,
-            onlineAddSnapshot: payload
+            onlineAddSnapshot: Object.assign({}, payload, { currency: currency })
         };
     }
 
@@ -571,20 +629,99 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
         const snap = src.onlineAddSnapshot || {};
         const booking = src.onlineHotelBooking || {};
         const sel = booking.selection || {};
-        // Prefer modal/API stay totals over listing avg cost (per-night).
+        const stamp = src.online_price_breakdown
+            || src.dmc_profile_markup
+            || (src.price_payload && (src.price_payload.online_price_breakdown || src.price_payload.dmc_profile_markup))
+            || (snap.online_price_breakdown || snap.dmc_profile_markup)
+            || (booking.online_price_breakdown || booking.dmc_profile_markup)
+            || null;
+
+        // Prefer marked-up stamp total (402 base + 5% → 422.10), then row totals, then snap/base.
+        const stampedTotal = toNum(stamp && (stamp.total_price != null ? stamp.total_price : stamp.price));
+        if (stampedTotal > 0) return stampedTotal;
+
         let stay = toNum(
+            src.totalPrice ||
+            src.grand_total ||
+            (src.price_payload && src.price_payload.grand_total) ||
             snap.price ||
             snap.combinedRoomTotal ||
             snap.customRoomPrice ||
-            sel.price ||
-            src.totalPrice ||
-            src.grand_total ||
-            (src.price_payload && src.price_payload.grand_total)
+            sel.price
         );
         if (stay > 0) return stay;
         const avg = toNum(src.sell || src.cost || src.avgSell || src.avgCost || snap.pricePerNight);
         const n = Math.max(1, parseInt(nights, 10) || 1);
         return avg > 0 ? Math.round(avg * n * 100) / 100 : 0;
+    }
+
+    /** Ensure hotel DMC markup is baked into stay total (Pro breakdown shows it; save must too). */
+    function ensureOnlineHotelMarkup(baseStay, currency, existingStamp) {
+        const base = toNum(
+            (existingStamp && (existingStamp.hotel_price != null ? existingStamp.hotel_price : existingStamp.base_price))
+            || baseStay
+        );
+        const existingMarked = toNum(existingStamp && (existingStamp.total_price != null ? existingStamp.total_price : existingStamp.price));
+        const existingMk = toNum(existingStamp && existingStamp.markup_amount);
+        if (existingMk > 0 && existingMarked > base + 0.009) {
+            return {
+                currency: (existingStamp && existingStamp.currency) || currency || 'SGD',
+                hotel_price: base,
+                base_price: base,
+                markup_amount: existingMk,
+                markup_type: (existingStamp && existingStamp.markup_type) || 'percentage',
+                markup_value: toNum(existingStamp && existingStamp.markup_value),
+                markup_kind: 'hotel',
+                price: existingMarked,
+                total_price: existingMarked,
+                dmc_id: (existingStamp && existingStamp.dmc_id) || null
+            };
+        }
+        if (base <= 0) {
+            return existingStamp || null;
+        }
+        let applied = null;
+        if (typeof window.enquiryProHotelSellWithMarkup === 'function') {
+            applied = window.enquiryProHotelSellWithMarkup(base);
+        } else if (typeof window.enquiryProApplyDmcMarkup === 'function') {
+            applied = window.enquiryProApplyDmcMarkup(base, 'hotel');
+        }
+        if (!applied || toNum(applied.price) <= 0) {
+            return existingStamp || {
+                currency: currency || 'SGD',
+                hotel_price: base,
+                base_price: base,
+                markup_amount: 0,
+                markup_type: 'percentage',
+                markup_value: 0,
+                markup_kind: 'hotel',
+                price: base,
+                total_price: base,
+                dmc_id: null
+            };
+        }
+        return {
+            currency: (applied.currency || currency || 'SGD'),
+            hotel_price: toNum(applied.base_price) || base,
+            base_price: toNum(applied.base_price) || base,
+            markup_amount: toNum(applied.markup_amount),
+            markup_type: applied.markup_type || 'percentage',
+            markup_value: toNum(applied.markup_value),
+            markup_kind: 'hotel',
+            price: toNum(applied.price),
+            total_price: toNum(applied.price),
+            dmc_id: applied.dmc_id || null
+        };
+    }
+
+    function resolveOnlineServiceCurrency(explicit, fallbackCountry) {
+        const fromExplicit = String(explicit || '').trim().toUpperCase();
+        if (fromExplicit) return fromExplicit;
+        if (typeof resolveCurrencyForCountry === 'function' && fallbackCountry) {
+            const fromCountry = String(resolveCurrencyForCountry(fallbackCountry) || '').trim().toUpperCase();
+            if (fromCountry) return fromCountry;
+        }
+        return 'SGD';
     }
 
     function mapOnlineHotelToLiteStoreRow(src, proRow) {
@@ -612,7 +749,7 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
         );
         const roomsCount = Math.max(1, parseInt(src.rooms || snap.numberOfRooms || sel.number_of_rooms, 10) || 1);
         const persons = Math.max(1, parseInt(src.selectedPersons || sel.persons || snap.selectedPersons, 10) || 1);
-        const stayTotal = resolveOnlineStayTotal(src, nights);
+        let stayTotal = resolveOnlineStayTotal(src, nights);
 
         const hv = (typeof getHeaderValues === 'function') ? getHeaderValues() : {};
         const adults = Math.max(1, parseInt(hv.adults, 10) || persons || 1);
@@ -627,9 +764,13 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
         const city = src.destination || snap.city || firstCity() || proRow.city || '';
         const country = src.country || proRow.country ||
             (typeof resolveCountryForCity === 'function' ? resolveCountryForCity(city) : '') || '';
-        const currency = src.currency || proRow.currency ||
-            (booking.currency) ||
-            (typeof resolveCurrencyForCountry === 'function' ? resolveCurrencyForCountry(country) : '') || 'SGD';
+        // Prefer online quote currency (SGD for MG Bedbank / modal), not Bali→IDR from city.
+        const currency = resolveOnlineServiceCurrency(
+            src.currency || snap.currency || booking.currency || proRow.currency
+                || (src.online_price_breakdown && src.online_price_breakdown.currency)
+                || (src.dmc_profile_markup && src.dmc_profile_markup.currency),
+            country
+        );
         const dmcId = parseInt(
             (proRow.priceModeId != null ? proRow.priceModeId : null) ||
             '{{ $dmc_id ?? "" }}' ||
@@ -647,14 +788,44 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
         const checkInTime = onlineHotel.check_in_time || src.check_in_time || '15:00:00';
         const checkOutTime = onlineHotel.check_out_time || src.check_out_time || '12:00:00';
 
+        let stamp = src.online_price_breakdown
+            || src.dmc_profile_markup
+            || (src.price_payload && (src.price_payload.online_price_breakdown || src.price_payload.dmc_profile_markup))
+            || (snap.online_price_breakdown || snap.dmc_profile_markup)
+            || (booking.online_price_breakdown || booking.dmc_profile_markup)
+            || null;
+        let hotelPrice = stamp
+            ? (toNum(stamp.hotel_price != null ? stamp.hotel_price : stamp.base_price) || Math.max(0, stayTotal - toNum(stamp.markup_amount)))
+            : stayTotal;
+        // Re-apply Pro DMC hotel markup on save when listing only held the base (402 → 422.10).
+        stamp = ensureOnlineHotelMarkup(hotelPrice > 0 ? hotelPrice : stayTotal, currency, stamp);
+        if (stamp) {
+            hotelPrice = toNum(stamp.hotel_price != null ? stamp.hotel_price : stamp.base_price) || hotelPrice;
+            stayTotal = toNum(stamp.total_price != null ? stamp.total_price : stamp.price) || stayTotal;
+        }
+        const priceStamp = stamp ? {
+            currency: stamp.currency || currency,
+            hotel_price: hotelPrice,
+            base_price: hotelPrice,
+            markup_amount: toNum(stamp.markup_amount),
+            markup_type: stamp.markup_type || 'percentage',
+            markup_value: toNum(stamp.markup_value),
+            markup_kind: 'hotel',
+            price: stayTotal,
+            total_price: stayTotal,
+            dmc_id: stamp.dmc_id || null
+        } : null;
         const pricePayload = {
-            room_total: stayTotal,
+            room_total: hotelPrice,
             meal_total: 0,
+            base_grand_total: hotelPrice,
             grand_total: stayTotal,
             nights: nights,
             currency: currency,
             is_online: true,
-            breakdown: []
+            breakdown: [],
+            dmc_profile_markup: priceStamp,
+            online_price_breakdown: priceStamp
         };
 
         return {
@@ -687,9 +858,13 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
             adhoc_price: null,
             price_payload: pricePayload,
             helperPriceResult: Object.assign({}, pricePayload),
-            room_total: stayTotal,
+            room_total_base: hotelPrice,
+            room_total: hotelPrice,
             meal_total: 0,
+            base_grand_total: hotelPrice,
             grand_total: stayTotal,
+            dmc_profile_markup: priceStamp,
+            online_price_breakdown: priceStamp,
             meal_plan: mealPlan,
             hotel_name: hotelName,
             hotel_unique_id: hotelId,
@@ -916,6 +1091,12 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
                     row.transfer_options = null;
                     row.transport = null;
                     row.mode = 'online';
+                    row.city = src.city || src.destination || row.city || '';
+                    row.country = src.country || row.country || '';
+                    row.currency = resolveOnlineServiceCurrency(
+                        src.currency || (src.onlineAddSnapshot && src.onlineAddSnapshot.currency) || row.currency,
+                        row.country || src.country
+                    );
                     // Provider net unit stays on cost; sell may include DMC markup for display only.
                     // Create-order must use cost (never sell) — see OnlineAttractionOrderService::providerTotalAmount.
                     row.adultCost = toNum(src.adultCost || src.adultPrice || src.adultSell);

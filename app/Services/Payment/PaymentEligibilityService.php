@@ -54,8 +54,13 @@ class PaymentEligibilityService
         $amount = $requestedAmount !== null && $requestedAmount > 0
             ? (float) $requestedAmount
             : $payable;
-        // Settlement currency = confirmed negotiation currency (enquiry.currency).
-        $currency = $this->resolveSettlementCurrency($tour);
+        // Online supplier-initial / full-online pay: use order quote currency (e.g. SGD hotel),
+        // then FX to DMC wallet (IDR). Do not treat tours.user_currency (DMC home) as the order
+        // currency — that caused Pro Pay Now to show "38.85 IDR" instead of converting SGD→IDR.
+        // After negotiation, settle in enquiry/confirmed currency as before.
+        $currency = ($stage === 'supplier_initial' || $classification === OrderClassificationService::ONLINE)
+            ? strtoupper((string) $this->classificationService->resolveTourCurrency($tour))
+            : $this->resolveSettlementCurrency($tour);
         $dmcId = (int) ($tour->dmc_id ?? 0);
         $agentId = (int) ($tour->agent_id ?? 0);
 
@@ -142,7 +147,7 @@ class PaymentEligibilityService
             'payment_stage' => $stage,
             'payment_recipient' => $recipient,
             'currency' => $currency,
-            'payable_amount' => round($payable, 4),
+            'payable_amount' => round($payable, 2),
             'amount_readonly' => $stage === 'supplier_initial',
             'acceptance' => $this->acceptanceSnapshot(
                 $tour,
@@ -192,6 +197,7 @@ class PaymentEligibilityService
             $offlineAmount,
             $currency,
             $onlineSettled ? $onlineAmount : 0.0,
+            $acceptanceFlow->resolveOnlineCurrency($tour, $currency),
         );
     }
 
@@ -363,7 +369,7 @@ class PaymentEligibilityService
             }
         }
 
-        return round($paid, 4);
+        return round($paid, 2);
     }
 
     protected function hasPendingPayment(Tour $tour): bool
@@ -549,7 +555,7 @@ class PaymentEligibilityService
             $paid += (float) ($p['amount'] ?? 0);
         }
 
-        return max(0, round($total - $paid, 4));
+        return max(0, round($total - $paid, 2));
     }
 
     /**
@@ -576,7 +582,7 @@ class PaymentEligibilityService
             return [
                 'available' => false,
                 'reason' => 'No payable amount on this booking.',
-                'available_balance' => round($balance, 4),
+                'available_balance' => round($balance, 2),
                 'required_amount' => 0.0,
                 'currency' => $currency,
                 'source_dmc_id' => $dmcId,
@@ -592,8 +598,8 @@ class PaymentEligibilityService
                 : ($balance <= 0
                     ? "No {$currency} balance in the DMC wallet."
                     : "Insufficient DMC wallet balance ({$currency} {$balance} available, {$amount} required)."),
-            'available_balance' => round($balance, 4),
-            'required_amount' => round($amount, 4),
+            'available_balance' => round($balance, 2),
+            'required_amount' => round($amount, 2),
             'currency' => $currency,
             'source_dmc_id' => $dmcId,
         ];

@@ -2509,8 +2509,14 @@
                 }
             }
             if (rows.length) {
+                // Display only: section total in the DMC's own currency (incl. conversion commission).
+                var hdrFx = window.StpDmcFx ? window.StpDmcFx.quote(total, currency) : null;
                 el.innerHTML = '<span class="stp-lite-svc-header-total-count">' + rows.length + '</span>' +
-                    '<span class="stp-lite-svc-header-total-amt">' + esc(currency) + ' ' + total.toFixed(2) + '</span>';
+                    '<span class="stp-lite-svc-header-total-amt">' + esc(currency) + ' ' + total.toFixed(2) + '</span>' +
+                    (hdrFx && hdrFx.amount > 0
+                        ? ' <small class="text-muted" title="' + esc(window.StpDmcFx.rateText(hdrFx)) + ' · indicative">≈ '
+                            + esc(hdrFx.to + ' ' + window.StpDmcFx.fmt(hdrFx.amount, hdrFx.to === 'IDR' ? 0 : 2)) + '</small>'
+                        : '');
                 el.classList.remove('d-none');
             } else {
                 el.innerHTML = '';

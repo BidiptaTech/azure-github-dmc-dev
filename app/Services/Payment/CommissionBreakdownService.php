@@ -43,10 +43,10 @@ class CommissionBreakdownService
         return [
             'currency' => $currency,
             'lines' => $lines,
-            'charged_amount' => round(array_sum(array_column($lines, 'charged_amount')), 4),
-            'api_cost' => round(array_sum(array_map(fn ($l) => (float) ($l['api_cost'] ?? 0), $lines)), 4),
-            'travclicks_commission' => round(array_sum(array_column($lines, 'travclicks_commission')), 4),
-            'dmc_commission' => round(array_sum(array_column($lines, 'dmc_commission')), 4),
+            'charged_amount' => round(array_sum(array_column($lines, 'charged_amount')), 2),
+            'api_cost' => round(array_sum(array_map(fn ($l) => (float) ($l['api_cost'] ?? 0), $lines)), 2),
+            'travclicks_commission' => round(array_sum(array_column($lines, 'travclicks_commission')), 2),
+            'dmc_commission' => round(array_sum(array_column($lines, 'dmc_commission')), 2),
             'conversion_charge' => 0.0,
         ];
     }
@@ -87,7 +87,7 @@ class CommissionBreakdownService
      */
     public function split(float $agentPrice, bool $online, ?MarkupRule $adminRule, ?MarkupRule $dmcRule): array
     {
-        $agentPrice = round(max(0, $agentPrice), 4);
+        $agentPrice = round(max(0, $agentPrice), 2);
 
         if (! $online) {
             $base = $this->reverse($agentPrice, $dmcRule);
@@ -96,7 +96,7 @@ class CommissionBreakdownService
                 'api_cost' => null,
                 'travclicks_commission' => 0.0,
                 'dmc_visible_price' => $base,
-                'dmc_commission' => round(max(0, $agentPrice - $base), 4),
+                'dmc_commission' => round(max(0, $agentPrice - $base), 2),
                 'agent_price' => $agentPrice,
             ];
         }
@@ -106,9 +106,9 @@ class CommissionBreakdownService
 
         return [
             'api_cost' => $apiCost,
-            'travclicks_commission' => round(max(0, $dmcVisible - $apiCost), 4),
+            'travclicks_commission' => round(max(0, $dmcVisible - $apiCost), 2),
             'dmc_visible_price' => $dmcVisible,
-            'dmc_commission' => round(max(0, $agentPrice - $dmcVisible), 4),
+            'dmc_commission' => round(max(0, $agentPrice - $dmcVisible), 2),
             'agent_price' => $agentPrice,
         ];
     }
@@ -116,16 +116,16 @@ class CommissionBreakdownService
     public function reverse(float $price, ?MarkupRule $rule): float
     {
         if (! $rule instanceof MarkupRule || $rule->amount <= 0 || $price <= 0) {
-            return round(max(0, $price), 4);
+            return round(max(0, $price), 2);
         }
 
         if ($rule->isPercentage()) {
             $factor = 1 + ($rule->amount / 100);
 
-            return $factor > 0 ? round($price / $factor, 4) : round($price, 4);
+            return $factor > 0 ? round($price / $factor, 2) : round($price, 2);
         }
 
-        return round(max(0, $price - $rule->amount), 4);
+        return round(max(0, $price - $rule->amount), 2);
     }
 
     protected function dmcRuleFromTour(Tour $tour, Order $order): ?MarkupRule

@@ -101,6 +101,17 @@ class OnlineAttractionCancellationService
         $this->writeBookingPayload($order, $booking);
         $this->cancellationStatus->markConfirmed($order, (string) ($result['message'] ?? 'Supplier voucher cancellation confirmed.'));
 
+        // Vendor refunds the credits on voucher cancel. It reports no figure, so the
+        // full debit is returned and flagged "needs review" for reconciliation.
+        app(\App\Services\SupplierCredit\SupplierCreditService::class)->recordCancellationRefund([
+            'order_id' => (int) $order->id,
+            'tour_id' => (int) ($order->tour_id ?? 0) ?: null,
+            'service_type' => 'attraction',
+            'charge_reported' => false,
+            'supplier_booking_reference' => $voucherCode,
+            'metadata' => ['voucher_code' => $voucherCode, 'trigger' => 'service_cancel'],
+        ]);
+
         Log::info('Online attraction voucher cancelled with supplier (edit remove)', [
             'order_id' => $order->id,
             'booking_id' => $order->booking_id,

@@ -1694,6 +1694,13 @@
                                     <div data-i18n="Online Api Master">Online Api Master</div>
                                 </a>
                             </li>
+                            @if((int) auth()->user()->role_id === 1)
+                            <li class="menu-item @if(Request::is('supplier-credits*')) active @endif">
+                                <a href="{{ route('supplier-credits.index') }}" class="menu-link">
+                                    <div data-i18n="Vendor Credit">Vendor Credit</div>
+                                </a>
+                            </li>
+                            @endif
                             @endif
                         @endif
                         @if(in_array(auth()->user()->role_id, [11, 33,34,37,38, 77, 84, 128, 131, 132, 134, 135, 137, 138]))
@@ -3278,36 +3285,30 @@
             const cap = isGroup ? ctpModalTourCap() : Infinity;
 
             if (type === 'male' || type === 'female') {
-                if (isGroup) {
-                    if (type === 'male') {
-                        if (change > 0) {
-                            if (f <= 0) return;
-                            m++;
-                            f--;
-                        } else if (change < 0) {
-                            if (m <= 0) return;
-                            m--;
-                            f++;
-                        }
-                    } else {
-                        if (change > 0) {
-                            if (m <= 0) return;
-                            f++;
-                            m--;
-                        } else if (change < 0) {
-                            if (f <= 0) return;
-                            f--;
-                            m++;
-                        }
+                // Male/female is a split of fixed adults — never change adult total.
+                if (type === 'male') {
+                    if (change > 0) {
+                        if (f <= 0) return;
+                        m++;
+                        f--;
+                    } else if (change < 0) {
+                        if (m <= 0) return;
+                        m--;
+                        f++;
                     }
-                    if (m + f < 1) return;
-                    if (m + f + c > cap) return;
                 } else {
-                    const cur = type === 'male' ? m : f;
-                    const nv = Math.max(0, cur + change);
-                    if (type === 'male') m = nv; else f = nv;
-                    if (m + f < 1) return;
+                    if (change > 0) {
+                        if (m <= 0) return;
+                        f++;
+                        m--;
+                    } else if (change < 0) {
+                        if (f <= 0) return;
+                        f--;
+                        m++;
+                    }
                 }
+                if (m + f < 1) return;
+                if (isGroup && m + f + c > cap) return;
                 maleEl.textContent = String(m);
                 femaleEl.textContent = String(f);
                 if (adEl) adEl.textContent = String(m + f);

@@ -846,7 +846,10 @@
                 (row.seniorCount ? ' / ' + T.esc(row.seniorCount) + 'S' : '') + '</small></td>' +
                 '<td class="text-end fw-semibold text-nowrap">' + cur + ' ' + Number(
                     (typeof T.serviceRowDisplayTotal === 'function' ? T.serviceRowDisplayTotal(row) : row.totalPrice) || 0
-                ).toFixed(2) + '</td>' +
+                ).toFixed(2) +
+                (window.StpDmcFx ? window.StpDmcFx.subHtml(
+                    (typeof T.serviceRowDisplayTotal === 'function' ? T.serviceRowDisplayTotal(row) : row.totalPrice) || 0, cur
+                ) : '') + '</td>' +
                 '<td><div class="form-check mb-0"><input class="form-check-input attraction-is-supplement" type="checkbox" data-idx="' + idx + '"' +
                 (row.supplement || row.is_supplement ? ' checked' : '') + '>' +
                 '<label class="form-check-label" style="font-size:0.72rem;">Supplement</label></div></td>' +

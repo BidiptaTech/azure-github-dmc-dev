@@ -67,6 +67,7 @@ use App\Http\Controllers\TodaysBookingsController;
 use App\Http\Controllers\PackageBookingTemplatesController;
 use App\Http\Controllers\GuideLanguagesController;
 use App\Http\Controllers\SupplierMasterController;
+use App\Http\Controllers\SupplierCreditController;
 use Illuminate\Support\Facades\Artisan;
 // use App\Services\AzureKeyVaultService;
 // use Illuminate\Support\Facades\Mail;
@@ -75,7 +76,7 @@ use App\Http\Controllers\ServiceController;
 use App\Helpers\CommonHelper;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\DayLevelController;
-use App\Http\Controllers\ExternalApiReceiveController;
+use App\Http\Controllers\Api\ExternalApiReceiveController;
 use App\Http\Controllers\SmartNotificationController;
 use App\Http\Controllers\AiConfigController;
 use App\Http\Controllers\DmcFuncAppController;
@@ -153,6 +154,13 @@ Route::get('/clear', function () {
             Route::put('/suppliers/{supplier}', [SupplierMasterController::class, 'update'])->name('suppliers.update');
             Route::post('/suppliers/credentials/{code}', [SupplierMasterController::class, 'updateCredentials'])->name('suppliers.credentials.update');
             Route::delete('/suppliers/{supplier}', [SupplierMasterController::class, 'destroy'])->name('suppliers.destroy');
+
+            // TravClicks credit held with each API vendor (sandbox + live) and its statement
+            Route::get('/supplier-credits', [SupplierCreditController::class, 'index'])->name('supplier-credits.index');
+            Route::get('/supplier-credits/export', [SupplierCreditController::class, 'export'])->name('supplier-credits.export');
+            Route::post('/supplier-credits', [SupplierCreditController::class, 'store'])->name('supplier-credits.store');
+            Route::put('/supplier-credits/{account}', [SupplierCreditController::class, 'update'])->whereNumber('account')->name('supplier-credits.update');
+            Route::post('/supplier-credits/{account}/post', [SupplierCreditController::class, 'post'])->whereNumber('account')->middleware('throttle:30,1')->name('supplier-credits.post');
 
             // Tour prices route
             Route::get('/user/profile', [UserController::class, 'profile'])->name('user.profile');

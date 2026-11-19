@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Services\ApiEnvironmentResolver;
 use App\Services\Payment\SupplierCancellationStatusService;
 use App\Services\SupplierConfigResolver;
+use App\Services\SupplierCredit\SupplierCreditService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -214,6 +215,24 @@ class OnlineHotelCancellationService
             'Supplier cancellation confirmed.',
             ['supplier_code' => (string) ($result['supplier_code'] ?? $supplierCode)]
         );
+
+        // Vendor cancelled → return (debit − cancellation charge) to TravClicks vendor credit.
+        if (empty($result['simulated'])) {
+            $charges = is_array($result['cancellation_charges'] ?? null) ? $result['cancellation_charges'] : null;
+            app(SupplierCreditService::class)->recordCancellationRefund([
+                'order_id' => (int) $order->id,
+                'tour_id' => (int) ($order->tour_id ?? 0) ?: null,
+                'service_type' => 'hotel',
+                'cancellation_charge' => $charges !== null ? (float) ($charges['amount'] ?? 0) : null,
+                'charge_currency' => $charges !== null ? (string) ($charges['currency'] ?? '') : null,
+                'charge_reported' => $charges !== null,
+                'supplier_booking_reference' => SupplierCreditService::hotelSupplierReference($details),
+                'metadata' => [
+                    'supplier_cancel_status' => $result['status'] ?? null,
+                    'already_cancelled' => (bool) ($result['already_cancelled'] ?? false),
+                ],
+            ]);
+        }
 
         Log::info('Online hotel cancelled with supplier', [
             'order_id' => $order->id,

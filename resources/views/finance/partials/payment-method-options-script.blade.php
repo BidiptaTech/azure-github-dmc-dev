@@ -560,7 +560,7 @@
 
         const acceptance = eligibility.acceptance || {};
         const onlinePaid = !!acceptance.online_paid;
-        const currency = String(acceptance.currency || eligibility.currency || '').trim().toUpperCase();
+        const currency = String(acceptance.online_currency || acceptance.currency || eligibility.currency || '').trim().toUpperCase();
         const paidAmount = Number(acceptance.online_paid_amount || acceptance.online_amount || 0);
         const hint = String(acceptance.hint || '').trim();
         const amountLabel = (currency ? currency + ' ' : '') + (Number.isFinite(paidAmount) ? paidAmount.toFixed(2) : '0.00');
@@ -690,19 +690,21 @@
             if (method === 'stripe' && result.stripe?.client_secret) {
                 await confirmStripeCard(result.stripe);
                 const uuid = result.attempt?.attempt_uuid;
+                let done = null;
                 if (uuid && result.requires_supplier_booking) {
-                    await finalizeStripe(tourId, uuid);
+                    // Hold flow: server verifies the authorisation and places the amount on hold.
+                    done = await finalizeStripe(tourId, uuid);
                 }
-                alert('Card payment successful.');
+                alert(done?.message || 'Card payment successful.');
                 window.location.reload();
             } else if (result.requires_supplier_booking && result.attempt?.attempt_uuid) {
-                await finalizeWallet(tourId, result.attempt.attempt_uuid);
-                alert('Payment completed.');
+                const done = await finalizeWallet(tourId, result.attempt.attempt_uuid);
+                alert(done?.message || 'Payment completed.');
                 window.location.reload();
             } else {
-                alert(method === 'wallet'
+                alert(result.message || (method === 'wallet'
                     ? 'Wallet deducted and payment auto-verified.'
-                    : 'Payment processed successfully.');
+                    : 'Payment processed successfully.'));
                 window.location.reload();
             }
         } catch (e) {
