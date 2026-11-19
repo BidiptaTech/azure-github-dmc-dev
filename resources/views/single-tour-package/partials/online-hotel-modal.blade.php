@@ -382,9 +382,8 @@
      * Shared "your currency" conversion for every online price breakdown (add modal,
      * after-add breakdown, Lite + Pro, hotels + attractions).
      *
-     * Mirrors FxConversionCharge (what the DMC wallet is actually charged):
-     *   effective rate = base rate × (1 + conversion commission %), rounded to 6 dp
-     *   amount        = service amount × effective rate (IDR → whole rupiah, others 2 dp)
+     * Mirrors FxConversionCharge rate logic for indicative online preview.
+     * Online breakdown always shows exact 2-decimal amounts (including IDR).
      */
     window.StpDmcFx = window.StpDmcFx || (function () {
         function esc(s) {
@@ -414,7 +413,8 @@
                 to: to,
                 charge_percent: pct, // null for DMC users (TravClicks-only detail)
                 rate: rate,
-                amount: to === 'IDR' ? Math.round(raw) : Math.round(raw * 100) / 100
+                // Online preview: exact 2 dp (do not round IDR to whole rupiah).
+                amount: Math.round(raw * 100) / 100
             };
         }
         function rateText(fx) {
@@ -439,17 +439,17 @@
                 + '<span>' + esc(rateText(fx)) + '</span></div>'
                 + '<div class="' + esc(rowClass) + ' is-total" style="font-weight:600;">'
                 + '<span>Total in your currency (' + esc(fx.to) + ')</span>'
-                + '<span class="' + esc(amtClass) + '">' + esc(fx.to + ' ' + fmt(fx.amount, fx.to === 'IDR' ? 0 : 2)) + '</span></div>'
+                + '<span class="' + esc(amtClass) + '">' + esc(fx.to + ' ' + fmt(fx.amount, 2)) + '</span></div>'
                 + '<small class="text-muted d-block" style="font-size:0.68rem;">Indicative — your wallet is charged at the rate on the payment date.</small>';
         }
-        /** Compact one-liner for table cells / cards: "≈ IDR 508,404 @ 14,443.30". */
+        /** Compact one-liner for table cells / cards: "≈ IDR 508,404.08 @ 14,443.30". */
         function subHtml(amount, fromCurrency) {
             const fx = quote(amount, fromCurrency);
             if (!fx || !(fx.amount > 0)) return '';
             const note = chargeText(fx);
             return '<div class="text-muted stp-dmc-fx-sub" style="font-size:0.68rem; line-height:1.2; white-space:nowrap;" title="'
                 + esc(rateText(fx) + (note ? ' (' + note + ')' : '') + ' · indicative') + '">'
-                + '≈ ' + esc(fx.to + ' ' + fmt(fx.amount, fx.to === 'IDR' ? 0 : 2))
+                + '≈ ' + esc(fx.to + ' ' + fmt(fx.amount, 2))
                 + ' <span style="opacity:.8;">@ ' + esc(fmt(fx.rate, fx.rate >= 1 ? 2 : 4)) + '</span></div>';
         }
         return { quote: quote, rateText: rateText, chargeText: chargeText, rowsHtml: rowsHtml, subHtml: subHtml, fmt: fmt };
@@ -1695,7 +1695,7 @@
                 document.getElementById('onlineMkFxRate').textContent = window.StpDmcFx.rateText(fx) + (note ? ' (' + note + ')' : '');
                 document.getElementById('onlineMkDmcCur').textContent = fx.to;
                 document.getElementById('onlineMkDmcTotalAmt').textContent = fx.to + ' '
-                    + window.StpDmcFx.fmt(fx.amount, fx.to === 'IDR' ? 0 : 2);
+                    + window.StpDmcFx.fmt(fx.amount, 2);
                 fxBox.classList.remove('d-none');
             } else {
                 fxBox.classList.add('d-none');
