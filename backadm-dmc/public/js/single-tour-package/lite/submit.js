@@ -775,10 +775,121 @@
         document.body.classList.toggle('stp-lite-saving', !!on);
     }
 
+    /* ------------------------------------------------------------------
+     | Edit: newly added ONLINE services must be paid.
+     | Save → popup with the amount → save → pay (live price check, hold, book) → finish.
+     | Services paid earlier are never charged again (server pays only unpaid services).
+     * ------------------------------------------------------------------ */
+    function escHtml(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    }
+
+    function isOnlineRow(field, row) {
+        if (!row || typeof row !== 'object') return false;
+        if (field === 'hotel_data') {
+            return !!(row.isOnlineHotel || row.hotelSourceType === 'online' || row.priceMode === 'online');
+        }
+        if (field === 'attraction_data') {
+            return !!(row.isOnlineAttraction || row.attractionSourceType === 'online' || row.order_type === 'online');
+        }
+        return false;
+    }
+
+    /** Online services on the form that are not saved orders yet (no booking id). */
+    function newOnlineServices() {
+        var out = [];
+        ['hotel_data', 'attraction_data'].forEach(function (field) {
+            parseChunkJson(readHiddenJson(field)).forEach(function (row) {
+                if (!isOnlineRow(field, row) || row._booking_id) return;
+                out.push({
+                    type: field === 'hotel_data' ? 'Hotel' : 'Attraction',
+                    name: (row.hotelDetails && row.hotelDetails.hotel_name) || row.hotel_name
+                        || row.attractionName || row.attraction_name || row.name || 'Online service',
+                    amount: sumRows([row]),
+                    currency: row.currency || cfg().dmcCurrency || ''
+                });
+            });
+        });
+        return out;
+    }
+
+    function paymentServiceReady() {
+        return !!(window.TravclicksPaymentService && window.TravclicksPaymentService.payOnlineDue && window.TcPayUi);
+    }
+
+    function money(cur, n) {
+        return escHtml(String(cur || '').toUpperCase()) + ' '
+            + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    /** Popup before saving: what was added and how much has to be paid. */
+    async function confirmNewOnlinePayment(added, tourId) {
+        var cur = added[0].currency;
+        var total = added.reduce(function (s, a) { return s + (Number(a.amount) || 0); }, 0);
+        // Online services already on the booking but still unpaid are paid in the same payment.
+        var existingDue = 0;
+        try {
+            var elig = (await window.TravclicksPaymentService.fetchEligibility(tourId)).data || {};
+            if (elig.payment_stage === 'supplier_initial') existingDue = Number(elig.payable_amount) || 0;
+        } catch (e) { /* estimate only */ }
+        var list = '<ul class="tc-pay-list">' + added.map(function (a) {
+            return '<li><span class="tc-pay-badge warn">' + escHtml(a.type) + '</span>'
+                + '<span><span class="tc-pay-name">' + escHtml(a.name) + '</span>'
+                + '<span class="tc-pay-prices">Amount: <b>' + money(a.currency, a.amount) + '</b></span></span></li>';
+        }).join('') + '</ul>';
+        var body = '<div class="tc-pay-sub" style="margin-bottom:4px">You added online service(s). '
+            + 'They must be paid before they are booked with the supplier. '
+            + 'Services you already paid for are <b>not</b> charged again.</div>'
+            + list
+            + '<div class="tc-pay-totals">'
+            + (existingDue > 0.009
+                ? '<div><span>New online service(s)</span><span>' + money(cur, total) + '</span></div>'
+                    + '<div><span>Earlier online service(s) not paid yet</span><span>' + money(cur, existingDue) + '</span></div>'
+                : '')
+            + '<div class="is-charged"><span>Amount to pay</span><span>'
+            + money(cur, total + existingDue) + '</span></div>'
+            + '<div class="is-wallet"><span>The live supplier price is rechecked before you pay — any change is shown first.</span></div></div>';
+        var ok = await window.TcPayUi.confirm('info', 'Payment required for new online services', body, 'Save & Pay', 'Cancel');
+        window.TcPayUi.hide();
+        return ok;
+    }
+
+    /** After saving: pay the new online services; resolves when paid or the payer chooses "later". */
+    async function payNewOnlineServices(tourId) {
+        var title = 'Pay for new online services';
+        var hint = 'Your changes are saved. Pay now to book the newly added online service(s) — only they are charged.';
+        for (;;) {
+            var state = await window.TravclicksPaymentService.payOnlineDue(tourId, { title: title, hint: hint });
+            if (state !== 'cancelled') return state;
+            var again = await window.TcPayUi.confirm('warn', 'Payment not completed',
+                '<div class="tc-pay-sub">Your changes are saved, but the new online service(s) are <b>not booked</b> '
+                + 'until they are paid. You can pay later with <b>Pay Now</b> on the booking.</div><br>',
+                'Pay now', 'Pay later');
+            window.TcPayUi.hide();
+            if (!again) return 'later';
+        }
+    }
+
     async function updateTourPackage() {
+        var tourId = resolveTourId();
+        syncServiceHiddensBeforeSave();
+        var added = paymentServiceReady() ? newOnlineServices() : [];
+        if (added.length) {
+            try {
+                validateBeforeSave();
+            } catch (err) {
+                alert(err && err.message ? err.message : 'Update failed.');
+                return;
+            }
+            if (!(await confirmNewOnlinePayment(added, tourId))) {
+                return; // nothing saved
+            }
+        }
+
         setSavingState(true, 'Updating tour…');
         try {
-            var tourId = resolveTourId();
             if (!tourId) throw new Error('Missing tour id for edit.');
             syncServiceHiddensBeforeSave();
             var v = validateBeforeSave();
@@ -793,6 +904,22 @@
             setSavingState(true, 'Storing services…');
             syncServiceHiddensBeforeSave();
             var ordersResult = await postServiceOrders(tourId, val('agent_id') || val('agent'));
+
+            if (added.length) {
+                // Saved → pay the new online services now; finish only after payment completes.
+                setSavingState(false, '');
+                document.body.classList.add('stp-lite-saving'); // block a second Save meanwhile
+                var saveBtn = document.getElementById('stpLiteSaveTourBtn');
+                if (saveBtn) saveBtn.disabled = true;
+                try {
+                    await payNewOnlineServices(tourId);
+                } catch (payErr) {
+                    alert('Your changes are saved, but payment could not start: '
+                        + (payErr && payErr.message ? payErr.message : 'unknown error')
+                        + '. Use Pay Now on the booking to pay for the new online service(s).');
+                }
+            }
+
             setSavingState(true, 'Updated — redirecting…');
             redirectToThankYou(ordersResult, {
                 tour_id: tourId,
