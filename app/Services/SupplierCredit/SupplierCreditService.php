@@ -293,7 +293,9 @@ class SupplierCreditService
                         'supplier_booking_reference' => $ctx['supplier_booking_reference'] ?? $debit->supplier_booking_reference,
                         'agency_reference' => $debit->agency_reference,
                         'cancellation_charge' => $chargeInAccount > 0 ? self::money($chargeInAccount) : 0,
-                        'reconciliation_status' => $chargeReported ? 'unreconciled' : 'needs_review',
+                        // Confirmed vendor cancel → auto-verify (no manual TravClicks review).
+                        'reconciliation_status' => 'reconciled',
+                        'reconciled_at' => now(),
                         'description' => 'Cancellation refund for '.$serviceType.' order #'.$orderId
                             .($chargeInAccount > 0 ? ' (less cancellation charge '.number_format($chargeInAccount, 2).' '.$debit->currency_code.')' : ''),
                         'metadata' => array_merge($ctx['metadata'] ?? [], [
@@ -303,6 +305,7 @@ class SupplierCreditService
                             'charge_source_amount' => isset($ctx['cancellation_charge']) ? self::money($ctx['cancellation_charge']) : null,
                             'charge_source_currency' => $chargeCurrency ?: null,
                             'charge_fx' => $chargeFx,
+                            'auto_verified' => true,
                         ]),
                     ],
                 );
@@ -465,6 +468,8 @@ class SupplierCreditService
                     'agency_reference' => isset($attrs['agency_reference']) ? Str::limit((string) $attrs['agency_reference'], 190, '') : null,
                     'idempotency_key' => $idempotencyKey,
                     'reconciliation_status' => $reconciliation,
+                    'reconciled_at' => $attrs['reconciled_at'] ?? ($reconciliation === 'reconciled' ? now() : null),
+                    'reconciled_by' => $attrs['reconciled_by'] ?? null,
                     'description' => $attrs['description'] ?? null,
                     'metadata' => $metadata,
                     'created_by' => $attrs['created_by'] ?? (auth()->id() ?: null),

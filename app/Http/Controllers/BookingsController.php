@@ -2502,7 +2502,20 @@ class BookingsController extends Controller
 
             $primary = $offers[0] ?? null;
             $amountOffered = (float) ($primary['amount'] ?? 0);
-            $actualAmount = (float) ($primary['actual_amount'] ?? 0);
+            // Freeze list baseline across rounds — only amount (offer) changes.
+            $frozenActual = (float) ($latestEnquiry->actual_amount ?? 0);
+            if ($frozenActual <= 0) {
+                $rootActual = Enquiry::where('tour_id', $tour->tour_id)
+                    ->where('actual_amount', '>', 0)
+                    ->orderBy('created_at')
+                    ->value('actual_amount');
+                $frozenActual = (float) ($rootActual ?? 0);
+            }
+            if ($frozenActual <= 0) {
+                $frozenActual = (float) ($primary['actual_amount'] ?? 0);
+            }
+            $offers = $this->freezeNegotiationOfferActualAmounts($offers, (int) $tour->tour_id, $frozenActual);
+            $primary = $offers[0] ?? $primary;
             $grossAtNegotiation = (float) ($primary['gross'] ?? 0);
             if ($grossAtNegotiation <= 0) {
                 $grossAtNegotiation = \App\Helpers\CommonHelper::calculateTourGrossAmount($tour);
@@ -2518,7 +2531,7 @@ class BookingsController extends Controller
                 'receiver_type' => 'OM',
                 'current_position' => 'OM',
                 'amount' => $amountOffered,
-                'actual_amount' => $actualAmount ?: ($latestEnquiry->actual_amount ?? 0),
+                'actual_amount' => $frozenActual,
                 'gross_amount' => $grossAtNegotiation,
                 'comment' => $validated['comment'] ?? '',
                 'negotiation_details' => $offers,
@@ -2794,6 +2807,59 @@ class BookingsController extends Controller
         }
 
         return back()->with('error', 'Unsupported action requested.');
+    }
+
+    /**
+     * Keep per-country actual_amount frozen to the first baseline in the negotiation thread.
+     *
+     * @param  array<int, array<string, mixed>>  $offers
+     * @return array<int, array<string, mixed>>
+     */
+    private function freezeNegotiationOfferActualAmounts(array $offers, int $tourId, float $frozenRowActual): array
+    {
+        $priorDetails = Enquiry::where('tour_id', $tourId)
+            ->whereNotNull('negotiation_details')
+            ->orderBy('created_at')
+            ->value('negotiation_details');
+
+        if (is_string($priorDetails)) {
+            $decoded = json_decode($priorDetails, true);
+            $priorDetails = is_array($decoded) ? $decoded : [];
+        }
+        if (! is_array($priorDetails)) {
+            $priorDetails = [];
+        }
+
+        $priorByKey = [];
+        foreach ($priorDetails as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $key = mb_strtolower(trim((string) ($row['country'] ?? '')))
+                .'|'.strtoupper(trim((string) ($row['currency'] ?? '')));
+            $priorActual = (float) ($row['actual_amount'] ?? 0);
+            if ($priorActual > 0 && ! isset($priorByKey[$key])) {
+                $priorByKey[$key] = round($priorActual, 2);
+            }
+        }
+
+        foreach ($offers as &$offer) {
+            if (! is_array($offer)) {
+                continue;
+            }
+            $key = mb_strtolower(trim((string) ($offer['country'] ?? '')))
+                .'|'.strtoupper(trim((string) ($offer['currency'] ?? '')));
+            if (isset($priorByKey[$key])) {
+                $offer['actual_amount'] = $priorByKey[$key];
+            } elseif ($frozenRowActual > 0 && count($offers) === 1) {
+                $offer['actual_amount'] = round($frozenRowActual, 2);
+            } else {
+                $offer['actual_amount'] = round((float) ($offer['actual_amount'] ?? 0), 2);
+            }
+        }
+        unset($offer);
+
+        return $offers;
     }
 
     /**
@@ -4403,10 +4469,17 @@ class BookingsController extends Controller
         
         $currency = CommonHelper::getDmcCurrencyByCountry();
         $country_tax = Country::where('name', $user->country)->value('tax_percentage');
+        $isTravclicksRefunds = in_array((int) ($user->role_id ?? 0), [1, 2, 3, 4], true);
+
+        // TravClicks: auto credit any online cancel already past supplier checks
+        // (fixes Refunded to DMC still 0 after cancel without manual verify).
+        if ($isTravclicksRefunds && $tours->isNotEmpty()) {
+            $this->autoCreditPendingTravclicksOnlineRefunds($tours);
+        }
+
         // Money summary first so service refund max can cap to negotiated+tax (Tour total / Paid).
         $this->attachTourMoneySummary($tours);
         $this->attachRefundPrices($tours);
-        $isTravclicksRefunds = in_array((int) ($user->role_id ?? 0), [1, 2, 3, 4], true);
         if ($isTravclicksRefunds) {
             $this->attachTravclicksDmcWalletFx($tours);
         } else {
@@ -4418,6 +4491,44 @@ class BookingsController extends Controller
         $this->attachTourRefundPrices($tours);
         $this->hydrateDestinationCreatedAt($tours);
         return view('bookings.refunds', compact('tours', 'country_tax', 'currency'));
+    }
+
+    /**
+     * Auto-run TravClicks → DMC wallet credit for online refunds that already
+     * passed supplier-cancel checks (no manual Credit DMC Wallet / verify).
+     *
+     * @param  \Illuminate\Support\Collection|array<int, mixed>  $tours
+     */
+    private function autoCreditPendingTravclicksOnlineRefunds($tours): void
+    {
+        $wallet = app(\App\Services\Payment\TravclicksOnlineWalletRefundService::class);
+        $cancelStatus = app(SupplierCancellationStatusService::class);
+
+        foreach ($tours as $tour) {
+            $tourId = (int) ($tour->tour_id ?? 0);
+            if ($tourId <= 0) {
+                continue;
+            }
+
+            $ordersQuery = Order::withTrashed()
+                ->where('tour_id', $tourId)
+                ->where('bookingType', 'booking')
+                ->where('is_refund', 1)
+                ->whereRaw("LOWER(TRIM(COALESCE(order_type, ''))) = ?", ['online']);
+            if (Schema::hasColumn('orders', 'travclicks_refunded')) {
+                $ordersQuery->where(function ($q) {
+                    $q->whereNull('travclicks_refunded')->orWhere('travclicks_refunded', false);
+                });
+            }
+            $orders = $ordersQuery->get();
+
+            foreach ($orders as $order) {
+                if ($cancelStatus->isBlockingWalletCredit($order)) {
+                    continue;
+                }
+                $wallet->tryAutoRefund($order, $tour instanceof Tour ? $tour : Tour::where('tour_id', $tourId)->first());
+            }
+        }
     }
 
     /**
@@ -5021,15 +5132,24 @@ class BookingsController extends Controller
             $status = $statusService->read($order);
             $softFailed = is_array($result) && ! empty($result['soft_failed']);
             $allowsWallet = $statusService->allowsWalletCredit($order);
+            $walletAuto = is_array($result) ? ($result['wallet_auto_refund'] ?? null) : null;
+            if ($allowsWallet && ! $softFailed && empty($walletAuto['credited'])) {
+                $order->refresh();
+                $walletAuto = app(\App\Services\Payment\TravclicksOnlineWalletRefundService::class)
+                    ->tryAutoRefund($order, Tour::where('tour_id', $tourId)->first());
+            }
 
             return response()->json([
                 'success' => ! $softFailed && $allowsWallet,
-                'message' => $allowsWallet
-                    ? 'Supplier cancellation confirmed. You can now credit the DMC wallet.'
-                    : ('Supplier cancellation still '.strtoupper((string) ($status['status'] ?? 'failed'))
-                        .'. '.trim((string) ($status['last_error'] ?: $status['message'] ?? 'Retry again or mark resolved.'))),
+                'message' => ! empty($walletAuto['credited'])
+                    ? (string) ($walletAuto['message'] ?? 'Supplier cancellation confirmed and DMC wallet credited automatically.')
+                    : ($allowsWallet
+                        ? 'Supplier cancellation confirmed. TravClicks wallet credit is ready.'
+                        : ('Supplier cancellation still '.strtoupper((string) ($status['status'] ?? 'failed'))
+                            .'. '.trim((string) ($status['last_error'] ?: $status['message'] ?? 'Retry again or mark resolved.')))),
                 'supplier_cancellation' => $status,
                 'blocks_wallet' => ! $allowsWallet,
+                'wallet_auto_refund' => $walletAuto,
                 'result' => $result,
             ], $allowsWallet ? 200 : 422);
         } catch (\Exception $e) {
@@ -5087,11 +5207,18 @@ class BookingsController extends Controller
             $statusService->markResolvedManual($order, $reason);
             $status = $statusService->read($order);
 
+            $order->refresh();
+            $walletAuto = app(\App\Services\Payment\TravclicksOnlineWalletRefundService::class)
+                ->tryAutoRefund($order, Tour::where('tour_id', $tourId)->first());
+
             return response()->json([
                 'success' => true,
-                'message' => 'Supplier cancellation marked resolved. Wallet credit is now allowed.',
+                'message' => ! empty($walletAuto['credited'])
+                    ? (string) ($walletAuto['message'] ?? 'Supplier cancellation resolved and DMC wallet credited automatically.')
+                    : 'Supplier cancellation marked resolved. Wallet credit is now allowed.',
                 'supplier_cancellation' => $status,
                 'blocks_wallet' => false,
+                'wallet_auto_refund' => $walletAuto,
             ]);
         } catch (\Exception $e) {
             return response()->json([

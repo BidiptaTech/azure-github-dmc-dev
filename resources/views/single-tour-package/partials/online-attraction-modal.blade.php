@@ -1,4 +1,4 @@
-{{-- Online attraction booking modal (SG Attractions live API) --}}
+{{-- Online attraction booking modal (TravClicks live API) --}}
 <div class="modal fade" id="onlineAttractionModal" tabindex="-1" aria-labelledby="onlineAttractionModalLabel" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
@@ -12,7 +12,7 @@
             <div class="modal-body" style="background: #f8f9fa;">
                 <div class="alert alert-info py-2 mb-3" style="font-size: 0.85rem;">
                     <i class="ri-information-line me-1"></i>
-                    Attractions are fetched live from SG Attractions as a <strong>full catalog</strong> (with a progress timer). Tickets load when you select an attraction — that keeps the list fast.
+                    Attractions are fetched live from TravClicks as a <strong>full catalog</strong> (with a progress timer). Tickets load when you select an attraction — that keeps the list fast.
                 </div>
 
                 <div class="card border-0 shadow-sm mb-3">
@@ -326,6 +326,19 @@
     const fetchUrl = @json(route('fetch-online-attractions'));
     const ticketsUrl = @json(route('fetch-online-attraction-tickets'));
     const csrfToken = @json(csrf_token());
+
+    /** Never show underlying API vendor brands to DMC — TravClicks is the public provider. */
+    function maskOnlineVendorBrands(text) {
+        let out = String(text == null ? '' : text);
+        const brands = [
+            /MG\s*Bed\s*Bank/gi, /MGBedbank/gi, /mg_bedbank/gi, /mgbedbank/gi, /MG\s*Booking/gi,
+            /Hotel\s*Beds/gi, /Hotelbeds/gi, /hotelbeds/gi,
+            /Tinivia/gi, /Tiniva/gi, /tinivia/gi, /tiniva/gi,
+            /SG\s*Attractions/gi, /Attractions\s*SG/gi, /AttractionsSG/gi, /sg_attractions/gi,
+        ];
+        brands.forEach(function (re) { out = out.replace(re, 'TravClicks'); });
+        return out.replace(/(TravClicks)(?:\s+TravClicks)+/gi, 'TravClicks');
+    }
 
     let onlineAttractionsCache = [];
     let onlineCurrentTickets = [];
@@ -1125,9 +1138,9 @@
         }).then(function (r) {
             if (!r.ok) {
                 return r.json().catch(function () { return {}; }).then(function (body) {
-                    const msg = body && body.message
+                    const msg = maskOnlineVendorBrands(body && body.message
                         ? body.message
-                        : ('Request failed (HTTP ' + r.status + ')');
+                        : ('Request failed (HTTP ' + r.status + ')'));
                     throw new Error(msg);
                 });
             }
@@ -1148,7 +1161,7 @@
         try {
             const data = await fetchOnlineAttractionsCatalog(city, visitDate, paxInfo, signal);
             if (!data || !data.success) {
-                throw new Error((data && data.message) || 'Failed to fetch online attractions.');
+                throw new Error(maskOnlineVendorBrands((data && data.message) || 'Failed to fetch online attractions.'));
             }
 
             const attractions = extractAttractionsFromResponse(data);
@@ -1747,7 +1760,7 @@
                 hideOnlineAttractionSelectionPanel();
                 populateOnlineAttractions([]);
                 showOnlineAttractionFetchProgress(false);
-                const msg = (err && err.message) ? err.message : 'Request failed.';
+                const msg = maskOnlineVendorBrands((err && err.message) ? err.message : 'Request failed.');
                 setOnlineAttractionFetchStatus(msg, true);
                 console.error(err);
                 if (typeof showNotification === 'function') {

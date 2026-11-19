@@ -470,8 +470,21 @@
     /** City/tour stay window — modal date pickers cannot leave this range. */
     let onlineStayDateBounds = { start: '', end: '' };
     let onlineGuestState = { male: 1, female: 0, children: 0, infants: 0, childAges: [] };
-    // Two-step suppliers (MG Bedbank) list their whole catalogue first, then price one hotel on demand.
+    // Two-step suppliers list their whole catalogue first, then price one hotel on demand.
     let onlineTwoStep = false;
+
+    /** Never show underlying API vendor brands to DMC — TravClicks is the public provider. */
+    function maskOnlineVendorBrands(text) {
+        let out = String(text || '');
+        const brands = [
+            /MG\s*Bed\s*Bank/gi, /MGBedbank/gi, /mg_bedbank/gi, /mgbedbank/gi, /MG\s*Booking/gi,
+            /Hotel\s*Beds/gi, /Hotelbeds/gi, /hotelbeds/gi,
+            /Tinivia/gi, /Tiniva/gi, /tinivia/gi, /tiniva/gi,
+            /SG\s*Attractions/gi, /Attractions\s*SG/gi, /AttractionsSG/gi, /sg_attractions/gi,
+        ];
+        brands.forEach(function (re) { out = out.replace(re, 'TravClicks'); });
+        return out.replace(/(TravClicks)(?:\s+TravClicks)+/gi, 'TravClicks');
+    }
     let onlineRoomsLoading = false;
     let onlineSelectedHotelDetail = null;
     let onlineSelectedRoom = null;
@@ -1960,7 +1973,7 @@
 
             if (!data || !data.success || !data.hotel) {
                 populateOnlineRooms({ rooms: [] });
-                setOnlineRoomStatus(data?.message || 'No rooms available for these dates.', 'error');
+                setOnlineRoomStatus(maskOnlineVendorBrands(data?.message || 'No rooms available for these dates.'), 'error');
                 return;
             }
 
@@ -2835,9 +2848,9 @@
             } else {
                 hideOnlineHotelSelectionPanel();
                 populateOnlineHotels([]);
-                if (statusEl) statusEl.textContent = data?.message || 'No hotels found.';
+                if (statusEl) statusEl.textContent = maskOnlineVendorBrands(data?.message || 'No hotels found.');
                 if (typeof showNotification === 'function') {
-                    showNotification(data?.message || 'Failed to fetch online hotels.', 'error');
+                    showNotification(maskOnlineVendorBrands(data?.message || 'Failed to fetch online hotels.'), 'error');
                 }
             }
         })

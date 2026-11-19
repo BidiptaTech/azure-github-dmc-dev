@@ -243,10 +243,18 @@ class AcceptanceFlowService
             return false;
         }
 
+        // Completed, or an online payment currently HELD while its services are being booked
+        // (hold flow) — either way the customer must not be asked to pay again.
         return DB::table('payment_attempts')
             ->where('tour_id', $tourId)
             ->where('payment_stage', 'supplier_initial')
-            ->where('status', 'completed')
+            ->where(function ($q) {
+                $q->where('status', 'completed')
+                    ->orWhere(function ($held) {
+                        $held->where('status', 'authorized')
+                            ->whereRaw("(metadata::jsonb ->> 'hold_opened_at') IS NOT NULL");
+                    });
+            })
             ->exists();
     }
 }
