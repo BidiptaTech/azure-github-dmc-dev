@@ -230,6 +230,19 @@ class OnlineTourCancelRefundService
             }
         });
 
+        // Refund API after cancel scenario checks: TravClicks → DMC wallet (auto verify).
+        $tour = Tour::query()->where('tour_id', $tourId)->first();
+        $walletRefunds = app(TravclicksOnlineWalletRefundService::class);
+        foreach ($orders as $order) {
+            if (! $this->orderLooksPaidOnline($order, $onlinePaid)) {
+                continue;
+            }
+            $fresh = Order::withTrashed()->find($order->id);
+            if ($fresh) {
+                $walletRefunds->tryAutoRefund($fresh, $tour, true);
+            }
+        }
+
         return ['queued' => $queued, 'skipped' => $skipped];
     }
 

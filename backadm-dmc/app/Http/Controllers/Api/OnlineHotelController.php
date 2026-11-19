@@ -11,6 +11,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use App\Services\SupplierCredit\SupplierCreditService;
+use App\Support\SupplierFacingCopy;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 use Throwable;
@@ -107,7 +108,7 @@ class OnlineHotelController extends Controller
                         'total_hotels' => (int) ($result['total_hotels'] ?? count($result['hotels'] ?? [])),
                         'two_step' => (bool) ($result['two_step'] ?? false),
                         'supplier_code' => $result['supplier_code'] ?? null,
-                        'supplier_name' => $result['supplier_name'] ?? null,
+                        'supplier_name' => SupplierFacingCopy::publicSupplierName(),
                         'city' => $result['city'] ?? $city,
                         'country_id' => $result['country_id'] ?? null,
                         'check_in' => $checkIn,
@@ -125,12 +126,12 @@ class OnlineHotelController extends Controller
                 'city' => $city,
                 'check_in' => $checkIn,
                 'check_out' => $checkOut,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
                 'data' => [
                     'hotels' => [],
                     'meta' => null,
@@ -219,7 +220,7 @@ class OnlineHotelController extends Controller
                         'total_rooms' => count($roomList),
                         'session_id' => $result['session_id'] ?? null,
                         'supplier_code' => $result['supplier_code'] ?? null,
-                        'supplier_name' => $result['supplier_name'] ?? null,
+                        'supplier_name' => SupplierFacingCopy::publicSupplierName(),
                         'city' => $result['city'] ?? $city,
                         'check_in' => $checkIn,
                         'check_out' => $checkOut,
@@ -235,12 +236,12 @@ class OnlineHotelController extends Controller
                 'dmc_id' => $dmcId,
                 'city' => $city,
                 'hotel_id' => $hotelId,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
                 'data' => [
                     'hotel' => null,
                     'rooms' => [],
@@ -314,7 +315,7 @@ class OnlineHotelController extends Controller
             'rooms' => $matched['rooms'] ?? [],
             'session_id' => null,
             'supplier_code' => $search['supplier_code'] ?? null,
-            'supplier_name' => $search['supplier_name'] ?? null,
+            'supplier_name' => SupplierFacingCopy::publicSupplierName(),
             'city' => $search['city'] ?? $city,
             'room_count' => $search['rooms'] ?? $rooms,
             'api_environment' => $search['api_environment'] ?? null,
@@ -446,12 +447,12 @@ class OnlineHotelController extends Controller
         } catch (RuntimeException $e) {
             Log::warning('API online hotel recheck failed', [
                 'dmc_id' => $dmcId,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ], 422);
         } catch (Throwable $e) {
             Log::error('API online hotel recheck exception', [
@@ -494,7 +495,7 @@ class OnlineHotelController extends Controller
                 'online_hotel_booking' => ['nullable', 'array'],
             ], [
                 'recheck_token.required' => 'recheck_token from /online-hotels/recheck is required.',
-                'reference_id.required' => 'reference_id (agency booking id) is required to confirm with the supplier.',
+                'reference_id.required' => 'reference_id (agency booking id) is required to confirm this online hotel booking.',
                 'guest_name.required_without' => 'guest_name is required for the primary guest.',
             ])->validate();
         } catch (ValidationException $e) {
@@ -617,7 +618,7 @@ class OnlineHotelController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'Hotel booked successfully with the supplier.',
+                'message' => 'Hotel booked successfully.',
                 'data' => [
                     'supplier_code' => $bookingDetails['supplier_code'] ?? $supplierCode,
                     'api_environment' => $bookingDetails['api_environment'] ?? null,
@@ -630,14 +631,14 @@ class OnlineHotelController extends Controller
         } catch (RuntimeException $e) {
             Log::warning('API online hotel book failed', [
                 'dmc_id' => $dmcId,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ]);
 
             return response()->json([
                 'success' => false,
                 'requires_recheck' => str_contains(strtolower($e->getMessage()), 'recheck')
                     || str_contains(strtolower($e->getMessage()), 'expired'),
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ], 422);
         } catch (Throwable $e) {
             Log::error('API online hotel book exception', [

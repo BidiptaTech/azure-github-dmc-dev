@@ -51,7 +51,7 @@ class MgBedbankBookingService implements OnlineHotelBookingService, OnlineHotelC
         $hotel = $searchResult['hotel'] ?? null;
 
         if (! is_array($hotel) || empty($hotel['rooms'])) {
-            throw new RuntimeException('No availability returned from MG Bedbank for this hotel and dates.');
+            throw new RuntimeException('No availability returned for this hotel and dates.');
         }
 
         $matchedRoom = $this->matchStoredRoom($hotel['rooms'], $context);
@@ -59,14 +59,14 @@ class MgBedbankBookingService implements OnlineHotelBookingService, OnlineHotelC
         $allocations = $this->normalizeAllocations($rawRoom['rooms']['room'] ?? []);
 
         if ($allocations === []) {
-            throw new RuntimeException('MG Bedbank did not return rate keys for the selected room.');
+            throw new RuntimeException('Rate keys were not returned for the selected room.');
         }
 
         $client = new MgBedbankClient($credentials);
         $sessionId = (string) ($searchResult['session_id'] ?? $hotel['session_id'] ?? '');
 
         if ($sessionId === '') {
-            throw new RuntimeException('MG Bedbank search did not return a session ID.');
+            throw new RuntimeException('Online hotel search did not return a session ID.');
         }
 
         // RecheckHotel must mirror SearchHotel (JRVXML149). MG settlement currency is always SGD.
@@ -107,7 +107,7 @@ class MgBedbankBookingService implements OnlineHotelBookingService, OnlineHotelC
         $recheckBody = $client->recheckHotel($recheckPayload);
 
         if ($reason = $client->failureReason($recheckBody)) {
-            throw new RuntimeException('MG Bedbank recheck failed: ' . $reason);
+            throw new RuntimeException('Online hotel recheck failed: ' . $reason);
         }
 
         $roomDetails = $recheckBody['hotels']['hotel']['roomDetails'] ?? [];
@@ -162,7 +162,7 @@ class MgBedbankBookingService implements OnlineHotelBookingService, OnlineHotelC
         $agencyBookingId = trim($agencyBookingId);
 
         if ($agencyBookingId === '') {
-            throw new RuntimeException('Agency booking ID (reference ID) is required for MG Bedbank booking.');
+            throw new RuntimeException('Agency booking ID (reference ID) is required for this online hotel booking.');
         }
 
         $client = new MgBedbankClient($credentials);
@@ -218,7 +218,7 @@ class MgBedbankBookingService implements OnlineHotelBookingService, OnlineHotelC
         $bookBody = $client->bookHotel($bookPayload);
 
         if ($reason = $client->failureReason($bookBody)) {
-            throw new RuntimeException('MG Bedbank booking failed: ' . $reason);
+            throw new RuntimeException('Online hotel booking failed: ' . $reason);
         }
 
         return [
@@ -275,7 +275,7 @@ class MgBedbankBookingService implements OnlineHotelBookingService, OnlineHotelC
 
         if ($mgBookingId === '' && $agencyBookingId === '') {
             throw new RuntimeException(
-                'MG Bedbank cancellation requires MGBookingID or AgencyBookingID from the stored booking.'
+                'Online hotel cancellation requires a supplier booking reference from the stored booking.'
             );
         }
 
@@ -283,7 +283,7 @@ class MgBedbankBookingService implements OnlineHotelBookingService, OnlineHotelC
         $cancelDate = trim((string) ($options['cancel_date'] ?? ''));
 
         if ($simulate && $cancelDate === '') {
-            throw new RuntimeException('CancelDate is required when simulating an MG Bedbank cancellation.');
+            throw new RuntimeException('CancelDate is required when simulating an online hotel cancellation.');
         }
 
         $client = new MgBedbankClient($credentials);
@@ -320,7 +320,7 @@ class MgBedbankBookingService implements OnlineHotelBookingService, OnlineHotelC
         }
 
         if ($reason = $client->failureReason($body)) {
-            throw new RuntimeException('MG Bedbank cancellation failed: ' . $reason);
+            throw new RuntimeException('Online hotel cancellation failed: ' . $reason);
         }
 
         $cancelled = is_array($body['bookingDetails'] ?? null) ? $body['bookingDetails'] : [];
@@ -416,7 +416,7 @@ class MgBedbankBookingService implements OnlineHotelBookingService, OnlineHotelC
         $paxInfo = (string) ($search['pax_info'] ?? $this->paxInfoFromRooms($booking['rooms'] ?? []));
 
         if ($city === '') {
-            throw new RuntimeException('MG destination city code is missing from the stored online booking.');
+            throw new RuntimeException('Destination city code is missing from the stored online booking.');
         }
 
         return [
@@ -510,7 +510,7 @@ class MgBedbankBookingService implements OnlineHotelBookingService, OnlineHotelC
         }
 
         if ($candidates === []) {
-            throw new RuntimeException('The selected room rate is no longer available from MG Bedbank.');
+            throw new RuntimeException('The selected room rate is no longer available.');
         }
 
         return $candidates[0];

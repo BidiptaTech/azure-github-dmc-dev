@@ -145,8 +145,8 @@ class HotelbedsHotelAdapter implements HotelSupplierAdapter
         }
 
         throw new RuntimeException(
-            "Hotelbeds has no coordinates for city [{$request->cityName}]. "
-            . 'Set latitude/longitude on the city record.'
+            "Online hotels are not configured for city [{$request->cityName}]. "
+            .'Please contact TravClicks (city latitude/longitude required).'
         );
     }
 

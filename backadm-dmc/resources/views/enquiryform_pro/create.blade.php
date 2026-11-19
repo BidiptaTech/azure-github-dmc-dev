@@ -1732,7 +1732,7 @@
                 <span>Attractions</span>
                 <div class="d-flex align-items-center flex-wrap justify-content-end">
                    {{-- @if(\App\Helpers\CommonHelper::masterDmcOnlineApiEnabled(auth()->user()))
-                    <div class="ep-online-source-toggle" title="Offline = catalog attractions · Online = live SG Attractions (Lite flow, no transfer)">
+                    <div class="ep-online-source-toggle" title="Offline = catalog attractions · Online = live TravClicks attractions (Lite flow, no transfer)">
                         <div class="form-check form-check-inline">
                             <input class="form-check-input ep-attraction-source-type" type="radio" name="epAttractionSourceType" id="epAttractionSourceOffline" value="offline" checked>
                             <label class="form-check-label" for="epAttractionSourceOffline">Offline</label>

@@ -25,7 +25,7 @@ class SgAttractionsAdapter implements AttractionSupplierAdapter
     {
         $ctx = $this->authenticatedContext($credentials);
         if (! $ctx['success']) {
-            throw new RuntimeException($ctx['message'] ?? 'Failed to authenticate with SG Attractions API.');
+            throw new RuntimeException($ctx['message'] ?? 'Failed to authenticate with the online attractions provider.');
         }
 
         // Full catalog (no display_limit): match Postman GET /attractions — no paging filters.
@@ -61,7 +61,7 @@ class SgAttractionsAdapter implements AttractionSupplierAdapter
 
         $body = $response->json();
         if ((int) ($body['status'] ?? 0) !== 1000) {
-            throw new RuntimeException($body['message'] ?? 'SG Attractions API returned an error.');
+            throw new RuntimeException($body['message'] ?? 'The online attractions provider returned an error.');
         }
 
         $rawAttractions = $body['response']['data'] ?? [];
@@ -94,7 +94,7 @@ class SgAttractionsAdapter implements AttractionSupplierAdapter
                 'success' => false,
                 'order_ref_id' => null,
                 'external_status' => null,
-                'message' => $ctx['message'] ?? 'SG Attractions authentication failed',
+                'message' => \App\Support\SupplierFacingCopy::mask($ctx['message'] ?? 'Online attractions authentication failed'),
                 'provider' => null,
             ];
         }
@@ -134,7 +134,7 @@ class SgAttractionsAdapter implements AttractionSupplierAdapter
                 'success' => false,
                 'order_ref_id' => $orderRefId,
                 'external_status' => $parsed['external_status'],
-                'message' => $parsed['message'] ?? ('SG Attractions create-order failed (HTTP ' . $response->status() . ')'),
+                'message' => \App\Support\SupplierFacingCopy::mask($parsed['message'] ?? ('Online attractions create-order failed (HTTP ' . $response->status() . ')')),
                 'provider' => $parsed['provider'],
             ];
         }
@@ -171,7 +171,7 @@ class SgAttractionsAdapter implements AttractionSupplierAdapter
             return [
                 'success' => false,
                 'provider_status' => null,
-                'message' => $ctx['message'] ?? 'SG Attractions authentication failed',
+                'message' => \App\Support\SupplierFacingCopy::mask($ctx['message'] ?? 'Online attractions authentication failed'),
                 'provider' => null,
             ];
         }
@@ -253,7 +253,7 @@ class SgAttractionsAdapter implements AttractionSupplierAdapter
             return [
                 'success' => false,
                 'provider_status' => null,
-                'message' => $ctx['message'] ?? 'SG Attractions authentication failed',
+                'message' => \App\Support\SupplierFacingCopy::mask($ctx['message'] ?? 'Online attractions authentication failed'),
                 'provider' => null,
             ];
         }
@@ -324,7 +324,7 @@ class SgAttractionsAdapter implements AttractionSupplierAdapter
             return [
                 'success' => false,
                 'credits_balance' => null,
-                'message' => $ctx['message'] ?? 'SG Attractions authentication failed',
+                'message' => \App\Support\SupplierFacingCopy::mask($ctx['message'] ?? 'Online attractions authentication failed'),
             ];
         }
 
@@ -405,7 +405,7 @@ class SgAttractionsAdapter implements AttractionSupplierAdapter
 
             return [
                 'success' => false,
-                'message' => $ctx['message'] ?? 'SG Attractions authentication failed',
+                'message' => \App\Support\SupplierFacingCopy::mask($ctx['message'] ?? 'Online attractions authentication failed'),
                 'data' => null,
                 'vouchers' => [],
                 'provider' => null,
@@ -908,21 +908,21 @@ class SgAttractionsAdapter implements AttractionSupplierAdapter
         if ($baseUrl === '') {
             return [
                 'success' => false,
-                'message' => 'SG Attractions API is not configured. Set SG_ATTRACTIONS_API_BASE_URL in .env',
+                'message' => 'Online attractions API is not configured. Please contact TravClicks.',
             ];
         }
 
         if ($apiKey === '' && $staticBearer === '') {
             return [
                 'success' => false,
-                'message' => 'SG Attractions API key is not configured. Set SG_ATTRACTIONS_API_KEY in .env',
+                'message' => 'Online attractions API key is not configured. Please contact TravClicks.',
             ];
         }
 
         if ($secretKey === '' && $staticBearer === '') {
             return [
                 'success' => false,
-                'message' => 'Set SG_ATTRACTIONS_SECRET_KEY in .env (reseller secret from SG Attractions).',
+                'message' => 'Online attractions credentials are incomplete. Please contact TravClicks.',
             ];
         }
 
@@ -933,7 +933,7 @@ class SgAttractionsAdapter implements AttractionSupplierAdapter
         if (! $auth['success']) {
             return [
                 'success' => false,
-                'message' => $auth['message'] ?? 'Failed to authenticate with SG Attractions API.',
+                'message' => $auth['message'] ?? 'Failed to authenticate with the online attractions provider.',
             ];
         }
 
@@ -1073,7 +1073,7 @@ class SgAttractionsAdapter implements AttractionSupplierAdapter
         if (! $sessionResponse->successful()) {
             return [
                 'success' => false,
-                'message' => 'Failed to request SG Attractions session.',
+                'message' => 'Failed to request online attractions session.',
             ];
         }
 
@@ -1081,7 +1081,7 @@ class SgAttractionsAdapter implements AttractionSupplierAdapter
         if ((int) ($sessionBody['status'] ?? 0) !== 1000) {
             return [
                 'success' => false,
-                'message' => $sessionBody['message'] ?? 'SG Attractions session request failed.',
+                'message' => \App\Support\SupplierFacingCopy::mask($sessionBody['message'] ?? 'Online attractions session request failed.'),
             ];
         }
 
@@ -1089,7 +1089,7 @@ class SgAttractionsAdapter implements AttractionSupplierAdapter
         if ($sessionKey === '') {
             return [
                 'success' => false,
-                'message' => 'SG Attractions session key missing in provider response.',
+                'message' => 'Online attractions session key missing in provider response.',
             ];
         }
 
@@ -1106,7 +1106,7 @@ class SgAttractionsAdapter implements AttractionSupplierAdapter
         if (! $tokenResponse->successful()) {
             return [
                 'success' => false,
-                'message' => 'Failed to request SG Attractions auth token.',
+                'message' => 'Failed to request online attractions auth token.',
             ];
         }
 
@@ -1114,7 +1114,7 @@ class SgAttractionsAdapter implements AttractionSupplierAdapter
         if ((int) ($tokenBody['status'] ?? 0) !== 1000) {
             return [
                 'success' => false,
-                'message' => $tokenBody['message'] ?? 'SG Attractions token request failed.',
+                'message' => \App\Support\SupplierFacingCopy::mask($tokenBody['message'] ?? 'Online attractions token request failed.'),
             ];
         }
 
@@ -1122,7 +1122,7 @@ class SgAttractionsAdapter implements AttractionSupplierAdapter
         if ($authToken === '') {
             return [
                 'success' => false,
-                'message' => 'SG Attractions auth token missing in provider response.',
+                'message' => 'Online attractions auth token missing in provider response.',
             ];
         }
 

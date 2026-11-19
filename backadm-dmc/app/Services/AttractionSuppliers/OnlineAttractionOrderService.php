@@ -6,6 +6,7 @@ use App\Models\Tour;
 use App\Services\ApiEnvironmentResolver;
 use App\Services\SupplierConfigResolver;
 use App\Services\SupplierEnvService;
+use App\Support\SupplierFacingCopy;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -179,7 +180,7 @@ class OnlineAttractionOrderService
                 }
 
                 Log::warning('Attraction external create-order failed', [
-                    'message' => $result['message'] ?? null,
+                    'message' => SupplierFacingCopy::mask($result['message'] ?? null) ?: null,
                     'sku_id' => $payload['item_sku_id_1'] ?? null,
                     'supplier_code' => $supplierCode,
                     'credits_insufficient' => $creditsInsufficient,
@@ -191,19 +192,19 @@ class OnlineAttractionOrderService
                 'success' => (bool) ($result['success'] ?? false),
                 'order_ref_id' => is_string($ref) && $ref !== '' ? $ref : null,
                 'external_status' => $result['external_status'] ?? null,
-                'message' => $message ?? ($result['message'] ?? null),
+                'message' => SupplierFacingCopy::mask($message ?? ($result['message'] ?? null)) ?: null,
                 'credits_insufficient' => $creditsInsufficient,
             ];
         } catch (Throwable $e) {
             Log::error('Attraction external create-order exception', [
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ]);
 
             return [
                 'success' => false,
                 'order_ref_id' => null,
                 'external_status' => null,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
                 'credits_insufficient' => false,
             ];
         }
@@ -267,13 +268,13 @@ class OnlineAttractionOrderService
         } catch (Throwable $e) {
             Log::error('Attraction external pay exception', [
                 'order_ref_id' => $orderRefId,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ]);
 
             return [
                 'success' => false,
                 'credits_insufficient' => false,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
                 'provider_status' => null,
             ];
         }
@@ -319,13 +320,13 @@ class OnlineAttractionOrderService
             return $adapter->fetchCredits($credentials);
         } catch (Throwable $e) {
             Log::warning('Attraction credits lookup failed', [
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ]);
 
             return [
                 'success' => false,
                 'credits_balance' => null,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ];
         }
     }
@@ -444,19 +445,19 @@ class OnlineAttractionOrderService
 
             return [
                 'success' => (bool) ($result['success'] ?? false),
-                'message' => $result['message'] ?? null,
+                'message' => SupplierFacingCopy::mask($result['message'] ?? null) ?: null,
                 'provider_status' => $result['provider_status'] ?? null,
                 'provider' => $result['provider'] ?? null,
             ];
         } catch (Throwable $e) {
             Log::error('Attraction voucher cancel exception', [
                 'code' => $code,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ]);
 
             return [
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
                 'provider_status' => null,
                 'provider' => null,
             ];
@@ -464,7 +465,7 @@ class OnlineAttractionOrderService
     }
 
     /**
-     * GET /order/details for a paid AttractionsSG order. Does not touch the database.
+     * GET /order/details for a paid online attraction order. Does not touch the database.
      *
      * @param  array<string, mixed>  $attraction
      * @return array{success: bool, message: ?string, data: ?array, vouchers: array<int, array<string, mixed>>}
@@ -497,19 +498,19 @@ class OnlineAttractionOrderService
 
             return [
                 'success' => ! empty($result['success']),
-                'message' => $result['message'] ?? null,
+                'message' => SupplierFacingCopy::mask($result['message'] ?? null) ?: null,
                 'data' => is_array($result['data'] ?? null) ? $result['data'] : null,
                 'vouchers' => is_array($result['vouchers'] ?? null) ? $result['vouchers'] : [],
             ];
         } catch (Throwable $e) {
             Log::error('Attraction order-details exception', [
                 'order_ref_id' => $orderRefId,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ]);
 
             return [
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
                 'data' => null,
                 'vouchers' => [],
             ];
@@ -633,7 +634,7 @@ class OnlineAttractionOrderService
             } catch (Throwable $e) {
                 Log::warning('Attraction supplier resolve by city failed; using stored supplier code', [
                     'supplier_code' => $supplierCode,
-                    'message' => $e->getMessage(),
+                    'message' => SupplierFacingCopy::mask($e->getMessage()),
                 ]);
             }
         }
@@ -777,7 +778,7 @@ class OnlineAttractionOrderService
             } catch (Throwable $e) {
                 Log::warning('Attraction provider ticket lookup failed', [
                     'sku_id' => $skuId,
-                    'message' => $e->getMessage(),
+                    'message' => SupplierFacingCopy::mask($e->getMessage()),
                 ]);
             }
         }
