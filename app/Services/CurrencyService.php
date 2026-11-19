@@ -27,15 +27,29 @@ class CurrencyService
             return null;
         }
 
-        $cacheKey = 'currency_rates_' . $baseCurrency;
+        $cacheKey = 'currency_rates_' . $baseCurrency . '_v2';
 
         return Cache::remember($cacheKey, now()->addMinutes(15), function () use ($baseCurrency) {
-            $rates = $this->fetchFreeCurrencyApiRates($baseCurrency);
-            if (is_array($rates) && $rates !== []) {
-                return $rates;
+            // FreeCurrencyAPI free tier returns ~33 majors only. Always merge open.er-api
+            // (160+ currencies) so missing codes like AED/VND/PKR still resolve.
+            $primary = $this->fetchFreeCurrencyApiRates($baseCurrency) ?: [];
+            $fallback = $this->fetchOpenExchangeRates($baseCurrency) ?: [];
+
+            if ($primary === [] && $fallback === []) {
+                return null;
             }
 
-            return $this->fetchOpenExchangeRates($baseCurrency);
+            // Prefer FreeCurrencyAPI values when present; fill gaps from open.er-api.
+            $merged = $fallback;
+            foreach ($primary as $code => $rate) {
+                $code = strtoupper(trim((string) $code));
+                $rate = (float) $rate;
+                if ($code !== '' && $rate > 0) {
+                    $merged[$code] = $rate;
+                }
+            }
+
+            return $merged !== [] ? $merged : null;
         });
     }
 

@@ -48,6 +48,8 @@ class CityController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'country' => 'required|string|exists:countries,id',
+            'mg_country_code' => 'required|string|max:10',
+            'mg_city_code' => 'required|string|max:20',
             'image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp|max:2048',
         ]);
 
@@ -64,6 +66,8 @@ class CityController extends Controller
 
         $countryName = $country->name;
         $cityName = trim($request->name);
+        $mgCountryCode = strtoupper(trim((string) $request->mg_country_code));
+        $mgCityCode = strtoupper(trim((string) $request->mg_city_code));
 
         // Check if city already exists (case-insensitive) - active cities
         $existingCity = City::whereRaw('LOWER(name) = ?', [strtolower($cityName)])
@@ -89,6 +93,11 @@ class CityController extends Controller
             // Restore the soft-deleted city
             $deletedCity->restore();
             
+            $restoreData = [
+                'mg_country_code' => $mgCountryCode,
+                'mg_city_code' => $mgCityCode,
+            ];
+
             // Handle image upload for restored city
             if ($request->hasFile('image')) {
                 // Delete old image if exists using CommonHelper
@@ -98,9 +107,10 @@ class CityController extends Controller
                 
                 // Store new image using CommonHelper
                 $uploadResult = CommonHelper::image_path('file_storage', $request->file('image'), 'uploads');
-                $imagePath = $uploadResult['master_value'] ?? null;
-                $deletedCity->update(['image' => $imagePath]);
+                $restoreData['image'] = $uploadResult['master_value'] ?? null;
             }
+
+            $deletedCity->update($restoreData);
             
             if ($request->ajax()) {
                 return response()->json([
@@ -142,6 +152,8 @@ class CityController extends Controller
             'name' => $cityName,
             'country' => $countryName,
             // 'city_id' => $newCityId,
+            'mg_country_code' => $mgCountryCode,
+            'mg_city_code' => $mgCityCode,
             'image' => $imagePath,
         ]);
         $city->refresh();
@@ -190,6 +202,8 @@ class CityController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'country' => 'required|string|exists:countries,id',
+            'mg_country_code' => 'required|string|max:10',
+            'mg_city_code' => 'required|string|max:20',
             'image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp|max:2048',
         ]);
 
@@ -209,6 +223,8 @@ class CityController extends Controller
 
         $countryName = $country->name;
         $cityName = trim($request->name);
+        $mgCountryCode = strtoupper(trim((string) $request->mg_country_code));
+        $mgCityCode = strtoupper(trim((string) $request->mg_city_code));
 
         // Check if city already exists (case-insensitive) excluding current city
         $existingCity = City::whereRaw('LOWER(name) = ?', [strtolower($cityName)])
@@ -246,6 +262,8 @@ class CityController extends Controller
         $city->update([
             'name' => $cityName,
             'country' => $countryName,
+            'mg_country_code' => $mgCountryCode,
+            'mg_city_code' => $mgCityCode,
             'image' => $city->image,
         ]);
 

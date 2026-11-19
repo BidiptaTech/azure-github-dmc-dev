@@ -10,6 +10,7 @@ use App\Services\SupplierConfigResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use App\Services\SupplierCredit\SupplierCreditService;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
 use Throwable;
@@ -580,12 +581,31 @@ class OnlineHotelController extends Controller
                     $bookingRow['phone'] = (string) $validated['phone'];
                 }
 
-                return $bookingService->bookFromRecheckResult(
+                // TravClicks vendor credit must cover the vendor cost before we book.
+                $vendorCost = SupplierCreditService::hotelCostFromRecheck($recheckResult);
+                app(SupplierCreditService::class)->assertSufficient(
+                    $supplierCode,
+                    $environment,
+                    $vendorCost['amount'],
+                    $vendorCost['currency'],
+                );
+
+                $details = $bookingService->bookFromRecheckResult(
                     $recheckResult,
                     $bookingRow,
                     $referenceId,
                     $credentials,
                 );
+
+                app(SupplierCreditService::class)->recordHotelBooking(
+                    is_array($details) ? $details : [],
+                    null,
+                    null,
+                    $referenceId,
+                    'api',
+                );
+
+                return $details;
             });
 
             Log::info('API online hotel booked', [

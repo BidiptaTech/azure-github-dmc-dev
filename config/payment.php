@@ -20,10 +20,12 @@ return [
     'wallet_legacy_unscoped_agent' => (bool) env('PAYMENT_WALLET_LEGACY_UNSCOPED_AGENT', true),
 
     /*
-    | Percent added on top of a converted amount when payment currency differs
-    | from the order currency. 0 uses the destination country gateway_percentage.
+    | Percent added on top of a converted (wallet) amount when wallet currency
+    | differs from the order currency. Rates use countries.current_rate with SGD
+    | as pivot (1 SGD = rate). Empty/null/0 disables the fee. Never uses
+    | countries.gateway_percentage.
     */
-    'fx_conversion_charge_percent' => env('PAYMENT_FX_CONVERSION_CHARGE_PERCENT'),
+    'fx_conversion_charge_percent' => env('PAYMENT_FX_CONVERSION_CHARGE_PERCENT', 11),
 
     'stripe' => [
         'mode' => env('STRIPE_MODE', 'test'), // test|live
@@ -43,6 +45,17 @@ return [
         // Used when travclicks_markup is not supplied on a destination charge.
         'application_fee_percent' => (float) env('STRIPE_APPLICATION_FEE_PERCENT', 0),
         'currency_fallback' => env('STRIPE_CURRENCY_FALLBACK', 'usd'),
+    ],
+
+    /*
+     * Online services paid up front (supplier_initial): hold the full amount, deduct each
+     * service as it is booked with the vendor, then capture once / release the remainder.
+     * Stripe card holds expire after ~7 days, so holds are force-settled before that.
+     */
+    'online_hold' => [
+        'enabled' => filter_var(env('PAYMENT_ONLINE_HOLD_ENABLED', true), FILTER_VALIDATE_BOOL),
+        'stripe_max_days' => (int) env('PAYMENT_ONLINE_HOLD_STRIPE_MAX_DAYS', 6),
+        'wallet_max_days' => (int) env('PAYMENT_ONLINE_HOLD_WALLET_MAX_DAYS', 30),
     ],
 
     'stages' => [

@@ -68,7 +68,8 @@
 .swal2-reject-modal .swal2-actions {
     padding: 1rem 1.5rem 1.5rem;
     gap: 0.75rem;
-    flex-direction: row-reverse;
+    /* Confirm (Proceed / red) on the left, Cancel on the right */
+    flex-direction: row;
 }
 .swal2-reject-modal .swal2-styled.swal2-confirm {
     background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
@@ -137,16 +138,55 @@ function showRejectServiceAlert(serviceType, callback, tourId, withoutRefund, ex
     extra = extra || {};
     withoutRefund = !!(withoutRefund || window.__cancelWithoutRefund);
 
+    // Single-service tour: order cancel is blocked — Cancel Tour only.
+    const activeServiceCount = tourId
+        ? Number((window.tourActiveServiceCounts || {})[tourId] ?? NaN)
+        : NaN;
+    if (Number.isFinite(activeServiceCount) && activeServiceCount <= 1) {
+        window.__cancelWithoutRefund = false;
+        const blockHtml = `<div class="reject-modal-icon"><i class="ri-error-warning-line"></i></div>
+            <h2 class="reject-modal-title">Cancel tour instead</h2>
+            <p class="mb-0">This tour has only one service. Cancel the <strong>tour</strong> to refund the tour amount — order cancel is not allowed.</p>`;
+        Swal.fire({
+            title: '',
+            html: blockHtml,
+            icon: null,
+            showCancelButton: false,
+            confirmButtonColor: '#4f46e5',
+            confirmButtonText: 'OK',
+            width: '400px',
+            padding: '0',
+            customClass: {
+                popup: 'swal2-reject-modal',
+                htmlContainer: 'swal2-reject-html',
+                confirmButton: 'swal2-reject-confirm'
+            },
+            backdrop: 'rgba(15, 23, 42, 0.45)'
+        });
+        return;
+    }
+
+    function formatDurationBeforeCheckIn(hours) {
+        if (hours === null || hours === undefined || !Number.isFinite(Number(hours))) return '—';
+        const total = Math.max(0, Math.round(Number(hours)));
+        if (total < 24) return total === 1 ? '1 hour' : (total + ' hours');
+        const days = Math.floor(total / 24);
+        const remHours = total % 24;
+        const dayPart = days === 1 ? '1 day' : (days + ' days');
+        if (remHours === 0) return dayPart;
+        const hourPart = remHours === 1 ? '1 hour' : (remHours + ' hours');
+        return dayPart + ' ' + hourPart;
+    }
+
     function policyBlock(calc) {
         if (!calc || !calc.applicable) return '';
         const cur = calc.currency || '';
-        const hours = calc.hours_until_check_in;
-        const hoursLabel = (hours === null || hours === undefined) ? '—' : (Number(hours).toFixed(0) + 'h');
+        const hoursLabel = formatDurationBeforeCheckIn(calc.hours_until_check_in);
         return `<div class="reject-info-note reject-info-note--refunds" style="margin-top:0.75rem;">
             <i class="ri-calculator-line"></i>
             <span>
                 <strong>Cancellation policy</strong><br>
-                Hours to check-in: <strong>${hoursLabel}</strong><br>
+                Time to check-in: <strong>${hoursLabel}</strong><br>
                 Hotel price: <strong>${cur} ${Number(calc.hotel_price || 0).toFixed(2)}</strong><br>
                 Cancellation charge: <strong>${cur} ${Number(calc.cancellation_charge || 0).toFixed(2)}</strong><br>
                 Suggested refund: <strong>${cur} ${Number(calc.suggested_refund || 0).toFixed(2)}</strong><br>
@@ -190,8 +230,9 @@ function showRejectServiceAlert(serviceType, callback, tourId, withoutRefund, ex
             showCancelButton: true,
             confirmButtonColor: '#dc2626',
             cancelButtonColor: '#64748b',
-            confirmButtonText: isDefiniteOrActualPage ? 'Cancel' : 'Yes, Reject',
-            cancelButtonText: isDefiniteOrActualPage ? 'Close' : 'Cancel',
+            confirmButtonText: isDefiniteOrActualPage ? 'Proceed' : 'Yes, Reject',
+            cancelButtonText: 'Cancel',
+            reverseButtons: false,
             width: calcHtml ? '460px' : '400px',
             padding: '0',
             customClass: {

@@ -201,6 +201,8 @@ class PaymentServiceController extends Controller
             'ready' => $ready,
             'settings' => $this->settingsService->get(),
             'countries' => $this->connectCountryOptions(),
+            'currencyOptions' => $this->connectCurrencyOptions(),
+            'dmcCurrency' => strtoupper((string) ($this->dmcHomeCurrency($dmcId) ?? '')),
             'travclicksLogo' => asset('assets/images/logo-dark.png'),
         ]);
     }
@@ -225,11 +227,16 @@ class PaymentServiceController extends Controller
 
         $validated = $request->validate([
             'country_code' => 'required|string|size:2',
+            'default_currency' => ['nullable', 'string', 'size:3', \Illuminate\Validation\Rule::in($this->connectCurrencyOptions())],
         ]);
 
         try {
             $user = auth()->user();
-            [$country, $currency] = $this->resolveConnectCountryCurrency($validated['country_code']);
+            [$country, $currency] = $this->resolveConnectCountryCurrency(
+                $validated['country_code'],
+                $validated['default_currency'] ?? null,
+                $dmcId
+            );
 
             $result = $this->stripeConnectService->createOnboardingLink(
                 $dmcId,
@@ -304,11 +311,16 @@ class PaymentServiceController extends Controller
 
         $validated = $request->validate([
             'country_code' => 'required|string|size:2',
+            'default_currency' => ['nullable', 'string', 'size:3', \Illuminate\Validation\Rule::in($this->connectCurrencyOptions())],
         ]);
 
         try {
             $user = auth()->user();
-            [$country, $currency] = $this->resolveConnectCountryCurrency($validated['country_code']);
+            [$country, $currency] = $this->resolveConnectCountryCurrency(
+                $validated['country_code'],
+                $validated['default_currency'] ?? null,
+                $dmcId
+            );
 
             $result = $this->stripeConnectService->createOnboardingLink(
                 $dmcId,
@@ -508,11 +520,35 @@ class PaymentServiceController extends Controller
     /**
      * @return array{0: ?string, 1: ?string}
      */
-    protected function resolveConnectCountryCurrency(?string $countryCode): array
+    /**
+     * Business country + Stripe default currency.
+     * Currency priority: explicit choice → existing account default → DMC's own (wallet)
+     * currency → business-country currency.
+     *
+     * @return array{0: ?string, 1: ?string}
+     */
+    protected function resolveConnectCountryCurrency(?string $countryCode, ?string $requestedCurrency = null, ?int $dmcId = null): array
     {
         $code = strtolower(trim((string) $countryCode));
         if ($code === '' || strlen($code) !== 2) {
             return [null, null];
+        }
+
+        $requested = strtolower(trim((string) $requestedCurrency));
+        if (preg_match('/^[a-z]{3}$/', $requested)) {
+            return [$code, $requested];
+        }
+
+        if ($dmcId) {
+            $existing = $this->stripeConnectService->getAccountForDmc($dmcId);
+            if (! empty($existing['default_currency'])) {
+                return [$code, strtolower((string) $existing['default_currency'])];
+            }
+
+            $dmcCurrency = $this->dmcHomeCurrency($dmcId);
+            if ($dmcCurrency !== null) {
+                return [$code, $dmcCurrency];
+            }
         }
 
         $currency = null;
@@ -526,12 +562,51 @@ class PaymentServiceController extends Controller
         return [$code, $currency];
     }
 
+    protected function dmcHomeCurrency(int $dmcId): ?string
+    {
+        try {
+            $cur = strtolower(app(\App\Services\Finance\WalletQueryService::class)->resolveDmcWalletCurrency($dmcId));
+
+            return preg_match('/^[a-z]{3}$/', $cur) ? $cur : null;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * ISO currencies offered as the Stripe default currency.
+     *
+     * @return array<int, string>
+     */
+    protected function connectCurrencyOptions(): array
+    {
+        return \App\Models\Country::query()
+            ->whereNotNull('currency')
+            ->pluck('currency')
+            ->map(fn ($c) => strtoupper(trim((string) $c)))
+            ->filter(fn ($c) => (bool) preg_match('/^[A-Z]{3}$/', $c))
+            ->push('SGD', 'USD')
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+    }
+
     protected function friendlyStripeError(\Throwable $e): string
     {
         $message = trim($e->getMessage());
 
         if ($message === '') {
             return 'Unable to connect to Stripe. Check STRIPE_SECRET_KEY in .env and try again.';
+        }
+
+        if (preg_match("/doesn't support currency (\\w{3}) with country (\\w{2})/i", $message, $m)) {
+            return sprintf(
+                'Stripe does not allow %s as the default currency for a business in %s. Choose a supported default currency (for example the country currency or USD). Customers can still be charged in %s — Stripe converts it to your default currency on payout.',
+                strtoupper($m[1]),
+                strtoupper($m[2]),
+                strtoupper($m[1])
+            );
         }
 
         if (str_contains($message, 'Signed request has invalid signature')

@@ -1501,8 +1501,8 @@ class EnquiryFormPro extends Controller
             'child_ages' => 'nullable|string|max:2000',
             'agency_id' => 'required|exists:agencies,agency_id',
             'agent_id' => 'required|exists:agents,agent_id',
-            'salutation' => 'required|in:Mr,Mrs,Ms,Miss,Dr,Prof',
-            'customer_name' => ['required', 'string', 'max:100', 'regex:/^[\p{L}]+(?:[\p{L}\s\-]*[\p{L}])?$/u'],
+            'salutation' => 'nullable|in:Mr,Mrs,Ms,Miss,Dr,Prof',
+            'customer_name' => ['nullable', 'string', 'max:100', 'regex:/^[\p{L}]+(?:[\p{L}\s\-]*[\p{L}])?$/u'],
             'contact_number' => ['nullable', 'string', 'max:15', 'regex:/^[0-9]*$/'],
             'email' => 'nullable|email|max:255',
             'customer_country_code' => 'nullable|string|max:20',
@@ -5304,22 +5304,38 @@ class EnquiryFormPro extends Controller
         $cancelService = app(\App\Services\AttractionSuppliers\OnlineAttractionCancellationService::class);
         foreach ($orphans as $orphan) {
             try {
-                $cancelService->cancelIfApplicable(
+                $cancelResult = $cancelService->cancelIfApplicable(
                     $orphan,
-                    'Removed from Pro enquiry edit form'
+                    'Removed from Pro enquiry edit form',
+                    true
                 );
+                if (is_array($cancelResult) && ! empty($cancelResult['soft_failed'])) {
+                    \Log::warning('Pro edit: online attraction voucher cancel soft-failed during orphan soft-delete', [
+                        'tour_id' => $tour->tour_id,
+                        'order_id' => $orphan->id,
+                        'booking_id' => $orphan->booking_id,
+                        'message' => $cancelResult['message'] ?? null,
+                    ]);
+                }
             } catch (\Throwable $e) {
-                \Log::error('Pro edit: online attraction voucher cancel failed during orphan soft-delete', [
+                \Log::error('Pro edit: online attraction voucher cancel unexpected error during orphan soft-delete', [
                     'tour_id' => $tour->tour_id,
                     'order_id' => $orphan->id,
                     'booking_id' => $orphan->booking_id,
                     'error' => $e->getMessage(),
                 ]);
 
-                throw new \RuntimeException(
-                    'Cannot remove online attraction "' . ($orphan->booking_id ?? $orphan->id)
-                    . '": voucher cancel failed — ' . $e->getMessage()
-                );
+                try {
+                    app(\App\Services\Payment\SupplierCancellationStatusService::class)->markFailed(
+                        $orphan,
+                        $e->getMessage() ?: 'Unexpected supplier cancellation error.'
+                    );
+                } catch (\Throwable $statusError) {
+                    \Log::warning('Could not persist supplier cancellation failed status', [
+                        'order_id' => $orphan->id,
+                        'error' => $statusError->getMessage(),
+                    ]);
+                }
             }
 
             $refundPayload = \App\Helpers\CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tour->tour_id, []);

@@ -164,48 +164,69 @@
 
 @once
 <style>
-    .add-pay-breakdown { font-size: 0.78rem; line-height: 1.25; }
+    .add-pay-breakdown { font-size: 0.8rem; line-height: 1.3; color: #334155; }
     .add-pay-breakdown .apb-grid {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 6px;
-        margin-bottom: 6px;
+        gap: 8px;
+        margin-bottom: 8px;
     }
     .add-pay-breakdown .apb-grid.apb-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .add-pay-breakdown .apb-item {
-        background: #fff;
-        border: 1px solid #dbe3ee;
-        border-radius: 6px;
-        padding: 5px 8px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 8px 10px;
         min-width: 0;
     }
-    .add-pay-breakdown .apb-item.is-accent { border-color: #93c5fd; background: #eff6ff; }
-    .add-pay-breakdown .apb-item.is-ok { border-color: #86efac; background: #f0fdf4; }
+    .add-pay-breakdown .apb-item.is-accent {
+        border-color: #c7d2fe;
+        background: linear-gradient(180deg, #eef2ff 0%, #f8fafc 100%);
+    }
+    .add-pay-breakdown .apb-item.is-ok {
+        border-color: #bbf7d0;
+        background: linear-gradient(180deg, #ecfdf5 0%, #f8fafc 100%);
+    }
     .add-pay-breakdown .apb-lbl {
         display: block;
-        font-size: 0.62rem;
-        letter-spacing: .03em;
+        font-size: 0.64rem;
+        letter-spacing: .05em;
         text-transform: uppercase;
         color: #64748b;
         font-weight: 700;
-        margin-bottom: 1px;
+        margin-bottom: 2px;
     }
-    .add-pay-breakdown .apb-val { font-weight: 700; font-size: 0.82rem; white-space: nowrap; }
-    .add-pay-breakdown .apb-sub { font-size: 0.68rem; color: #64748b; }
+    .add-pay-breakdown .apb-val {
+        font-weight: 700;
+        font-size: 0.82rem;
+        color: #0f172a;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        line-height: 1.25;
+    }
+    .add-pay-breakdown .apb-sub { font-size: 0.7rem; color: #64748b; margin-top: 1px; }
+    .add-pay-breakdown .table-responsive {
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 8px;
+    }
     .add-pay-breakdown table.apb-table {
-        font-size: 0.72rem;
-        margin: 0 0 6px;
+        font-size: 0.74rem;
+        margin: 0;
         background: #fff;
     }
     .add-pay-breakdown table.apb-table th,
     .add-pay-breakdown table.apb-table td {
-        padding: 3px 6px;
+        padding: 7px 10px;
         vertical-align: middle;
+        border-color: #eef2f7;
     }
     .add-pay-breakdown table.apb-table th {
-        font-size: 0.6rem;
+        font-size: 0.62rem;
         text-transform: uppercase;
-        letter-spacing: .03em;
+        letter-spacing: .05em;
         color: #64748b;
         font-weight: 700;
         background: #f8fafc;
@@ -213,17 +234,44 @@
         border-bottom-width: 1px;
     }
     .add-pay-breakdown .apb-invoice {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 4px 14px;
-        justify-content: space-between;
-        margin-top: 6px;
-        background: #fff;
-        border: 1px solid #dbe3ee;
-        border-radius: 6px;
-        padding: 6px 8px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 2px;
     }
-    .add-pay-breakdown .apb-invoice > div { min-width: 0; }
+    .add-pay-breakdown .apb-invoice > div {
+        min-width: 0;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 8px 10px;
+        overflow: hidden;
+    }
+    .add-pay-breakdown .apb-invoice > div .apb-lbl {
+        white-space: normal;
+        line-height: 1.2;
+    }
+    .add-pay-breakdown .apb-invoice > div:nth-child(3) {
+        border-color: #c7d2fe;
+        background: #eef2ff;
+    }
+    .add-pay-breakdown .apb-invoice > div:nth-child(4) {
+        border-color: #bbf7d0;
+        background: #ecfdf5;
+    }
+    .add-pay-breakdown .apb-invoice > div:nth-child(5) {
+        border-color: #fecdd3;
+        background: #fff1f2;
+        grid-column: 1 / -1;
+    }
+    @media (min-width: 1200px) {
+        .add-pay-breakdown .apb-invoice {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        .add-pay-breakdown .apb-invoice > div:nth-child(5) {
+            grid-column: auto;
+        }
+    }
     @media (max-width: 575.98px) {
         .add-pay-breakdown .apb-grid,
         .add-pay-breakdown .apb-grid.apb-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }

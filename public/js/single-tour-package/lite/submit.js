@@ -232,7 +232,8 @@
         fd.append('child_ages', JSON.stringify(caps.childAges || []));
         fd.append('agent_id', val('agent_id') || val('agent') || '0');
         fd.append('reference_number', val('reference_number'));
-        fd.append('enquiry_id', val('enquiry_id') || '0');
+        fd.append('enquiry_id', val('enquiry_id') || String(cfg().enquiryId || '0') || '0');
+        fd.append('multi_enq_id', val('multi_enq_id') || String(cfg().multiEnqId || '') || '');
         fd.append('mainguest', JSON.stringify(mainGuest));
         fd.append('additionalguest', JSON.stringify(additional));
         fd.append('tour_type', tourType);
@@ -297,7 +298,22 @@
                 r.restaurantCity = r.restaurantCity || geo.city;
             }
             if (geo.country) r.country = geo.country;
-            if (geo.currency) r.currency = geo.currency;
+            // Online hotels keep supplier price currency; MG Bedbank is always SGD.
+            var isOnlineHotel = !!(r.isOnlineHotel || r.hotelSourceType === 'online' || r.priceMode === 'online');
+            var supplierCode = String(
+                r.onlineHotelSource
+                || (r.onlineHotelBooking && r.onlineHotelBooking.supplier_code)
+                || ''
+            ).toLowerCase();
+            var isMgBedbank = supplierCode === 'mg_bedbank' || supplierCode === 'mgbedbank' || supplierCode === 'mg';
+            if (isMgBedbank) {
+                r.currency = 'SGD';
+            } else {
+                var rowCurrency = String(r.currency || '').trim().toUpperCase();
+                if (geo.currency && !(isOnlineHotel && rowCurrency)) {
+                    r.currency = geo.currency;
+                }
+            }
             if (r.hotelDetails && typeof r.hotelDetails === 'object') {
                 r.hotelDetails = Object.assign({}, r.hotelDetails);
                 if (geo.city) r.hotelDetails.city = geo.city;

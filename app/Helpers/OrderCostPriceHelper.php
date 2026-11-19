@@ -270,17 +270,35 @@ class OrderCostPriceHelper
             $roomId = (int) ($roomRow['room_id'] ?? 0);
             $numberOfRooms = max(1, (int) ($roomRow['number_of_rooms'] ?? 1));
             $beds = is_array($roomRow['beds'] ?? null) ? $roomRow['beds'] : [];
-            $headCount = 2;
+            $headCount = 1;
             $bedId = null;
-            $maxOccupancy = 2;
+            $maxOccupancy = 1;
             if (! empty($beds[0]) && is_array($beds[0])) {
-                $headCount = max(1, (int) ($beds[0]['head_count'] ?? $beds[0]['max_occupancy'] ?? 2));
+                // Prefer actual booked guests (head_count), never room capacity alone.
+                $headCount = max(1, (int) ($beds[0]['head_count'] ?? 1));
                 $maxOccupancy = max(1, (int) ($beds[0]['max_occupancy'] ?? $headCount));
                 $bedId = $beds[0]['bed_id'] ?? null;
             }
 
-            // Same single/double rule as sell: max guests 1 → single, else double.
-            $useDouble = min(2, $maxOccupancy) > 1 || $headCount >= 2;
+            // Match HotelPriceHelper / Lite sell: pax <= 1 → single rate, else double.
+            // Do NOT use max_occupancy — capacity of 2 wrongly forced double cost for single pax.
+            $pax = max(1, (int) (
+                $roomRow['selected_persons']
+                ?? $item['selected_persons']
+                ?? $headCount
+            ));
+            $occupancy = strtolower(trim((string) (
+                $roomRow['occupancy']
+                ?? $item['occupancy']
+                ?? ''
+            )));
+            if ($occupancy === 'single') {
+                $useDouble = false;
+            } elseif ($occupancy === 'double') {
+                $useDouble = true;
+            } else {
+                $useDouble = $pax > 1;
+            }
             $room = $roomId > 0 ? Room::query()->where('room_id', $roomId)->first() : null;
 
             $roomCostTotal = 0.0;
@@ -370,6 +388,8 @@ class OrderCostPriceHelper
                         'number_of_rooms' => $numberOfRooms,
                         'nights' => max(1, $nights),
                         'head_count' => $headCount,
+                        'pax' => $pax,
+                        'occupancy' => $useDouble ? 'double' : 'single',
                         'max_occupancy' => $maxOccupancy,
                         'per_night' => $perNightCosts,
                     ],
@@ -426,11 +446,13 @@ class OrderCostPriceHelper
                         $units = array_fill(0, max(1, $nights), $fallbackUnit);
                     }
 
+                    // Meal guests follow booked pax (same single/double rule as sell), not room capacity.
+                    $mealGuests = max(1, $pax);
                     $mealTotal = 0.0;
                     $unitSum = 0.0;
                     foreach ($units as $unit) {
                         $unitSum += (float) $unit;
-                        $mealTotal += (float) $unit * $headCount * $numberOfRooms;
+                        $mealTotal += (float) $unit * $mealGuests * $numberOfRooms;
                     }
                     $avgUnit = count($units) > 0 ? $unitSum / count($units) : 0.0;
                     if ($mealTotal <= 0) {
@@ -442,7 +464,9 @@ class OrderCostPriceHelper
                         'cost' => round($mealTotal, 2),
                         'meta' => [
                             'unit_cost' => round($avgUnit, 2),
-                            'head_count' => $headCount,
+                            'head_count' => $mealGuests,
+                            'pax' => $pax,
+                            'occupancy' => $useDouble ? 'double' : 'single',
                             'nights' => max(1, $nights),
                             'number_of_rooms' => $numberOfRooms,
                             'per_night_unit_cost' => array_map(static fn ($u) => round((float) $u, 2), $units),

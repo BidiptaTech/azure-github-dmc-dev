@@ -48,6 +48,8 @@ use Illuminate\Support\Facades\Crypt;
                             <th>No</th>
                             <th>City Name</th>
                             <th>Country</th>
+                            <th>MG Country Code</th>
+                            <th>MG City Code</th>
                             {{-- <th>City ID</th> --}}
                             <th>Created At</th>
                             <th>Explore City</th>
@@ -60,6 +62,8 @@ use Illuminate\Support\Facades\Crypt;
                                 <td>{{ ++$key }}</td>
                                 <td class="city-name">{{ $city->name }}</td>
                                 <td class="country-name">{{ $city->country }}</td>
+                                <td>{{ $city->mg_country_code ?: '—' }}</td>
+                                <td>{{ $city->mg_city_code ?: '—' }}</td>
                                 {{-- <td class="city-id">{{ $city->city_id }}</td> --}}
                                 <td>{{ $city->created_at->format('d M Y') }}</td>
                                 <td>

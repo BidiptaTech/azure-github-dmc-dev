@@ -124,18 +124,15 @@
     /** Footer totals block used by price panels / modals. */
     function totalsHtml(applied, cur) {
         applied = applied || apply(0, 'other');
-        var html = '<div class="stp-lite-hotel-breakup-totals">';
-        if (Number(applied.markup_amount || 0) > 0) {
-            html +=
-                '<div class="stp-lite-hotel-breakup-total is-markup">' +
-                '<span><strong>Markup Amount:</strong></span>' +
-                '<strong>' + moneyTxt(cur, applied.markup_amount) + '</strong></div>';
-        }
-        html +=
+        // Markup Amount is already shown in summaryRowsHtml — only Total here (avoid duplicate).
+        return (
+            '<div class="stp-lite-hotel-breakup-totals">' +
             '<div class="stp-lite-hotel-breakup-total">' +
             '<span><strong>Total Price:</strong></span>' +
-            '<strong>' + moneyTxt(cur, applied.price) + '</strong></div></div>';
-        return html;
+            '<strong>' + moneyTxt(cur, applied.price) + '</strong></div>' +
+            (window.StpDmcFx ? window.StpDmcFx.rowsHtml(applied.price, cur, 'stp-lite-hotel-breakup-total') : '') +
+            '</div>'
+        );
     }
 
     /**
@@ -156,7 +153,12 @@
         if (markupEl) markupEl.textContent = moneyTxt(cur, applied.markup_amount);
         if (markupRow) markupRow.classList.toggle('d-none', !(Number(applied.markup_amount || 0) > 0));
         if (detailEl) {
-            detailEl.innerHTML = String(detailHtml || '') + summaryRowsHtml(applied, cur);
+            // Every service (online + offline): total in the DMC's own currency when it differs.
+            // Display only — nothing here is saved.
+            var fxHtml = window.StpDmcFx
+                ? window.StpDmcFx.rowsHtml(applied.price, cur, 'd-flex justify-content-between small')
+                : '';
+            detailEl.innerHTML = String(detailHtml || '') + summaryRowsHtml(applied, cur) + fxHtml;
         }
         return applied;
     }

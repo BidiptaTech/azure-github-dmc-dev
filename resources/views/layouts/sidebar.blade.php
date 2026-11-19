@@ -1604,7 +1604,7 @@
                         <span class="menu-header-text" data-i18n="Setting">Setting</span>
                     </li>
                     
-                    <li class="menu-item @if(Request::is('master-setting*', 'country*', 'countries*', 'mail*', 'guide-languages*', 'suppliers*', 'cities*', 'app-management*', 'dmc-func-app*', 'itinerary_settings.pdf', 'quotation_settings.pdf', 'finance/payment-settings*')) open @endif">
+                    <li class="menu-item @if(Request::is('master-setting*', 'country*', 'countries*', 'mail*', 'guide-languages*', 'suppliers*', 'cities*', 'app-management*', 'dmc-func-app*', 'dmc-invoice*', 'dmc-offer*', 'travclicks-invoice*', 'itinerary_settings.pdf', 'quotation_settings.pdf', 'finance/payment-settings*')) open @endif">
                         <a href="#" class="menu-link menu-toggle">
                             <i class="menu-icon tf-icons ri-settings-3-line"></i>
                             <div data-i18n="General Settings">General Settings</div>
@@ -1694,6 +1694,13 @@
                                     <div data-i18n="Online Api Master">Online Api Master</div>
                                 </a>
                             </li>
+                            @if((int) auth()->user()->role_id === 1)
+                            <li class="menu-item @if(Request::is('supplier-credits*')) active @endif">
+                                <a href="{{ route('supplier-credits.index') }}" class="menu-link">
+                                    <div data-i18n="Vendor Credit">Vendor Credit</div>
+                                </a>
+                            </li>
+                            @endif
                             @endif
                         @endif
                         @if(in_array(auth()->user()->role_id, [11, 33,34,37,38, 77, 84, 128, 131, 132, 134, 135, 137, 138]))
@@ -1705,6 +1712,24 @@
                             <li class="menu-item @if(Request::is('quotation_settings.pdf')) active @endif">
                                 <a href="{{ route('quotation_settings.pdf') }}" class="menu-link">
                                     <div data-i18n="Quotation Settings">Quotation Settings</div>
+                                </a>
+                            </li>
+                            <li class="menu-item @if(Request::is('travclicks-invoice*')) active @endif">
+                                <a href="{{ route('travclicks-invoice.index') }}" class="menu-link">
+                                    <div data-i18n="Travclicks Invoice">Travclicks Invoice</div>
+                                </a>
+                            </li>
+                        @endif
+
+                        @if($sidebarIsAdmin)
+                            <li class="menu-item @if(Request::is('dmc-invoice*')) active @endif">
+                                <a href="{{ route('dmc-invoice.index') }}" class="menu-link">
+                                    <div data-i18n="DMC Invoice">DMC Invoice</div>
+                                </a>
+                            </li>
+                            <li class="menu-item @if(Request::is('dmc-offer*')) active @endif">
+                                <a href="{{ route('dmc-offer.index') }}" class="menu-link">
+                                    <div data-i18n="DMC Offer">DMC Offer</div>
                                 </a>
                             </li>
                         @endif
@@ -2094,7 +2119,7 @@
                                     <span class="ctp-card-head-icon me-2"><i class="ri-user-line"></i></span>
                                     <span class="ctp-lead-head-copy">
                                         <span class="d-block fw-semibold" style="font-size: 13.5px; line-height: 1.2;">Lead Guest Information</span>
-                                        <span class="ctp-card-sub">Enter the primary customer's details</span>
+                                        <span class="ctp-card-sub">Optional — enter primary customer details if available</span>
                                     </span>
                                 </span>
                                 <i class="ri-arrow-up-s-line ctp-lead-chevron"></i>
@@ -2102,8 +2127,8 @@
                             <div id="ctpLeadGuestBody" class="collapse show">
                         <div class="row g-3 mb-3">
                             <div class="col-md-2 col-4">
-                                <label class="ctp-label" for="salutation">Salutation <span class="ctp-req">*</span></label>
-                                <select class="form-select" id="salutation" name="salutation" required>
+                                <label class="ctp-label" for="salutation">Salutation</label>
+                                <select class="form-select" id="salutation" name="salutation">
                                     <option value="Mr">Mr</option>
                                     <option value="Mrs">Mrs</option>
                                     <option value="Ms">Ms</option>
@@ -2113,10 +2138,10 @@
                                 </select>
                             </div>
                             <div class="col-md-5 col-8">
-                                <label class="ctp-label" for="customerName">Full Name <span class="ctp-req">*</span></label>
+                                <label class="ctp-label" for="customerName">Full Name</label>
                                 <div class="ctp-icon-field">
                                     <i class="ri-user-line ctp-field-ico"></i>
-                                    <input type="text" class="form-control" id="customerName" name="customer_name" placeholder="Enter full name" required maxlength="100" autocomplete="name" data-ctp-filter="name">
+                                    <input type="text" class="form-control" id="customerName" name="customer_name" placeholder="Enter full name (optional)" maxlength="100" autocomplete="name" data-ctp-filter="name">
                                 </div>
                                 <div class="ctp-lead-error" data-ctp-error-for="customerName"></div>
                             </div>
@@ -2219,7 +2244,7 @@
                             <button type="button" class="btn ctp-btn-cancel" data-bs-dismiss="modal">
                                 <i class="ri-close-line me-1"></i>Cancel
                             </button>
-                            <button type="submit" class="btn" id="submitTourProBtn" disabled title="Fill all required fields (contact and email are optional).">
+                            <button type="submit" class="btn" id="submitTourProBtn" disabled title="Select destination, dates, agency and agent to continue. Guest details are optional.">
                                 <span class="ctp-btn-spinner spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
                                 <span class="ctp-btn-label">Continue</span>
                                 <i class="ri-arrow-right-line ms-1 ctp-btn-arrow"></i>
@@ -2881,7 +2906,7 @@
         window.ctpSyncTourTypeFromPax = ctpSyncTourTypeFromPax;
         window.ctpSetTourType = ctpSetTourType;
 
-        /** Enable Continue when required fields are set. Contact number and email are optional. */
+        /** Enable Continue when destination, dates, agency and agent are set. Guest details are optional. */
         function ctpExpandLeadGuestAccordion() {
             const body = document.getElementById('ctpLeadGuestBody');
             if (!body) return;
@@ -2923,18 +2948,15 @@
             if (!(document.getElementById('agencyIdValue')?.value || '').trim()) ok = false;
             if (!(document.getElementById('agentIdValue')?.value || '').trim()) ok = false;
 
-            const custName = (document.getElementById('customerName')?.value || '').trim();
-            if (!custName || !/^[\p{L}]+(?:[\p{L}\s\-]*[\p{L}])?$/u.test(custName)) ok = false;
+            // Guest details are optional; only block Continue if filled values are invalid.
             if (typeof ctpLeadGuestHasInvalidFields === 'function' && ctpLeadGuestHasInvalidFields()) ok = false;
-
-            if (!window.tourProGuestConfigured) ok = false;
 
             btn.disabled = !ok;
             btn.style.opacity = ok ? '1' : '0.55';
             btn.style.cursor = ok ? 'pointer' : 'not-allowed';
             btn.title = ok
                 ? 'Continue to enquiry form'
-                : 'Fill all required fields (destination, agency, agent, customer name, guests). Contact and email are optional.';
+                : 'Select destination, dates, agency and agent to continue. Guest details are optional.';
         }
         window.ctpUpdateSubmitButtonState = ctpUpdateSubmitButtonState;
 
@@ -3127,14 +3149,14 @@
                     if (showErrors) ctpLeadGuestShowError(el.id, rule.incompleteError || rule.error);
                 }
             });
+            // Full name is optional; validate format only when provided.
             const nameEl = document.getElementById('customerName');
             const nameVal = (nameEl?.value || '').trim();
-            if (!nameVal) {
-                ok = false;
-                if (showErrors) ctpLeadGuestShowError('customerName', 'Full name is required and can only contain letters.');
-            } else if (!/^[\p{L}]+(?:[\p{L}\s\-]*[\p{L}])?$/u.test(nameVal) || /['"`]/.test(nameVal)) {
+            if (nameVal && (!/^[\p{L}]+(?:[\p{L}\s\-]*[\p{L}])?$/u.test(nameVal) || /['"`]/.test(nameVal))) {
                 ok = false;
                 if (showErrors) ctpLeadGuestShowError('customerName', 'Full name can only contain letters. Quotes and special characters are not allowed.');
+            } else if (!nameVal && nameEl) {
+                ctpLeadGuestShowError('customerName', '');
             }
             return ok;
         }
@@ -3263,36 +3285,30 @@
             const cap = isGroup ? ctpModalTourCap() : Infinity;
 
             if (type === 'male' || type === 'female') {
-                if (isGroup) {
-                    if (type === 'male') {
-                        if (change > 0) {
-                            if (f <= 0) return;
-                            m++;
-                            f--;
-                        } else if (change < 0) {
-                            if (m <= 0) return;
-                            m--;
-                            f++;
-                        }
-                    } else {
-                        if (change > 0) {
-                            if (m <= 0) return;
-                            f++;
-                            m--;
-                        } else if (change < 0) {
-                            if (f <= 0) return;
-                            f--;
-                            m++;
-                        }
+                // Male/female is a split of fixed adults — never change adult total.
+                if (type === 'male') {
+                    if (change > 0) {
+                        if (f <= 0) return;
+                        m++;
+                        f--;
+                    } else if (change < 0) {
+                        if (m <= 0) return;
+                        m--;
+                        f++;
                     }
-                    if (m + f < 1) return;
-                    if (m + f + c > cap) return;
                 } else {
-                    const cur = type === 'male' ? m : f;
-                    const nv = Math.max(0, cur + change);
-                    if (type === 'male') m = nv; else f = nv;
-                    if (m + f < 1) return;
+                    if (change > 0) {
+                        if (m <= 0) return;
+                        f++;
+                        m--;
+                    } else if (change < 0) {
+                        if (f <= 0) return;
+                        f--;
+                        m++;
+                    }
                 }
+                if (m + f < 1) return;
+                if (isGroup && m + f + c > cap) return;
                 maleEl.textContent = String(m);
                 femaleEl.textContent = String(f);
                 if (adEl) adEl.textContent = String(m + f);
@@ -4019,7 +4035,7 @@
             tourEndDateInput.addEventListener('change', ctpUpdateSubmitButtonState);
         }
         
-        // Form validation (contact number and email are optional)
+        // Form validation (lead guest details and tour-guest picker are optional)
         document.getElementById('createTourProForm').addEventListener('submit', function(e) {
             if (!ctpValidateLeadGuestFields(true)) {
                 e.preventDefault();
@@ -4075,16 +4091,22 @@
                 return false;
             }
 
+            // Tour guests optional: use FIT default (1 adult) when not configured
             if (!window.tourProGuestConfigured) {
-                e.preventDefault();
-                alert('Click "Select tour guests", set passengers, then Apply Selection.');
-                return false;
+                if (typeof ctpInitDefaultFitHidden === 'function') ctpInitDefaultFitHidden();
+                window.tourProGuestConfigured = true;
             }
             // Final FIT/GROUP sync from saved adults+children (Lite parity)
             ctpSyncTourTypeFromPax();
-            const adults = ctpSafeInt(document.getElementById('ctp_hidden_adult_count').value);
-            const children = ctpSafeInt(document.getElementById('ctp_hidden_child_count').value);
-            const infants = ctpSafeInt(document.getElementById('ctp_hidden_infant_count').value);
+            let adults = ctpSafeInt(document.getElementById('ctp_hidden_adult_count').value);
+            let children = ctpSafeInt(document.getElementById('ctp_hidden_child_count').value);
+            let infants = ctpSafeInt(document.getElementById('ctp_hidden_infant_count').value);
+            if (adults + children + infants === 0 || adults < 1) {
+                if (typeof ctpInitDefaultFitHidden === 'function') ctpInitDefaultFitHidden();
+                adults = ctpSafeInt(document.getElementById('ctp_hidden_adult_count').value);
+                children = ctpSafeInt(document.getElementById('ctp_hidden_child_count').value);
+                infants = ctpSafeInt(document.getElementById('ctp_hidden_infant_count').value);
+            }
             if (adults + children + infants === 0) {
                 e.preventDefault();
                 alert('Please specify at least one passenger.');

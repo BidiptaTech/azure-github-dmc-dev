@@ -12,6 +12,33 @@
     .swal2-container.online-hotel-approve-swal {
         z-index: 20050 !important;
     }
+    .hotel-approve-modal .modal-dialog {
+        max-width: min(1100px, 96vw);
+    }
+    .hotel-approve-modal .modal-body {
+        overflow: visible;
+        max-height: none;
+        padding: 0.75rem 1rem !important;
+    }
+    .hotel-approve-modal .modal-header,
+    .hotel-approve-modal .modal-footer {
+        padding: 0.65rem 1rem !important;
+    }
+    .hotel-approve-form-wide .form-label {
+        font-size: 0.78rem;
+        margin-bottom: 0.2rem;
+    }
+    .hotel-approve-form-wide .form-text {
+        font-size: 0.7rem;
+        margin-top: 0.15rem;
+    }
+    .hotel-approve-form-wide .form-control,
+    .hotel-approve-form-wide .form-select {
+        font-size: 0.85rem;
+        padding: 0.35rem 0.6rem;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+    }
 </style>
 <script>
 @endif
@@ -28,7 +55,15 @@
     if (!document.getElementById('online-hotel-approve-swal-z')) {
         const style = document.createElement('style');
         style.id = 'online-hotel-approve-swal-z';
-        style.textContent = '.swal2-container.online-hotel-approve-swal{z-index:20050 !important;}';
+        style.textContent = [
+            '.swal2-container.online-hotel-approve-swal{z-index:20050 !important;}',
+            '.hotel-approve-modal .modal-dialog{max-width:min(1100px,96vw);}',
+            '.hotel-approve-modal .modal-body{overflow:visible;max-height:none;padding:0.75rem 1rem !important;}',
+            '.hotel-approve-modal .modal-header,.hotel-approve-modal .modal-footer{padding:0.65rem 1rem !important;}',
+            '.hotel-approve-form-wide .form-label{font-size:0.78rem;margin-bottom:0.2rem;}',
+            '.hotel-approve-form-wide .form-text{font-size:0.7rem;margin-top:0.15rem;}',
+            '.hotel-approve-form-wide .form-control,.hotel-approve-form-wide .form-select{font-size:0.85rem;padding:0.35rem 0.6rem;border-radius:6px;border:1px solid #e2e8f0;}'
+        ].join('');
         document.head.appendChild(style);
     }
 
@@ -88,100 +123,93 @@
 
     function generateApproveHotelForm(tourId, hotelOrderIndex, bookingIndex, autoCancelDate) {
         return `
-        <form id="approveIndividualHotelForm_${tourId}_${hotelOrderIndex}_${bookingIndex}">
+        <form id="approveIndividualHotelForm_${tourId}_${hotelOrderIndex}_${bookingIndex}" class="hotel-approve-form-wide">
             <input type="hidden" name="tour_id" value="${tourId}">
             <input type="hidden" name="hotel_order_index" value="${hotelOrderIndex}">
             <input type="hidden" name="booking_index" value="${bookingIndex}">
 
-            <div class="card border-0 shadow-sm mb-4" style="border-radius: 12px;">
-                <div class="card-header bg-light border-0 py-3">
-                    <h6 class="mb-0 fw-bold text-dark d-flex align-items-center">
-                        <i class="ri-hotel-line me-2 text-primary"></i>Hotel Information
-                    </h6>
-                </div>
-                <div class="card-body p-4">
-                    <div class="row align-items-center">
-                        <div class="col-md-3">
-                            <div id="approve_hotel_image_${tourId}_${hotelOrderIndex}_${bookingIndex}" class="text-center">
-                                <div class="bg-light rounded p-3" style="width: 80px; height: 60px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="ri-hotel-line text-muted fs-2"></i>
+            <div class="row g-2 align-items-stretch mb-2">
+                <div class="col-lg-5">
+                    <div class="card border-0 h-100" style="border-radius: 8px; background:#f8fafc;">
+                        <div class="card-body py-2 px-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <div id="approve_hotel_image_${tourId}_${hotelOrderIndex}_${bookingIndex}" class="flex-shrink-0">
+                                    <div class="bg-white rounded border d-flex align-items-center justify-content-center" style="width: 52px; height: 40px;">
+                                        <i class="ri-hotel-line text-muted"></i>
+                                    </div>
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="fw-semibold text-truncate" id="approve_hotel_name_${tourId}_${hotelOrderIndex}_${bookingIndex}">Hotel Booking</div>
+                                    <div class="text-muted small">Order ${hotelOrderIndex + 1}, Booking ${bookingIndex + 1}</div>
+                                    <span id="approve_hotel_order_type_badge_${tourId}_${hotelOrderIndex}_${bookingIndex}" class="badge d-none mt-1" style="font-size:0.65rem;"></span>
                                 </div>
                             </div>
                         </div>
-                        <div class="col-md-9">
-                            <h6 class="fw-bold mb-1" id="approve_hotel_name_${tourId}_${hotelOrderIndex}_${bookingIndex}">Hotel Booking</h6>
-                            <p class="text-muted mb-0 small">Order ${hotelOrderIndex + 1}, Booking ${bookingIndex + 1}</p>
-                            <span id="approve_hotel_order_type_badge_${tourId}_${hotelOrderIndex}_${bookingIndex}" class="badge d-none mt-1"></span>
+                    </div>
+                </div>
+                <div class="col-lg-7">
+                    <div class="alert alert-success border-0 mb-0 h-100 py-2 px-3 d-flex align-items-center" style="background:#ecfdf5; border-radius: 8px;">
+                        <i class="ri-check-circle-line me-2 text-success"></i>
+                        <div>
+                            <strong class="text-success" style="font-size:0.85rem;">Confirm Approval</strong>
+                            <div class="text-muted small mb-0">Confirm this hotel booking. Online hotels recheck availability then book with the supplier.</div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div class="alert alert-success border-0 mb-4" style="background: linear-gradient(45deg, #d4edda, #f0f9f0); border-radius: 12px;">
-                <div class="d-flex align-items-center">
-                    <i class="ri-check-circle-line me-2 text-success fs-4"></i>
-                    <div>
-                        <strong class="text-success">Confirm Approval</strong>
-                        <p class="mb-0 text-muted small mt-1">Confirm this hotel booking. Online hotels recheck availability then book with the supplier.</p>
-                    </div>
+            <div class="row g-2 mb-2">
+                <div class="col-md-6" id="referenceIdWrap_${tourId}_${hotelOrderIndex}_${bookingIndex}">
+                    <label for="referenceId_${tourId}_${hotelOrderIndex}_${bookingIndex}" class="form-label fw-semibold" id="referenceIdLabel_${tourId}_${hotelOrderIndex}_${bookingIndex}">
+                        <i class="ri-file-text-line me-1"></i>Reference ID <span class="text-danger reference-required-mark">*</span>
+                    </label>
+                    <input type="text" class="form-control" id="referenceId_${tourId}_${hotelOrderIndex}_${bookingIndex}" name="reference_id" required
+                           placeholder="Booking reference / confirmation number">
+                </div>
+                <div class="col-md-6">
+                    <label for="referenceFile_${tourId}_${hotelOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                        <i class="ri-attachment-line me-1"></i>Reference File (Optional)
+                    </label>
+                    <input type="file" class="form-control" id="referenceFile_${tourId}_${hotelOrderIndex}_${bookingIndex}" name="reference_file"
+                           accept=".pdf,.doc,.docx,.jpg,.jpeg,.png">
+                    <div class="form-text">PDF, DOC, JPG, PNG</div>
                 </div>
             </div>
 
-            <div class="mb-3" id="referenceIdWrap_${tourId}_${hotelOrderIndex}_${bookingIndex}">
-                <label for="referenceId_${tourId}_${hotelOrderIndex}_${bookingIndex}" class="form-label fw-semibold" id="referenceIdLabel_${tourId}_${hotelOrderIndex}_${bookingIndex}">
-                    <i class="ri-file-text-line me-2"></i>Reference ID <span class="text-danger reference-required-mark">*</span>
-                </label>
-                <input type="text" class="form-control form-control-lg" id="referenceId_${tourId}_${hotelOrderIndex}_${bookingIndex}" name="reference_id" required
-                       placeholder="Enter booking reference or confirmation number"
-                       style="border-radius: 8px; border: 2px solid #e9ecef;">
-            </div>
-
-            <div class="mb-3">
-                <label for="referenceFile_${tourId}_${hotelOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-attachment-line me-2"></i>Reference File (Optional)
-                </label>
-                <input type="file" class="form-control form-control-lg" id="referenceFile_${tourId}_${hotelOrderIndex}_${bookingIndex}" name="reference_file"
-                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                       style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">Upload supporting documents if available (PDF, DOC, JPG, PNG)</div>
-            </div>
-
-            <div class="mb-3">
-                <label for="actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-calendar-line me-2"></i>Free Cancellation Date <span class="text-danger">*</span>
-                </label>
-                <input type="text" readonly class="form-control form-control-lg" id="actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}" name="actual_due_date" required
-                       value="${autoCancelDate || ''}"
-                       style="border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text" id="actualDueDateHint_${tourId}_${hotelOrderIndex}_${bookingIndex}">Select the Free Cancellation Date for this booking</div>
-            </div>
-
-            <div class="mb-3">
-                <label for="displayDueDateDays_${tourId}_${hotelOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-time-line me-2"></i>Display Due Date (Days Before) <span class="text-danger">*</span>
-                </label>
-                <select class="form-control form-control-lg" id="displayDueDateDays_${tourId}_${hotelOrderIndex}_${bookingIndex}" name="display_due_date_days" required
-                        onchange="calculateDisplayDueDate('${tourId}', '${hotelOrderIndex}', '${bookingIndex}')"
-                        style="border-radius: 8px; border: 2px solid #e9ecef;">
-                    <option value="">Select days before</option>
-                    <option value="1">1 day before</option>
-                    <option value="2">2 days before</option>
-                    <option value="3">3 days before</option>
-                    <option value="4">4 days before</option>
-                    <option value="5">5 days before</option>
-                    <option value="7">1 week before</option>
-                    <option value="14">2 weeks before</option>
-                </select>
-                <div class="form-text">Select how many days before the Free Cancellation Date to display</div>
-            </div>
-
-            <div class="mb-3">
-                <label for="displayDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
-                    <i class="ri-calendar-check-line me-2"></i>Display Due Date
-                </label>
-                <input type="text" class="form-control form-control-lg" id="displayDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}" name="display_due_date" readonly
-                       placeholder="dd-mm-yyyy" style="background-color: #f8f9fa; border-radius: 8px; border: 2px solid #e9ecef;">
-                <div class="form-text">This will be calculated automatically based on your selection above</div>
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <label for="actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                        <i class="ri-calendar-line me-1"></i>Free Cancellation Date <span class="text-danger">*</span>
+                    </label>
+                    <input type="text" readonly class="form-control" id="actualDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}" name="actual_due_date" required
+                           value="${autoCancelDate || ''}">
+                    <div class="form-text" id="actualDueDateHint_${tourId}_${hotelOrderIndex}_${bookingIndex}">Select free cancellation date</div>
+                </div>
+                <div class="col-md-4">
+                    <label for="displayDueDateDays_${tourId}_${hotelOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                        <i class="ri-time-line me-1"></i>Display Due (Days Before) <span class="text-danger">*</span>
+                    </label>
+                    <select class="form-select" id="displayDueDateDays_${tourId}_${hotelOrderIndex}_${bookingIndex}" name="display_due_date_days" required
+                            onchange="calculateDisplayDueDate('${tourId}', '${hotelOrderIndex}', '${bookingIndex}')">
+                        <option value="">Select days before</option>
+                        <option value="1">1 day before</option>
+                        <option value="2">2 days before</option>
+                        <option value="3">3 days before</option>
+                        <option value="4">4 days before</option>
+                        <option value="5">5 days before</option>
+                        <option value="7">1 week before</option>
+                        <option value="14">2 weeks before</option>
+                    </select>
+                    <div class="form-text">Days before free cancel date</div>
+                </div>
+                <div class="col-md-4">
+                    <label for="displayDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}" class="form-label fw-semibold">
+                        <i class="ri-calendar-check-line me-1"></i>Display Due Date
+                    </label>
+                    <input type="text" class="form-control" id="displayDueDate_${tourId}_${hotelOrderIndex}_${bookingIndex}" name="display_due_date" readonly
+                           placeholder="dd-mm-yyyy" style="background-color: #f8f9fa;">
+                    <div class="form-text">Calculated automatically</div>
+                </div>
             </div>
         </form>`;
     }
@@ -547,31 +575,31 @@
         if (existingModal) existingModal.remove();
 
         const modalHTML = `
-            <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-                <div class="modal-dialog modal-lg">
-                    <div class="modal-content shadow-lg border-0" style="border-radius: 15px; overflow: hidden;">
-                        <div class="modal-header p-4 border-0" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+            <div class="modal fade hotel-approve-modal" id="${modalId}" tabindex="-1" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+                <div class="modal-dialog modal-xl modal-dialog-centered">
+                    <div class="modal-content shadow-lg border-0" style="border-radius: 12px; overflow: hidden;">
+                        <div class="modal-header border-0" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
                             <div class="d-flex align-items-center">
-                                <div class="bg-white rounded-circle shadow-sm me-2" style="padding: 8px; display: flex; align-items: center; justify-content: center;">
-                                    <i class="ri-hotel-line text-primary fs-5"></i>
+                                <div class="bg-white rounded-circle shadow-sm me-2" style="padding: 6px; display: flex; align-items: center; justify-content: center;">
+                                    <i class="ri-hotel-line text-primary"></i>
                                 </div>
                                 <div>
-                                    <h5 class="modal-title fw-bold text-white mb-0">Approve Individual Hotel Booking</h5>
-                                    <p class="text-white-50 mb-0" style="font-size: small;">Hotel Order ${hotelOrderIndex + 1}, Booking ${bookingIndex + 1}</p>
+                                    <h5 class="modal-title fw-bold text-white mb-0" style="font-size:0.95rem;">Approve Individual Hotel Booking</h5>
+                                    <p class="text-white-50 mb-0" style="font-size: 0.75rem;">Hotel Order ${hotelOrderIndex + 1}, Booking ${bookingIndex + 1}</p>
                                 </div>
                             </div>
                             <button type="button" class="btn-close btn-close-white" onclick="closeIndividualHotelModal('${modalId}')" aria-label="Close"></button>
                         </div>
-                        <div class="modal-body p-4">
+                        <div class="modal-body">
                             ${generateApproveHotelForm(tourId, hotelOrderIndex, bookingIndex, autoCancelDate)}
                         </div>
-                        <div class="modal-footer border-0 p-4" style="background: #f8f9fa;">
+                        <div class="modal-footer border-0" style="background: #f8f9fa;">
                             <div class="d-flex gap-2 w-100 justify-content-end">
-                                <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-2" onclick="closeIndividualHotelModal('${modalId}')" style="border-radius: 8px; font-size: 0.9rem;">
+                                <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-1" onclick="closeIndividualHotelModal('${modalId}')" style="border-radius: 6px;">
                                     <i class="ri-close-line me-1"></i>Cancel
                                 </button>
-                                <button type="button" class="btn btn-success btn-sm px-3 py-2" onclick="confirmIndividualHotelApproval(${tourId}, ${hotelOrderIndex}, ${bookingIndex})" style="border-radius: 8px; font-size: 0.9rem;">
-                                    <i class="ri-check-line me-2"></i>Confirm Approval
+                                <button type="button" class="btn btn-success btn-sm px-3 py-1" onclick="confirmIndividualHotelApproval(${tourId}, ${hotelOrderIndex}, ${bookingIndex})" style="border-radius: 6px;">
+                                    <i class="ri-check-line me-1"></i>Confirm Approval
                                 </button>
                             </div>
                         </div>

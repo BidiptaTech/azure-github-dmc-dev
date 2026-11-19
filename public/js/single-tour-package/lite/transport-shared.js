@@ -2509,8 +2509,14 @@
                 }
             }
             if (rows.length) {
+                // Display only: section total in the DMC's own currency (incl. conversion commission).
+                var hdrFx = window.StpDmcFx ? window.StpDmcFx.quote(total, currency) : null;
                 el.innerHTML = '<span class="stp-lite-svc-header-total-count">' + rows.length + '</span>' +
-                    '<span class="stp-lite-svc-header-total-amt">' + esc(currency) + ' ' + total.toFixed(2) + '</span>';
+                    '<span class="stp-lite-svc-header-total-amt">' + esc(currency) + ' ' + total.toFixed(2) + '</span>' +
+                    (hdrFx && hdrFx.amount > 0
+                        ? ' <small class="text-muted" title="' + esc(window.StpDmcFx.rateText(hdrFx)) + ' · indicative">≈ '
+                            + esc(hdrFx.to + ' ' + window.StpDmcFx.fmt(hdrFx.amount, hdrFx.to === 'IDR' ? 0 : 2)) + '</small>'
+                        : '');
                 el.classList.remove('d-none');
             } else {
                 el.innerHTML = '';
@@ -2936,7 +2942,7 @@
             '  <div class="stp-reject-note"><i class="ri-shield-check-line"></i><span><strong>Tour status</strong> and <strong>payment details</strong> stay unchanged. Only this service is included in partial cancellation &amp; refund. <strong>This cannot be undone.</strong></span></div>' +
             '  <div id="stpLiteRejectRefundPolicy" class="stp-reject-policy" aria-live="polite"></div>' +
             '  <div class="stp-reject-actions">' +
-            '    <button type="button" id="stpLiteRejectRefundCancel" class="stp-reject-cancel">Close</button>' +
+            '    <button type="button" id="stpLiteRejectRefundCancel" class="stp-reject-cancel">Cancel</button>' +
             '    <button type="button" id="stpLiteRejectRefundZero" class="stp-reject-zero">Cancel without refund</button>' +
             '    <button type="button" id="stpLiteRejectRefundOk" class="stp-reject-ok">Cancel with refund</button>' +
             '  </div>' +
@@ -2946,14 +2952,25 @@
 
     var cancelWithoutRefundIds = [];
 
+    function formatDurationBeforeCheckIn(hours) {
+        if (hours === null || hours === undefined || !isFinite(Number(hours))) return '—';
+        var total = Math.max(0, Math.round(Number(hours)));
+        if (total < 24) return total === 1 ? '1 hour' : (total + ' hours');
+        var days = Math.floor(total / 24);
+        var remHours = total % 24;
+        var dayPart = days === 1 ? '1 day' : (days + ' days');
+        if (remHours === 0) return dayPart;
+        var hourPart = remHours === 1 ? '1 hour' : (remHours + ' hours');
+        return dayPart + ' ' + hourPart;
+    }
+
     function hotelCancellationPolicyHtml(calc) {
         if (!calc || !calc.applicable) return '';
         var cur = calc.currency || '';
-        var hours = calc.hours_until_check_in;
-        var hoursLabel = (hours === null || hours === undefined) ? '—' : (Number(hours).toFixed(0) + 'h');
+        var hoursLabel = formatDurationBeforeCheckIn(calc.hours_until_check_in);
         return '<i class="ri-calculator-line"></i><span>' +
             '<strong>Cancellation policy</strong><br>' +
-            'Hours to check-in: <strong>' + hoursLabel + '</strong><br>' +
+            'Time to check-in: <strong>' + hoursLabel + '</strong><br>' +
             'Hotel price: <strong>' + esc(cur) + ' ' + Number(calc.hotel_price || 0).toFixed(2) + '</strong><br>' +
             'Cancellation charge: <strong>' + esc(cur) + ' ' + Number(calc.cancellation_charge || 0).toFixed(2) + '</strong><br>' +
             'Suggested refund: <strong>' + esc(cur) + ' ' + Number(calc.suggested_refund || 0).toFixed(2) + '</strong><br>' +

@@ -54,10 +54,8 @@ class PaymentEligibilityService
         $amount = $requestedAmount !== null && $requestedAmount > 0
             ? (float) $requestedAmount
             : $payable;
-        $currency = strtoupper((string) (
-            $breakdown['currency']
-            ?? $this->classificationService->resolveTourCurrency($tour)
-        ));
+        // Settlement currency = confirmed negotiation currency (enquiry.currency).
+        $currency = $this->resolveSettlementCurrency($tour);
         $dmcId = (int) ($tour->dmc_id ?? 0);
         $agentId = (int) ($tour->agent_id ?? 0);
 
@@ -121,15 +119,15 @@ class PaymentEligibilityService
             'wallet' => $walletEval,
         ];
 
-        // Stripe Online card
+        // Stripe Online Payment
         $stripeEval = $this->evaluateStripe($recipient, $dmcId, $settings);
         if ($negotiationOnly) {
             $stripeEval['available'] = false;
-            $stripeEval['reason'] = 'Card payment for offline services starts after negotiation and confirmation.';
+            $stripeEval['reason'] = 'Online payment for offline services starts after negotiation and confirmation.';
         }
         $methods[] = [
             'code' => 'stripe',
-            'label' => 'Online Card',
+            'label' => 'Online Payment',
             'available' => $stripeEval['available'],
             'reason' => $stripeEval['reason'],
             'recipient' => $recipient,
@@ -144,11 +142,12 @@ class PaymentEligibilityService
             'payment_stage' => $stage,
             'payment_recipient' => $recipient,
             'currency' => $currency,
-            'payable_amount' => round($payable, 4),
+            'payable_amount' => round($payable, 2),
             'amount_readonly' => $stage === 'supplier_initial',
-            'acceptance' => app(AcceptanceFlowService::class)->describe(
+            'acceptance' => $this->acceptanceSnapshot(
+                $tour,
                 $classification,
-                $stage === 'offline_negotiation' || ($classification === OrderClassificationService::ONLINE && $stage !== 'supplier_initial'),
+                $stage,
                 (float) ($breakdown['online_amount'] ?? 0),
                 (float) ($breakdown['offline_amount'] ?? 0),
                 $currency,
@@ -166,6 +165,35 @@ class PaymentEligibilityService
             ],
             'methods' => $methods,
         ];
+    }
+
+    /**
+     * Acceptance / online-paid snapshot for Add Payment UI (same source as negotiate modal).
+     *
+     * @return array<string, mixed>
+     */
+    protected function acceptanceSnapshot(
+        Tour $tour,
+        string $classification,
+        string $stage,
+        float $onlineAmount,
+        float $offlineAmount,
+        string $currency,
+    ): array {
+        $acceptanceFlow = app(AcceptanceFlowService::class);
+        $onlineSettled = $acceptanceFlow->onlinePortionSettled($tour)
+            || $stage === 'offline_negotiation'
+            || ($classification === OrderClassificationService::ONLINE && $stage !== 'supplier_initial');
+
+        return $acceptanceFlow->describe(
+            $classification,
+            $onlineSettled,
+            $onlineAmount,
+            $offlineAmount,
+            $currency,
+            $onlineSettled ? $onlineAmount : 0.0,
+            $acceptanceFlow->resolveOnlineCurrency($tour, $currency),
+        );
     }
 
     /**
@@ -336,7 +364,7 @@ class PaymentEligibilityService
             }
         }
 
-        return round($paid, 4);
+        return round($paid, 2);
     }
 
     protected function hasPendingPayment(Tour $tour): bool
@@ -358,6 +386,43 @@ class PaymentEligibilityService
         $details = json_decode((string) ($tour->payment_details ?? '[]'), true) ?: [];
 
         return is_array($details) ? array_values(array_filter($details, 'is_array')) : [];
+    }
+
+    /**
+     * Currency confirmed at negotiation (enquiry.currency). Falls back to tour/order currency.
+     */
+    protected function resolveSettlementCurrency(Tour $tour): string
+    {
+        $tourId = (int) ($tour->tour_id ?? 0);
+        if ($tourId > 0) {
+            $enquiryCurrency = Enquiry::query()
+                ->where('tour_id', $tourId)
+                ->where('status', 2)
+                ->orderByDesc('enquiry_id')
+                ->value('currency');
+            if (! is_string($enquiryCurrency) || trim($enquiryCurrency) === '') {
+                $enquiryCurrency = Enquiry::query()
+                    ->where('tour_id', $tourId)
+                    ->orderByDesc('enquiry_id')
+                    ->value('currency');
+            }
+            $code = strtoupper(trim((string) $enquiryCurrency));
+            if (preg_match('/^[A-Z]{3}$/', $code)) {
+                return $code;
+            }
+        }
+
+        $tourEnquiry = strtoupper(trim((string) ($tour->enquiry_currency ?? '')));
+        if (preg_match('/^[A-Z]{3}$/', $tourEnquiry)) {
+            return $tourEnquiry;
+        }
+
+        $userCurrency = strtoupper(trim((string) ($tour->user_currency ?? '')));
+        if (preg_match('/^[A-Z]{3}$/', $userCurrency)) {
+            return $userCurrency;
+        }
+
+        return strtoupper((string) $this->classificationService->resolveTourCurrency($tour));
     }
 
     /**
@@ -391,7 +456,8 @@ class PaymentEligibilityService
         $tax = TaxHelper::calculateTourTaxesForTour($base, $tour->taxes ?? null, $persons, $days, $tour);
         $final = $base + (float) ($tax['total_tax'] ?? 0);
 
-        return $this->outstandingBalance($tour, $final);
+        // Negotiated collection is offline-only — never subtract online-service payments.
+        return $this->outstandingBalance($tour, $final, true);
     }
 
     /**
@@ -431,19 +497,34 @@ class PaymentEligibilityService
             }
         }
 
-        $quoted = app(FxConversionCharge::class)->apply($amount, $rate, $percent, $differ);
+        $fx = app(FxConversionCharge::class);
+        $quoted = $fx->apply($amount, $rate, $percent, $differ);
+        $sgdRateOrder = Country::sgdRateFor($orderCurrency);
+        $sgdRateWallet = Country::sgdRateFor($walletCurrency);
+        // Display rate X = base + (base × FX%): Paid-in uses this effective rate.
+        $sgdRateWalletEffective = $differ && $sgdRateWallet
+            ? $fx->effectiveRate((float) $sgdRateWallet, $percent)
+            : $sgdRateWallet;
+        $exchangeRateEffective = $differ
+            ? $fx->effectiveRate((float) $quoted['exchange_rate'], $percent)
+            : (float) $quoted['exchange_rate'];
 
         return [
             'charge_percent' => $percent,
             'order_currency' => $orderCurrency,
             'wallet_currency' => $walletCurrency,
             'exchange_rate' => $quoted['exchange_rate'],
+            'exchange_rate_effective' => $exchangeRateEffective,
+            // Standard display: rates relative to SGD (1 SGD = current_rate units).
+            'sgd_rate_order' => $sgdRateOrder,
+            'sgd_rate_wallet' => $sgdRateWallet,
+            'sgd_rate_wallet_effective' => $sgdRateWalletEffective,
             'conversion_charge' => $quoted['fee'],
             'wallet_payable_amount' => $quoted['destination_amount'],
         ];
     }
 
-    protected function outstandingBalance(Tour $tour, float $total): float
+    protected function outstandingBalance(Tour $tour, float $total, bool $excludeOnlineServicePayments = false): float
     {
         // Add Payment UI records collections in payment_details. Do not treat
         // finance payment_status=captured / selling_price alone as paid — that
@@ -461,10 +542,15 @@ class PaymentEligibilityService
             if ((int) ($p['status'] ?? 0) === 2) {
                 continue; // declined
             }
+            // negotiation / offline collection must not merge payment_for=online
+            if ($excludeOnlineServicePayments
+                && strtolower(trim((string) ($p['payment_for'] ?? ''))) === OrderClassificationService::ONLINE) {
+                continue;
+            }
             $paid += (float) ($p['amount'] ?? 0);
         }
 
-        return max(0, round($total - $paid, 4));
+        return max(0, round($total - $paid, 2));
     }
 
     /**
@@ -491,7 +577,7 @@ class PaymentEligibilityService
             return [
                 'available' => false,
                 'reason' => 'No payable amount on this booking.',
-                'available_balance' => round($balance, 4),
+                'available_balance' => round($balance, 2),
                 'required_amount' => 0.0,
                 'currency' => $currency,
                 'source_dmc_id' => $dmcId,
@@ -507,8 +593,8 @@ class PaymentEligibilityService
                 : ($balance <= 0
                     ? "No {$currency} balance in the DMC wallet."
                     : "Insufficient DMC wallet balance ({$currency} {$balance} available, {$amount} required)."),
-            'available_balance' => round($balance, 4),
-            'required_amount' => round($amount, 4),
+            'available_balance' => round($balance, 2),
+            'required_amount' => round($amount, 2),
             'currency' => $currency,
             'source_dmc_id' => $dmcId,
         ];

@@ -175,10 +175,11 @@ class TaxHelper
                     // Base already matches offline (typical after negotiation)
                     $taxableBase = $baseAmount;
                 } elseif ($online > 0.009 && $baseAmount > $offline) {
-                    $taxableBase = max(0.0, $baseAmount - $online);
-                    if ($taxableBase > $offline * 1.15) {
-                        $taxableBase = $baseAmount * ($offline / $sum);
-                    }
+                    // Negotiated / locked offline invoice is larger than live offline
+                    // order sum (e.g. soft-deleted refunded services). Tax the invoice
+                    // base in full — never scale it down to live offline/share, which
+                    // understates VAT and makes Tour total < Paid.
+                    $taxableBase = $baseAmount;
                 }
             }
 

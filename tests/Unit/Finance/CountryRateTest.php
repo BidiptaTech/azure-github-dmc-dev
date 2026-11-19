@@ -54,10 +54,15 @@ class CountryRateTest extends TestCase
     public function test_sgd_preview_uses_stored_rate_and_fails_safely(): void
     {
         Country::create(['name' => 'Indonesia', 'currency' => 'IDR', 'current_rate' => 12000]);
+        config(['payment.fx_conversion_charge_percent' => 11]);
         $controller = app(\App\Http\Controllers\WalletManagementController::class);
 
         $ok = $controller->sgdPreview(Request::create('/x', 'GET', ['amount' => 10, 'to' => 'IDR']));
-        $this->assertEquals(120000, $ok->getData()->converted_amount);
+        // Same as payments: effective = base × (1 + FX%/100) → 12000 × 1.11 = 13320
+        $this->assertEqualsWithDelta(133200.0, $ok->getData()->converted_amount, 0.01);
+        $this->assertEqualsWithDelta(13320.0, $ok->getData()->exchange_rate, 0.01);
+        $this->assertEqualsWithDelta(12000.0, $ok->getData()->base_exchange_rate, 0.01);
+        $this->assertEqualsWithDelta(11.0, $ok->getData()->fx_percent, 0.01);
 
         $missing = $controller->sgdPreview(Request::create('/x', 'GET', ['amount' => 10, 'to' => 'THB']));
         $this->assertSame(422, $missing->getStatusCode());

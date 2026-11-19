@@ -126,6 +126,16 @@ class StripeConnectService
             ]);
         }
 
+        // Existing account: keep Stripe's default currency in line with the DMC's choice.
+        $requestedCurrency = strtolower(trim((string) $currency));
+        $current = $this->getAccountForDmc($dmcId) ?? [];
+        if ($accountId
+            && preg_match('/^[a-z]{3}$/', $requestedCurrency)
+            && $requestedCurrency !== strtolower((string) ($current['default_currency'] ?? ''))
+        ) {
+            $this->updateDefaultCurrency($dmcId, $requestedCurrency);
+        }
+
         $link = $client->v2->core->accountLinks->create([
             'account' => $accountId,
             'use_case' => [
@@ -150,6 +160,35 @@ class StripeConnectService
             'account' => $this->getAccountForDmc($dmcId) ?? [],
             'onboarding_url' => $url,
         ];
+    }
+
+    /**
+     * Set the connected account's default currency (e.g. the DMC's own IDR) on Stripe and locally.
+     */
+    public function updateDefaultCurrency(int $dmcId, string $currency): array
+    {
+        $currency = strtolower(trim($currency));
+        if (! preg_match('/^[a-z]{3}$/', $currency)) {
+            throw new RuntimeException('Invalid currency code.');
+        }
+
+        $local = $this->getAccountForDmc($dmcId);
+        if (! $local || empty($local['stripe_account_id'])) {
+            throw new RuntimeException('No Stripe account linked for this merchant.');
+        }
+
+        $this->stripe()->v2->core->accounts->update((string) $local['stripe_account_id'], [
+            'defaults' => ['currency' => $currency],
+            'metadata' => ['currency' => $currency],
+        ]);
+
+        Log::info('stripe_connect_default_currency_updated', [
+            'dmc_id' => $dmcId,
+            'account' => $local['stripe_account_id'],
+            'currency' => $currency,
+        ]);
+
+        return $this->upsertLocal($dmcId, ['default_currency' => $currency]);
     }
 
     public function syncFromStripe(int $dmcId): array

@@ -4,7 +4,9 @@ namespace App\Services\HotelSuppliers;
 
 use App\Models\Order;
 use App\Services\ApiEnvironmentResolver;
+use App\Services\Payment\SupplierCancellationStatusService;
 use App\Services\SupplierConfigResolver;
+use App\Services\SupplierCredit\SupplierCreditService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -23,15 +25,19 @@ class OnlineHotelCancellationService
         private OnlineHotelBookingServiceFactory $factory,
         private SupplierConfigResolver $supplierConfig,
         private ApiEnvironmentResolver $apiEnvironment,
+        private SupplierCancellationStatusService $cancellationStatus,
     ) {}
 
     /**
      * Call the supplier cancel API when this is an online hotel that was booked.
      * Returns null when no supplier cancel is needed (offline / not yet booked).
      *
+     * When $softFailOnError is true, API failures are persisted as status=failed and
+     * returned (no throw) so tour/service cancel can still queue the refund obligation.
+     *
      * @return array<string, mixed>|null
      */
-    public function cancelIfApplicable(Order $order): ?array
+    public function cancelIfApplicable(Order $order, bool $softFailOnError = false): ?array
     {
         if (($order->type ?? '') !== 'hotel') {
             return null;
@@ -46,6 +52,7 @@ class OnlineHotelCancellationService
                 'booking_id' => $order->booking_id,
                 'order_type' => $order->order_type ?? null,
             ]);
+            $this->cancellationStatus->markNotRequired($order, 'No supplier booking details on file.');
 
             return null;
         }
@@ -61,12 +68,20 @@ class OnlineHotelCancellationService
                 'booking_id' => $order->booking_id,
                 'order_type' => $order->order_type ?? null,
             ]);
+            $this->cancellationStatus->markNotRequired($order, 'Not an online hotel booking.');
 
             return null;
         }
 
         if (! empty($details['cancelled_at']) || ! empty($details['cancellation']['cancelled_at'])) {
-            return is_array($details['cancellation'] ?? null) ? $details['cancellation'] : null;
+            $this->cancellationStatus->markConfirmed($order, 'Already cancelled with supplier.', [
+                'supplier_code' => (string) ($details['supplier_code'] ?? ''),
+            ]);
+
+            return is_array($details['cancellation'] ?? null) ? $details['cancellation'] : [
+                'status' => 'confirmed',
+                'already_cancelled' => true,
+            ];
         }
 
         if (! $this->wasConfirmedWithSupplier($details)) {
@@ -76,6 +91,7 @@ class OnlineHotelCancellationService
                 'order_type' => $order->order_type ?? null,
                 'supplier_code' => $details['supplier_code'] ?? null,
             ]);
+            $this->cancellationStatus->markNotRequired($order, 'Online hotel was not confirmed with supplier.');
 
             return null;
         }
@@ -87,8 +103,13 @@ class OnlineHotelCancellationService
                 'order_id' => $order->id,
                 'booking_id' => $order->booking_id,
             ]);
+            $message = 'Missing supplier code for online hotel cancellation.';
+            $this->cancellationStatus->markFailed($order, $message);
+            if ($softFailOnError) {
+                return ['status' => 'failed', 'soft_failed' => true, 'message' => $message];
+            }
 
-            return null;
+            throw new RuntimeException($message);
         }
 
         if (! $this->factory->supportsCancellation($supplierCode)) {
@@ -98,11 +119,20 @@ class OnlineHotelCancellationService
                 'supplier_code' => $supplierCode,
             ]);
 
+            $message = 'This online hotel reservation cannot be cancelled automatically yet.';
+            $this->cancellationStatus->markFailed($order, $message, ['supplier_code' => $supplierCode]);
+            if ($softFailOnError) {
+                return ['status' => 'failed', 'soft_failed' => true, 'message' => $message, 'supplier_code' => $supplierCode];
+            }
+
             throw new RuntimeException(
-                'This online hotel reservation cannot be cancelled automatically yet. '
-                . 'The hotel was not removed so the reservation is not left open.'
+                $message.' The hotel was not removed so the reservation is not left open.'
             );
         }
+
+        $this->cancellationStatus->markPending($order, 'Calling supplier cancel API…', [
+            'supplier_code' => $supplierCode,
+        ]);
 
         try {
             $credentialCode = $this->factory->credentialCode($supplierCode);
@@ -120,11 +150,22 @@ class OnlineHotelCancellationService
                 'error' => $e->getMessage(),
             ]);
 
-            throw new RuntimeException(
-                'Failed to cancel the online hotel reservation with the supplier. The hotel was not removed.',
-                0,
-                $e
-            );
+            $message = 'Failed to cancel the online hotel reservation with the supplier.';
+            $this->cancellationStatus->markFailed($order, $e->getMessage() ?: $message, [
+                'supplier_code' => $supplierCode,
+            ]);
+
+            if ($softFailOnError) {
+                return [
+                    'status' => 'failed',
+                    'soft_failed' => true,
+                    'message' => $message,
+                    'supplier_code' => $supplierCode,
+                    'error' => $e->getMessage(),
+                ];
+            }
+
+            throw new RuntimeException($message.' The hotel was not removed.', 0, $e);
         }
 
         $updated = array_merge($details, [
@@ -160,9 +201,37 @@ class OnlineHotelCancellationService
                 'supplier_code' => $supplierCode,
             ]);
 
-            throw new RuntimeException(
-                'Failed to store the online hotel cancellation result. The hotel was not removed.'
-            );
+            $message = 'Failed to store the online hotel cancellation result.';
+            $this->cancellationStatus->markFailed($order, $message, ['supplier_code' => $supplierCode]);
+            if ($softFailOnError) {
+                return ['status' => 'failed', 'soft_failed' => true, 'message' => $message];
+            }
+
+            throw new RuntimeException($message.' The hotel was not removed.');
+        }
+
+        $this->cancellationStatus->markConfirmed(
+            $order,
+            'Supplier cancellation confirmed.',
+            ['supplier_code' => (string) ($result['supplier_code'] ?? $supplierCode)]
+        );
+
+        // Vendor cancelled → return (debit − cancellation charge) to TravClicks vendor credit.
+        if (empty($result['simulated'])) {
+            $charges = is_array($result['cancellation_charges'] ?? null) ? $result['cancellation_charges'] : null;
+            app(SupplierCreditService::class)->recordCancellationRefund([
+                'order_id' => (int) $order->id,
+                'tour_id' => (int) ($order->tour_id ?? 0) ?: null,
+                'service_type' => 'hotel',
+                'cancellation_charge' => $charges !== null ? (float) ($charges['amount'] ?? 0) : null,
+                'charge_currency' => $charges !== null ? (string) ($charges['currency'] ?? '') : null,
+                'charge_reported' => $charges !== null,
+                'supplier_booking_reference' => SupplierCreditService::hotelSupplierReference($details),
+                'metadata' => [
+                    'supplier_cancel_status' => $result['status'] ?? null,
+                    'already_cancelled' => (bool) ($result['already_cancelled'] ?? false),
+                ],
+            ]);
         }
 
         Log::info('Online hotel cancelled with supplier', [

@@ -2,24 +2,50 @@
 
 namespace App\Services\HotelSuppliers\Adapters;
 
+use App\Models\City;
 use App\Services\HotelSuppliers\Contracts\HotelSupplierAdapter;
 use App\Services\HotelSuppliers\Hotelbeds\HotelbedsCancellationPolicies;
 use App\Services\HotelSuppliers\Hotelbeds\HotelbedsClient;
 use App\Services\HotelSuppliers\HotelSearchRequest;
+use Illuminate\Support\Facades\Log;
+use RuntimeException;
 
 class HotelbedsHotelAdapter implements HotelSupplierAdapter
 {
-    /**
-     * Hardcoded geolocation for Singapore (Hotelbeds availability by geolocation).
-     * Replace with dynamic city → coordinates lookup later.
-     */
-    private const GEO_LATITUDE = 1.290270;
-
-    private const GEO_LONGITUDE = 103.851959;
-
     private const GEO_RADIUS = 20;
 
     private const GEO_UNIT = 'km';
+
+    /**
+     * Fallback coordinates when cities.latitude / longitude are not yet seeded.
+     * Keys are lowercase city names.
+     *
+     * @var array<string, array{latitude: float, longitude: float}>
+     */
+    private const CITY_GEO_FALLBACK = [
+        'singapore' => ['latitude' => 1.290270, 'longitude' => 103.851959],
+        'batam' => ['latitude' => 1.130000, 'longitude' => 104.053000],
+        'bintan' => ['latitude' => 1.100000, 'longitude' => 104.450000],
+        'jakarta' => ['latitude' => -6.208800, 'longitude' => 106.845600],
+        'bali' => ['latitude' => -8.409500, 'longitude' => 115.188900],
+        'denpasar' => ['latitude' => -8.670500, 'longitude' => 115.212600],
+        'bandung' => ['latitude' => -6.917500, 'longitude' => 107.619100],
+        'surabaya' => ['latitude' => -7.257500, 'longitude' => 112.752100],
+        'medan' => ['latitude' => 3.595200, 'longitude' => 98.672200],
+        'semarang' => ['latitude' => -6.966700, 'longitude' => 110.416700],
+        'makassar' => ['latitude' => -5.147700, 'longitude' => 119.432700],
+        'malang' => ['latitude' => -7.966600, 'longitude' => 112.632600],
+        'palembang' => ['latitude' => -2.976100, 'longitude' => 104.775400],
+        'pekanbaru' => ['latitude' => 0.507100, 'longitude' => 101.447800],
+        'padang' => ['latitude' => -0.947100, 'longitude' => 100.417200],
+        'banjarmasin' => ['latitude' => -3.318600, 'longitude' => 114.594400],
+        'samarinda' => ['latitude' => -0.502200, 'longitude' => 117.153600],
+        'bogor' => ['latitude' => -6.597100, 'longitude' => 106.806000],
+        'bekasi' => ['latitude' => -6.238300, 'longitude' => 106.975600],
+        'depok' => ['latitude' => -6.402500, 'longitude' => 106.794200],
+        'tangerang' => ['latitude' => -6.178300, 'longitude' => 106.631900],
+        'tasikmalaya' => ['latitude' => -7.327400, 'longitude' => 108.220700],
+    ];
 
     public function code(): string
     {
@@ -34,6 +60,7 @@ class HotelbedsHotelAdapter implements HotelSupplierAdapter
     {
         $client = new HotelbedsClient($credentials);
         $occupancy = $this->parsePaxInfo($request->paxInfo);
+        $geo = $this->resolveGeolocation($request);
 
         $payload = [
             'stay' => [
@@ -48,8 +75,8 @@ class HotelbedsHotelAdapter implements HotelSupplierAdapter
                 ],
             ],
             'geolocation' => [
-                'latitude' => self::GEO_LATITUDE,
-                'longitude' => self::GEO_LONGITUDE,
+                'latitude' => $geo['latitude'],
+                'longitude' => $geo['longitude'],
                 'radius' => self::GEO_RADIUS,
                 'unit' => self::GEO_UNIT,
             ],
@@ -61,6 +88,11 @@ class HotelbedsHotelAdapter implements HotelSupplierAdapter
                 $occupancy['child_ages'],
             );
         }
+
+        Log::info('Hotelbeds availability search', [
+            'city' => $request->cityName,
+            'geolocation' => $payload['geolocation'],
+        ]);
 
         $body = $client->availability($payload);
         $rawHotels = $this->extractRawHotels($body);
@@ -78,13 +110,124 @@ class HotelbedsHotelAdapter implements HotelSupplierAdapter
             ],
         ];
 
+        $hotels = array_map(
+            fn (array $item) => $this->normalizeHotel($item, $context),
+            $rawHotels
+        );
+
         return [
-            'hotels' => array_map(
-                fn (array $item) => $this->normalizeHotel($item, $context),
-                $rawHotels
-            ),
+            'hotels' => $this->filterHotelsToRequestedCity($hotels, $request->cityName),
             'provider' => $body,
         ];
+    }
+
+    /**
+     * Resolve search centre from the city record (preferred) or a known-city fallback.
+     * Never silently reuse another city's coordinates (that caused Batam → Singapore).
+     *
+     * @return array{latitude: float, longitude: float}
+     */
+    private function resolveGeolocation(HotelSearchRequest $request): array
+    {
+        $city = $this->findCity($request);
+
+        if ($city && $city->latitude !== null && $city->longitude !== null
+            && is_numeric($city->latitude) && is_numeric($city->longitude)) {
+            return [
+                'latitude' => (float) $city->latitude,
+                'longitude' => (float) $city->longitude,
+            ];
+        }
+
+        $needle = strtolower(trim($request->cityName));
+        if ($needle !== '' && isset(self::CITY_GEO_FALLBACK[$needle])) {
+            return self::CITY_GEO_FALLBACK[$needle];
+        }
+
+        throw new RuntimeException(
+            "Hotelbeds has no coordinates for city [{$request->cityName}]. "
+            . 'Set latitude/longitude on the city record.'
+        );
+    }
+
+    private function findCity(HotelSearchRequest $request): ?City
+    {
+        if ($request->cityId) {
+            $city = City::query()->where('city_id', $request->cityId)->first();
+
+            if ($city) {
+                return $city;
+            }
+        }
+
+        $name = trim($request->cityName);
+
+        if ($name === '') {
+            return null;
+        }
+
+        return City::query()
+            ->whereRaw('LOWER(name) = ?', [strtolower($name)])
+            ->first();
+    }
+
+    /**
+     * Drop hotels whose destination clearly belongs to a different city
+     * (e.g. Singapore hotels when searching Batam across the strait).
+     *
+     * @param  array<int, array<string, mixed>>  $hotels
+     * @return array<int, array<string, mixed>>
+     */
+    private function filterHotelsToRequestedCity(array $hotels, string $cityName): array
+    {
+        $needle = strtolower(trim($cityName));
+
+        if ($needle === '' || $hotels === []) {
+            return $hotels;
+        }
+
+        $filtered = array_values(array_filter($hotels, function (array $hotel) use ($needle): bool {
+            $haystack = strtolower(trim(implode(' ', array_filter([
+                (string) ($hotel['destination_name'] ?? ''),
+                (string) ($hotel['zone_name'] ?? ''),
+                (string) ($hotel['address'] ?? ''),
+            ]))));
+
+            // Keep rows with no location text — content may omit destination on some rates.
+            if ($haystack === '') {
+                return true;
+            }
+
+            if (str_contains($haystack, $needle)) {
+                return true;
+            }
+
+            // "Bali" results often labelled Denpasar / Badung / Kuta — keep island aliases.
+            if ($needle === 'bali' && preg_match('/\b(denpasar|badung|kuta|ubud|seminyak|nusa dua|canggu)\b/', $haystack)) {
+                return true;
+            }
+
+            return false;
+        }));
+
+        if ($filtered === [] && $hotels !== []) {
+            Log::warning('Hotelbeds city filter removed all hotels; returning unfiltered set', [
+                'city' => $cityName,
+                'raw_count' => count($hotels),
+            ]);
+
+            return $hotels;
+        }
+
+        if (count($filtered) < count($hotels)) {
+            Log::info('Hotelbeds filtered hotels to requested city', [
+                'city' => $cityName,
+                'before' => count($hotels),
+                'after' => count($filtered),
+            ]);
+        }
+
+        return $filtered;
     }
 
     /**

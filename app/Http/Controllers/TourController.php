@@ -718,39 +718,113 @@ class TourController extends Controller
         
         try {
             // Resolve the tour base (DMC) currency instead of assuming SGD.
-            $baseCurrency = $tour->user_currency ?: \App\Helpers\CommonHelper::getDmcCurrencyByCountry();
+            $baseCurrency = strtoupper(trim((string) (
+                $tour->user_currency ?: \App\Helpers\CommonHelper::getDmcCurrencyByCountry()
+            )));
 
-            // Get currency data from request
-            $selectedCurrency = $request->input('currency', $baseCurrency);
+            // Order/tour currency amount (drives booking remaining). DMC amount is what cashier typed.
+            $orderCurrency = strtoupper(trim((string) $request->input('currency', $baseCurrency)));
+            $orderAmount = (float) $request->input('payment_amount');
+            $dmcCurrency = strtoupper(trim((string) $request->input('dmc_currency', '')));
+            $dmcPayRaw = $request->input('dmc_pay_amount');
+            $dmcPayAmount = ($dmcPayRaw !== null && $dmcPayRaw !== '') ? (float) $dmcPayRaw : null;
+            $fxExchangeRate = (float) $request->input('fx_exchange_rate', 0);
             $exchangeRate = (float) $request->input('exchange_rate', 1);
-            $originalAmount = (float) $request->input('payment_amount'); // The amount user entered
+            $paymentType = strtolower(trim((string) $request->payment_type));
 
-            // Convert the entered amount into the tour base currency for consistent storage.
-            if ($selectedCurrency === $baseCurrency || $exchangeRate <= 0) {
-                $baseAmount = $originalAmount;
+            // Cash / cheque / card / bank transfer:
+            // - amount + currency = order currency (SGD) for remaining
+            // - wallet_amount / original_amount = DMC pay (IDR) using effective rate X
+            // Do not divide order amount by wallet FX (that stored amount≈0.008 for a 120 SGD cheque).
+            $fxCharge = app(\App\Services\Payment\FxConversionCharge::class);
+            $fxPercent = $fxCharge->percent();
+            $walletAmountStamp = null;
+            $walletCurrencyStamp = null;
+            if ($paymentType !== 'wallet') {
+                $baseAmount = $orderAmount;
+                if ($dmcPayAmount !== null && $dmcPayAmount > 0 && $dmcCurrency !== '' && $dmcCurrency !== $orderCurrency) {
+                    $baseFxRate = $fxExchangeRate > 0
+                        ? $fxExchangeRate
+                        : (float) (\App\Models\Country::exchangeRateBetween($orderCurrency, $dmcCurrency) ?? 0);
+                    if ($baseFxRate <= 0) {
+                        $baseFxRate = 1.0;
+                    }
+                    // Paid in = order × effective rate X (base + FX%); prefer typed DMC amount when present.
+                    $effectivePaidIn = $orderCurrency === 'SGD' && $baseFxRate > 0
+                        ? $fxCharge->paidInAmount($orderAmount, $baseFxRate, $fxPercent, $dmcCurrency)
+                        : $dmcPayAmount;
+                    $originalAmount = $dmcPayAmount > 0 ? $dmcPayAmount : $effectivePaidIn;
+                    $selectedCurrency = $orderCurrency;
+                    $exchangeRate = $baseFxRate;
+                    $walletAmountStamp = $originalAmount;
+                    $walletCurrencyStamp = $dmcCurrency;
+                } else {
+                    $originalAmount = $orderAmount;
+                    $selectedCurrency = $orderCurrency;
+                    $exchangeRate = 1.0;
+                }
+            } elseif ($orderCurrency === $baseCurrency || $exchangeRate <= 0) {
+                $originalAmount = $dmcPayAmount !== null && $dmcPayAmount > 0 ? $dmcPayAmount : $orderAmount;
+                $selectedCurrency = $orderCurrency;
+                $baseAmount = $orderAmount > 0 ? $orderAmount : $originalAmount;
+                $exchangeRate = 1.0;
+                if ($dmcCurrency !== '' && $dmcCurrency !== $orderCurrency && $dmcPayAmount !== null && $dmcPayAmount > 0) {
+                    $walletAmountStamp = $dmcPayAmount;
+                    $walletCurrencyStamp = $dmcCurrency;
+                    $baseFxRate = $fxExchangeRate > 0
+                        ? $fxExchangeRate
+                        : (float) (\App\Models\Country::exchangeRateBetween($orderCurrency, $dmcCurrency) ?? 0);
+                    $exchangeRate = $baseFxRate > 0 ? $baseFxRate : 1.0;
+                }
             } else {
-                // Convert the selected (foreign) currency back to the base currency.
+                // Legacy wallet path via this controller: convert entered currency into tour/base.
+                $originalAmount = $dmcPayAmount !== null && $dmcPayAmount > 0 ? $dmcPayAmount : $orderAmount;
+                $selectedCurrency = $orderCurrency;
                 $baseAmount = $originalAmount / $exchangeRate;
+                if ($dmcCurrency !== '' && $dmcCurrency !== $orderCurrency) {
+                    $walletAmountStamp = $originalAmount;
+                    $walletCurrencyStamp = $dmcCurrency;
+                }
             }
 
         // Wallet payments are deducted immediately — always auto-verify (no manual approve).
-        $paymentType = strtolower(trim((string) $request->payment_type));
         $autoVerify = $request->boolean('auto_verify') || $paymentType === 'wallet';
 
+        $classification = app(\App\Services\Payment\OrderClassificationService::class);
+        $orderClassification = (string) ($tour->order_classification ?: $classification->classifyTour($tour));
+        $paymentStage = (string) ($tour->payment_stage ?: $classification->resolvePaymentStage($tour, $orderClassification));
+        $paymentFor = strtolower(trim((string) $request->input('payment_for', '')));
+        if (! in_array($paymentFor, ['online', 'offline'], true)) {
+            $paymentFor = $classification->resolvePaymentFor($orderClassification, $paymentStage);
+        }
+
         $paymentData = [
-            'amount' => $baseAmount, // Store amount converted to the tour base currency
-            'original_amount' => $originalAmount, // Store original amount in selected currency
-            'currency' => $selectedCurrency, // Store selected currency
-            'exchange_rate' => $exchangeRate, // Store exchange rate used
+            'amount' => $baseAmount, // Order/tour currency amount (remaining math)
+            'original_amount' => $originalAmount, // Debit / paid-in amount
+            'currency' => $selectedCurrency, // Order currency for amount
+            'order_currency' => $orderCurrency,
+            'exchange_rate' => $exchangeRate, // Base rate (before FX%); display uses effective X
             'transaction_id' => $request->transaction_id,
             'remarks' => $request->remarks,
             'date' => now()->format('Y-m-d H:i:s'),
             'payment_date' => $request->payment_date,
             'payment_type' => $request->payment_type,
+            // online = online-service payment; offline = offline-service payment
+            'payment_for' => $paymentFor,
             // status: 0 = unverified, 1 = verified
             'status' => $autoVerify ? 1 : 0,
             'auto_verified' => $autoVerify && $paymentType === 'wallet',
         ];
+        if ($walletAmountStamp !== null && $walletCurrencyStamp !== null && $walletCurrencyStamp !== $orderCurrency) {
+            $paymentData['wallet_amount'] = round((float) $walletAmountStamp, 4);
+            $paymentData['wallet_currency'] = $walletCurrencyStamp;
+            $paymentData['conversion_charge_percent'] = $fxPercent;
+            if ($orderCurrency === 'SGD' && $exchangeRate > 0 && $fxPercent > 0) {
+                $baseConverted = round($baseAmount * $exchangeRate, 4);
+                $paymentData['conversion_charge'] = round($baseConverted * ($fxPercent / 100), 4);
+                $paymentData['conversion_charge_currency'] = $walletCurrencyStamp;
+            }
+        }
         CommonHelper::appendTourStatusTrackById(
             (int) $tour->tour_id,
             $tourStatus,
@@ -765,8 +839,8 @@ class TourController extends Controller
             'null',
             'null',
             'null',
-            $baseAmount,
-            $selectedCurrency,
+            $walletAmountStamp !== null ? (float) $walletAmountStamp : $baseAmount,
+            $walletCurrencyStamp ?: $selectedCurrency,
             $request->payment_date,
             $request->payment_type,
         );
@@ -787,10 +861,10 @@ class TourController extends Controller
 
         $tour->save();
         
-        // Create success message from the amount the user actually paid (selected currency).
+        // Create success message from the amount the user actually paid (debit / wallet currency).
         // Do not show base-currency conversion in the success toast — that confuses operators.
-        $paidCurrency = strtoupper(trim((string) $selectedCurrency));
-        $paidAmountFormatted = number_format($originalAmount, 2);
+        $paidCurrency = strtoupper(trim((string) ($walletCurrencyStamp ?: $selectedCurrency)));
+        $paidAmountFormatted = number_format((float) ($walletAmountStamp ?? $originalAmount), 2);
         $successMessage = $paidCurrency . ' ' . $paidAmountFormatted . ' payment is successfully recorded.'
             . ($autoVerify && $paymentType === 'wallet' ? ' Wallet payment auto-verified.' : '');
         

@@ -135,10 +135,20 @@ class SingleTourPackageController extends Controller
         $exitPickupLocation = null;
         
         if($enquiry_id){
-            $enquiry_id = Crypt::decrypt($enquiry_id);
+            try {
+                $decodedEnquiryId = Crypt::decrypt($enquiry_id);
+            } catch (\Throwable $e) {
+                $decodedEnquiryId = null;
+            }
+            // Route may pass encrypted scalar or ['enquiry_id' => N]
+            if (is_array($decodedEnquiryId)) {
+                $enquiry_id = $decodedEnquiryId['enquiry_id'] ?? reset($decodedEnquiryId) ?: null;
+            } else {
+                $enquiry_id = $decodedEnquiryId;
+            }
             if($enquiry_id){
-                $enquiry = EnquiryForm::where('enquiry_id', $enquiry_id)->first();
-                $selectedCountry = $enquiry->country;
+                $enquiry = EnquiryForm::with('agent')->where('enquiry_id', $enquiry_id)->first();
+                $selectedCountry = $enquiry->country ?? null;
                 if($enquiry){
                     // Get hotels
                     if($enquiry->hotel_ids){
@@ -308,6 +318,30 @@ class SingleTourPackageController extends Controller
         }
         $ports = $this->getPortsForDmc($portsCountryName);
 
+        // Prefill city for lite create when opening from enquiry list
+        $enquiryPrefillCities = [];
+        if ($enquiry && !empty($enquiry->city)) {
+            $cityName = trim((string) $enquiry->city);
+            $countryName = trim((string) ($enquiry->country ?? ''));
+            $cityRow = City::query()
+                ->when($countryName !== '', function ($q) use ($countryName) {
+                    $q->whereRaw('LOWER(TRIM(country)) = ?', [mb_strtolower($countryName)]);
+                })
+                ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($cityName)])
+                ->first();
+            if (!$cityRow) {
+                $cityRow = City::query()
+                    ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($cityName)])
+                    ->first();
+            }
+            $enquiryPrefillCities[] = [
+                'id' => $cityRow ? (string) ($cityRow->city_id ?? $cityRow->id ?? $cityName) : $cityName,
+                'name' => $cityName,
+                'country' => $countryName !== '' ? $countryName : (string) ($cityRow->country ?? ''),
+                'text' => $countryName !== '' ? ($cityName . ' (' . $countryName . ')') : $cityName,
+            ];
+        }
+
         $viewData = compact(
             'countries',
             'agents',
@@ -336,7 +370,8 @@ class SingleTourPackageController extends Controller
             'siblingDmcCountryMap',
             'siblingDmcCityMap',
             'siblingDmcZoneOnMap',
-            'userDmcId'
+            'userDmcId',
+            'enquiryPrefillCities'
         );
 
         // Lite create only (create.blade.php / create.backup.blade.php kept as file backups)
@@ -730,14 +765,29 @@ class SingleTourPackageController extends Controller
             $cancelReason = trim((string) $request->input('cancel_reason', ''));
             $voucherCancelResult = null;
 
-            // Cancel with the supplier before soft-deleting so a failed API call
-            // does not leave a live reservation while the local order is gone.
+            // Soft-fail supplier cancel: local remove + refund queue still proceed;
+            // failed/pending blocks TravClicks wallet until retry or manual resolve.
+            $supplierCancelSoftFailed = false;
             try {
-                app(OnlineHotelCancellationService::class)->cancelIfApplicable($order);
+                $hotelCancelResult = app(OnlineHotelCancellationService::class)
+                    ->cancelIfApplicable($order, true);
                 $voucherCancelResult = app(OnlineAttractionCancellationService::class)
-                    ->cancelIfApplicable($order, $cancelReason !== '' ? $cancelReason : null);
+                    ->cancelIfApplicable($order, $cancelReason !== '' ? $cancelReason : null, true);
+
+                foreach ([$hotelCancelResult, $voucherCancelResult] as $cancelResult) {
+                    if (is_array($cancelResult) && ! empty($cancelResult['soft_failed'])) {
+                        $supplierCancelSoftFailed = true;
+                        Log::warning('Online supplier cancellation soft-failed during order remove', [
+                            'order_id' => $order->id,
+                            'booking_id' => $order->booking_id,
+                            'type' => $order->type ?? null,
+                            'message' => $cancelResult['message'] ?? null,
+                        ]);
+                    }
+                }
             } catch (\Throwable $e) {
-                Log::error('Online supplier cancellation failed during order remove', [
+                $supplierCancelSoftFailed = true;
+                Log::error('Online supplier cancellation unexpected error during order remove', [
                     'order_id' => $order->id,
                     'booking_id' => $order->booking_id,
                     'order_type' => $order->order_type ?? null,
@@ -746,25 +796,24 @@ class SingleTourPackageController extends Controller
                     'previous' => $e->getPrevious()?->getMessage(),
                 ]);
 
-                $label = (($order->type ?? '') === 'attraction')
-                    ? 'online attraction voucher'
-                    : 'online hotel';
+                try {
+                    app(\App\Services\Payment\SupplierCancellationStatusService::class)->markFailed(
+                        $order,
+                        $e->getMessage() ?: 'Unexpected supplier cancellation error.'
+                    );
+                } catch (\Throwable $statusError) {
+                    Log::warning('Could not persist supplier cancellation failed status', [
+                        'order_id' => $order->id,
+                        'error' => $statusError->getMessage(),
+                    ]);
+                }
 
-                // Keep supplier product names out of the API response shown in the UI.
-                $publicMessage = $e instanceof \RuntimeException
-                    ? $e->getMessage()
-                    : 'Failed to cancel the online hotel reservation with the supplier. The hotel was not removed.';
-
-                return response()->json([
+                $voucherCancelResult = [
                     'success' => false,
-                    'message' => 'Failed to cancel the ' . $label . ' with the supplier: ' . $e->getMessage(),
-                    'data' => [
-                        'voucher_cancel' => [
-                            'success' => false,
-                            'message' => $e->getMessage(),
-                        ],
-                    ],
-                ], 422);
+                    'message' => $e->getMessage(),
+                    'soft_failed' => true,
+                    'status' => 'failed',
+                ];
             }
 
             DB::transaction(function () use ($order, $tourId, $tourStatus) {
@@ -819,6 +868,8 @@ class SingleTourPackageController extends Controller
                 if (! empty($voucherCancelResult['message'])) {
                     $message .= ' ' . $voucherCancelResult['message'];
                 }
+            } elseif ($supplierCancelSoftFailed) {
+                $message = 'Service removed and queued for refund, but supplier cancellation failed or is pending. TravClicks must retry or mark resolved before wallet credit.';
             }
 
             return response()->json([
@@ -829,6 +880,7 @@ class SingleTourPackageController extends Controller
                     'voucher_code' => is_array($voucherCancelResult)
                         ? ($voucherCancelResult['voucher_code'] ?? null)
                         : null,
+                    'supplier_cancel_soft_failed' => $supplierCancelSoftFailed,
                 ],
             ]);
         } catch (\Exception $e) {
@@ -1107,6 +1159,15 @@ class SingleTourPackageController extends Controller
             $tour->taxes = !empty($taxArray) ? json_encode($taxArray) : null;
             $tour->reference_id = $request->reference_number ?? null;
             $tour->created_by = Auth::user()->userId;
+
+            // Link multi enquiry (same multi_enq_id across DMC rows on inquiry_form)
+            $multiEnqId = trim((string) $request->input('multi_enq_id', ''));
+            if ($multiEnqId === '' && $request->filled('enquiry_id') && (int) $request->enquiry_id > 0) {
+                $multiEnqId = (string) (EnquiryForm::where('enquiry_id', (int) $request->enquiry_id)->value('multi_enq_id') ?? '');
+            }
+            if ($multiEnqId !== '') {
+                $tour->multi_enq_id = $multiEnqId;
+            }
 
             // City-wise markup/discount (same shape as enquiry proform)
             $rawMarkups = $request->input('currency_markups');
@@ -6382,6 +6443,13 @@ class SingleTourPackageController extends Controller
                                         'isOnlineHotel' => (bool) ($hotelBooking['isOnlineHotel'] ?? false),
                                         'hotelSourceType' => $hotelBooking['hotelSourceType'] ?? (! empty($hotelBooking['isOnlineHotel']) ? 'online' : 'offline'),
                                         'onlineHotelSource' => $hotelBooking['onlineHotelSource'] ?? null,
+                                        'online_price_breakdown' => is_array($hotelBooking['online_price_breakdown'] ?? null)
+                                            ? $hotelBooking['online_price_breakdown']
+                                            : null,
+                                        'dmc_profile_markup' => is_array($hotelBooking['dmc_profile_markup'] ?? null)
+                                            ? $hotelBooking['dmc_profile_markup']
+                                            : null,
+                                        'base_grand_total' => $hotelBooking['base_grand_total'] ?? null,
 
                                         // Supplier session, rate keys, room/meal and cancellation terms for confirming the booking
                                         'onlineHotelBooking' => is_array($hotelBooking['onlineHotelBooking'] ?? null)
@@ -6396,6 +6464,52 @@ class SingleTourPackageController extends Controller
                                     }
 
                                     [$enhancedHotelData, $hotelGeo] = $this->applyOrderGeoToServiceRow($enhancedHotelData, $request, $tourId);
+
+                                    // Online hotels keep supplier price currency — do not overwrite with
+                                    // stay/country currency from the request (e.g. Bali/IDR).
+                                    $isOnlineHotel = ! empty($hotelBooking['isOnlineHotel'])
+                                        || (($hotelBooking['hotelSourceType'] ?? '') === 'online')
+                                        || (($hotelBooking['priceMode'] ?? '') === 'online');
+                                    $onlineSupplier = strtolower(trim((string) (
+                                        $hotelBooking['onlineHotelSource']
+                                        ?? (is_array($hotelBooking['onlineHotelBooking'] ?? null)
+                                            ? ($hotelBooking['onlineHotelBooking']['supplier_code'] ?? '')
+                                            : '')
+                                        ?? ''
+                                    )));
+                                    $isMgBedbank = in_array($onlineSupplier, ['mg_bedbank', 'mgbedbank', 'mg'], true);
+                                    // MG Bedbank settlement is always SGD.
+                                    $onlineBookingCurrency = $isMgBedbank
+                                        ? 'SGD'
+                                        : strtoupper(trim((string) (
+                                            $hotelBooking['currency']
+                                            ?? (is_array($hotelBooking['online_price_breakdown'] ?? null)
+                                                ? ($hotelBooking['online_price_breakdown']['currency'] ?? null)
+                                                : null)
+                                            ?? (is_array($hotelBooking['dmc_profile_markup'] ?? null)
+                                                ? ($hotelBooking['dmc_profile_markup']['currency'] ?? null)
+                                                : null)
+                                            ?? (is_array($hotelBooking['price_payload'] ?? null)
+                                                ? ($hotelBooking['price_payload']['currency'] ?? null)
+                                                : null)
+                                            ?? ''
+                                        )));
+                                    if ($isOnlineHotel && $onlineBookingCurrency !== '') {
+                                        $enhancedHotelData['currency'] = $onlineBookingCurrency;
+                                        $hotelGeo['currency'] = $onlineBookingCurrency;
+                                        if (is_array($enhancedHotelData['onlineHotelBooking'] ?? null)) {
+                                            $enhancedHotelData['onlineHotelBooking']['currency'] = $onlineBookingCurrency;
+                                        }
+                                        if (is_array($enhancedHotelData['online_price_breakdown'] ?? null)) {
+                                            $enhancedHotelData['online_price_breakdown']['currency'] = $onlineBookingCurrency;
+                                        }
+                                        if (is_array($enhancedHotelData['dmc_profile_markup'] ?? null)) {
+                                            $enhancedHotelData['dmc_profile_markup']['currency'] = $onlineBookingCurrency;
+                                        }
+                                        if (is_array($enhancedHotelData['price_payload'] ?? null)) {
+                                            $enhancedHotelData['price_payload']['currency'] = $onlineBookingCurrency;
+                                        }
+                                    }
                                     
                                     // Log transfer options for debugging
                                     if (isset($hotelBooking['transfer_options'])) {

@@ -6,6 +6,7 @@ use App\Helpers\CommonHelper;
 use App\Helpers\CurrencyHelper;
 use App\Services\Finance\WalletQueryService;
 use App\Services\Finance\WalletService;
+use App\Services\Payment\FxConversionCharge;
 use App\Models\Agent;
 use App\Models\Country;
 use App\Models\User;
@@ -237,7 +238,8 @@ class WalletManagementController extends Controller
     }
 
     /**
-     * SGD to currency preview for the Send to DMC form, using the stored Countries rate.
+     * SGD to currency preview for the Send to DMC form.
+     * Same FX stack as payments: countries.current_rate + PAYMENT_FX_CONVERSION_CHARGE_PERCENT.
      */
     public function sgdPreview(Request $request)
     {
@@ -247,19 +249,25 @@ class WalletManagementController extends Controller
         ]);
 
         $to = strtoupper($validated['to']);
-        $rate = Country::sgdRateFor($to);
+        $baseRate = Country::sgdRateFor($to);
 
-        if ($rate === null) {
+        if ($baseRate === null) {
             return response()->json([
                 'success' => false,
                 'message' => "No stored rate for {$to}. Run Sync Currency Rates in Profile.",
             ], 422);
         }
 
+        $fx = app(FxConversionCharge::class);
+        $fxPercent = $fx->percent();
+        $effectiveRate = $to === 'SGD' ? 1.0 : $fx->effectiveRate((float) $baseRate, $fxPercent);
+
         return response()->json([
             'success' => true,
-            'converted_amount' => round((float) $validated['amount'] * $rate, 4),
-            'exchange_rate' => round($rate, 2),
+            'converted_amount' => round((float) $validated['amount'] * $effectiveRate, 4),
+            'exchange_rate' => round($effectiveRate, 2),
+            'base_exchange_rate' => round((float) $baseRate, 2),
+            'fx_percent' => $fxPercent,
         ]);
     }
 
@@ -748,16 +756,26 @@ class WalletManagementController extends Controller
             $creditAmount = $sourceAmount;
 
             if ($sourceCurrency !== $targetCurrency) {
-                // Travclicks to DMC uses the stored Countries rate; other flows keep the live rate.
-                $rate = $roleGroup === 'travclicks_owner'
-                    ? Country::sgdRateFor($targetCurrency)
-                    : CurrencyHelper::getExchangeRate($sourceCurrency, $targetCurrency);
-                if ($rate === null) {
-                    throw new RuntimeException($roleGroup === 'travclicks_owner'
-                        ? "No stored rate for {$targetCurrency}. Run Sync Currency Rates in Profile."
-                        : "Unable to convert {$sourceCurrency} to {$targetCurrency}. Exchange rate unavailable.");
+                // Travclicks → DMC: same FX as payments (current_rate + FX conversion %).
+                // Other flows keep the live CurrencyHelper rate.
+                if ($roleGroup === 'travclicks_owner') {
+                    $baseRate = Country::sgdRateFor($targetCurrency);
+                    if ($baseRate === null) {
+                        throw new RuntimeException(
+                            "No stored rate for {$targetCurrency}. Run Sync Currency Rates in Profile."
+                        );
+                    }
+                    $fx = app(FxConversionCharge::class);
+                    $exchangeRate = $fx->effectiveRate((float) $baseRate, $fx->percent());
+                } else {
+                    $rate = CurrencyHelper::getExchangeRate($sourceCurrency, $targetCurrency);
+                    if ($rate === null) {
+                        throw new RuntimeException(
+                            "Unable to convert {$sourceCurrency} to {$targetCurrency}. Exchange rate unavailable."
+                        );
+                    }
+                    $exchangeRate = (float) $rate;
                 }
-                $exchangeRate = (float) $rate;
                 $creditAmount = round($sourceAmount * $exchangeRate, 4);
             }
 

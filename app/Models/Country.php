@@ -23,6 +23,24 @@ class Country extends Model
     ];
 
     /**
+     * Round live FX rate for countries.current_rate storage.
+     * < 100 → 2dp; >= 100 → whole number.
+     */
+    public static function roundCurrentRateForStorage(float $rate): float
+    {
+        if ($rate <= 0) {
+            return 0.0;
+        }
+
+        if ($rate >= 100) {
+            return (float) round($rate, 0);
+        }
+
+        // Force 2dp string then float so float noise cannot keep extra places
+        return (float) number_format(round($rate, 2), 2, '.', '');
+    }
+
+    /**
      * Stored SGD → $currency rate (1 SGD = X $currency), or null when missing/invalid.
      */
     public static function sgdRateFor(string $currency): ?float
@@ -74,7 +92,7 @@ class Country extends Model
             return null;
         }
 
-        return round($amount * $rate, 4);
+        return round($amount * $rate, 2);
     }
 
     /**
@@ -87,21 +105,56 @@ class Country extends Model
     {
         $updated = 0;
         $failed = [];
+        $aliases = [
+            'KR' => 'KRW', // legacy bad code for South Korea
+        ];
 
         $currencies = static::whereNotNull('currency')->where('currency', '!=', '')
-            ->pluck('currency')->map(fn ($c) => strtoupper(trim($c)))->unique();
+            ->pluck('currency')->map(fn ($c) => strtoupper(trim($c)))->unique()->values();
+
+        // Bust short-lived rate cache so sync always hits fresh merged providers
+        try {
+            \Illuminate\Support\Facades\Cache::forget('currency_rates_SGD_v2');
+            \Illuminate\Support\Facades\Cache::forget('currency_rates_USD_v2');
+            \Illuminate\Support\Facades\Cache::forget('currency_rates_SGD');
+            \Illuminate\Support\Facades\Cache::forget('currency_rates_USD');
+        } catch (\Throwable $e) {
+            // ignore cache driver issues
+        }
 
         foreach ($currencies as $currency) {
-            $rate = CurrencyHelper::getExchangeRate('SGD', $currency);
+            $lookup = $aliases[$currency] ?? $currency;
+            if (! preg_match('/^[A-Z]{3}$/', $lookup)) {
+                $failed[] = $currency;
+                continue;
+            }
+
+            $rate = CurrencyHelper::getExchangeRate('SGD', $lookup);
             if ($rate === null || $rate <= 0) {
                 $failed[] = $currency;
                 continue;
             }
+
+            // Business rounding before save:
+            // - under 100 → 2 decimals (25.5798692 → 25.58)
+            // - 100+ → whole number (256.992 → 257)
+            $rate = static::roundCurrentRateForStorage((float) $rate);
+            // Persist as plain decimal string so DB never keeps float/scale noise
+            $rateForDb = $rate >= 100
+                ? (string) (int) round($rate, 0)
+                : number_format($rate, 2, '.', '');
+
             $updated += static::whereRaw('UPPER(TRIM(currency)) = ?', [$currency])
-                ->update(['current_rate' => $rate, 'rate_updated_at' => now()]);
+                ->update(['current_rate' => $rateForDb, 'rate_updated_at' => now()]);
+
+            // Heal invalid stored currency code when we know the alias
+            if ($lookup !== $currency) {
+                static::whereRaw('UPPER(TRIM(currency)) = ?', [$currency])
+                    ->update(['currency' => $lookup]);
+            }
         }
 
-        return ['updated' => $updated, 'failed' => $failed];
+        return ['updated' => $updated, 'failed' => array_values(array_unique($failed))];
     }
 
     protected $fillable = [

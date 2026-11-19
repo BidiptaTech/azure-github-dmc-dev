@@ -71,6 +71,54 @@
         background: transparent;
     }
 
+    /* Online payment complete — deep green status banner (negotiate + add payment) */
+    .nego-online-paid-banner {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.65rem;
+        margin-bottom: 0.85rem;
+        padding: 0.75rem 0.95rem;
+        border-radius: 0.65rem;
+        border: 1px solid #14532d;
+        background: linear-gradient(135deg, #14532d 0%, #166534 55%, #15803d 100%);
+        color: #ecfdf5;
+        box-shadow: 0 1px 2px rgba(20, 83, 45, 0.28);
+    }
+    .nego-online-paid-banner.d-none {
+        display: none !important;
+    }
+    .nego-online-paid-banner__icon {
+        flex-shrink: 0;
+        width: 1.55rem;
+        height: 1.55rem;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.16);
+        color: #bbf7d0;
+        font-size: 1rem;
+        line-height: 1;
+    }
+    .nego-online-paid-banner__title {
+        display: block;
+        margin-bottom: 0.15rem;
+        font-size: 0.82rem;
+        font-weight: 700;
+        letter-spacing: 0.01em;
+        color: #ffffff;
+    }
+    .nego-online-paid-banner__text {
+        display: block;
+        font-size: 0.78rem;
+        line-height: 1.35;
+        color: #d1fae5;
+    }
+    .nego-online-paid-banner__text strong {
+        color: #ffffff;
+        font-weight: 700;
+    }
+
     /* Single profile markup + agency discount strip (not per-country) */
     .nego-profile-markup-once {
         background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
@@ -1048,6 +1096,46 @@
             }
         });
     }
+
+    /**
+     * Show online payment-complete amount in Negotiate by Agent modal when mix online is settled.
+     */
+    window.updateAgentNegotiationOnlinePaidBanner = function (button) {
+        const banner = document.getElementById('agentNegotiationOnlinePaidBanner');
+        const textEl = document.getElementById('agentNegotiationOnlinePaidText');
+        if (!banner || !textEl) {
+            return;
+        }
+
+        const onlinePaid = button && button.getAttribute('data-online-paid') === '1';
+        const currency = String((button && button.getAttribute('data-online-currency')) || '').trim().toUpperCase();
+        const paidAmount = Number((button && button.getAttribute('data-online-paid-amount')) || 0);
+        const onlineAmount = Number((button && button.getAttribute('data-online-amount')) || 0);
+        const amount = paidAmount > 0 ? paidAmount : onlineAmount;
+        const hint = String((button && button.getAttribute('data-acceptance-hint')) || '').trim();
+        const money = (typeof formatNegotiationAmount === 'function')
+            ? formatNegotiationAmount(amount)
+            : (Number.isFinite(amount) ? amount.toFixed(2) : '0.00');
+
+        if (!onlinePaid || !(amount > 0)) {
+            banner.classList.add('d-none');
+            textEl.textContent = '';
+            return;
+        }
+
+        const amountLabel = (currency ? currency + ' ' : '') + money;
+        if (hint) {
+            // Keep amount visually strong when hint already includes it.
+            textEl.innerHTML = escapeNegotiationHtml(hint).replace(
+                escapeNegotiationHtml(amountLabel),
+                '<strong>' + escapeNegotiationHtml(amountLabel) + '</strong>'
+            );
+        } else {
+            textEl.innerHTML = 'Paid amount <strong>' + escapeNegotiationHtml(amountLabel)
+                + '</strong>. This modal negotiates the offline total only.';
+        }
+        banner.classList.remove('d-none');
+    };
 
     /** Fill the independent right-side profit panel (does not alter negotiate form cards). */
     function renderAgentNegotiationProfitPanel(countryGroups) {

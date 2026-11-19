@@ -68,6 +68,7 @@ class MgBedbankHotelAdapter implements TwoStepHotelSupplierAdapter
             'chunks' => count($chunks),
             'codes_searched' => count($codes),
         ];
+        // Always normalize / present MG prices in SGD (search Currency is fixed to SGD).
         $currency = 'SGD';
         $sessionId = null;
 
@@ -91,8 +92,6 @@ class MgBedbankHotelAdapter implements TwoStepHotelSupplierAdapter
             if ($sessionId === null && filled($body['sessionID'] ?? null)) {
                 $sessionId = (string) $body['sessionID'];
             }
-
-            $currency = (string) ($body['currency'] ?? $currency);
             $rawHotels = $body['hotels']['hotel'] ?? [];
 
             if (! is_array($rawHotels)) {
@@ -219,7 +218,11 @@ class MgBedbankHotelAdapter implements TwoStepHotelSupplierAdapter
             return ['hotel' => null, 'session_id' => $body['sessionID'] ?? null, 'provider' => $body];
         }
 
-        $currency = (string) ($body['currency'] ?? 'SGD');
+        // Keep hotel/room currency as SGD regardless of stray response fields.
+        $currency = 'SGD';
+        if (is_array($body)) {
+            $body['currency'] = 'SGD';
+        }
 
         return [
             'hotel' => $this->normalizeHotel($rawHotel, $currency, $content, $body, $destination, $request),
@@ -250,7 +253,8 @@ class MgBedbankHotelAdapter implements TwoStepHotelSupplierAdapter
             'CheckIn' => $request->checkIn,
             'CheckOut' => $request->checkOut,
             'Rooms' => ['Room' => $this->buildRooms($occupancy, $request->roomCount())],
-            'Currency' => $client->credential('currency', 'SGD'),
+            // MG Bedbank settlement is always SGD for this integration.
+            'Currency' => 'SGD',
             'Language' => $client->credential('language', 'En'),
             'AvailFlag' => true,
             'DetailLevel' => $client->credential('detail_level', 'Basic'),
@@ -282,19 +286,40 @@ class MgBedbankHotelAdapter implements TwoStepHotelSupplierAdapter
             ];
         }
 
-        $country = $client->credential('country_code');
+        // Prefer an explicit destination map for this city name over supplier defaults.
+        // Defaults (e.g. SG-SIN) must never be reused for a different city — that caused
+        // wrong-country hotel lists when mg_* codes were missing.
         $cityCode = $this->cityCodeFromMap($request, $client);
-
-        if ($cityCode === '') {
-            $cityCode = $client->credential('city_code');
-        }
 
         // Permit an MG destination code to be supplied directly as the city value.
         if ($cityCode === '' && preg_match('/^[A-Z]{2}-[A-Z0-9]{3,}$/i', trim($request->cityName))) {
             $cityCode = strtoupper(trim($request->cityName));
         }
 
-        if ($country === '' && str_contains($cityCode, '-')) {
+        $country = '';
+        if ($cityCode !== '' && str_contains($cityCode, '-')) {
+            $country = strtoupper((string) strtok($cityCode, '-'));
+        }
+
+        // Only use credential country/city defaults when this search is for that same city
+        // (or we have no city row and the map already resolved a code).
+        if ($cityCode === '') {
+            $defaultCity = strtoupper(trim((string) $client->credential('city_code')));
+            $defaultCountry = strtoupper(trim((string) $client->credential('country_code')));
+            $needle = strtolower(trim($request->cityName));
+            $defaultLooksLikeSameCity = $needle !== ''
+                && (
+                    str_contains(strtolower($defaultCity), $needle)
+                    || ($needle === 'singapore' && str_starts_with($defaultCity, 'SG-'))
+                );
+
+            if ($defaultLooksLikeSameCity && $defaultCity !== '' && $defaultCountry !== '') {
+                $cityCode = $defaultCity;
+                $country = $defaultCountry;
+            }
+        }
+
+        if ($country === '' && $cityCode !== '' && str_contains($cityCode, '-')) {
             $country = strtoupper((string) strtok($cityCode, '-'));
         }
 

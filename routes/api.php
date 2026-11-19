@@ -25,7 +25,8 @@ Route::post('/v1/login', 'App\Http\Controllers\Api\LoginControllerApi@login');
 Route::post('/v1/register-agent', 'App\Http\Controllers\Api\LoginControllerApi@registerAgent');
 Route::post('/v1/send-otp', 'App\Http\Controllers\Api\LoginControllerApi@sendOtpRegistration');
 Route::post('/v1/verify-otp', 'App\Http\Controllers\Api\LoginControllerApi@verifyOtp');
-Route::get('/v1/day-level/combined-json', 'App\Http\Controllers\Api\DayLevelController@combinedJsonApi');
+// Api\DayLevelController was removed in c8da511b; the method lives on the web controller now.
+Route::get('/v1/day-level/combined-json', [\App\Http\Controllers\DayLevelController::class, 'combinedJsonApi']);
 
 Route::post('/external-api-receive', 'App\Http\Controllers\Api\ExternalApiReceiveController@receive')
     ->withoutMiddleware([\Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class]);
@@ -80,6 +81,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::post('/create-enquiry', 'App\Http\Controllers\Api\EnquiryController@createEnquiry');
     Route::get('/listofenquiry', 'App\Http\Controllers\Api\EnquiryController@listofenquiry');
     Route::post('/update-enquiry-form', 'App\Http\Controllers\Api\EnquiryController@UpdateEnquiryForm');
+    Route::get('/proposals', 'App\Http\Controllers\Api\EnquiryController@proposals');
     Route::get('/zone-price', 'App\Http\Controllers\Api\ZoneController@zonewisePrice');
     Route::get('/create-enquiry-tour', 'App\Http\Controllers\Api\EnquiryController@enquiryToTour');
 

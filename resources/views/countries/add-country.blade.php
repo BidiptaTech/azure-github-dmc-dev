@@ -104,8 +104,8 @@
 
                     <!-- Commission Percentage -->
                     <div class="col-md-6 mb-3">
-                        <label for="commission_percentage" class="form-label"><strong>Commission Percentage (%)</strong><span class="text-danger">*</span></label>
-                        <input type="number" step="0.01" class="form-control @error('commission_percentage') is-invalid @enderror" name="commission_percentage" placeholder="Enter Commission Percentage" value="{{ old('commission_percentage') }}" required>
+                        <label for="commission_percentage" class="form-label"><strong>Exchange Markup(%)</strong><span class="text-danger">*</span></label>
+                        <input type="number" step="0.01" class="form-control @error('commission_percentage') is-invalid @enderror" name="commission_percentage" placeholder="Enter Exchange Markup(%)" value="{{ old('commission_percentage') }}" required>
                         @error('commission_percentage')
                             <div class="text-danger mt-1">{{ $message }}</div>
                         @enderror

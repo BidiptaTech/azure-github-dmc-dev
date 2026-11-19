@@ -35,7 +35,7 @@ class CurrencySnapshotService
     {
         $source = strtoupper(trim((string) $input['source_currency']));
         $destination = strtoupper(trim((string) $input['destination_currency']));
-        $sourceAmount = round((float) $input['source_amount'], 4);
+        $sourceAmount = round((float) $input['source_amount'], 2);
 
         if ($source === '' || $destination === '') {
             throw new RuntimeException('Source and destination currencies are required.');
@@ -55,7 +55,7 @@ class CurrencySnapshotService
                 throw new RuntimeException("Exchange rate unavailable for {$source}→{$destination}.");
             }
 
-            $destinationAmount = round($sourceAmount * $rate, 4);
+            $destinationAmount = round($sourceAmount * $rate, 2);
             $provider = $input['rate_provider'] ?? 'countries.current_rate';
             $rateTs = now();
         }

@@ -584,7 +584,7 @@
                 T.editingMarkHtml(editing) + '</td>' +
                 '<td><small>' + T.esc(row.entrypickup || '—') + ' → ' + T.esc(row.entrydropoff || '—') + '</small></td>' +
                 '<td><small>' + T.esc(row.adults || 0) + 'A / ' + T.esc(row.children || 0) + 'C</small></td>' +
-                '<td class="text-end fw-semibold text-nowrap">' + cur + ' ' + Number(row.totalPrice || 0).toFixed(2) + '</td>' +
+                '<td class="text-end fw-semibold text-nowrap">' + cur + ' ' + Number(row.totalPrice || 0).toFixed(2) + (window.StpDmcFx ? window.StpDmcFx.subHtml(row.totalPrice, cur) : '') + '</td>' +
                 '<td><div class="form-check mb-0"><input class="form-check-input arrival-is-supplement" type="checkbox" data-idx="' + idx + '"' +
                 (row.supplement || row.is_supplement ? ' checked' : '') + '>' +
                 '<label class="form-check-label" style="font-size:0.72rem;">Supplement</label></div></td>' +

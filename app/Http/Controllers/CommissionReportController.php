@@ -44,15 +44,33 @@ class CommissionReportController extends Controller
             }
         }
 
+        $selectedTour = $tourId ? Tour::query()->with(['agent', 'dmc'])->where('tour_id', $tourId)->first() : null;
+        // Scoping: only show payments for tours already visible to this viewer in the list.
+        $payments = $selectedTour && $opened
+            ? (json_decode((string) $selectedTour->payment_details, true) ?: [])
+            : [];
+
+        $fxChargePercent = app(\App\Services\Payment\FxConversionCharge::class)->percent();
+        $sgdRates = [];
+        foreach (['SGD', 'IDR', 'USD', 'INR', 'EUR', 'GBP', 'MYR', 'THB', 'AUD'] as $code) {
+            $rate = Country::sgdRateFor($code);
+            if ($rate !== null && $rate > 0) {
+                $sgdRates[$code] = $rate;
+            }
+        }
+
         return view('finance.commission-report', [
+            'payments' => is_array($payments) ? array_values(array_filter($payments, 'is_array')) : [],
             'viewer' => $viewer,
             'tours' => $tours,
             'lines' => $lines,
             'totals' => $totals,
             'tourId' => $tourId,
-            'selectedTour' => $tourId ? Tour::query()->where('tour_id', $tourId)->first() : null,
+            'selectedTour' => $selectedTour,
             'operatingDmcId' => $operatingDmcId,
             'displayCurrency' => $displayCurrency,
+            'fxChargePercent' => $fxChargePercent,
+            'sgdRates' => $sgdRates,
         ]);
     }
 

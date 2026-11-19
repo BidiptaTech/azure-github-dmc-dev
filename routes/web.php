@@ -67,6 +67,7 @@ use App\Http\Controllers\TodaysBookingsController;
 use App\Http\Controllers\PackageBookingTemplatesController;
 use App\Http\Controllers\GuideLanguagesController;
 use App\Http\Controllers\SupplierMasterController;
+use App\Http\Controllers\SupplierCreditController;
 use Illuminate\Support\Facades\Artisan;
 // use App\Services\AzureKeyVaultService;
 // use Illuminate\Support\Facades\Mail;
@@ -75,10 +76,13 @@ use App\Http\Controllers\ServiceController;
 use App\Helpers\CommonHelper;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\DayLevelController;
-use App\Http\Controllers\ExternalApiReceiveController;
+use App\Http\Controllers\Api\ExternalApiReceiveController;
 use App\Http\Controllers\SmartNotificationController;
 use App\Http\Controllers\AiConfigController;
 use App\Http\Controllers\DmcFuncAppController;
+use App\Http\Controllers\DmcInvoiceController;
+use App\Http\Controllers\DmcOfferController;
+use App\Http\Controllers\TravclicksInvoiceController;
 
 
 // Removed conflicting mobileapp routes - these should be in routes/mobileapp.php
@@ -119,6 +123,26 @@ Route::get('/clear', function () {
             Route::put('/dmc-func-app/{dmc_func_app}', [DmcFuncAppController::class, 'update'])->name('dmc-func-app.update');
             Route::delete('/dmc-func-app/{dmc_func_app}', [DmcFuncAppController::class, 'destroy'])->name('dmc-func-app.destroy');
 
+            // DMC Invoice (Travclicks-level base prices, always SGD)
+            Route::get('/dmc-invoice', [DmcInvoiceController::class, 'index'])->name('dmc-invoice.index');
+            Route::post('/dmc-invoice', [DmcInvoiceController::class, 'store'])->name('dmc-invoice.store');
+            Route::get('/dmc-invoice/{dmc_invoice}/edit', [DmcInvoiceController::class, 'edit'])->name('dmc-invoice.edit');
+            Route::put('/dmc-invoice/{dmc_invoice}', [DmcInvoiceController::class, 'update'])->name('dmc-invoice.update');
+            Route::delete('/dmc-invoice/{dmc_invoice}', [DmcInvoiceController::class, 'destroy'])->name('dmc-invoice.destroy');
+
+            // DMC Offer (per-DMC dated prices, always SGD)
+            Route::get('/dmc-offer', [DmcOfferController::class, 'index'])->name('dmc-offer.index');
+            Route::post('/dmc-offer', [DmcOfferController::class, 'store'])->name('dmc-offer.store');
+            Route::get('/dmc-offer/{dmc_offer}/edit', [DmcOfferController::class, 'edit'])->name('dmc-offer.edit');
+            Route::put('/dmc-offer/{dmc_offer}', [DmcOfferController::class, 'update'])->name('dmc-offer.update');
+            Route::delete('/dmc-offer/{dmc_offer}', [DmcOfferController::class, 'destroy'])->name('dmc-offer.destroy');
+
+            // Travclicks monthly invoice (DMC portal)
+            Route::get('/travclicks-invoice', [TravclicksInvoiceController::class, 'index'])->name('travclicks-invoice.index');
+            Route::post('/travclicks-invoice/generate', [TravclicksInvoiceController::class, 'generate'])->name('travclicks-invoice.generate');
+            Route::get('/travclicks-invoice/pdf', [TravclicksInvoiceController::class, 'pdf'])->name('travclicks-invoice.pdf');
+            Route::get('/travclicks-invoice/download', [TravclicksInvoiceController::class, 'download'])->name('travclicks-invoice.download');
+
             Route::get('/ai-key-words', [AiConfigController::class, 'index'])->name('ai-key-words.index');
             Route::post('/ai-key-words', [AiConfigController::class, 'store'])->name('ai-key-words.store');
             Route::get('/ai-key-words/{ai_keyword}/edit', [AiConfigController::class, 'edit'])->name('ai-key-words.edit');
@@ -130,6 +154,13 @@ Route::get('/clear', function () {
             Route::put('/suppliers/{supplier}', [SupplierMasterController::class, 'update'])->name('suppliers.update');
             Route::post('/suppliers/credentials/{code}', [SupplierMasterController::class, 'updateCredentials'])->name('suppliers.credentials.update');
             Route::delete('/suppliers/{supplier}', [SupplierMasterController::class, 'destroy'])->name('suppliers.destroy');
+
+            // TravClicks credit held with each API vendor (sandbox + live) and its statement
+            Route::get('/supplier-credits', [SupplierCreditController::class, 'index'])->name('supplier-credits.index');
+            Route::get('/supplier-credits/export', [SupplierCreditController::class, 'export'])->name('supplier-credits.export');
+            Route::post('/supplier-credits', [SupplierCreditController::class, 'store'])->name('supplier-credits.store');
+            Route::put('/supplier-credits/{account}', [SupplierCreditController::class, 'update'])->whereNumber('account')->name('supplier-credits.update');
+            Route::post('/supplier-credits/{account}/post', [SupplierCreditController::class, 'post'])->whereNumber('account')->middleware('throttle:30,1')->name('supplier-credits.post');
 
             // Tour prices route
             Route::get('/user/profile', [UserController::class, 'profile'])->name('user.profile');
@@ -1083,6 +1114,8 @@ Route::get('/clear', function () {
             Route::post('/bookings/process-refund', [BookingsController::class, 'processRefund'])->name('bookings.process-refund');
             Route::post('/bookings/process-order-refund', [BookingsController::class, 'processOrderRefund'])->name('bookings.process-order-refund');
             Route::post('/bookings/process-order-refund-by-order', [BookingsController::class, 'processOrderRefundByOrder'])->name('bookings.process-order-refund-by-order');
+            Route::post('/bookings/retry-supplier-cancellation', [BookingsController::class, 'retrySupplierCancellation'])->name('bookings.retry-supplier-cancellation');
+            Route::post('/bookings/resolve-supplier-cancellation', [BookingsController::class, 'resolveSupplierCancellation'])->name('bookings.resolve-supplier-cancellation');
             Route::get('/bookings/cancellations-refunds', [BookingsController::class, 'cancellationsRefunds'])->name('bookings.cancellations-refunds');
             Route::get('/bookings/stats', [BookingsController::class, 'getBookingStats'])->name('bookings.stats');
             Route::get('/bookings/view-tour/{tourId}', [BookingsController::class, 'viewTour'])->name('bookings.view-tour');
