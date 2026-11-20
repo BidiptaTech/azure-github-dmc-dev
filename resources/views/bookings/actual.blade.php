@@ -13,8 +13,12 @@
 <link href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css" rel="stylesheet" />
 <!-- CSRF Token -->
 <meta name="csrf-token" content="{{ csrf_token() }}">
+@php
+    $bookingEmailSignature = \App\Helpers\CommonHelper::getBookingEmailSignature();
+@endphp
 <script>
     window.bookingCurrency = @json($currency ?? 'SGD');
+    window.bookingEmailSignature = @json($bookingEmailSignature);
     window.tourNegotiationHistory = @json($tourNegotiationHistory ?? []);
     window.tourActiveServiceCounts = @json($tourActiveServiceCounts ?? []);
     window.rejectServicePageTourStatus = 'Actual';
@@ -25303,8 +25307,7 @@ document.addEventListener('change', function(e) {
         content += `${fullRow('')}\n`;
         content += `${fullRow('For any queries or modifications, please contact us immediately.')}\n`;
         content += `${endBorder}\n\n`;
-        
-        // content += `Best regards,\nNam Ho Singapore`;
+        content += buildBookingEmailSignature();
         
         return content;
     }
@@ -25343,10 +25346,21 @@ document.addEventListener('change', function(e) {
         content += `${border}\n${sectionHeader('IMPORTANT NOTES')}\n${sectionBorder}\n`;
         content += `${row('Note', 'Please contact us for complete hotel details')}\n`;
         content += `${endBorder}\n\n`;
-        
-        // content += `Best regards,\nNam Ho Singapore`;
+        content += buildBookingEmailSignature();
         
         return content;
+    }
+
+    // DMC company name + email + phone for booking email previews
+    function buildBookingEmailSignature() {
+        const sig = window.bookingEmailSignature || {};
+        const name = String(sig.name || 'DMC').trim() || 'DMC';
+        const email = String(sig.email || '').trim();
+        const phone = String(sig.phone || '').trim();
+        let block = `Best regards,\n${name}`;
+        if (email) block += `\nEmail: ${email}`;
+        if (phone) block += `\nPhone: ${phone}`;
+        return block;
     }
 
     // Helper function to pad text to the right
