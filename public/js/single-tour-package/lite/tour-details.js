@@ -687,25 +687,87 @@
         syncGroupDetailsFields();
     }
 
+    /**
+     * Seed per-city stay dates for country-segments (supports Return when same city appears twice).
+     * Matches hydrate-edit buildStaySeed shape used by syncAutoCityPlanRows.
+     */
+    function buildStaySeedFromPrefill(cities) {
+        var seed = {};
+        (cities || []).forEach(function (c) {
+            if (!c || !c.name) return;
+            var key = String(c.name).toLowerCase();
+            var start = String(c.start || '').trim();
+            var end = String(c.end || '').trim();
+            if (!seed[key]) {
+                seed[key] = {
+                    start: start,
+                    end: end,
+                    returnChecked: false,
+                    returnStart: '',
+                    returnEnd: ''
+                };
+                return;
+            }
+            // Second+ token for same city = Return stay
+            seed[key].returnChecked = true;
+            seed[key].returnStart = start;
+            seed[key].returnEnd = end;
+        });
+        return seed;
+    }
+
     function prefillEnquiryCities() {
         var cities = cfg().enquiryPrefillCities || [];
         if (!Array.isArray(cities) || !cities.length) return;
         var $tc = $('#tour_cities');
         if (!$tc.length) return;
 
+        // Must be set before CountrySegments.init → syncAutoCityPlanRows (runs after TourDetails.init)
+        window.__stpLiteStaySeedByCity = buildStaySeedFromPrefill(cities);
+
+        // Ensure overall travel window covers city stays when enquiry check-in/out were empty
+        var startEl = document.getElementById('start_date');
+        var endEl = document.getElementById('end_date');
+        var travelDatesEl = document.getElementById('travel_dates');
+        if (startEl && endEl && (!startEl.value || !endEl.value)) {
+            var starts = [];
+            var ends = [];
+            cities.forEach(function (c) {
+                if (c && c.start) starts.push(String(c.start));
+                if (c && c.end) ends.push(String(c.end));
+            });
+            starts.sort();
+            ends.sort();
+            if (!startEl.value && starts.length) startEl.value = starts[0];
+            if (!endEl.value && ends.length) endEl.value = ends[ends.length - 1];
+            if (travelDatesEl && startEl.value && endEl.value && typeof moment !== 'undefined') {
+                travelDatesEl.value =
+                    moment(startEl.value, 'YYYY-MM-DD').format('MMM D, YYYY') +
+                    ' - ' +
+                    moment(endEl.value, 'YYYY-MM-DD').format('MMM D, YYYY');
+            }
+        }
+
+        var seen = {};
         cities.forEach(function (item) {
             if (!item) return;
             var name = String(item.name || '').trim();
             if (!name) return;
+            var key = name.toLowerCase();
+            // Master city select is unique per city; return stays are seeded separately
+            if (seen[key]) return;
+            seen[key] = true;
+
             var country = String(item.country || '').trim();
             var id = String(item.id || name);
             var text = String(item.text || (country ? (name + ' (' + country + ')') : name));
             var exists = $tc.find('option').filter(function () {
                 return String($(this).val()) === id
-                    || String($(this).attr('data-city-name') || '').toLowerCase() === name.toLowerCase();
+                    || String($(this).attr('data-city-name') || '').toLowerCase() === key;
             });
             if (exists.length) {
                 exists.prop('selected', true);
+                if (country) exists.attr('data-country', country);
                 return;
             }
             var opt = new Option(text, id, true, true);
