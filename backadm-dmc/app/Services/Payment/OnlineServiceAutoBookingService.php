@@ -151,8 +151,9 @@ class OnlineServiceAutoBookingService
             $supplierRef = \App\Services\SupplierCredit\SupplierCreditService::hotelSupplierReference($details)
                 ?? (($fresh->order_ref_no ?? '') !== '' && ($fresh->order_ref_no ?? '') !== OnlineAttractionOrderService::PLACEHOLDER_ORDER_REF ? $fresh->order_ref_no : null);
 
+            // Prefer supplier-provided booking ref for the result UI (not our ONLINE-… agency id).
             return $out('booked', $result['message'] ?? 'Booked with supplier.') + [
-                'reference_id' => $fresh->reference_id ?? null,
+                'reference_id' => $supplierRef ?: ($fresh->reference_id ?? null),
                 'supplier_reference' => $supplierRef,
                 'actual_due_date' => $fresh->actual_due_date ?? null,
                 'display_due_date' => $fresh->display_due_date ?? null,

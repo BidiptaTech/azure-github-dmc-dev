@@ -1916,7 +1916,10 @@ function processSingleOrderRefund(tourId, orderId, event) {
             + (refundCurrency ? refundCurrency + ' ' : '')
             + suggestedVal;
         if (cancelSummary) {
-            initiateMessage += '<br><span class="small">' + cancelSummary + '</span>';
+            const isFreeCancel = /free cancellation/i.test(cancelSummary);
+            initiateMessage += isFreeCancel
+                ? '<br><span class="small" style="color:#dc2626;font-weight:600;">' + cancelSummary + '</span>'
+                : '<br><span class="small">' + cancelSummary + '</span>';
         }
         if (isTravclicksRefund) {
             initiateMessage += '<br><br>Amounts are in SGD. The converted DMC-currency amount below is credited to the DMC wallet.';
