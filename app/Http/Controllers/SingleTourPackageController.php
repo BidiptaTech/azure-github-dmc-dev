@@ -310,38 +310,58 @@ class SingleTourPackageController extends Controller
         // Pass restaurant_data for detailed display
         $restaurant_data = isset($enquiry->restaurant_ids) ? json_decode($enquiry->restaurant_ids, true) : [];
 
+        // Prefill cities (+ stay dates) for lite create when opening from enquiry list.
+        // inquiry_form.city may be multi-city: "Singapore (Singapore) [2026-12-01→2026-12-09], Batam (Indonesia) [2026-12-09→2026-12-17]"
+        // inquiry_form.country may be CSV: "Singapore, Indonesia"
+        $enquiryPrefillCities = [];
+        if ($enquiry && !empty($enquiry->city)) {
+            $enquiryPrefillCities = $this->buildEnquiryPrefillCities(
+                (string) $enquiry->city,
+                (string) ($enquiry->country ?? '')
+            );
+        }
+
+        // Overall travel window: prefer enquiry check-in/out; else min/max of city stay dates
+        $enquiryTravelStart = null;
+        $enquiryTravelEnd = null;
+        if ($enquiry && !empty($enquiry->check_in_time)) {
+            try {
+                $enquiryTravelStart = \Carbon\Carbon::parse($enquiry->check_in_time)->format('Y-m-d');
+            } catch (\Throwable $e) {
+                $enquiryTravelStart = null;
+            }
+        }
+        if ($enquiry && !empty($enquiry->check_out_time)) {
+            try {
+                $enquiryTravelEnd = \Carbon\Carbon::parse($enquiry->check_out_time)->format('Y-m-d');
+            } catch (\Throwable $e) {
+                $enquiryTravelEnd = null;
+            }
+        }
+        if ((!$enquiryTravelStart || !$enquiryTravelEnd) && !empty($enquiryPrefillCities)) {
+            $starts = array_values(array_filter(array_column($enquiryPrefillCities, 'start')));
+            $ends = array_values(array_filter(array_column($enquiryPrefillCities, 'end')));
+            if (!$enquiryTravelStart && !empty($starts)) {
+                sort($starts);
+                $enquiryTravelStart = $starts[0];
+            }
+            if (!$enquiryTravelEnd && !empty($ends)) {
+                rsort($ends);
+                $enquiryTravelEnd = $ends[0];
+            }
+        }
+
         $portsCountryName = null;
         if ($enquiry && !empty($enquiry->country)) {
-            $portsCountryName = $enquiry->country;
+            $countryParts = array_values(array_filter(array_map('trim', explode(',', (string) $enquiry->country))));
+            $portsCountryName = $countryParts[0] ?? null;
+        } elseif (!empty($enquiryPrefillCities[0]['country'])) {
+            $portsCountryName = $enquiryPrefillCities[0]['country'];
         } elseif ($request->filled('country')) {
             $countryForPorts = Country::find($request->country) ?? Country::where('name', $request->country)->first();
             $portsCountryName = $countryForPorts?->name;
         }
         $ports = $this->getPortsForDmc($portsCountryName);
-
-        // Prefill city for lite create when opening from enquiry list
-        $enquiryPrefillCities = [];
-        if ($enquiry && !empty($enquiry->city)) {
-            $cityName = trim((string) $enquiry->city);
-            $countryName = trim((string) ($enquiry->country ?? ''));
-            $cityRow = City::query()
-                ->when($countryName !== '', function ($q) use ($countryName) {
-                    $q->whereRaw('LOWER(TRIM(country)) = ?', [mb_strtolower($countryName)]);
-                })
-                ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($cityName)])
-                ->first();
-            if (!$cityRow) {
-                $cityRow = City::query()
-                    ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($cityName)])
-                    ->first();
-            }
-            $enquiryPrefillCities[] = [
-                'id' => $cityRow ? (string) ($cityRow->city_id ?? $cityRow->id ?? $cityName) : $cityName,
-                'name' => $cityName,
-                'country' => $countryName !== '' ? $countryName : (string) ($cityRow->country ?? ''),
-                'text' => $countryName !== '' ? ($cityName . ' (' . $countryName . ')') : $cityName,
-            ];
-        }
 
         $viewData = compact(
             'countries',
@@ -372,7 +392,9 @@ class SingleTourPackageController extends Controller
             'siblingDmcCityMap',
             'siblingDmcZoneOnMap',
             'userDmcId',
-            'enquiryPrefillCities'
+            'enquiryPrefillCities',
+            'enquiryTravelStart',
+            'enquiryTravelEnd'
         );
 
         // Lite create only (create.blade.php / create.backup.blade.php kept as file backups)
@@ -850,9 +872,25 @@ class SingleTourPackageController extends Controller
                 }
 
                 // Definite/Actual: flag order for refund workflow before soft delete (same as booking reject).
+                // without_refund=1 completes refund at 0 (same as hotel Cancel without refund).
                 $refundPayload = CommonHelper::withDefiniteOrActualTourIsRefundFlag($tourId, []);
                 if (isset($refundPayload['is_refund'])) {
                     $order->is_refund = $refundPayload['is_refund'];
+                }
+                if (array_key_exists('refund_amount', $refundPayload)) {
+                    $order->refund_amount = $refundPayload['refund_amount'];
+                }
+                if (array_key_exists('is_verify', $refundPayload)) {
+                    $order->is_verify = $refundPayload['is_verify'];
+                }
+                if (array_key_exists('refunded', $refundPayload)) {
+                    $order->refunded = $refundPayload['refunded'];
+                }
+                if (isset($refundPayload['is_refund'])
+                    || array_key_exists('refund_amount', $refundPayload)
+                    || array_key_exists('is_verify', $refundPayload)
+                    || array_key_exists('refunded', $refundPayload)
+                ) {
                     $order->save();
                 }
 
@@ -1586,6 +1624,95 @@ class SingleTourPackageController extends Controller
             ->unique()
             ->values()
             ->all();
+    }
+
+    /**
+     * Parse inquiry_form.city into lite create prefill rows (multi-city + stay dates).
+     *
+     * Examples:
+     * - "Singapore (Singapore) [2026-12-01→2026-12-09], Batam (Indonesia) [2026-12-09→2026-12-17]"
+     * - "Singapore (Singapore)"
+     * - "Singapore"
+     *
+     * Same city appearing twice = Return stay (both rows kept for JS seed).
+     *
+     * @return array<int, array{id:string,name:string,country:string,text:string,start:string,end:string}>
+     */
+    private function buildEnquiryPrefillCities(?string $cityRaw, ?string $countryCsv = null): array
+    {
+        $raw = trim((string) $cityRaw);
+        if ($raw === '') {
+            return [];
+        }
+
+        $fallbackCountries = array_values(array_filter(array_map('trim', explode(',', (string) $countryCsv))));
+        $planRe = '/^(.+?)\s*\[(\d{4}-\d{2}-\d{2})\s*(?:→|->)\s*(\d{4}-\d{2}-\d{2})\]\s*$/u';
+        $parts = preg_split('/\s*,\s*/', $raw) ?: [];
+        $rows = [];
+        $partIndex = 0;
+
+        foreach ($parts as $part) {
+            $part = trim((string) $part);
+            if ($part === '') {
+                continue;
+            }
+
+            $startYmd = '';
+            $endYmd = '';
+            if (preg_match($planRe, $part, $dm)) {
+                $part = trim((string) $dm[1]);
+                $startYmd = trim((string) $dm[2]);
+                $endYmd = trim((string) $dm[3]);
+            } else {
+                $part = trim((string) preg_replace('/\s*\[[^\]]*\]\s*/u', '', $part));
+            }
+
+            $cityName = $part;
+            $countryName = '';
+            if (preg_match('/^(.+?)\s*\(([^)]+)\)\s*$/u', $part, $m)) {
+                $cityName = trim((string) $m[1]);
+                $countryName = trim((string) $m[2]);
+            }
+
+            if ($cityName === '') {
+                continue;
+            }
+
+            if ($countryName === '' && isset($fallbackCountries[$partIndex])) {
+                $countryName = $fallbackCountries[$partIndex];
+            }
+
+            $cityRow = City::query()
+                ->when($countryName !== '', function ($q) use ($countryName) {
+                    $q->whereRaw('LOWER(TRIM(country)) = ?', [mb_strtolower($countryName)]);
+                })
+                ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($cityName)])
+                ->first();
+            if (!$cityRow) {
+                $cityRow = City::query()
+                    ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($cityName)])
+                    ->first();
+            }
+
+            if ($countryName === '' && $cityRow && !empty($cityRow->country)) {
+                $countryName = trim((string) $cityRow->country);
+            }
+            if ($countryName === '' && count($fallbackCountries) === 1) {
+                $countryName = $fallbackCountries[0];
+            }
+
+            $rows[] = [
+                'id' => $cityRow ? (string) ($cityRow->city_id ?? $cityRow->id ?? $cityName) : $cityName,
+                'name' => $cityName,
+                'country' => $countryName,
+                'text' => $countryName !== '' ? ($cityName . ' (' . $countryName . ')') : $cityName,
+                'start' => $startYmd,
+                'end' => $endYmd,
+            ];
+            $partIndex++;
+        }
+
+        return $rows;
     }
 
     /**
@@ -8582,6 +8709,7 @@ class SingleTourPackageController extends Controller
     private function createOnlineAttractionExternalOrders(array $attractions, int $tourId): array
     {
         $refs = [];
+        $claimedRefs = [];
         $service = app(OnlineAttractionOrderService::class);
 
         foreach ($attractions as $index => $attraction) {
@@ -8590,22 +8718,46 @@ class SingleTourPackageController extends Controller
                 continue;
             }
 
+            $fingerprint = OnlineAttractionOrderService::ticketFingerprint($attraction);
             $existing = OnlineAttractionOrderService::extractSavedRef((object) [
                 'order_ref_no' => $attraction['order_ref_no'] ?? null,
             ], $attraction);
+
+            $forceNew = false;
+            if ($existing !== null && isset($claimedRefs[$existing]) && $claimedRefs[$existing] !== $fingerprint) {
+                \Illuminate\Support\Facades\Log::warning('Attraction create-order: clearing shared supplier ref for distinct ticket', [
+                    'tour_id' => $tourId,
+                    'order_ref_id' => $existing,
+                    'previous_ticket' => $claimedRefs[$existing],
+                    'ticket' => $fingerprint,
+                ]);
+                $forceNew = true;
+                $existing = null;
+            }
+
             if ($existing !== null) {
                 $refs[$index] = $existing;
+                $claimedRefs[$existing] = $fingerprint;
                 continue;
             }
 
-            $result = $service->createOrder($attraction, $tourId);
+            $result = $service->createOrder($attraction, $tourId, false, $forceNew);
             $ref = $result['order_ref_id'] ?? null;
             $ref = (is_string($ref) && $ref !== '' && ! OnlineAttractionOrderService::isPlaceholderRef($ref))
                 ? $ref
                 : null;
 
+            if ($ref !== null && isset($claimedRefs[$ref]) && $claimedRefs[$ref] !== $fingerprint) {
+                $result = $service->createOrder($attraction, $tourId, false, true);
+                $ref = $result['order_ref_id'] ?? null;
+                $ref = (is_string($ref) && $ref !== '' && ! OnlineAttractionOrderService::isPlaceholderRef($ref))
+                    ? $ref
+                    : null;
+            }
+
             if ($ref !== null) {
                 $refs[$index] = $ref;
+                $claimedRefs[$ref] = $fingerprint;
                 continue;
             }
 

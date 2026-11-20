@@ -8,9 +8,13 @@
     $isLiteEdit = !empty($tour) && !empty($tour->tour_id);
     // Enquiry create locks guests/dates/agency; edit prefills but stays editable
     $lockEnquiryFields = (bool) $enq && !$isLiteEdit;
-    $datesLocked = $lockEnquiryFields && $enq->check_in_time && $enq->check_out_time;
-    $startYmd = $enq && $enq->check_in_time ? \Carbon\Carbon::parse($enq->check_in_time)->format('Y-m-d') : '';
-    $endYmd = $enq && $enq->check_out_time ? \Carbon\Carbon::parse($enq->check_out_time)->format('Y-m-d') : '';
+    $startYmd = !empty($enquiryTravelStart)
+        ? (string) $enquiryTravelStart
+        : ($enq && $enq->check_in_time ? \Carbon\Carbon::parse($enq->check_in_time)->format('Y-m-d') : '');
+    $endYmd = !empty($enquiryTravelEnd)
+        ? (string) $enquiryTravelEnd
+        : ($enq && $enq->check_out_time ? \Carbon\Carbon::parse($enq->check_out_time)->format('Y-m-d') : '');
+    $datesLocked = $lockEnquiryFields && $startYmd && $endYmd;
     $datesDisplay = ($startYmd && $endYmd)
         ? \Carbon\Carbon::parse($startYmd)->format('M d, Y') . ' - ' . \Carbon\Carbon::parse($endYmd)->format('M d, Y')
         : '';
@@ -25,6 +29,18 @@
     $enqAgencyId = $enqAgent->agency_id
         ?? optional(($agents ?? collect())->firstWhere('agent_id', $enq->agent_id ?? null))->agency_id
         ?? ($tour->agency_id ?? null);
+    // Multi-country enquiry: "Singapore, Indonesia" — mark each matching option
+    $enqCountryNames = $enq && !empty($enq->country)
+        ? array_values(array_filter(array_map('trim', explode(',', (string) $enq->country))))
+        : [];
+    if (empty($enqCountryNames) && !empty($enquiryPrefillCities)) {
+        foreach ($enquiryPrefillCities as $prefillCity) {
+            $cName = trim((string) ($prefillCity['country'] ?? ''));
+            if ($cName !== '' && !in_array($cName, $enqCountryNames, true)) {
+                $enqCountryNames[] = $cName;
+            }
+        }
+    }
 @endphp
 <div class="stp-lite-card" id="stpLiteTourDetails">
     <div class="stp-lite-card-header">
@@ -108,7 +124,7 @@
         <select id="lite_countries" class="d-none" multiple aria-hidden="true">
             @foreach($countries as $country)
                 <option value="{{ $country->name }}" data-country-id="{{ $country->id }}"
-                    {{ ($enq && $enq->country == $country->name) ? 'selected' : '' }}>
+                    {{ in_array($country->name, $enqCountryNames, true) ? 'selected' : '' }}>
                     {{ $country->name }}
                 </option>
             @endforeach
@@ -117,10 +133,15 @@
             <option value="">Choose a country...</option>
             @foreach($countries as $country)
                 <option value="{{ $country->name }}" data-country-id="{{ $country->id }}"
-                    {{ ($enq && $enq->country == $country->name) ? 'selected' : '' }}>
+                    {{ (!empty($enqCountryNames) && $enqCountryNames[0] === $country->name) ? 'selected' : '' }}>
                     {{ $country->name }}
                 </option>
             @endforeach
+            @if(count($enqCountryNames) > 1)
+                <option value="{{ implode(', ', $enqCountryNames) }}" selected>
+                    {{ implode(', ', $enqCountryNames) }}
+                </option>
+            @endif
         </select>
         <input type="hidden" name="country_id" id="country_id" value="">
 

@@ -26420,52 +26420,56 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         return isOnline && !!code;
     }
 
+    /**
+     * Hotel-style cancel for approved online attractions on Pro edit.
+     * Returns { withoutRefund } or null if user cancels. No voucher/reason fields.
+     */
     function promptCancelOnlineAttractionVoucher(item) {
-        const code = String(item.voucher_code || '').trim();
         const name = item.attractionName || item.AttractionName || 'Online attraction';
+        const refundsUrl = @json(route('bookings.refunds'));
         if (typeof Swal === 'undefined' || typeof Swal.fire !== 'function') {
-            const reason = window.prompt('Cancel voucher ' + code + ' for "' + name + '". Enter cancel reason (min 10 chars):', '');
-            if (reason == null) return Promise.resolve(null);
-            if (String(reason).trim().length < 10) {
-                alert('Cancel reason must be at least 10 characters.');
-                return Promise.resolve(null);
-            }
-            return Promise.resolve(String(reason).trim());
+            if (!window.confirm('Cancel "' + name + '" with refund? (Cancel = abort)')) return Promise.resolve(null);
+            return Promise.resolve({ withoutRefund: false, redirectRefunds: refundsUrl });
         }
         return Swal.fire({
-            title: 'Cancel Online Voucher?',
-            html: '<p class="mb-2 text-start">Removing <strong>' + (name || 'attraction') + '</strong> will cancel the supplier voucher and refund credits.</p>'
-                + '<div class="text-start mb-2"><label class="form-label fw-semibold mb-1">Voucher Code</label>'
-                + '<input type="text" class="form-control" id="proCancelVoucherCode" value="' + code.replace(/"/g, '&quot;') + '" readonly></div>'
-                + '<div class="text-start"><label class="form-label fw-semibold mb-1">Cancel Reason <span class="text-danger">*</span></label>'
-                + '<textarea id="proCancelVoucherReason" class="form-control" rows="3" minlength="10" maxlength="1000" '
-                + 'placeholder="Reason for cancelling this voucher..."></textarea></div>',
-            icon: 'warning',
+            title: '',
+            html: '<div style="text-align:center">'
+                + '<div style="width:56px;height:56px;margin:0 auto 1rem;border-radius:14px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#fff7ed,#fed7aa);color:#ea580c;font-size:1.75rem"><i class="ri-error-warning-line"></i></div>'
+                + '<h2 style="font-size:1.25rem;font-weight:700;color:#1e293b;margin:0 0 .5rem">Partial cancellation &amp; Refund?</h2>'
+                + '<p style="font-size:.9375rem;color:#64748b;margin:0">Cancel <strong>' + String(name).replace(/</g, '&lt;') + '</strong>? Supplier voucher is cancelled automatically and credits return to SG Attractions balance.</p>'
+                + '<div style="margin-top:.75rem;padding:.75rem;text-align:left;background:linear-gradient(135deg,#eff6ff,#e0e7ff);border:1px solid rgba(99,102,241,.3);border-radius:10px;color:#3730a3;font-size:.8125rem">'
+                + '<i class="ri-shield-check-line"></i> <strong>Tour status</strong> and <strong>payment</strong> stay unchanged. Cancel with refund → Refunds page. Cancel without refund completes at 0.</div>'
+                + '</div>',
+            showDenyButton: true,
             showCancelButton: true,
-            confirmButtonColor: '#dc2626',
-            cancelButtonColor: '#64748b',
-            confirmButtonText: 'Confirm Cancel Voucher',
+            confirmButtonText: 'Cancel with refund',
+            denyButtonText: 'Cancel without refund',
             cancelButtonText: 'Keep Booking',
-            width: '440px',
-            preConfirm: () => {
-                const reason = String(document.getElementById('proCancelVoucherReason')?.value || '').trim();
-                if (reason.length < 10) {
-                    Swal.showValidationMessage('Please enter a cancel reason (at least 10 characters).');
-                    return false;
-                }
-                return reason;
-            }
-        }).then((result) => (result.isConfirmed ? result.value : null));
+            confirmButtonColor: '#dc2626',
+            denyButtonColor: '#64748b',
+            cancelButtonColor: '#94a3b8',
+            width: '460px'
+        }).then((result) => {
+            if (result.isConfirmed) return { withoutRefund: false, redirectRefunds: refundsUrl };
+            if (result.isDenied) return { withoutRefund: true, redirectRefunds: null };
+            return null;
+        });
     }
 
-    async function cancelOnlineAttractionOrderOnEdit(item, cancelReason) {
+    async function cancelOnlineAttractionOrderOnEdit(item, cancelOpts) {
         const bookingKey = item.bookingId || item.booking_id || item.orderId;
         if (!bookingKey) {
             throw new Error('Missing booking id for this attraction order.');
         }
+        const withoutRefund = !!(cancelOpts && cancelOpts.withoutRefund);
         const urlTemplate = window.enquiryProCancelOrderUrl || '/api/orders/__ID__/cancel';
         const url = String(urlTemplate).replace('__ID__', encodeURIComponent(bookingKey));
         const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        const payload = {
+            tour_id: window.tourId || undefined,
+            cancel_reason: withoutRefund ? 'Cancelled without refund' : 'Rejected for refund processing'
+        };
+        if (withoutRefund) payload.without_refund = 1;
         const resp = await fetch(url, {
             method: 'POST',
             headers: {
@@ -26473,10 +26477,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 'Accept': 'application/json',
                 'X-CSRF-TOKEN': csrf
             },
-            body: JSON.stringify({
-                tour_id: window.tourId || undefined,
-                cancel_reason: cancelReason
-            })
+            body: JSON.stringify(payload)
         });
         const data = await resp.json().catch(() => ({}));
         if (!resp.ok || !data.success) {
@@ -26509,24 +26510,23 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         
         const count = checkboxes.length;
         const itemLabel = count === 1 ? 'tour' : 'tours';
-        showRemoveFormSelectionAlert(count, itemLabel, async () => {
+        const runRemove = async () => {
             try {
+                let redirectToRefunds = false;
                 for (const item of voucherCancelItems) {
-                    const reason = await promptCancelOnlineAttractionVoucher(item);
-                    if (!reason) {
+                    const choice = await promptCancelOnlineAttractionVoucher(item);
+                    if (!choice) {
                         return;
                     }
-                    const result = await cancelOnlineAttractionOrderOnEdit(item, reason);
-                    const providerMsg = result?.data?.voucher_cancel?.message || result?.message || 'Voucher cancelled.';
+                    const result = await cancelOnlineAttractionOrderOnEdit(item, choice);
+                    if (!choice.withoutRefund) redirectToRefunds = true;
+                    const providerMsg = result?.data?.voucher_cancel?.message || result?.message
+                        || (choice.withoutRefund ? 'Cancelled without refund.' : 'Cancelled — sent to Refunds.');
                     if (typeof Swal !== 'undefined' && Swal.fire) {
                         await Swal.fire({
                             icon: 'success',
-                            title: 'Voucher cancelled',
-                            html: '<div class="text-start"><div class="mb-2">' + (providerMsg || '') + '</div>'
-                                + (result?.data?.voucher_code
-                                    ? ('<div class="small text-muted">Code: <strong>' + result.data.voucher_code + '</strong></div>')
-                                    : '')
-                                + '</div>',
+                            title: choice.withoutRefund ? 'Cancelled without refund' : 'Sent to Refunds',
+                            html: '<div class="text-start"><div class="mb-2">' + (providerMsg || '') + '</div></div>',
                             confirmButtonText: 'OK'
                         });
                     } else {
@@ -26575,6 +26575,9 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                         });
                     }
                 }
+                if (redirectToRefunds) {
+                    window.location.href = @json(route('bookings.refunds'));
+                }
             } catch (err) {
                 console.error('Attraction remove / voucher cancel failed', err);
                 if (typeof Swal !== 'undefined' && Swal.fire) {
@@ -26583,7 +26586,13 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     alert(err.message || 'Unable to cancel voucher.');
                 }
             }
-        }, window.hasNegotiationHistory, hasExistingItems);
+        };
+        // Online voucher rows already get Cancel with/without refund — skip generic Remove confirm.
+        if (voucherCancelItems.length && voucherCancelItems.length === idsToRemove.length) {
+            runRemove();
+        } else {
+            showRemoveFormSelectionAlert(count, itemLabel, runRemove, window.hasNegotiationHistory, hasExistingItems);
+        }
     }
 
     // ==================== GUIDE FUNCTIONS ====================
@@ -38488,13 +38497,23 @@ exitPortData.push({
         }
         
         // Transform and add service data in required format (await async functions)
-        const { entryPortData, exitPortData } = await transformArrivalDepartureData();
-        const transformedAccommodations = transformAccommodationData();
-        const transformedTours = transformTourData();
-        const transformedMeals = transformMealData();
-        const transformedGuides = transformGuideData();
-        const transformedTransfers = await transformTransferData();
-        const transformedMiscellaneous = transformMiscellaneousData();
+        let entryPortData, exitPortData, transformedAccommodations, transformedTours,
+            transformedMeals, transformedGuides, transformedTransfers, transformedMiscellaneous;
+        try {
+            ({ entryPortData, exitPortData } = await transformArrivalDepartureData());
+            transformedAccommodations = transformAccommodationData();
+            transformedTours = transformTourData();
+            transformedMeals = transformMealData();
+            transformedGuides = transformGuideData();
+            transformedTransfers = await transformTransferData();
+            transformedMiscellaneous = transformMiscellaneousData();
+        } catch (transformErr) {
+            console.error('Enquiry transform failed before save:', transformErr);
+            window._enquiryProSubmitting = false;
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = submitBtnOriginalHtml; }
+            alert('Could not prepare booking data: ' + (transformErr && transformErr.message ? transformErr.message : 'transform error'));
+            return;
+        }
         
         // Add service payloads (edit: always send each key, even [] — required for orphan soft-delete vs omit-key)
         if (isEnquiryEditSave) {
@@ -41509,6 +41528,11 @@ exitPortData.push({
                 ?? 0
             ) || null,
             dmc_profile_markup: data.dmc_profile_markup || (data.price_payload && data.price_payload.dmc_profile_markup) || null,
+            online_price_breakdown: data.online_price_breakdown
+                || (data.price_payload && data.price_payload.online_price_breakdown)
+                || data.dmc_profile_markup
+                || (data.price_payload && data.price_payload.dmc_profile_markup)
+                || null,
             hotelDetails: hotelDetails,
             country: data.country || '',
             city: data.city || hotelDetails.city || data.destination || '',
@@ -41542,6 +41566,34 @@ exitPortData.push({
             const bedSell = parseFloat(firstBed.avgSell ?? firstBed.sell ?? firstBed.price ?? data.avgSell ?? data.sell ?? 0) || 0;
             if (bedCost > 0) { hotel.cost = bedCost; hotel.avgCost = bedCost; }
             if (bedSell > 0) { hotel.sell = bedSell; hotel.avgSell = bedSell; hotel.roomPrice = bedSell; }
+        }
+        // Online: never leave stay totals in AVG COST / SELL (create uses per-night base / marked).
+        if (hotel.isOnlineHotel || hotel.hotelSourceType === 'online') {
+            const stayN = Math.max(1, parseInt(hotel.nights, 10) || nights || 1);
+            const stamp = hotel.online_price_breakdown || hotel.dmc_profile_markup || null;
+            const baseStay = parseFloat(
+                hotel.base_grand_total
+                ?? (stamp && (stamp.hotel_price != null ? stamp.hotel_price : stamp.base_price))
+                ?? 0
+            ) || 0;
+            const markedStay = parseFloat(
+                (stamp && (stamp.total_price != null ? stamp.total_price : stamp.price))
+                ?? hotel.savedTotalPrice
+                ?? 0
+            ) || 0;
+            if (baseStay > 0 && (!hotel.cost || hotel.cost >= baseStay * 0.9)) {
+                hotel.cost = Math.round((baseStay / stayN) * 100) / 100;
+                hotel.avgCost = hotel.cost;
+            }
+            if (markedStay > 0 && (!hotel.sell || hotel.sell >= Math.min(baseStay || markedStay, markedStay) * 0.9)) {
+                hotel.sell = Math.round((markedStay / stayN) * 100) / 100;
+                hotel.avgSell = hotel.sell;
+                hotel.roomPrice = hotel.sell;
+            } else if (baseStay > 0 && (!hotel.sell || hotel.sell >= baseStay * 0.9)) {
+                hotel.sell = Math.round((baseStay / stayN) * 100) / 100;
+                hotel.avgSell = hotel.sell;
+                hotel.roomPrice = hotel.sell;
+            }
         }
         if (!hotel.roomPrice && hotel.sell) hotel.roomPrice = hotel.sell;
         if ((!hotel.cost || hotel.cost <= 0) && hotel.avgCost > 0) hotel.cost = hotel.avgCost;
