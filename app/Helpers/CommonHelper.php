@@ -2389,6 +2389,65 @@ class CommonHelper
     }
 
     /**
+     * DMC company contact block for hotel/restaurant/attraction booking email previews & sends.
+     *
+     * @param  int|null  $dmcId  Prefer tour.dmc_id when available
+     * @return array{name: string, email: string, phone: string}
+     */
+    public static function getBookingEmailSignature(?int $dmcId = null, $authUser = null): array
+    {
+        $authUser = $authUser ?: Auth::user();
+        $resolvedId = $dmcId ? (int) $dmcId : 0;
+
+        if ($resolvedId <= 0 && $authUser) {
+            $resolvedId = (int) (self::getDmcId($authUser) ?: 0);
+        }
+
+        $dmcUser = null;
+        if ($resolvedId > 0) {
+            $dmcUser = User::where('userId', $resolvedId)->first();
+        }
+        if (!$dmcUser && $authUser) {
+            $dmcUser = $authUser;
+        }
+
+        $name = trim((string) ($dmcUser->company_name ?? $dmcUser->name ?? 'DMC'));
+        $email = trim((string) ($dmcUser->email ?? ''));
+        $phoneRaw = trim((string) ($dmcUser->phone ?? ''));
+        $countryCode = trim((string) ($dmcUser->country_code ?? ''));
+        $phone = $phoneRaw !== ''
+            ? (($countryCode !== '' ? '+' . ltrim($countryCode, '+') . ' ' : '') . $phoneRaw)
+            : '';
+
+        return [
+            'name' => $name !== '' ? $name : 'DMC',
+            'email' => $email,
+            'phone' => $phone,
+        ];
+    }
+
+    /**
+     * Plain-text signature lines for booking confirmation emails.
+     */
+    public static function formatBookingEmailSignature(?array $signature = null): string
+    {
+        $signature = $signature ?: self::getBookingEmailSignature();
+        $name = trim((string) ($signature['name'] ?? 'DMC'));
+        $email = trim((string) ($signature['email'] ?? ''));
+        $phone = trim((string) ($signature['phone'] ?? ''));
+
+        $lines = ["Best regards,", $name !== '' ? $name : 'DMC'];
+        if ($email !== '') {
+            $lines[] = 'Email: ' . $email;
+        }
+        if ($phone !== '') {
+            $lines[] = 'Phone: ' . $phone;
+        }
+
+        return implode("\n", $lines);
+    }
+
+    /**
      * Send a hotel booking confirmation email with a custom subject and body
      * (plain text body is wrapped in a minimal HTML email container).
      *
@@ -7130,11 +7189,26 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         $baseCurrency = self::resolveTourDisplayCurrency($tour);
         $selectedCurrency = $targetCurrency ? strtoupper($targetCurrency) : $baseCurrency;
         $exchangeRate = 1.0;
+        // Online / mix: same FX stack as wallet Pay Now (countries rate + conversion %).
+        $tourClassification = app(\App\Services\Payment\OrderClassificationService::class)->classifyTour($tour);
+        $applyPaymentFx = in_array($tourClassification, [
+            \App\Services\Payment\OrderClassificationService::ONLINE,
+            \App\Services\Payment\OrderClassificationService::MIX,
+        ], true);
 
         if ($selectedCurrency !== $baseCurrency) {
-            $rate = \App\Helpers\CurrencyHelper::getExchangeRate($baseCurrency, $selectedCurrency);
-            if ($rate && is_numeric($rate) && $rate > 0) {
-                $exchangeRate = (float) $rate;
+            if ($applyPaymentFx) {
+                $rate = app(\App\Services\Payment\FxConversionCharge::class)
+                    ->exchangeRate($baseCurrency, $selectedCurrency);
+                if ($rate && is_numeric($rate) && $rate > 0) {
+                    $exchangeRate = (float) $rate;
+                }
+            }
+            if ($exchangeRate <= 0 || abs($exchangeRate - 1.0) < 0.0000001) {
+                $rate = \App\Helpers\CurrencyHelper::getExchangeRate($baseCurrency, $selectedCurrency);
+                if ($rate && is_numeric($rate) && $rate > 0) {
+                    $exchangeRate = (float) $rate;
+                }
             }
         }
        
@@ -7611,6 +7685,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             'baseCurrency' => $baseCurrency,
             'selectedCurrency' => $selectedCurrency,
             'exchangeRate' => $exchangeRate,
+            'applyPaymentFx' => $applyPaymentFx,
             'quotationInformationHtml' => $quotationInformationHtml,
             'logoType' => $logoType,
             'user_agency' => $userAgencyForHeader,
@@ -7798,6 +7873,10 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
         if (isset($viewData['exchangeRate']) && (is_int($viewData['exchangeRate']) || is_float($viewData['exchangeRate']))) {
             $approved['exchangeRate'] = $viewData['exchangeRate'];
+        }
+
+        if (array_key_exists('applyPaymentFx', $viewData)) {
+            $approved['applyPaymentFx'] = (bool) $viewData['applyPaymentFx'];
         }
 
         return $approved;
@@ -8872,6 +8951,9 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                         continue;
                     }
 
+                    $orderIsOnline = strtolower(trim((string) ($order->order_type ?? ''))) === 'online'
+                        || ! empty($item['isOnlineHotel'])
+                        || strtolower(trim((string) ($item['hotelSourceType'] ?? $item['priceMode'] ?? ''))) === 'online';
                     if (!isset($hotelBuckets[$hotelKey])) {
                         $hotelBuckets[$hotelKey] = [
                             'single' => 0.0,
@@ -8885,6 +8967,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             'child_meal_factor' => $childMealFactor,
                             'child_with_bed_total' => 0.0,
                             'child_without_bed_total' => 0.0,
+                            'is_online' => $orderIsOnline,
                         ];
                         $hotelBucketMeta[$hotelKey] = [
                             'hotel_id' => $hotelId,
@@ -8895,7 +8978,11 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                             'city' => $orderCity !== '' ? $orderCity : null,
                             'currency' => $orderCurrency,
                             'is_return' => $isReturnStay,
+                            'is_online' => $orderIsOnline,
                         ];
+                    } elseif ($orderIsOnline) {
+                        $hotelBuckets[$hotelKey]['is_online'] = true;
+                        $hotelBucketMeta[$hotelKey]['is_online'] = true;
                     }
                     $hotelBuckets[$hotelKey]['selected_persons'] = max(
                         (int) ($hotelBuckets[$hotelKey]['selected_persons'] ?? 0),
@@ -9304,12 +9391,18 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             $single = (float) ($bucket['single'] ?? 0);
             $double = (float) ($bucket['double'] ?? 0);
             $triple = (float) ($bucket['triple'] ?? 0);
+            // Online keep exact sell (e.g. 34.90) so quotation/payment match; offline keep whole-number ceil.
+            $isOnlineHotel = ! empty($bucket['is_online']) || ! empty($meta['is_online']);
+            $roundHotel = static function (float $n) use ($isOnlineHotel): float {
+                return $isOnlineHotel ? round($n, 2) : (float) ceil($n);
+            };
             $hotelPriceOptions[] = [
                 'key' => $hotelKey,
                 'hotel_id' => $meta['hotel_id'] ?? null,
                 'hotel_name' => $meta['hotel_name'] ?? null,
                 'date_range' => $meta['date_range'] ?? null,
                 'is_return' => !empty($meta['is_return']),
+                'is_online' => $isOnlineHotel,
                 'display_name' => $meta['display_name'] ?? ($meta['hotel_name'] ?? $hotelKey),
                 'country' => $meta['country'] ?? null,
                 'city' => $meta['city'] ?? null,
@@ -9320,14 +9413,14 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 'children_without_bed' => (int) ($bucket['children_without_bed'] ?? 0),
                 'children_price' => (int) ($bucket['children_price'] ?? 2),
                 'child_meal_factor' => (float) ($bucket['child_meal_factor'] ?? 1),
-                'child_with_bed_total' => ceil((float) ($bucket['child_with_bed_total'] ?? 0) * $focFactor),
-                'child_without_bed_total' => ceil((float) ($bucket['child_without_bed_total'] ?? 0) * $focFactor),
+                'child_with_bed_total' => $roundHotel((float) ($bucket['child_with_bed_total'] ?? 0) * $focFactor),
+                'child_without_bed_total' => $roundHotel((float) ($bucket['child_without_bed_total'] ?? 0) * $focFactor),
                 'show_single' => $single > 0,
                 'show_double' => $double > 0,
                 'show_triple' => $triple > 0,
-                'single' => ceil($single * $focFactor),
-                'double' => ceil($double * $focFactor),
-                'triple' => ceil($triple * $focFactor),
+                'single' => $roundHotel($single * $focFactor),
+                'double' => $roundHotel($double * $focFactor),
+                'triple' => $roundHotel($triple * $focFactor),
             ];
         }
 
@@ -12213,7 +12306,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 $amountInSelected,
                 $selectedCurrency,
                 $baseCurrency,
-                $selectedCurrency
+                $selectedCurrency,
+                $tour
             );
         }
 
@@ -12221,7 +12315,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             $amountInBase,
             $amountCurrency,
             $baseCurrency,
-            $selectedCurrency
+            $selectedCurrency,
+            $tour
         );
     }
 
@@ -12267,7 +12362,41 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     }
 
     /**
+     * Online / mix invoices: keep exact decimals and use payment FX (no whole-number ceil).
+     */
+    public static function invoiceUsesPaymentFxExactAmounts($tour): bool
+    {
+        if (!$tour) {
+            return false;
+        }
+
+        try {
+            $classification = app(\App\Services\Payment\OrderClassificationService::class)->classifyTour($tour);
+
+            return in_array($classification, [
+                \App\Services\Payment\OrderClassificationService::ONLINE,
+                \App\Services\Payment\OrderClassificationService::MIX,
+            ], true);
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * Round invoice summary totals: exact 2dp for online/mix, ceil for offline.
+     */
+    public static function roundInvoiceDisplayAmount(float $amount, $tour = null): float
+    {
+        if (self::invoiceUsesPaymentFxExactAmounts($tour)) {
+            return round($amount, 2);
+        }
+
+        return (float) ceil($amount);
+    }
+
+    /**
      * Dual-currency price string for invoice PDFs (base + converted when selected differs).
+     * Prefer $exchangeRate so online/mix payment FX matches Pay Now.
      */
     public static function formatInvoiceDualPrice($amount, string $baseCurrency, string $selectedCurrency, float $exchangeRate): string
     {
@@ -12283,9 +12412,12 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             return number_format(round($amt, 2), 2);
         }
 
-        $converted = CurrencyHelper::convertAmount($amt, $baseCurrency, $selectedCurrency);
-        if ($converted === null && $exchangeRate > 0 && $exchangeRate !== 1.0) {
+        $converted = null;
+        if ($exchangeRate > 0 && abs($exchangeRate - 1.0) > 0.0000001) {
             $converted = $amt * $exchangeRate;
+        }
+        if ($converted === null) {
+            $converted = CurrencyHelper::convertAmount($amt, $baseCurrency, $selectedCurrency);
         }
 
         if ($converted === null) {
@@ -12430,7 +12562,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         float $amount,
         string $amountCurrency,
         string $baseCurrency,
-        string $selectedCurrency
+        string $selectedCurrency,
+        $tour = null
     ): array {
         $amountCurrency = strtoupper(trim($amountCurrency)) ?: 'SGD';
         $baseCurrency = strtoupper(trim($baseCurrency)) ?: $amountCurrency;
@@ -12438,11 +12571,11 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
         $conversion = [];
 
-        $inBase = self::convertInvoiceAmountToSelected($amount, $amountCurrency, $baseCurrency, $baseCurrency);
+        $inBase = self::convertInvoiceAmountToSelected($amount, $amountCurrency, $baseCurrency, $baseCurrency, $tour);
         $conversion[$baseCurrency] = $inBase;
 
         if ($selectedCurrency !== $baseCurrency) {
-            $inSelected = self::convertInvoiceAmountToSelected($amount, $amountCurrency, $selectedCurrency, $baseCurrency);
+            $inSelected = self::convertInvoiceAmountToSelected($amount, $amountCurrency, $selectedCurrency, $baseCurrency, $tour);
             $conversion[$selectedCurrency] = $inSelected;
         }
 
@@ -12678,9 +12811,15 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     /**
      * Format a line amount that lives in the booking's own currency for third-party invoices.
      * Same currency as selected → plain number; otherwise "AMT CUR (CONV SELECTED)".
+     * Pass $tour so online/mix lines use the same payment FX as Pay Now.
      */
-    public static function formatInvoiceItemPrice($amount, ?string $itemCurrency, string $selectedCurrency, string $baseCurrency): string
-    {
+    public static function formatInvoiceItemPrice(
+        $amount,
+        ?string $itemCurrency,
+        string $selectedCurrency,
+        string $baseCurrency,
+        $tour = null
+    ): string {
         if (!is_numeric($amount)) {
             return '0.00';
         }
@@ -12694,10 +12833,13 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             return self::formatMoneyAdaptive($amt) . ' ' . $itemCurrency;
         }
 
-        $converted = CurrencyHelper::convertAmount($amt, $itemCurrency, $selectedCurrency);
-        if ($converted === null) {
-            return self::formatMoneyAdaptive($amt) . ' ' . $itemCurrency;
-        }
+        $converted = self::convertInvoiceAmountToSelected(
+            $amt,
+            $itemCurrency,
+            $selectedCurrency,
+            $baseCurrency,
+            $tour
+        );
 
         return self::formatMoneyAdaptive($amt) . ' ' . $itemCurrency
             . ' (' . self::formatMoneyAdaptive($converted) . ' ' . $selectedCurrency . ')';
@@ -12706,7 +12848,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     /**
      * Convert an amount from item/native currency into the selected display currency.
      */
-    public static function convertInvoiceAmountToSelected($amount, ?string $fromCurrency, string $selectedCurrency, string $baseCurrency): float
+    public static function convertInvoiceAmountToSelected($amount, ?string $fromCurrency, string $selectedCurrency, string $baseCurrency, $tour = null): float
     {
         $amt = is_numeric($amount) ? (float) $amount : 0.0;
         $from = strtoupper(trim((string) ($fromCurrency ?: $baseCurrency))) ?: strtoupper($baseCurrency);
@@ -12714,6 +12856,25 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
 
         if ($from === $to) {
             return $amt;
+        }
+
+        // Online / mix invoices: match wallet Pay Now FX (countries rate + conversion %).
+        if ($tour) {
+            try {
+                $classification = app(\App\Services\Payment\OrderClassificationService::class)->classifyTour($tour);
+                if (in_array($classification, [
+                    \App\Services\Payment\OrderClassificationService::ONLINE,
+                    \App\Services\Payment\OrderClassificationService::MIX,
+                ], true)) {
+                    $fxAmount = app(\App\Services\Payment\FxConversionCharge::class)
+                        ->convertAmount($amt, $from, $to);
+                    if ($fxAmount !== null) {
+                        return (float) $fxAmount;
+                    }
+                }
+            } catch (\Throwable) {
+                // Fall through to market-rate conversion.
+            }
         }
 
         $converted = CurrencyHelper::convertAmount($amt, $from, $to);
@@ -12848,16 +13009,19 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         float $nativeAmount,
         ?float $storedConverted,
         string $selectedCurrency,
-        string $baseCurrency
+        string $baseCurrency,
+        $tour = null
     ): float {
         $selectedCurrency = strtoupper($selectedCurrency);
         $baseCurrency = strtoupper($baseCurrency);
         $fromCurrency = strtoupper(trim((string) ($row['currency'] ?? $baseCurrency)));
         $targetCurrency = strtoupper(trim((string) ($row['target_currency'] ?? '')));
         $rate = (float) ($row['conversion_rate'] ?? 0);
+        $usePaymentFx = self::invoiceUsesPaymentFxExactAmounts($tour);
 
         // Already stored in selected / target currency at confirm time.
-        if ($storedConverted !== null) {
+        // Online/mix: ignore stale market-rate stored conversions; recompute with payment FX.
+        if ($storedConverted !== null && !$usePaymentFx) {
             if ($targetCurrency !== '' && $targetCurrency === $selectedCurrency) {
                 return (float) $storedConverted;
             }
@@ -12866,7 +13030,13 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             }
             // Stored converted is in target; convert target → selected if needed.
             if ($targetCurrency !== '' && $targetCurrency !== $selectedCurrency) {
-                return self::convertInvoiceAmountToSelected($storedConverted, $targetCurrency, $selectedCurrency, $baseCurrency);
+                return self::convertInvoiceAmountToSelected(
+                    $storedConverted,
+                    $targetCurrency,
+                    $selectedCurrency,
+                    $baseCurrency,
+                    $tour
+                );
             }
         }
 
@@ -12874,17 +13044,18 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             return (float) $nativeAmount;
         }
 
-        if ($rate > 0 && $targetCurrency !== '' && $targetCurrency === $selectedCurrency) {
+        // Offline only: trust row conversion_rate when targeting selected/base.
+        if (!$usePaymentFx && $rate > 0 && $targetCurrency !== '' && $targetCurrency === $selectedCurrency) {
             return round(max(0, $nativeAmount) * $rate, 2);
         }
 
-        if ($rate > 0 && $targetCurrency !== '' && $targetCurrency === $baseCurrency && $selectedCurrency !== $baseCurrency) {
+        if (!$usePaymentFx && $rate > 0 && $targetCurrency !== '' && $targetCurrency === $baseCurrency && $selectedCurrency !== $baseCurrency) {
             $inBase = round(max(0, $nativeAmount) * $rate, 2);
 
-            return self::convertInvoiceAmountToSelected($inBase, $baseCurrency, $selectedCurrency, $baseCurrency);
+            return self::convertInvoiceAmountToSelected($inBase, $baseCurrency, $selectedCurrency, $baseCurrency, $tour);
         }
 
-        return self::convertInvoiceAmountToSelected($nativeAmount, $fromCurrency, $selectedCurrency, $baseCurrency);
+        return self::convertInvoiceAmountToSelected($nativeAmount, $fromCurrency, $selectedCurrency, $baseCurrency, $tour);
     }
 
     /**
@@ -12896,6 +13067,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
     {
         $selectedCurrency = strtoupper($selectedCurrency);
         $baseCurrency = strtoupper($baseCurrency);
+        $invoice->loadMissing(['tour']);
+        $tour = $invoice->tour;
         $details = self::getInvoiceNegotiationDetails($invoice);
         $rows = [];
         $actual = 0.0;
@@ -12908,21 +13081,24 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                     (float) ($row['gross'] ?? $row['actual_amount'] ?? 0),
                     $row['converted_gross'] ?? null,
                     $selectedCurrency,
-                    $baseCurrency
+                    $baseCurrency,
+                    $tour
                 );
                 $actualSel = self::convertNegotiationRowAmountToSelected(
                     $row,
                     (float) $row['actual_amount'],
                     $row['converted_actual_amount'],
                     $selectedCurrency,
-                    $baseCurrency
+                    $baseCurrency,
+                    $tour
                 );
                 $negSel = self::convertNegotiationRowAmountToSelected(
                     $row,
                     (float) $row['amount'],
                     $row['converted_amount'],
                     $selectedCurrency,
-                    $baseCurrency
+                    $baseCurrency,
+                    $tour
                 );
                 $discountSel = $actualSel - $negSel;
                 $actual += $actualSel;
@@ -12936,9 +13112,9 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 ]);
             }
 
-            // Match Add Payment modal: ceil country totals into tour/display currency.
-            $actual = (float) ceil($actual);
-            $negotiated = (float) ceil($negotiated);
+            // Offline: ceil into whole display units. Online/mix: exact 2dp (match Pay Now / line items).
+            $actual = self::roundInvoiceDisplayAmount($actual, $tour);
+            $negotiated = self::roundInvoiceDisplayAmount($negotiated, $tour);
 
             return [
                 'actual' => $actual,
@@ -12948,13 +13124,18 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             ];
         }
 
-        $fallbackActual = self::sumInvoiceItemsInSelectedCurrency($invoice->items ?? [], $selectedCurrency, $baseCurrency);
+        $fallbackActual = self::sumInvoiceItemsInSelectedCurrency(
+            $invoice->items ?? [],
+            $selectedCurrency,
+            $baseCurrency,
+            $tour
+        );
         $fallbackNeg = (float) ($invoice->getNegotiatedAmount() ?? 0);
         $fallbackNegSelected = $fallbackNeg > 0
-            ? self::convertInvoiceAmountToSelected($fallbackNeg, $baseCurrency, $selectedCurrency, $baseCurrency)
+            ? self::convertInvoiceAmountToSelected($fallbackNeg, $baseCurrency, $selectedCurrency, $baseCurrency, $tour)
             : $fallbackActual;
-        $fallbackActual = (float) ceil($fallbackActual);
-        $fallbackNegSelected = (float) ceil($fallbackNegSelected);
+        $fallbackActual = self::roundInvoiceDisplayAmount($fallbackActual, $tour);
+        $fallbackNegSelected = self::roundInvoiceDisplayAmount($fallbackNegSelected, $tour);
 
         return [
             'actual' => $fallbackActual,
@@ -13119,7 +13300,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 }
                 $gross += (float) ($row['gross_selected'] ?? $row['gross'] ?? 0);
             }
-            $gross = (float) ceil($gross);
+            $gross = self::roundInvoiceDisplayAmount($gross, $tour);
 
             // Fall back to negotiation_details rates only when currency_markups is empty.
             if ($markupRows === []) {
@@ -13149,7 +13330,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
         }
 
         if ($gross <= 0) {
-            $gross = (float) ceil(max(0, $actualAmount));
+            $gross = self::roundInvoiceDisplayAmount(max(0, $actualAmount), $tour);
         }
 
         // Discount once on gross (do not sum Fixed/% across every city row).
@@ -13220,7 +13401,7 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             return ['total_tax' => 0.0, 'breakdown' => []];
         }
 
-        $base = (float) ceil(max(0, $negotiatedAmount));
+        $base = self::roundInvoiceDisplayAmount(max(0, $negotiatedAmount), $tour);
         $persons = (int) (($tour->adult ?? 0) + ($tour->child ?? 0));
         $days = TaxHelper::calculateDays($tour->check_in_time, $tour->check_out_time);
         $taxResult = TaxHelper::calculateTourTaxesForTour($base, $tour->taxes, $persons, $days, $tour);
@@ -13388,7 +13569,8 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 (float) ($invoice->payment_received ?? 0),
                 $tourCurrency,
                 $selectedCurrency,
-                $baseCurrency
+                $baseCurrency,
+                $tour
             );
         }
 
@@ -13408,12 +13590,23 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
             }
 
             $payCurrency = strtoupper(trim((string) ($payment['currency'] ?? '')));
+            $walletCurrency = strtoupper(trim((string) ($payment['wallet_currency'] ?? '')));
+            $hasWallet = array_key_exists('wallet_amount', $payment)
+                && $payment['wallet_amount'] !== null
+                && $payment['wallet_amount'] !== '';
+            $walletAmount = $hasWallet ? (float) $payment['wallet_amount'] : null;
             $amountField = isset($payment['amount']) ? (float) $payment['amount'] : 0.0;
             $hasOriginal = array_key_exists('original_amount', $payment)
                 && $payment['original_amount'] !== null
                 && $payment['original_amount'] !== '';
             $originalAmount = $hasOriginal ? (float) $payment['original_amount'] : null;
             $exchangeRate = (float) ($payment['exchange_rate'] ?? 0);
+
+            // Prefer actual wallet debit when viewing that currency (matches Pay Now charged amount).
+            if ($walletAmount !== null && $walletCurrency !== '' && $walletCurrency === $selectedCurrency) {
+                $total += $walletAmount;
+                continue;
+            }
 
             // amount was converted into tour currency at payment time
             $amountIsTourConverted = $payCurrency !== ''
@@ -13441,11 +13634,25 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
                 continue;
             }
 
+            // Order amount in tour currency → selected (online uses payment FX).
+            if ($amountField > 0 && ($payCurrency === '' || $payCurrency === $tourCurrency)
+                && $tourCurrency !== $selectedCurrency) {
+                $total += self::convertInvoiceAmountToSelected(
+                    $amountField,
+                    $tourCurrency,
+                    $selectedCurrency,
+                    $baseCurrency,
+                    $tour
+                );
+                continue;
+            }
+
             $total += self::convertInvoiceAmountToSelected(
                 $fromAmount,
                 $fromCurrency,
                 $selectedCurrency,
-                $baseCurrency
+                $baseCurrency,
+                $tour
             );
         }
 
@@ -13508,14 +13715,24 @@ body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:#f8f9fa;ma
      *
      * @param  \Illuminate\Support\Collection|array  $items
      */
-    public static function sumInvoiceItemsInSelectedCurrency($items, string $selectedCurrency, string $baseCurrency): float
-    {
+    public static function sumInvoiceItemsInSelectedCurrency(
+        $items,
+        string $selectedCurrency,
+        string $baseCurrency,
+        $tour = null
+    ): float {
         $total = 0.0;
         $collection = $items instanceof \Illuminate\Support\Collection ? $items : collect($items);
         foreach ($collection as $item) {
             $itemCurrency = self::resolveInvoiceItemCurrency($item, $baseCurrency);
             $amount = is_object($item) ? (float) ($item->total_price ?? 0) : (float) ($item['total_price'] ?? 0);
-            $total += self::convertInvoiceAmountToSelected($amount, $itemCurrency, $selectedCurrency, $baseCurrency);
+            $total += self::convertInvoiceAmountToSelected(
+                $amount,
+                $itemCurrency,
+                $selectedCurrency,
+                $baseCurrency,
+                $tour
+            );
         }
 
         return $total;

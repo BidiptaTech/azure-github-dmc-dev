@@ -30,9 +30,12 @@ class AcceptanceFlowService
         $breakdown = $this->classificationService->amountBreakdown($tour);
         $onlineAmount = (float) ($breakdown['online_amount'] ?? 0);
         $settlementCurrency = (string) ($breakdown['currency'] ?? $this->classificationService->resolveTourCurrency($tour));
-        $onlinePaid = $this->onlinePortionSettled($tour);
-        $onlinePaidAmount = $onlinePaid
-            ? $this->sumVerifiedOnlinePayments($tour, $onlineAmount)
+        // Services added after an earlier payment (or released) are due on their own.
+        $onlineDue = $this->classificationService->unpaidOnlineAmount($tour);
+        $settledBefore = $this->onlinePortionSettled($tour);
+        $onlinePaid = $settledBefore && $onlineDue <= 0.009;
+        $onlinePaidAmount = $settledBefore
+            ? $this->sumVerifiedOnlinePayments($tour, max(0.0, $onlineAmount - $onlineDue))
             : 0.0;
 
         return $this->describe(
@@ -43,6 +46,7 @@ class AcceptanceFlowService
             $settlementCurrency,
             $onlinePaidAmount,
             $this->resolveOnlineCurrency($tour, $settlementCurrency),
+            $onlineDue,
         );
     }
 
@@ -57,6 +61,7 @@ class AcceptanceFlowService
         string $currency = 'SGD',
         float $onlinePaidAmount = 0.0,
         ?string $onlineCurrency = null,
+        ?float $onlineDue = null,
     ): array {
         $onlineAmount = round($onlineAmount, 2);
         $offlineAmount = round($offlineAmount, 2);
@@ -70,6 +75,12 @@ class AcceptanceFlowService
         $moneyOnline = static function (float $amount) use ($onlineCurrency): string {
             return $onlineCurrency.' '.number_format($amount, 2, '.', '');
         };
+        // Amount to pay now: only unpaid online services (null = legacy callers → full online).
+        $due = $onlineDue !== null ? round(max(0.0, $onlineDue), 2) : $onlineAmount;
+        $topUp = ! $onlinePaid && $onlinePaidAmount > 0.009 && $due > 0.009;
+        $topUpHint = $topUp
+            ? 'Already paid: '.$moneyOnline($onlinePaidAmount).'. Pay only the newly added online service(s) now: '.$moneyOnline($due).'.'
+            : null;
 
         if ($classification === OrderClassificationService::ONLINE) {
             return [
@@ -79,16 +90,17 @@ class AcceptanceFlowService
                 'exclude_online_from_negotiation' => false,
                 'online_paid' => $onlinePaid,
                 'online_amount' => $onlineAmount,
-                'online_paid_amount' => $onlinePaid ? $onlinePaidAmount : 0.0,
+                'online_paid_amount' => $onlinePaid || $topUp ? $onlinePaidAmount : 0.0,
+                'online_due' => $onlinePaid ? 0.0 : $due,
                 'next_action' => 'full_payment',
                 'negotiable_amount' => 0.0,
-                'payable_now' => $onlineAmount > 0 ? $onlineAmount : $offlineAmount,
+                'payable_now' => $onlinePaid ? 0.0 : ($due > 0 ? $due : ($onlineAmount > 0 ? $onlineAmount : $offlineAmount)),
                 'currency' => $currency,
                 'online_currency' => $onlineCurrency,
                 'button_label' => 'Pay full amount',
-                'hint' => $onlinePaid && $onlinePaidAmount > 0
+                'hint' => $topUpHint ?? ($onlinePaid && $onlinePaidAmount > 0
                     ? 'Online payment complete: '.$moneyOnline($onlinePaidAmount).'. All services are online.'
-                    : 'All services are online. Pay the full amount to confirm. Negotiation is not available.',
+                    : 'All services are online. Pay the full amount to confirm. Negotiation is not available.'),
             ];
         }
 
@@ -101,16 +113,17 @@ class AcceptanceFlowService
                     'exclude_online_from_negotiation' => true,
                     'online_paid' => false,
                     'online_amount' => $onlineAmount,
-                    'online_paid_amount' => 0.0,
+                    'online_paid_amount' => $topUp ? $onlinePaidAmount : 0.0,
+                    'online_due' => $due,
                     'next_action' => 'pay_online',
                     'negotiable_amount' => $offlineAmount,
-                    'payable_now' => $onlineAmount,
+                    'payable_now' => $due,
                     'currency' => $currency,
                     'online_currency' => $onlineCurrency,
                     'button_label' => 'Pay now',
-                    'hint' => $onlineAmount > 0
-                        ? 'Pay online services first ('.$moneyOnline($onlineAmount).'). Negotiation applies only to the offline total.'
-                        : 'Pay every online service first. Negotiation applies only to the offline total.',
+                    'hint' => $topUpHint ?? ($due > 0
+                        ? 'Pay online services first ('.$moneyOnline($due).'). Negotiation applies only to the offline total.'
+                        : 'Pay every online service first. Negotiation applies only to the offline total.'),
                 ];
             }
 
@@ -243,10 +256,18 @@ class AcceptanceFlowService
             return false;
         }
 
+        // Completed, or an online payment currently HELD while its services are being booked
+        // (hold flow) — either way the customer must not be asked to pay again.
         return DB::table('payment_attempts')
             ->where('tour_id', $tourId)
             ->where('payment_stage', 'supplier_initial')
-            ->where('status', 'completed')
+            ->where(function ($q) {
+                $q->where('status', 'completed')
+                    ->orWhere(function ($held) {
+                        $held->where('status', 'authorized')
+                            ->whereRaw("(metadata::jsonb ->> 'hold_opened_at') IS NOT NULL");
+                    });
+            })
             ->exists();
     }
 }

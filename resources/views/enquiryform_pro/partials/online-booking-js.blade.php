@@ -175,7 +175,7 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
             const stampedTotal = toNum(stamp.total_price != null ? stamp.total_price : stamp.price);
             const markedTotal = stampedTotal > 0 ? stampedTotal : (totalPrice > 0 ? totalPrice : (hotelPrice + mkAmt));
             hotelMarkupMeta = {
-                currency: stamp.currency || null,
+                currency: stamp.currency || hotelData.currency || null,
                 hotel_price: hotelPrice > 0 ? hotelPrice : Math.max(0, markedTotal - mkAmt),
                 base_price: hotelPrice > 0 ? hotelPrice : Math.max(0, markedTotal - mkAmt),
                 markup_amount: mkAmt,
@@ -197,25 +197,38 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
                 price: totalPrice,
                 total_price: totalPrice,
                 markup_type: 'percentage',
-                markup_value: 0
+                markup_value: 0,
+                currency: hotelData.currency || null
             };
         }
-        // Never re-apply DMC here — modal already stamped hotel + DMC + total.
+        const city = hotelData.city || firstCity();
+        const country = (typeof resolveCountryForCity === 'function' ? resolveCountryForCity(city) : '') || '';
+        // Online supplier quote currency (e.g. Bali hotel priced in SGD) — not destination local currency.
+        const currency = resolveOnlineServiceCurrency(
+            hotelData.currency || (booking && booking.currency) || (stamp && stamp.currency),
+            country
+        );
+        // Bake Pro DMC hotel markup when modal stamp had none (breakdown shows 422.10; save must match).
+        hotelMarkupMeta = ensureOnlineHotelMarkup(totalPrice, currency, hotelMarkupMeta);
+        if (hotelMarkupMeta) {
+            totalPrice = toNum(hotelMarkupMeta.total_price != null ? hotelMarkupMeta.total_price : hotelMarkupMeta.price) || totalPrice;
+            hotelMarkupMeta.currency = hotelMarkupMeta.currency || currency;
+        }
         const hotelBase = hotelMarkupMeta
             ? toNum(hotelMarkupMeta.hotel_price != null ? hotelMarkupMeta.hotel_price : hotelMarkupMeta.base_price)
             : totalPrice;
-        const perNight = nights > 0 ? (hotelBase / nights) : hotelBase;
-        const avg = perNight;
+        const perNightBase = nights > 0 ? (hotelBase / nights) : hotelBase;
+        const perNightSell = nights > 0 ? (totalPrice / nights) : totalPrice;
         if (booking && typeof booking === 'object' && hotelMarkupMeta) {
             booking.online_price_breakdown = hotelMarkupMeta;
             booking.dmc_profile_markup = hotelMarkupMeta;
+            if (!booking.currency) booking.currency = currency;
         }
         const mealPlan = hotelData.mealPlan || 'Not specified';
         const roomType = hotelData.roomType || 'Standard';
         const bedType = hotelData.bedType || '';
         const hotelName = hotelData.name || 'Online Hotel';
         const hotelId = hotelData.id || ('online-' + Date.now());
-        const city = hotelData.city || firstCity();
 
         return {
             id: newId('hotel-online'),
@@ -223,10 +236,8 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
             hotel_unique_id: hotelId,
             hotelName: hotelName,
             destination: city,
-            country: (typeof resolveCountryForCity === 'function' ? resolveCountryForCity(city) : '') || '',
-            currency: (typeof resolveCurrencyForCountry === 'function'
-                ? resolveCurrencyForCountry(typeof resolveCountryForCity === 'function' ? resolveCountryForCity(city) : '')
-                : '') || '',
+            country: country,
+            currency: currency,
             check_in_time: (booking.hotel && booking.hotel.check_in_time) || null,
             check_out_time: (booking.hotel && booking.hotel.check_out_time) || null,
             roomId: hotelData.roomId || (booking.room && booking.room.code) || '',
@@ -250,11 +261,11 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
             mealPax: persons,
             extraBedAvailable: false,
             supplement: false,
-            roomPrice: avg,
-            cost: avg,
-            sell: avg,
-            avgCost: avg,
-            avgSell: avg,
+            roomPrice: perNightSell,
+            cost: perNightBase,
+            sell: perNightSell,
+            avgCost: perNightBase,
+            avgSell: perNightSell,
             extraBedPrice: 0,
             extraBedCostPrice: 0,
             cwbPrice: 0,
@@ -288,6 +299,7 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
                 meal_total: 0,
                 grand_total: totalPrice,
                 nights: nights,
+                currency: currency,
                 is_online: true,
                 dmc_profile_markup: hotelMarkupMeta,
                 online_price_breakdown: hotelMarkupMeta,
@@ -299,7 +311,14 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
             selectedPersons: persons,
             remarks: hotelData.remarks || '',
             nightsList: Array.isArray(hotelData.nights) ? hotelData.nights.slice() : [],
-            onlineAddSnapshot: hotelData
+            onlineAddSnapshot: Object.assign({}, hotelData, {
+                currency: currency,
+                price: totalPrice,
+                combinedRoomTotal: totalPrice,
+                customRoomPrice: totalPrice,
+                dmc_profile_markup: hotelMarkupMeta,
+                online_price_breakdown: hotelMarkupMeta
+            })
         };
     }
 
@@ -308,10 +327,11 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
         const adults = Math.max(0, parseInt(payload.adults, 10) || 0);
         const children = Math.max(0, parseInt(payload.children, 10) || 0);
         const infants = Math.max(0, parseInt(payload.infants, 10) || 0);
-        const adultP = toNum(payload.adultPrice);
-        const childP = toNum(payload.childPrice);
-        const infantP = 0;
-        // Option 1: online display unit prices → cost === sell
+        // Modal/API units already include TravClicks supplier + DMC other markup
+        // (AttractionPriceMarkupApplier). Do NOT apply DMC again — peel for Sell/base.
+        const adultFinal = toNum(payload.adultPrice);
+        const childFinal = toNum(payload.childPrice);
+        const infantFinal = 0;
         const visitDate = ymdOnly(payload.visitDate) || headerDates().start;
         const timeSlot = payload.timeSlot || '10:00';
         let dateTime = visitDate;
@@ -321,25 +341,47 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
             dateTime = visitDate + 'T' + hhmm;
         }
         const city = payload.cityValue || firstCity();
-        let total = toNum(payload.totalPrice) || ((adultP * adults) + (childP * children));
+        const country = (typeof resolveCountryForCity === 'function' ? resolveCountryForCity(city) : '') || '';
+        // Online attraction quote currency from modal (usually SGD), not destination local currency.
+        const currency = resolveOnlineServiceCurrency(payload.currency, country);
+        let total = toNum(payload.totalPrice) || ((adultFinal * adults) + (childFinal * children));
         let attractionMarkupMeta = null;
-        if (typeof enquiryProApplyDmcMarkup === 'function' && total > 0) {
-            const applied = enquiryProApplyDmcMarkup(total, 'other');
-            attractionMarkupMeta = applied;
-            // Bake markup into unit sells so list + breakdown match Lite Get Price total
-            if (toNum(applied.markup_amount) > 0 && total > 0) {
-                const factor = toNum(applied.price) / total;
-                if (factor > 0 && Number.isFinite(factor)) {
-                    // keep cost as base; sell becomes marked-up unit
-                    // adultCost/childCost stay at base below
-                }
-                total = toNum(applied.price) || total;
+        const peel = function (finalAmt) {
+            if (typeof enquiryProSplitDmcMarkupFromFinal === 'function') {
+                return enquiryProSplitDmcMarkupFromFinal(finalAmt, 'other');
             }
+            if (window.StpLiteDmcMarkup && typeof window.StpLiteDmcMarkup.splitFromFinal === 'function') {
+                return window.StpLiteDmcMarkup.splitFromFinal(finalAmt, 'other');
+            }
+            const n = Math.max(0, Number(finalAmt) || 0);
+            return { base_price: n, markup_amount: 0, price: n, markup_type: 'percentage', markup_value: 0, markup_kind: 'other' };
+        };
+        if (total > 0) {
+            attractionMarkupMeta = peel(total);
+            if (attractionMarkupMeta && typeof attractionMarkupMeta === 'object') {
+                attractionMarkupMeta.currency = attractionMarkupMeta.currency || currency;
+            }
+            // Keep Estimated Price as commercial total; listing Sell = base before DMC only.
+            total = toNum(attractionMarkupMeta.price) || total;
         }
+        const adultPeeled = adultFinal > 0 ? peel(adultFinal) : { base_price: 0, price: 0 };
+        const childPeeled = childFinal > 0 ? peel(childFinal) : { base_price: 0, price: 0 };
+        const infantPeeled = infantFinal > 0 ? peel(infantFinal) : { base_price: 0, price: 0 };
+        // Cost = Sell = base before DMC (online: no transfer). Markup Price column applies once → Estimated.
+        // Zero unit prices when that pax type was not booked (avoids phantom Child/Infant lines).
+        const adultSell = adults > 0 ? toNum(adultPeeled.base_price) : 0;
+        const childSell = children > 0 ? toNum(childPeeled.base_price) : 0;
+        const infantSell = infants > 0 ? toNum(infantPeeled.base_price) : 0;
+        const adultP = adultSell;
+        const childP = childSell;
+        const infantP = infantSell;
 
         return {
             id: newId('tour-online'),
             destination: city,
+            city: city,
+            country: country,
+            currency: currency,
             attractionId: payload.attractionId || payload.skuId || '',
             attractionName: payload.attractionName || 'Online Attraction',
             ticketId: payload.ticketId || payload.ticketSkuId || payload.providerTicketId || '',
@@ -348,13 +390,13 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
             visitTime: timeSlot,
             adultsQty: adults,
             adultCost: adultP,
-            adultSell: adultP,
+            adultSell: adultSell,
             childQty: children,
             childCost: childP,
-            childSell: childP,
+            childSell: childSell,
             infantQty: infants,
             infantCost: infantP,
-            infantSell: infantP,
+            infantSell: infantSell,
             transferId: null,
             transferInfo: null,
             guideId: null,
@@ -369,18 +411,43 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
             sku_id: payload.skuId || payload.attractionId || null,
             ticket_sku_id: payload.ticketSkuId || null,
             provider_ticket_id: payload.providerTicketId || null,
+            // Lite/API create-order fields (pending-ref cache + quantity)
+            adultCount: adults,
+            childCount: children,
+            bookingDate: visitDate,
             lowest_ticket_price: toNum(payload.lowestTicketPrice) || null,
             highest_ticket_price: toNum(payload.highestTicketPrice) || null,
             supplier_code: payload.supplierCode || 'sg_attractions',
             api_environment: payload.apiEnvironment || null,
             onlineAttractionRaw: payload.onlineAttractionRaw || null,
+            // totalPrice = Estimated (already marked once). base = Sell before DMC.
             totalPrice: total,
             grand_total: total,
+            base_grand_total: attractionMarkupMeta
+                ? toNum(attractionMarkupMeta.base_price)
+                : ((adultSell * adults) + (childSell * children) + (infantSell * infants)),
             dmc_profile_markup: attractionMarkupMeta,
+            online_price_breakdown: attractionMarkupMeta,
             remarks: payload.remarks || '',
             Selection: 'withoutTransport',
             transfer_options: null,
-            onlineAddSnapshot: payload
+            onlineAddSnapshot: Object.assign({}, payload, {
+                currency: currency,
+                adultPriceFinal: adultFinal,
+                childPriceFinal: childFinal,
+                totalPriceFinal: total,
+                // Keep explicit selection keys so edit restore cannot fall back to first ticket.
+                ticketId: payload.ticketId || payload.providerTicketId || '',
+                ticketName: payload.ticketName || '',
+                ticketSkuId: payload.ticketSkuId || '',
+                providerTicketId: payload.providerTicketId || payload.ticketId || '',
+                timeSlot: payload.timeSlot || '',
+                attractionId: payload.attractionId || payload.skuId || '',
+                skuId: payload.skuId || payload.attractionId || '',
+                adults: adults,
+                children: children,
+                infants: infants
+            })
         };
     }
 
@@ -499,32 +566,60 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
 
     function attractionSnapshotFromRow(tour) {
         if (!tour) return null;
-        if (tour.onlineAddSnapshot && typeof tour.onlineAddSnapshot === 'object') {
-            return tour.onlineAddSnapshot;
-        }
-        return {
-            cityValue: tour.destination || firstCity(),
-            attractionId: tour.attractionId || tour.sku_id,
-            skuId: tour.sku_id || tour.attractionId,
-            supplierCode: tour.supplier_code || 'sg_attractions',
-            apiEnvironment: tour.api_environment || '',
-            attractionName: tour.attractionName,
-            timeSlot: tour.visitTime || '',
-            ticketId: tour.ticketId,
-            ticketName: tour.ticketName,
-            ticketSkuId: tour.ticket_sku_id,
-            providerTicketId: tour.provider_ticket_id,
-            adultPrice: toNum(tour.adultCost || tour.adultSell),
-            childPrice: toNum(tour.childCost || tour.childSell),
-            seniorPrice: 0,
-            adults: parseInt(tour.adultsQty, 10) || 0,
-            children: parseInt(tour.childQty, 10) || 0,
-            infants: parseInt(tour.infantQty, 10) || 0,
-            totalPrice: toNum(tour.totalPrice),
-            visitDate: ymdOnly(tour.dateTime),
-            remarks: tour.remarks || '',
-            onlineAttractionRaw: tour.onlineAttractionRaw
-        };
+        const snap = (tour.onlineAddSnapshot && typeof tour.onlineAddSnapshot === 'object')
+            ? Object.assign({}, tour.onlineAddSnapshot)
+            : {};
+        const adults = Math.max(0, parseInt(tour.adultsQty != null ? tour.adultsQty : snap.adults, 10) || 0);
+        const children = Math.max(0, parseInt(tour.childQty != null ? tour.childQty : snap.children, 10) || 0);
+        const infants = Math.max(0, parseInt(tour.infantQty != null ? tour.infantQty : snap.infants, 10) || 0);
+        const stamp = tour.dmc_profile_markup || tour.online_price_breakdown || snap.dmc_profile_markup || null;
+        const finalTotal = toNum(
+            (stamp && stamp.price != null ? stamp.price : null)
+            ?? tour.totalPrice
+            ?? snap.totalPriceFinal
+            ?? snap.totalPrice
+        );
+        // Prefer final (Estimated) unit prices for modal restore, not peeled sell/base.
+        const adultFinal = toNum(
+            snap.adultPriceFinal
+            ?? (adults > 0 && finalTotal > 0 && children <= 0 && infants <= 0 ? finalTotal / adults : null)
+            ?? snap.adultPrice
+            ?? tour.adultCost
+            ?? tour.adultSell
+        );
+        const childFinal = toNum(snap.childPriceFinal ?? snap.childPrice ?? tour.childCost ?? tour.childSell);
+        return Object.assign({}, snap, {
+            cityValue: snap.cityValue || tour.destination || tour.city || firstCity(),
+            city: snap.city || tour.city || tour.destination || firstCity(),
+            attractionId: tour.attractionId || tour.sku_id || snap.attractionId || snap.skuId,
+            skuId: tour.sku_id || tour.attractionId || snap.skuId || snap.attractionId,
+            supplierCode: tour.supplier_code || snap.supplierCode || 'sg_attractions',
+            apiEnvironment: tour.api_environment || snap.apiEnvironment || '',
+            attractionName: tour.attractionName || snap.attractionName,
+            timeSlot: tour.visitTime || snap.timeSlot || '',
+            timeSlotOptions: snap.timeSlotOptions || [],
+            ticketId: tour.ticketId || snap.ticketId || tour.provider_ticket_id || '',
+            ticketName: tour.ticketName || snap.ticketName || '',
+            ticketSkuId: tour.ticket_sku_id || snap.ticketSkuId || '',
+            providerTicketId: tour.provider_ticket_id || snap.providerTicketId || tour.ticketId || '',
+            adultPrice: adultFinal,
+            childPrice: childFinal,
+            seniorPrice: toNum(snap.seniorPrice),
+            adultPriceFinal: adultFinal,
+            childPriceFinal: childFinal,
+            adults: adults,
+            children: children,
+            infants: infants,
+            male: snap.male != null ? snap.male : adults,
+            female: snap.female != null ? snap.female : 0,
+            totalPrice: finalTotal,
+            totalPriceFinal: finalTotal,
+            currency: tour.currency || snap.currency || 'SGD',
+            visitDate: ymdOnly(tour.dateTime) || snap.visitDate || '',
+            remarks: tour.remarks || snap.remarks || '',
+            tickets: Array.isArray(snap.tickets) ? snap.tickets : [],
+            onlineAttractionRaw: tour.onlineAttractionRaw || snap.onlineAttractionRaw || null
+        });
     }
 
     window.openEnquiryProOnlineHotel = function (editIndex) {
@@ -597,20 +692,99 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
         const snap = src.onlineAddSnapshot || {};
         const booking = src.onlineHotelBooking || {};
         const sel = booking.selection || {};
-        // Prefer modal/API stay totals over listing avg cost (per-night).
+        const stamp = src.online_price_breakdown
+            || src.dmc_profile_markup
+            || (src.price_payload && (src.price_payload.online_price_breakdown || src.price_payload.dmc_profile_markup))
+            || (snap.online_price_breakdown || snap.dmc_profile_markup)
+            || (booking.online_price_breakdown || booking.dmc_profile_markup)
+            || null;
+
+        // Prefer marked-up stamp total (402 base + 5% → 422.10), then row totals, then snap/base.
+        const stampedTotal = toNum(stamp && (stamp.total_price != null ? stamp.total_price : stamp.price));
+        if (stampedTotal > 0) return stampedTotal;
+
         let stay = toNum(
+            src.totalPrice ||
+            src.grand_total ||
+            (src.price_payload && src.price_payload.grand_total) ||
             snap.price ||
             snap.combinedRoomTotal ||
             snap.customRoomPrice ||
-            sel.price ||
-            src.totalPrice ||
-            src.grand_total ||
-            (src.price_payload && src.price_payload.grand_total)
+            sel.price
         );
         if (stay > 0) return stay;
         const avg = toNum(src.sell || src.cost || src.avgSell || src.avgCost || snap.pricePerNight);
         const n = Math.max(1, parseInt(nights, 10) || 1);
         return avg > 0 ? Math.round(avg * n * 100) / 100 : 0;
+    }
+
+    /** Ensure hotel DMC markup is baked into stay total (Pro breakdown shows it; save must too). */
+    function ensureOnlineHotelMarkup(baseStay, currency, existingStamp) {
+        const base = toNum(
+            (existingStamp && (existingStamp.hotel_price != null ? existingStamp.hotel_price : existingStamp.base_price))
+            || baseStay
+        );
+        const existingMarked = toNum(existingStamp && (existingStamp.total_price != null ? existingStamp.total_price : existingStamp.price));
+        const existingMk = toNum(existingStamp && existingStamp.markup_amount);
+        if (existingMk > 0 && existingMarked > base + 0.009) {
+            return {
+                currency: (existingStamp && existingStamp.currency) || currency || 'SGD',
+                hotel_price: base,
+                base_price: base,
+                markup_amount: existingMk,
+                markup_type: (existingStamp && existingStamp.markup_type) || 'percentage',
+                markup_value: toNum(existingStamp && existingStamp.markup_value),
+                markup_kind: 'hotel',
+                price: existingMarked,
+                total_price: existingMarked,
+                dmc_id: (existingStamp && existingStamp.dmc_id) || null
+            };
+        }
+        if (base <= 0) {
+            return existingStamp || null;
+        }
+        let applied = null;
+        if (typeof window.enquiryProHotelSellWithMarkup === 'function') {
+            applied = window.enquiryProHotelSellWithMarkup(base);
+        } else if (typeof window.enquiryProApplyDmcMarkup === 'function') {
+            applied = window.enquiryProApplyDmcMarkup(base, 'hotel');
+        }
+        if (!applied || toNum(applied.price) <= 0) {
+            return existingStamp || {
+                currency: currency || 'SGD',
+                hotel_price: base,
+                base_price: base,
+                markup_amount: 0,
+                markup_type: 'percentage',
+                markup_value: 0,
+                markup_kind: 'hotel',
+                price: base,
+                total_price: base,
+                dmc_id: null
+            };
+        }
+        return {
+            currency: (applied.currency || currency || 'SGD'),
+            hotel_price: toNum(applied.base_price) || base,
+            base_price: toNum(applied.base_price) || base,
+            markup_amount: toNum(applied.markup_amount),
+            markup_type: applied.markup_type || 'percentage',
+            markup_value: toNum(applied.markup_value),
+            markup_kind: 'hotel',
+            price: toNum(applied.price),
+            total_price: toNum(applied.price),
+            dmc_id: applied.dmc_id || null
+        };
+    }
+
+    function resolveOnlineServiceCurrency(explicit, fallbackCountry) {
+        const fromExplicit = String(explicit || '').trim().toUpperCase();
+        if (fromExplicit) return fromExplicit;
+        if (typeof resolveCurrencyForCountry === 'function' && fallbackCountry) {
+            const fromCountry = String(resolveCurrencyForCountry(fallbackCountry) || '').trim().toUpperCase();
+            if (fromCountry) return fromCountry;
+        }
+        return 'SGD';
     }
 
     function mapOnlineHotelToLiteStoreRow(src, proRow) {
@@ -638,7 +812,7 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
         );
         const roomsCount = Math.max(1, parseInt(src.rooms || snap.numberOfRooms || sel.number_of_rooms, 10) || 1);
         const persons = Math.max(1, parseInt(src.selectedPersons || sel.persons || snap.selectedPersons, 10) || 1);
-        const stayTotal = resolveOnlineStayTotal(src, nights);
+        let stayTotal = resolveOnlineStayTotal(src, nights);
 
         const hv = (typeof getHeaderValues === 'function') ? getHeaderValues() : {};
         const adults = Math.max(1, parseInt(hv.adults, 10) || persons || 1);
@@ -653,9 +827,13 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
         const city = src.destination || snap.city || firstCity() || proRow.city || '';
         const country = src.country || proRow.country ||
             (typeof resolveCountryForCity === 'function' ? resolveCountryForCity(city) : '') || '';
-        const currency = src.currency || proRow.currency ||
-            (booking.currency) ||
-            (typeof resolveCurrencyForCountry === 'function' ? resolveCurrencyForCountry(country) : '') || 'SGD';
+        // Prefer online quote currency (SGD for MG Bedbank / modal), not Bali→IDR from city.
+        const currency = resolveOnlineServiceCurrency(
+            src.currency || snap.currency || booking.currency || proRow.currency
+                || (src.online_price_breakdown && src.online_price_breakdown.currency)
+                || (src.dmc_profile_markup && src.dmc_profile_markup.currency),
+            country
+        );
         const dmcId = parseInt(
             (proRow.priceModeId != null ? proRow.priceModeId : null) ||
             '{{ $dmc_id ?? "" }}' ||
@@ -673,15 +851,21 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
         const checkInTime = onlineHotel.check_in_time || src.check_in_time || '15:00:00';
         const checkOutTime = onlineHotel.check_out_time || src.check_out_time || '12:00:00';
 
-        const stamp = src.online_price_breakdown
+        let stamp = src.online_price_breakdown
             || src.dmc_profile_markup
             || (src.price_payload && (src.price_payload.online_price_breakdown || src.price_payload.dmc_profile_markup))
             || (snap.online_price_breakdown || snap.dmc_profile_markup)
             || (booking.online_price_breakdown || booking.dmc_profile_markup)
             || null;
-        const hotelPrice = stamp
+        let hotelPrice = stamp
             ? (toNum(stamp.hotel_price != null ? stamp.hotel_price : stamp.base_price) || Math.max(0, stayTotal - toNum(stamp.markup_amount)))
             : stayTotal;
+        // Re-apply Pro DMC hotel markup on save when listing only held the base (402 → 422.10).
+        stamp = ensureOnlineHotelMarkup(hotelPrice > 0 ? hotelPrice : stayTotal, currency, stamp);
+        if (stamp) {
+            hotelPrice = toNum(stamp.hotel_price != null ? stamp.hotel_price : stamp.base_price) || hotelPrice;
+            stayTotal = toNum(stamp.total_price != null ? stamp.total_price : stamp.price) || stayTotal;
+        }
         const priceStamp = stamp ? {
             currency: stamp.currency || currency,
             hotel_price: hotelPrice,
@@ -706,6 +890,10 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
             dmc_profile_markup: priceStamp,
             online_price_breakdown: priceStamp
         };
+        // Per-night avgs (same basis as mapOnlineHotelToTour / create listing).
+        // beds.price stays as stay total for Lite; avgCost/avgSell keep edit hydrate correct.
+        const perNightBase = nights > 0 ? Math.round((hotelPrice / nights) * 100) / 100 : hotelPrice;
+        const perNightSell = nights > 0 ? Math.round((stayTotal / nights) * 100) / 100 : stayTotal;
 
         return {
             fullName: proRow.fullName || '',
@@ -784,19 +972,23 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
                     extra_bed: 0,
                     extra_bed_price: 0,
                     extra_bed_cost: 0,
-                    // Online: cost === sell (stay total)
+                    // Stay totals on price/cost/sell (Lite); avg* = per-night for Pro edit listing
                     price: stayTotal,
                     cost: stayTotal,
                     sell: stayTotal,
                     cost_price: stayTotal,
+                    avgCost: perNightBase,
+                    avgSell: perNightSell,
                     mealTypes: [mealPlan],
                     meal_plan: mealPlan
                 }]
             }],
             totalPrice: stayTotal,
             price: stayTotal,
-            cost: stayTotal,
-            sell: stayTotal,
+            cost: perNightBase,
+            sell: perNightSell,
+            avgCost: perNightBase,
+            avgSell: perNightSell,
             cost_price: stayTotal,
             transfer_options: null,
             child_with_bed: null,
@@ -970,33 +1162,56 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
                     row.transfer_options = null;
                     row.transport = null;
                     row.mode = 'online';
-                    // Online: cost === sell (unit + line totals for orders.cost_price)
-                    row.adultCost = toNum(src.adultCost || src.adultSell);
+                    row.city = src.city || src.destination || row.city || '';
+                    row.country = src.country || row.country || '';
+                    row.currency = resolveOnlineServiceCurrency(
+                        src.currency || (src.onlineAddSnapshot && src.onlineAddSnapshot.currency) || row.currency,
+                        row.country || src.country
+                    );
+                    // Sell units are base before DMC (peeled on add). totalPrice is Estimated final.
+                    // Create-order must use cost — see OnlineAttractionOrderService::providerTotalAmount.
+                    row.adultCost = toNum(src.adultCost || src.adultPrice || src.adultSell);
+                    row.childCost = toNum(src.childCost || src.childPrice || src.childSell);
+                    row.infantCost = toNum(src.infantCost || src.infantPrice || src.infantSell);
                     row.adultSell = toNum(src.adultSell || src.adultCost);
-                    row.childCost = toNum(src.childCost || src.childSell);
                     row.childSell = toNum(src.childSell || src.childCost);
-                    row.infantCost = toNum(src.infantCost || src.infantSell);
                     row.infantSell = toNum(src.infantSell || src.infantCost);
-                    const adults = Math.max(0, parseInt(row.adultsQty || row.adultCount || src.adultsQty, 10) || 0);
-                    const children = Math.max(0, parseInt(row.childQty || row.childCount || src.childQty, 10) || 0);
+                    const adults = Math.max(0, parseInt(row.adultsQty || row.adultCount || src.adultsQty || src.adultCount, 10) || 0);
+                    const children = Math.max(0, parseInt(row.childQty || row.childCount || src.childQty || src.childCount, 10) || 0);
                     const infants = Math.max(0, parseInt(row.infantQty || row.infants || src.infantQty, 10) || 0);
-                    const lineTotal = toNum(src.totalPrice || src.grand_total) ||
-                        (row.adultSell * adults + row.childSell * children + row.infantSell * infants);
-                    row.totalPrice = lineTotal;
-                    row.grand_total = lineTotal;
-                    row.cost = lineTotal;
-                    row.sell = lineTotal;
-                    row.cost_price = lineTotal;
+                    // Lite/API create-order fields (must be AFTER adults/children — TDZ safe)
+                    row.adultCount = adults;
+                    row.childCount = children;
+                    row.bookingDate = ymdOnly(src.dateTime || src.bookingDate || row.bookingDate || row.dateTime || '') || row.bookingDate;
+                    const providerLine = (row.adultCost * adults) + (row.childCost * children) + (row.infantCost * infants);
+                    const baseLine = (row.adultSell * adults) + (row.childSell * children) + (row.infantSell * infants);
+                    const stamp = src.dmc_profile_markup || src.online_price_breakdown || null;
+                    const sellLine = toNum(stamp && stamp.price) || toNum(src.totalPrice || src.grand_total) || baseLine;
+                    row.totalPrice = sellLine;
+                    row.grand_total = sellLine;
+                    row.base_grand_total = toNum(src.base_grand_total)
+                        || toNum(stamp && stamp.base_price)
+                        || baseLine;
+                    if (stamp) {
+                        row.dmc_profile_markup = stamp;
+                        row.online_price_breakdown = stamp;
+                    }
+                    row.cost = providerLine > 0 ? providerLine : baseLine;
+                    row.sell = sellLine;
+                    row.cost_price = row.cost;
+                    row.provider_unit_price = row.adultCost;
+                    row.provider_total_amount = providerLine > 0 ? providerLine : baseLine;
                     if (row.ticket_details) {
+                        // adult_price / child_price = provider/base unit (API create-order), not double-marked sell
                         row.ticket_details.adult_cost = row.adultCost;
                         row.ticket_details.adult_sell = row.adultSell;
-                        row.ticket_details.adult_price = row.adultSell;
+                        row.ticket_details.adult_price = row.adultCost;
                         row.ticket_details.child_cost = row.childCost;
                         row.ticket_details.child_sell = row.childSell;
-                        row.ticket_details.child_price = row.childSell;
+                        row.ticket_details.child_price = row.childCost;
                         row.ticket_details.infant_cost = row.infantCost;
                         row.ticket_details.infant_sell = row.infantSell;
-                        row.ticket_details.infant_price = row.infantSell;
+                        row.ticket_details.infant_price = row.infantCost;
                     }
                     return row;
                 });

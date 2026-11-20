@@ -62,7 +62,7 @@ class HotelbedsClient
     public function assertCredentials(): void
     {
         if ($this->baseUrl() === '' || $this->apiKey() === '' || $this->apiSecret() === '') {
-            throw new RuntimeException('Hotelbeds credentials are incomplete (base_url, api_key and api_secret required).');
+            throw new RuntimeException('Online hotel credentials are incomplete. Please contact TravClicks.');
         }
     }
 
@@ -106,7 +106,7 @@ class HotelbedsClient
         $rateKey = trim($rateKey);
 
         if ($rateKey === '') {
-            throw new RuntimeException('Hotelbeds rateKey is missing for CheckRate.');
+            throw new RuntimeException('Rate key is missing for recheck.');
         }
 
         return $this->postJson('/hotel-api/1.0/checkrates', [
@@ -146,15 +146,15 @@ class HotelbedsClient
 
         if (! $response->successful()) {
             $body = $response->json();
-            $message = $this->errorMessage($body) ?: ('Hotelbeds ' . $operation . ' failed with HTTP ' . $response->status());
+            $raw = $this->errorMessage($body) ?: ('Online hotel '.$operation.' failed with HTTP '.$response->status());
 
-            Log::warning('Hotelbeds ' . $operation . ' failed', [
+            Log::warning('Hotelbeds '.$operation.' failed', [
                 'status' => $response->status(),
                 'body' => $response->body(),
                 'payload' => $this->safePayloadLog($payload, $operation),
             ]);
 
-            throw new RuntimeException($message);
+            throw new RuntimeException(\App\Support\SupplierFacingCopy::mask($raw));
         }
 
         $json = $response->json();

@@ -54,6 +54,7 @@ class PaymentServiceController extends Controller
             'transaction_id' => 'nullable|string|max:128',
             'payment_date' => 'nullable|date',
             'metadata' => 'nullable|array',
+            'price_check_token' => 'nullable|string|max:64',
         ]);
 
         try {
@@ -62,6 +63,51 @@ class PaymentServiceController extends Controller
             $result = $this->orchestrator->initiate($tour, $validated);
 
             return response()->json(['success' => true, 'data' => $result]);
+        } catch (RuntimeException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * Pay Now step 1: live supplier price for every unpaid online service (quoted vs now).
+     */
+    public function priceCheck(int $tourId): JsonResponse
+    {
+        $tour = $this->findAuthorizedTour($tourId);
+        @set_time_limit(300);
+
+        try {
+            $this->classificationService->persistClassification($tour);
+            $tour->refresh();
+
+            return response()->json([
+                'success' => true,
+                'data' => app(\App\Services\Payment\OnlinePriceCheckService::class)->check($tour),
+            ]);
+        } catch (RuntimeException $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        }
+    }
+
+    /**
+     * Pay Now step 2 (only when a price changed): payer accepts the new prices → orders re-priced.
+     */
+    public function priceAccept(Request $request, int $tourId): JsonResponse
+    {
+        $tour = $this->findAuthorizedTour($tourId);
+        $validated = $request->validate(['price_check_token' => 'required|string|max:64']);
+
+        try {
+            $entry = app(\App\Services\Payment\OnlinePriceCheckService::class)->accept($tour, $validated['price_check_token']);
+            $tour->refresh();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'price_check' => $entry,
+                    'eligibility' => $this->eligibilityService->forTour($tour),
+                ],
+            ]);
         } catch (RuntimeException $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }

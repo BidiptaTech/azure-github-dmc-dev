@@ -53,14 +53,14 @@ class TiniviaBookingService implements OnlineHotelBookingService
         $hotel = $searchResult['hotel'] ?? null;
 
         if (! is_array($hotel) || empty($hotel['rooms'])) {
-            throw new RuntimeException('No availability returned from Tinivia for this hotel and dates.');
+            throw new RuntimeException('No availability returned for this hotel and dates.');
         }
 
         $matchedRoom = $this->matchStoredRoom($hotel['rooms'], $context);
         $rateKey = (string) ($matchedRoom['room_rate_key'] ?? '');
 
         if ($rateKey === '') {
-            throw new RuntimeException('Tinivia did not return a room rate key for the selected room.');
+            throw new RuntimeException('A room rate key was not returned for the selected room.');
         }
 
         $price = is_array($matchedRoom['currency_converted_price'] ?? null)
@@ -128,13 +128,13 @@ class TiniviaBookingService implements OnlineHotelBookingService
         $agencyBookingId = trim($agencyBookingId);
 
         if ($agencyBookingId === '') {
-            throw new RuntimeException('Agency booking ID (reference ID) is required for Tinivia booking.');
+            throw new RuntimeException('Agency booking ID (reference ID) is required for this online hotel booking.');
         }
 
         $rateKey = trim((string) ($recheckResult['room_rate_key'] ?? ''));
 
         if ($rateKey === '') {
-            throw new RuntimeException('The Tinivia room rate key is missing. Please recheck availability again.');
+            throw new RuntimeException('The room rate key is missing. Please recheck availability again.');
         }
 
         $bookPayload = [
@@ -147,7 +147,7 @@ class TiniviaBookingService implements OnlineHotelBookingService
         $bookBody = $client->confirmBookingRequest($bookPayload);
 
         if ($reason = $client->failureReason($bookBody)) {
-            throw new RuntimeException('Tinivia booking failed: ' . $reason);
+            throw new RuntimeException('Online hotel booking failed: ' . $reason);
         }
 
         return [
@@ -299,7 +299,7 @@ class TiniviaBookingService implements OnlineHotelBookingService
         ));
 
         if ($bookable === []) {
-            throw new RuntimeException('The selected room rate is no longer available from Tinivia.');
+            throw new RuntimeException('The selected room rate is no longer available.');
         }
 
         $filters = [
@@ -323,7 +323,7 @@ class TiniviaBookingService implements OnlineHotelBookingService
 
         if ($context['room_code'] !== ''
             && (string) ($candidates[0]['room_id'] ?? '') !== $context['room_code']) {
-            throw new RuntimeException('The selected room is no longer available from Tinivia for these dates.');
+            throw new RuntimeException('The selected room is no longer available for these dates.');
         }
 
         return $candidates[0];

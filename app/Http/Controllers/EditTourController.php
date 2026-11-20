@@ -219,7 +219,6 @@ class EditTourController extends Controller
 
             $orders = Order::where('tour_id', $tour->tour_id)->get();
             $tpScope = $this->resolveRestrictedThirdPartyScope();
-            $cancellation = app(OnlineHotelCancellationService::class);
             $toDelete = [];
             $preservedCount = 0;
 
@@ -259,42 +258,21 @@ class EditTourController extends Controller
                 $toDelete[] = $order;
             }
 
-            // Supplier cancel cannot roll back — soft-fail so local clear still proceeds;
-            // failed/pending blocks TravClicks wallet until retry or manual resolve.
+            // Defer supplier cancel + wallet to TravClicks auto-refund.
             foreach ($toDelete as $order) {
-                if (($order->type ?? '') !== 'hotel') {
+                if (strtolower(trim((string) ($order->order_type ?? ''))) !== 'online') {
                     continue;
                 }
-
                 try {
-                    $cancelResult = $cancellation->cancelIfApplicable($order, true);
-                    if (is_array($cancelResult) && ! empty($cancelResult['soft_failed'])) {
-                        Log::warning('Online hotel supplier cancellation soft-failed during clear services', [
-                            'tour_id' => $tour->tour_id,
-                            'order_id' => $order->id,
-                            'booking_id' => $order->booking_id,
-                            'message' => $cancelResult['message'] ?? null,
-                        ]);
-                    }
-                } catch (\Throwable $cancelError) {
-                    Log::error('Online hotel supplier cancellation unexpected error during clear services', [
-                        'tour_id' => $tour->tour_id,
+                    app(\App\Services\Payment\SupplierCancellationStatusService::class)->markPending(
+                        $order,
+                        'Queued for TravClicks auto-refund: supplier cancel + wallet credit pending.'
+                    );
+                } catch (\Throwable $statusError) {
+                    Log::warning('Could not mark supplier cancellation pending during clear services', [
                         'order_id' => $order->id,
-                        'booking_id' => $order->booking_id,
-                        'error' => $cancelError->getMessage(),
+                        'error' => $statusError->getMessage(),
                     ]);
-
-                    try {
-                        app(\App\Services\Payment\SupplierCancellationStatusService::class)->markFailed(
-                            $order,
-                            $cancelError->getMessage() ?: 'Unexpected supplier cancellation error.'
-                        );
-                    } catch (\Throwable $statusError) {
-                        Log::warning('Could not persist supplier cancellation failed status', [
-                            'order_id' => $order->id,
-                            'error' => $statusError->getMessage(),
-                        ]);
-                    }
                 }
             }
 
@@ -329,6 +307,7 @@ class EditTourController extends Controller
             // Lite edit save clears all services then immediately re-stores them.
             // Never revert tour_status here — update must keep Definite / Confirmed / etc. unchanged.
             // (maybeRevertTourStatusToNewEnquiry is for real service remove/reject only.)
+            // TravClicks Refunds page auto-refund cancels supplier API + credits wallet.
 
             return response()->json([
                 'success' => true,

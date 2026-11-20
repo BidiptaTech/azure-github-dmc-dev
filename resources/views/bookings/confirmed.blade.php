@@ -1,7 +1,10 @@
 @extends('layouts.layout')
 @section('title', 'Confirmed Bookings')
 @extends('layouts.datatablecss')
-@php $pageCurrency = isset($currency) ? $currency : 'SGD';  @endphp
+@php
+    $pageCurrency = isset($currency) ? $currency : 'SGD';
+    $bookingEmailSignature = \App\Helpers\CommonHelper::getBookingEmailSignature();
+@endphp
 
 
 <!-- Add SweetAlert2 CSS -->
@@ -19,6 +22,7 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
     window.bookingCurrency = @json($pageCurrency);
+    window.bookingEmailSignature = @json($bookingEmailSignature);
     window.tourNegotiationHistory = @json($tourNegotiationHistory ?? []);
     window.tourActiveServiceCounts = @json($tourActiveServiceCounts ?? []);
     window.rejectServicePageTourStatus = 'Confirmed';
@@ -3363,16 +3367,23 @@
 
         $discountAmount = $tourDiscountMoney;
         $priceAfterFoc = max(0, $grossTourAmount + $tourMarkupMoney - $tourDiscountMoney);
-        $netPayableBase = (int) ceil($priceAfterFoc);
+        $tourIsOnlineOnly = strtolower(trim((string) ($tour->order_classification ?? ''))) === 'online'
+            || app(\App\Services\Payment\OrderClassificationService::class)->classifyTour($tour)
+                === \App\Services\Payment\OrderClassificationService::ONLINE;
+        $netPayableBase = $tourIsOnlineOnly
+            ? round($priceAfterFoc, 2)
+            : (float) ((int) ceil($priceAfterFoc));
         // Prefer converted country payable totals (already include markup/discount at negotiation time).
         if ($hasConvertedPricing && $convertedPayableFromDetails > 0) {
-            $netPayableBase = (int) ceil($convertedPayableFromDetails);
+            $netPayableBase = $tourIsOnlineOnly
+                ? round($convertedPayableFromDetails, 2)
+                : (float) ((int) ceil($convertedPayableFromDetails));
             // Derive display markup/discount so Gross + Markup - Discount ≈ converted payable.
             // Keep stored tour markup/discount money when recalculated from converted gross;
             // if payable is lower due to negotiation-time payable, negotiation line absorbs the gap.
         }
         $baseAmount = $lastNegotiatedAmount > 0
-            ? (float) ceil($lastNegotiatedAmount)
+            ? ($tourIsOnlineOnly ? round((float) $lastNegotiatedAmount, 2) : (float) ceil($lastNegotiatedAmount))
             : (float) $netPayableBase;
         $netTourAmount = $baseAmount;
         $negotiationDiscount = max(0, $netPayableBase - $baseAmount);
@@ -7727,11 +7738,41 @@ window.approveIndividualAttraction = function(tourId, attractionOrderIndex, book
     createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'approve', autoCancelDate, attractionOrderId);
 }
 
-// Override any previous definitions - this is the correct attraction reject function
+// Hotel-style cancel: message modal → API (voucher internal). No reason/code form.
 window.rejectIndividualAttraction = function(tourId, attractionOrderIndex, bookingIndex, autoCancelDate=null) {
-    showRejectServiceAlert('attraction', () => {
-        createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'reject', autoCancelDate);
-    }, tourId);
+    var withoutRefund = window.__cancelWithoutRefund === true;
+    window.__cancelWithoutRefund = false;
+    window.__attractionCancelVoucherMode = false;
+    showRejectServiceAlert('attraction', function () {
+        var token = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+        var payload = {
+            tour_id: tourId,
+            attraction_order_index: attractionOrderIndex,
+            booking_index: bookingIndex,
+            cancel_reason: withoutRefund ? 'Cancelled without refund' : 'Rejected for refund processing'
+        };
+        if (withoutRefund) payload.without_refund = 1;
+        fetch(@json(url('/booking/reject-attraction-booking')), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': token
+            },
+            body: JSON.stringify(payload)
+        }).then(function (r) { return r.json().catch(function () { return { success: false }; }); })
+          .then(function (data) {
+            if (data && data.success) {
+                if (withoutRefund) {
+                    window.location.reload();
+                } else {
+                    window.location.href = @json(route('bookings.refunds'));
+                }
+            } else {
+                alert((data && data.message) || 'Could not cancel attraction.');
+            }
+          });
+    }, tourId, withoutRefund);
 }
 
 function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, action, autoCancelDate=null, attractionOrderId=null) {
@@ -21721,27 +21762,39 @@ function approveIndividualAttraction(tourId, attractionOrderIndex, bookingIndex,
 }
 
 function rejectIndividualAttraction(tourId, attractionOrderIndex, bookingIndex, autoCancelDate=null) {
-    try {
-        console.log('Opening individual attraction reject modal for tour:', tourId, 'attraction order:', attractionOrderIndex, 'booking:', bookingIndex);
-        
-        // Close the attraction details modal first
-        const attractionDetailsModal = document.getElementById('attractionDetailsModal' + tourId);
-        if (attractionDetailsModal) {
-            const attractionModal = bootstrap.Modal.getInstance(attractionDetailsModal);
-            if (attractionModal) {
-                attractionModal.hide();
-            }
-        }
-        
-        // Wait a moment for the modal to close, then show individual reject modal
-        setTimeout(() => {
-            createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'reject', autoCancelDate);
-        }, 300);
-        
-    } catch (error) {
-        console.error('Error opening individual attraction reject modal:', error);
-        alert('Error opening reject modal. Please try again.');
+    // Prefer window override (hotel-style cancel → API, no reason/code form)
+    if (window.rejectIndividualAttraction && window.rejectIndividualAttraction !== rejectIndividualAttraction) {
+        return window.rejectIndividualAttraction(tourId, attractionOrderIndex, bookingIndex, autoCancelDate);
     }
+    var withoutRefund = window.__cancelWithoutRefund === true;
+    window.__cancelWithoutRefund = false;
+    window.__attractionCancelVoucherMode = false;
+    showRejectServiceAlert('attraction', function () {
+        var token = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+        var payload = {
+            tour_id: tourId,
+            attraction_order_index: attractionOrderIndex,
+            booking_index: bookingIndex,
+            cancel_reason: withoutRefund ? 'Cancelled without refund' : 'Rejected for refund processing'
+        };
+        if (withoutRefund) payload.without_refund = 1;
+        fetch(@json(url('/booking/reject-attraction-booking')), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': token
+            },
+            body: JSON.stringify(payload)
+        }).then(function (r) { return r.json().catch(function () { return { success: false }; }); })
+          .then(function (data) {
+            if (data && data.success) {
+                window.location.href = withoutRefund ? window.location.href : @json(route('bookings.refunds'));
+            } else {
+                alert((data && data.message) || 'Could not cancel attraction.');
+            }
+          });
+    }, tourId, withoutRefund);
 }
 
 function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, action, autoCancelDate=null, attractionOrderId=null) {
@@ -25124,8 +25177,7 @@ window.showNotification = function(message, type = 'info') {
         content += `${fullRow('')}\n`;
         content += `${fullRow('For any queries or modifications, please contact us immediately.')}\n`;
         content += `${endBorder}\n\n`;
-        
-        // content += `Best regards,\nNam Ho Singapore`;
+        content += buildBookingEmailSignature();
         
         return content;
     }
@@ -25164,10 +25216,21 @@ window.showNotification = function(message, type = 'info') {
         content += `${border}\n${sectionHeader('IMPORTANT NOTES')}\n${sectionBorder}\n`;
         content += `${row('Note', 'Please contact us for complete hotel details')}\n`;
         content += `${endBorder}\n\n`;
-        
-        // content += `Best regards,\nNam Ho Singapore`;
+        content += buildBookingEmailSignature();
         
         return content;
+    }
+
+    // DMC company name + email + phone for booking email previews
+    function buildBookingEmailSignature() {
+        const sig = window.bookingEmailSignature || {};
+        const name = String(sig.name || 'DMC').trim() || 'DMC';
+        const email = String(sig.email || '').trim();
+        const phone = String(sig.phone || '').trim();
+        let block = `Best regards,\n${name}`;
+        if (email) block += `\nEmail: ${email}`;
+        if (phone) block += `\nPhone: ${phone}`;
+        return block;
     }
 
     // Helper function to pad text to the right

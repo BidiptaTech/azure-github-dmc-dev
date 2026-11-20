@@ -1343,6 +1343,67 @@
             return 0;
         };
 
+        // Online hotels: Lite JSON stores stay totals on beds.price/cost/sell.
+        // Match create mapOnlineHotelToTour — per-night base (AVG COST) + marked per-night (SELL).
+        const isOnline = !!(
+            src.isOnlineHotel
+            || src.hotelSourceType === 'online'
+            || src.priceMode === 'online'
+            || src.onlineHotelBooking
+            || (src.price_payload && src.price_payload.is_online)
+        );
+        if (isOnline) {
+            const stamp = src.online_price_breakdown
+                || src.dmc_profile_markup
+                || (src.price_payload && (src.price_payload.online_price_breakdown || src.price_payload.dmc_profile_markup))
+                || (src.onlineHotelBooking && (src.onlineHotelBooking.online_price_breakdown || src.onlineHotelBooking.dmc_profile_markup))
+                || null;
+            const hotelBase = pickPositive([
+                src.base_grand_total,
+                stamp && stamp.hotel_price,
+                stamp && stamp.base_price,
+                src.price_payload && src.price_payload.base_grand_total,
+                bed.avgCost,
+                src.avgCost
+            ]);
+            const markedStay = pickPositive([
+                stamp && stamp.total_price,
+                stamp && stamp.price,
+                src.grand_total,
+                src.grand_total_with_cot,
+                src.totalPrice,
+                src.price_payload && src.price_payload.grand_total,
+                bed.avgSell,
+                src.avgSell
+            ]);
+            // Prefer explicit per-night avgs when they are already night-sized (not stay totals).
+            let explicitCost = pickPositive([bed.avgCost, src.avgCost, src.cost]);
+            let explicitSell = pickPositive([bed.avgSell, src.avgSell, src.sell]);
+            if (explicitCost > 0 && hotelBase > 0 && Math.abs(explicitCost - hotelBase) < 0.02) {
+                explicitCost = 0; // stay total mistaken as avg
+            }
+            if (explicitSell > 0 && markedStay > 0 && Math.abs(explicitSell - markedStay) < 0.02) {
+                explicitSell = 0;
+            }
+            if (explicitCost > 0 && hotelBase > 0 && explicitCost > hotelBase * 0.5) {
+                // avg larger than half the stay base → almost certainly a stay total
+                if (n > 1 && explicitCost > hotelBase / n * 2) explicitCost = 0;
+            }
+            if (explicitSell > 0 && markedStay > 0 && n > 1 && explicitSell > markedStay / n * 2) {
+                explicitSell = 0;
+            }
+            const perNightBase = explicitCost > 0
+                ? round2(explicitCost)
+                : (hotelBase > 0 ? round2(hotelBase / n) : 0);
+            const perNightSell = explicitSell > 0
+                ? round2(explicitSell)
+                : (markedStay > 0 ? round2(markedStay / n) : perNightBase);
+            return {
+                cost: perNightBase || perNightSell || 0,
+                sell: perNightSell || perNightBase || 0
+            };
+        }
+
         // --- Sell: explicit per-night fields from create (beds.price / avgSell) ---
         // Prefer avgSell over price/sell so a wrongly-stored stay total in price cannot win.
         let sell = pickPositive([

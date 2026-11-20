@@ -265,14 +265,12 @@
 
     /**
      * Approved Attraction Details actions: status pill + Mail Preview + View Files
-     * (+ Cancel Voucher for online bookings that have a voucher code).
+     * + Cancel with/without refund (same hotel-style flow; voucher code managed internally).
      */
     window.buildApprovedAttractionActionsHtml = function (tourId, attractionOrderIndex, bookingIndex, booking) {
         booking = booking || {};
         var referenceId = booking.referenceId || booking.reference_id || '';
         var displayDueDate = booking.displayDueDate || booking.display_due_date || '';
-        var isOnline = window.isOnlineAttractionBooking(booking);
-        var voucherCode = extractPrimaryVoucherCode(booking);
         var html = '' +
             '<span class="svc-status-pill is-approved">' +
                 '<i class="ri-check-line"></i> Approved' +
@@ -285,53 +283,36 @@
             '<button type="button" class="btn btn-sm btn-outline-secondary svc-btn" ' +
                 'onclick="openAttractionFilesModal(\'' + tourId + '\', \'' + attractionOrderIndex + '\', \'' + bookingIndex + '\')" ' +
                 'title="View and manage uploaded files">' +
-                '<i class="ri-file-list-3-line me-1"></i>View Files</button>';
-        if (isOnline && voucherCode) {
-            html += '' +
-                '<button type="button" class="btn btn-sm btn-outline-danger svc-btn" ' +
-                    'onclick="window.openCancelAttractionVoucher(' + tourId + ', ' + attractionOrderIndex + ', ' + bookingIndex + ')" ' +
-                    'title="Cancel this online attraction voucher with the supplier">' +
-                    '<i class="ri-close-circle-line me-1"></i>Cancel Voucher</button>';
-        }
+                '<i class="ri-file-list-3-line me-1"></i>View Files</button>' +
+            // Hotel-style cancel: voucher managed internally by reject API (no reason/code modal).
+            '<button type="button" class="btn btn-sm svc-btn svc-btn-reject" ' +
+                'onclick="window.__cancelWithoutRefund=false; window.__attractionCancelVoucherMode=false; ' +
+                '(window.rejectIndividualAttraction ? window.rejectIndividualAttraction(' + tourId + ', ' + attractionOrderIndex + ', ' + bookingIndex + ') : rejectIndividualAttraction(' + tourId + ', ' + attractionOrderIndex + ', ' + bookingIndex + '))" ' +
+                'title="Cancel this attraction with refund">' +
+                '<i class="ri-close-line me-1"></i>Cancel with refund</button>' +
+            '<button type="button" class="btn btn-sm svc-btn svc-btn-cancel-zero" ' +
+                'onclick="window.__cancelWithoutRefund=true; window.__attractionCancelVoucherMode=false; ' +
+                '(window.rejectIndividualAttraction ? window.rejectIndividualAttraction(' + tourId + ', ' + attractionOrderIndex + ', ' + bookingIndex + ') : rejectIndividualAttraction(' + tourId + ', ' + attractionOrderIndex + ', ' + bookingIndex + '))" ' +
+                'title="Cancel this attraction without refund">' +
+                '<i class="ri-close-circle-line me-1"></i>Cancel without refund</button>';
         return html;
     };
 
     /**
-     * Open cancel-voucher modal (approved online attractions). Prefills voucher code.
+     * Legacy entry point — now routes to hotel-style Cancel with refund (no reason/code modal).
      */
     window.openCancelAttractionVoucher = function (tourId, attractionOrderIndex, bookingIndex, autoCancelDate) {
-        window.__attractionCancelVoucherMode = true;
+        window.__attractionCancelVoucherMode = false;
+        window.__cancelWithoutRefund = false;
         try {
-            if (typeof createAndShowIndividualAttractionModal === 'function') {
-                createAndShowIndividualAttractionModal(
-                    tourId,
-                    attractionOrderIndex,
-                    bookingIndex,
-                    'reject',
-                    autoCancelDate || null
-                );
-                return;
-            }
-            if (typeof window.createAndShowIndividualAttractionModal === 'function') {
-                window.createAndShowIndividualAttractionModal(
-                    tourId,
-                    attractionOrderIndex,
-                    bookingIndex,
-                    'reject',
-                    autoCancelDate || null
-                );
-                return;
-            }
             if (typeof window.rejectIndividualAttraction === 'function') {
                 window.rejectIndividualAttraction(tourId, attractionOrderIndex, bookingIndex, autoCancelDate || null);
                 return;
             }
-            notifyAttraction('Unable to open cancel voucher modal.', 'danger');
-            window.__attractionCancelVoucherMode = false;
+            notifyAttraction('Unable to start attraction cancel.', 'danger');
         } catch (err) {
             console.error('openCancelAttractionVoucher failed', err);
-            window.__attractionCancelVoucherMode = false;
-            notifyAttraction('Unable to open cancel voucher modal.', 'danger');
+            notifyAttraction('Unable to start attraction cancel.', 'danger');
         }
     };
 

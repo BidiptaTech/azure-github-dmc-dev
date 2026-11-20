@@ -1910,7 +1910,7 @@ window.enquiryProCancelOrderUrl = @json(url('/api/orders/__ID__/cancel'));
             <div class="section-header">
                 <span>Attractions</span>
                 <div class="d-flex align-items-center flex-wrap justify-content-end">
-                    {{-- @if(\App\Helpers\CommonHelper::masterDmcOnlineApiEnabled(auth()->user()))
+                    @if(\App\Helpers\CommonHelper::masterDmcOnlineApiEnabled(auth()->user()))
                     <div class="ep-online-source-toggle" title="Offline = catalog attractions · Online = live SG Attractions (Lite flow, no transfer)">
                         <div class="form-check form-check-inline">
                             <input class="form-check-input ep-attraction-source-type" type="radio" name="epAttractionSourceType" id="epAttractionSourceOffline" value="offline" checked>
@@ -1921,7 +1921,7 @@ window.enquiryProCancelOrderUrl = @json(url('/api/orders/__ID__/cancel'));
                             <label class="form-check-label" for="epAttractionSourceOnline">Online</label>
                         </div>
                     </div>
-                    @endif --}}
+                    @endif
                     <button class="btn btn-sm btn-light btn-xs" onclick="openTourModal()">+ Add</button>
                     <button class="btn btn-sm btn-light btn-xs ms-1" onclick="removeSelectedTours()">- Remove</button>
                 </div>
@@ -9678,6 +9678,29 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
     function syncTourListPaxQtyFromHeader(forceValue) {
         if (typeof tourList === 'undefined' || !Array.isArray(tourList)) return;
         tourList.forEach(function (tour) {
+            // Online attractions keep modal guest counts (do not force header child/infant min=1).
+            if (tour.isOnlineAttraction || tour.attractionSourceType === 'online') {
+                const snap = tour.onlineAddSnapshot || {};
+                if (snap && (snap.adults != null || snap.children != null || snap.infants != null)) {
+                    tour.adultsQty = Math.max(0, parseInt(snap.adults, 10) || 0);
+                    tour.childQty = Math.max(0, parseInt(snap.children, 10) || 0);
+                    tour.infantQty = Math.max(0, parseInt(snap.infants, 10) || 0);
+                } else {
+                    tour.adultsQty = Math.max(0, parseInt(tour.adultsQty, 10) || 0);
+                    tour.childQty = Math.max(0, parseInt(tour.childQty, 10) || 0);
+                    tour.infantQty = Math.max(0, parseInt(tour.infantQty ?? tour.infant, 10) || 0);
+                }
+                tour.infant = tour.infantQty;
+                if (!(tour.childQty > 0)) {
+                    tour.childCost = 0;
+                    tour.childSell = 0;
+                }
+                if (!(tour.infantQty > 0)) {
+                    tour.infantCost = 0;
+                    tour.infantSell = 0;
+                }
+                return;
+            }
             tour.adultsQty = clampTourSitePaxQty(forceValue === true ? 0 : tour.adultsQty, 'adult');
             tour.childQty = clampTourSitePaxQty(forceValue === true ? 0 : tour.childQty, 'child');
             tour.infantQty = clampTourSitePaxQty(forceValue === true ? 0 : (tour.infantQty ?? tour.infant), 'infant');
@@ -26018,6 +26041,19 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             if (dateTimeValue && !dateTimeValue.includes('T')) {
                 dateTimeValue = dateTimeValue + 'T10:00';
             }
+            const isOnlineTour = !!(tour.isOnlineAttraction || tour.attractionSourceType === 'online');
+            const adultsQtyVal = Math.max(0, parseInt(tour.adultsQty, 10) || 0);
+            const childQtyVal = Math.max(0, parseInt(tour.childQty, 10) || 0);
+            const infantQtyVal = Math.max(0, parseInt(tour.infantQty ?? tour.infant, 10) || 0);
+            const adultQtyAttrs = isOnlineTour
+                ? `value="${adultsQtyVal}" min="0" readonly disabled title="Edit guests in Online Attraction modal" style="background-color: #f5f5f5; cursor: not-allowed;"`
+                : `value="${adultsQtyVal}" min="${tourPaxBounds.adultMin}" max="${tourPaxBounds.adultMax}" ${tourPaxBounds.adults <= 0 ? 'disabled' : ''} onchange="updateTourField(${index}, 'adultsQty', this.value); this.value = tourList[${index}].adultsQty;" ${tourPaxBounds.adults <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}`;
+            const childQtyAttrs = isOnlineTour
+                ? `value="${childQtyVal}" min="0" readonly disabled title="Edit guests in Online Attraction modal" style="background-color: #f5f5f5; cursor: not-allowed;"`
+                : `value="${childQtyVal}" min="${tourPaxBounds.childMin}" max="${tourPaxBounds.childMax}" ${tourPaxBounds.children <= 0 ? 'disabled' : ''} onchange="updateTourField(${index}, 'childQty', this.value); this.value = tourList[${index}].childQty;" ${tourPaxBounds.children <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}`;
+            const infantQtyAttrs = isOnlineTour
+                ? `value="${infantQtyVal}" min="0" readonly disabled title="Edit guests in Online Attraction modal" style="background-color: #f5f5f5; cursor: not-allowed;"`
+                : `value="${infantQtyVal}" min="${tourPaxBounds.infantMin || 0}" max="${tourPaxBounds.infantMax || 0}" ${(tourPaxBounds.infants || 0) <= 0 ? 'disabled' : ''} onchange="updateTourField(${index}, 'infantQty', this.value); this.value = tourList[${index}].infantQty;" ${(tourPaxBounds.infants || 0) <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}`;
             
             return `
             <tr>
@@ -26031,15 +26067,15 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     </a>
                     ${typeof enquiryProPriceBreakBtnHtml === 'function' ? enquiryProPriceBreakBtnHtml('tour', index) : ''}
                 </td>
-                <td><input type="number" value="${tour.adultsQty}" min="${tourPaxBounds.adultMin}" max="${tourPaxBounds.adultMax}" ${tourPaxBounds.adults <= 0 ? 'disabled' : ''} onchange="updateTourField(${index}, 'adultsQty', this.value); this.value = tourList[${index}].adultsQty;" ${tourPaxBounds.adults <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}></td>
+                <td><input type="number" ${adultQtyAttrs}></td>
                 <td><input type="text" value="${parseFloat(String(tour.adultCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${(parseFloat(String(tour.adultSell).replace(/[^0-9.-]/g, '') || 0) || 0).toFixed(2)}" title="Sell before DMC markup" onchange="updateTourField(${index}, 'adultSell', this.value); updateTourTable(); recalculateTotals();" step="1"></td>
                 ${(typeof enquiryProMarkupPriceTdHtml === 'function' ? enquiryProMarkupPriceTdHtml(tour.adultSell, 'other') : '')}
-                <td><input type="number" value="${tour.childQty}" min="${tourPaxBounds.childMin}" max="${tourPaxBounds.childMax}" ${tourPaxBounds.children <= 0 ? 'disabled' : ''} onchange="updateTourField(${index}, 'childQty', this.value); this.value = tourList[${index}].childQty;" ${tourPaxBounds.children <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}></td>
+                <td><input type="number" ${childQtyAttrs}></td>
                 <td><input type="text" value="${parseFloat(String(tour.childCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${(parseFloat(String(tour.childSell).replace(/[^0-9.-]/g, '') || 0) || 0).toFixed(2)}" title="Sell before DMC markup" onchange="updateTourField(${index}, 'childSell', this.value); updateTourTable(); recalculateTotals();" step="1"></td>
                 ${(typeof enquiryProMarkupPriceTdHtml === 'function' ? enquiryProMarkupPriceTdHtml(tour.childSell, 'other') : '')}
-                <td><input type="number" value="${tour.infantQty || 0}" min="${tourPaxBounds.infantMin || 0}" max="${tourPaxBounds.infantMax || 0}" ${(tourPaxBounds.infants || 0) <= 0 ? 'disabled' : ''} onchange="updateTourField(${index}, 'infantQty', this.value); this.value = tourList[${index}].infantQty;" ${(tourPaxBounds.infants || 0) <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}></td>
+                <td><input type="number" ${infantQtyAttrs}></td>
                 <td><input type="text" value="${parseFloat(String(tour.infantCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${(parseFloat(String(tour.infantSell || 0).replace(/[^0-9.-]/g, '') || 0) || 0).toFixed(2)}" title="Sell before DMC markup" onchange="updateTourField(${index}, 'infantSell', this.value); updateTourTable(); recalculateTotals();" step="1"></td>
                 ${(typeof enquiryProMarkupPriceTdHtml === 'function' ? enquiryProMarkupPriceTdHtml(tour.infantSell || 0, 'other') : '')}
@@ -26299,14 +26335,19 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
     function updateTourField(index, field, value) {
         if (tourList[index]) {
             const tour = tourList[index];
-            if (field === 'adultsQty' && typeof clampTourSitePaxQty === 'function') {
+            const isOnlineTour = !!(tour.isOnlineAttraction || tour.attractionSourceType === 'online');
+            // Online guest counts come from the booking modal — do not force header min=1.
+            if (!isOnlineTour && field === 'adultsQty' && typeof clampTourSitePaxQty === 'function') {
                 value = clampTourSitePaxQty(value, 'adult');
             }
-            if (field === 'childQty' && typeof clampTourSitePaxQty === 'function') {
+            if (!isOnlineTour && field === 'childQty' && typeof clampTourSitePaxQty === 'function') {
                 value = clampTourSitePaxQty(value, 'child');
             }
-            if (field === 'infantQty' && typeof clampTourSitePaxQty === 'function') {
+            if (!isOnlineTour && field === 'infantQty' && typeof clampTourSitePaxQty === 'function') {
                 value = clampTourSitePaxQty(value, 'infant');
+            }
+            if (isOnlineTour && (field === 'adultsQty' || field === 'childQty' || field === 'infantQty')) {
+                value = Math.max(0, parseInt(value, 10) || 0);
             }
             tour[field] = value;
             if (field === 'infantQty') tour.infant = value;
@@ -26379,52 +26420,56 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         return isOnline && !!code;
     }
 
+    /**
+     * Hotel-style cancel for approved online attractions on Pro edit.
+     * Returns { withoutRefund } or null if user cancels. No voucher/reason fields.
+     */
     function promptCancelOnlineAttractionVoucher(item) {
-        const code = String(item.voucher_code || '').trim();
         const name = item.attractionName || item.AttractionName || 'Online attraction';
+        const refundsUrl = @json(route('bookings.refunds'));
         if (typeof Swal === 'undefined' || typeof Swal.fire !== 'function') {
-            const reason = window.prompt('Cancel voucher ' + code + ' for "' + name + '". Enter cancel reason (min 10 chars):', '');
-            if (reason == null) return Promise.resolve(null);
-            if (String(reason).trim().length < 10) {
-                alert('Cancel reason must be at least 10 characters.');
-                return Promise.resolve(null);
-            }
-            return Promise.resolve(String(reason).trim());
+            if (!window.confirm('Cancel "' + name + '" with refund? (Cancel = abort)')) return Promise.resolve(null);
+            return Promise.resolve({ withoutRefund: false, redirectRefunds: refundsUrl });
         }
         return Swal.fire({
-            title: 'Cancel Online Voucher?',
-            html: '<p class="mb-2 text-start">Removing <strong>' + (name || 'attraction') + '</strong> will cancel the supplier voucher and refund credits.</p>'
-                + '<div class="text-start mb-2"><label class="form-label fw-semibold mb-1">Voucher Code</label>'
-                + '<input type="text" class="form-control" id="proCancelVoucherCode" value="' + code.replace(/"/g, '&quot;') + '" readonly></div>'
-                + '<div class="text-start"><label class="form-label fw-semibold mb-1">Cancel Reason <span class="text-danger">*</span></label>'
-                + '<textarea id="proCancelVoucherReason" class="form-control" rows="3" minlength="10" maxlength="1000" '
-                + 'placeholder="Reason for cancelling this voucher..."></textarea></div>',
-            icon: 'warning',
+            title: '',
+            html: '<div style="text-align:center">'
+                + '<div style="width:56px;height:56px;margin:0 auto 1rem;border-radius:14px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#fff7ed,#fed7aa);color:#ea580c;font-size:1.75rem"><i class="ri-error-warning-line"></i></div>'
+                + '<h2 style="font-size:1.25rem;font-weight:700;color:#1e293b;margin:0 0 .5rem">Partial cancellation &amp; Refund?</h2>'
+                + '<p style="font-size:.9375rem;color:#64748b;margin:0">Cancel <strong>' + String(name).replace(/</g, '&lt;') + '</strong>? Supplier voucher is cancelled automatically and credits return to SG Attractions balance.</p>'
+                + '<div style="margin-top:.75rem;padding:.75rem;text-align:left;background:linear-gradient(135deg,#eff6ff,#e0e7ff);border:1px solid rgba(99,102,241,.3);border-radius:10px;color:#3730a3;font-size:.8125rem">'
+                + '<i class="ri-shield-check-line"></i> <strong>Tour status</strong> and <strong>payment</strong> stay unchanged. Cancel with refund → Refunds page. Cancel without refund completes at 0.</div>'
+                + '</div>',
+            showDenyButton: true,
             showCancelButton: true,
-            confirmButtonColor: '#dc2626',
-            cancelButtonColor: '#64748b',
-            confirmButtonText: 'Confirm Cancel Voucher',
+            confirmButtonText: 'Cancel with refund',
+            denyButtonText: 'Cancel without refund',
             cancelButtonText: 'Keep Booking',
-            width: '440px',
-            preConfirm: () => {
-                const reason = String(document.getElementById('proCancelVoucherReason')?.value || '').trim();
-                if (reason.length < 10) {
-                    Swal.showValidationMessage('Please enter a cancel reason (at least 10 characters).');
-                    return false;
-                }
-                return reason;
-            }
-        }).then((result) => (result.isConfirmed ? result.value : null));
+            confirmButtonColor: '#dc2626',
+            denyButtonColor: '#64748b',
+            cancelButtonColor: '#94a3b8',
+            width: '460px'
+        }).then((result) => {
+            if (result.isConfirmed) return { withoutRefund: false, redirectRefunds: refundsUrl };
+            if (result.isDenied) return { withoutRefund: true, redirectRefunds: null };
+            return null;
+        });
     }
 
-    async function cancelOnlineAttractionOrderOnEdit(item, cancelReason) {
+    async function cancelOnlineAttractionOrderOnEdit(item, cancelOpts) {
         const bookingKey = item.bookingId || item.booking_id || item.orderId;
         if (!bookingKey) {
             throw new Error('Missing booking id for this attraction order.');
         }
+        const withoutRefund = !!(cancelOpts && cancelOpts.withoutRefund);
         const urlTemplate = window.enquiryProCancelOrderUrl || '/api/orders/__ID__/cancel';
         const url = String(urlTemplate).replace('__ID__', encodeURIComponent(bookingKey));
         const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        const payload = {
+            tour_id: window.tourId || undefined,
+            cancel_reason: withoutRefund ? 'Cancelled without refund' : 'Rejected for refund processing'
+        };
+        if (withoutRefund) payload.without_refund = 1;
         const resp = await fetch(url, {
             method: 'POST',
             headers: {
@@ -26432,10 +26477,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 'Accept': 'application/json',
                 'X-CSRF-TOKEN': csrf
             },
-            body: JSON.stringify({
-                tour_id: window.tourId || undefined,
-                cancel_reason: cancelReason
-            })
+            body: JSON.stringify(payload)
         });
         const data = await resp.json().catch(() => ({}));
         if (!resp.ok || !data.success) {
@@ -26468,24 +26510,23 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         
         const count = checkboxes.length;
         const itemLabel = count === 1 ? 'tour' : 'tours';
-        showRemoveFormSelectionAlert(count, itemLabel, async () => {
+        const runRemove = async () => {
             try {
+                let redirectToRefunds = false;
                 for (const item of voucherCancelItems) {
-                    const reason = await promptCancelOnlineAttractionVoucher(item);
-                    if (!reason) {
+                    const choice = await promptCancelOnlineAttractionVoucher(item);
+                    if (!choice) {
                         return;
                     }
-                    const result = await cancelOnlineAttractionOrderOnEdit(item, reason);
-                    const providerMsg = result?.data?.voucher_cancel?.message || result?.message || 'Voucher cancelled.';
+                    const result = await cancelOnlineAttractionOrderOnEdit(item, choice);
+                    if (!choice.withoutRefund) redirectToRefunds = true;
+                    const providerMsg = result?.data?.voucher_cancel?.message || result?.message
+                        || (choice.withoutRefund ? 'Cancelled without refund.' : 'Cancelled — sent to Refunds.');
                     if (typeof Swal !== 'undefined' && Swal.fire) {
                         await Swal.fire({
                             icon: 'success',
-                            title: 'Voucher cancelled',
-                            html: '<div class="text-start"><div class="mb-2">' + (providerMsg || '') + '</div>'
-                                + (result?.data?.voucher_code
-                                    ? ('<div class="small text-muted">Code: <strong>' + result.data.voucher_code + '</strong></div>')
-                                    : '')
-                                + '</div>',
+                            title: choice.withoutRefund ? 'Cancelled without refund' : 'Sent to Refunds',
+                            html: '<div class="text-start"><div class="mb-2">' + (providerMsg || '') + '</div></div>',
                             confirmButtonText: 'OK'
                         });
                     } else {
@@ -26534,6 +26575,9 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                         });
                     }
                 }
+                if (redirectToRefunds) {
+                    window.location.href = @json(route('bookings.refunds'));
+                }
             } catch (err) {
                 console.error('Attraction remove / voucher cancel failed', err);
                 if (typeof Swal !== 'undefined' && Swal.fire) {
@@ -26542,7 +26586,13 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     alert(err.message || 'Unable to cancel voucher.');
                 }
             }
-        }, window.hasNegotiationHistory, hasExistingItems);
+        };
+        // Online voucher rows already get Cancel with/without refund — skip generic Remove confirm.
+        if (voucherCancelItems.length && voucherCancelItems.length === idsToRemove.length) {
+            runRemove();
+        } else {
+            showRemoveFormSelectionAlert(count, itemLabel, runRemove, window.hasNegotiationHistory, hasExistingItems);
+        }
     }
 
     // ==================== GUIDE FUNCTIONS ====================
@@ -37590,6 +37640,11 @@ exitPortData.push({
                 }
             }
             
+            if (tour.isOnlineAttraction || tour.attractionSourceType === 'online') {
+                tourData.isOnlineAttraction = true;
+                tourData.attractionSourceType = 'online';
+                tourData.mode = 'online';
+            }
             if (typeof enquiryProCopyStoredMarkupMeta === 'function') {
                 enquiryProCopyStoredMarkupMeta(tourData, tour);
             }
@@ -38442,13 +38497,23 @@ exitPortData.push({
         }
         
         // Transform and add service data in required format (await async functions)
-        const { entryPortData, exitPortData } = await transformArrivalDepartureData();
-        const transformedAccommodations = transformAccommodationData();
-        const transformedTours = transformTourData();
-        const transformedMeals = transformMealData();
-        const transformedGuides = transformGuideData();
-        const transformedTransfers = await transformTransferData();
-        const transformedMiscellaneous = transformMiscellaneousData();
+        let entryPortData, exitPortData, transformedAccommodations, transformedTours,
+            transformedMeals, transformedGuides, transformedTransfers, transformedMiscellaneous;
+        try {
+            ({ entryPortData, exitPortData } = await transformArrivalDepartureData());
+            transformedAccommodations = transformAccommodationData();
+            transformedTours = transformTourData();
+            transformedMeals = transformMealData();
+            transformedGuides = transformGuideData();
+            transformedTransfers = await transformTransferData();
+            transformedMiscellaneous = transformMiscellaneousData();
+        } catch (transformErr) {
+            console.error('Enquiry transform failed before save:', transformErr);
+            window._enquiryProSubmitting = false;
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = submitBtnOriginalHtml; }
+            alert('Could not prepare booking data: ' + (transformErr && transformErr.message ? transformErr.message : 'transform error'));
+            return;
+        }
         
         // Add service payloads (edit: always send each key, even [] — required for orphan soft-delete vs omit-key)
         if (isEnquiryEditSave) {
@@ -41463,6 +41528,11 @@ exitPortData.push({
                 ?? 0
             ) || null,
             dmc_profile_markup: data.dmc_profile_markup || (data.price_payload && data.price_payload.dmc_profile_markup) || null,
+            online_price_breakdown: data.online_price_breakdown
+                || (data.price_payload && data.price_payload.online_price_breakdown)
+                || data.dmc_profile_markup
+                || (data.price_payload && data.price_payload.dmc_profile_markup)
+                || null,
             hotelDetails: hotelDetails,
             country: data.country || '',
             city: data.city || hotelDetails.city || data.destination || '',
@@ -41496,6 +41566,34 @@ exitPortData.push({
             const bedSell = parseFloat(firstBed.avgSell ?? firstBed.sell ?? firstBed.price ?? data.avgSell ?? data.sell ?? 0) || 0;
             if (bedCost > 0) { hotel.cost = bedCost; hotel.avgCost = bedCost; }
             if (bedSell > 0) { hotel.sell = bedSell; hotel.avgSell = bedSell; hotel.roomPrice = bedSell; }
+        }
+        // Online: never leave stay totals in AVG COST / SELL (create uses per-night base / marked).
+        if (hotel.isOnlineHotel || hotel.hotelSourceType === 'online') {
+            const stayN = Math.max(1, parseInt(hotel.nights, 10) || nights || 1);
+            const stamp = hotel.online_price_breakdown || hotel.dmc_profile_markup || null;
+            const baseStay = parseFloat(
+                hotel.base_grand_total
+                ?? (stamp && (stamp.hotel_price != null ? stamp.hotel_price : stamp.base_price))
+                ?? 0
+            ) || 0;
+            const markedStay = parseFloat(
+                (stamp && (stamp.total_price != null ? stamp.total_price : stamp.price))
+                ?? hotel.savedTotalPrice
+                ?? 0
+            ) || 0;
+            if (baseStay > 0 && (!hotel.cost || hotel.cost >= baseStay * 0.9)) {
+                hotel.cost = Math.round((baseStay / stayN) * 100) / 100;
+                hotel.avgCost = hotel.cost;
+            }
+            if (markedStay > 0 && (!hotel.sell || hotel.sell >= Math.min(baseStay || markedStay, markedStay) * 0.9)) {
+                hotel.sell = Math.round((markedStay / stayN) * 100) / 100;
+                hotel.avgSell = hotel.sell;
+                hotel.roomPrice = hotel.sell;
+            } else if (baseStay > 0 && (!hotel.sell || hotel.sell >= baseStay * 0.9)) {
+                hotel.sell = Math.round((baseStay / stayN) * 100) / 100;
+                hotel.avgSell = hotel.sell;
+                hotel.roomPrice = hotel.sell;
+            }
         }
         if (!hotel.roomPrice && hotel.sell) hotel.roomPrice = hotel.sell;
         if ((!hotel.cost || hotel.cost <= 0) && hotel.avgCost > 0) hotel.cost = hotel.avgCost;
@@ -41549,6 +41647,16 @@ exitPortData.push({
             infantSell: parseFloat(data.infantSell || data.infant_sell || 0),
             cost: parseFloat(data.cost || 0),
             sell: parseFloat(data.sell || 0),
+            totalPrice: parseFloat(data.totalPrice || data.grand_total || data.sell || 0) || 0,
+            grand_total: parseFloat(data.grand_total || data.totalPrice || data.sell || 0) || 0,
+            base_grand_total: parseFloat(
+                data.base_grand_total
+                ?? (data.dmc_profile_markup && data.dmc_profile_markup.base_price)
+                ?? (data.online_price_breakdown && data.online_price_breakdown.base_price)
+                ?? 0
+            ) || null,
+            dmc_profile_markup: data.dmc_profile_markup || data.online_price_breakdown || null,
+            online_price_breakdown: data.online_price_breakdown || data.dmc_profile_markup || null,
             supplement: data.supplement || false,
             focServiceDiscount: resolveFocServiceDiscountFromPayload(data),
             destination: data.destination || data.country || data.city || '',
@@ -41585,6 +41693,52 @@ exitPortData.push({
             voucher_download_link: data.voucher_download_link || null,
             vouchers: Array.isArray(data.vouchers) ? data.vouchers : []
         };
+
+        // Online: restore modal guest counts; keep Sell as base (peel only if units look marked).
+        if (tour.isOnlineAttraction) {
+            const snap = tour.onlineAddSnapshot || {};
+            if (snap && (snap.adults != null || snap.children != null || snap.infants != null)) {
+                tour.adultsQty = Math.max(0, parseInt(snap.adults, 10) || 0);
+                tour.childQty = Math.max(0, parseInt(snap.children, 10) || 0);
+                tour.infantQty = Math.max(0, parseInt(snap.infants, 10) || 0);
+                tour.infant = tour.infantQty;
+            }
+            if (!(tour.childQty > 0)) {
+                tour.childCost = 0;
+                tour.childSell = 0;
+            }
+            if (!(tour.infantQty > 0)) {
+                tour.infantCost = 0;
+                tour.infantSell = 0;
+            }
+            if (typeof enquiryProSplitDmcMarkupFromFinal === 'function') {
+                const adultsN = Math.max(0, parseInt(tour.adultsQty, 10) || 0);
+                const childrenN = Math.max(0, parseInt(tour.childQty, 10) || 0);
+                const infantsN = Math.max(0, parseInt(tour.infantQty, 10) || 0);
+                const ticketGuess = (tour.adultSell * adultsN) + (tour.childSell * childrenN) + (tour.infantSell * infantsN);
+                const storedFinal = parseFloat(
+                    (tour.dmc_profile_markup && tour.dmc_profile_markup.price)
+                    || tour.totalPrice || tour.grand_total || 0
+                ) || 0;
+                const storedBase = parseFloat(tour.base_grand_total || 0) || 0;
+                const sellMatchesBase = storedBase > 0 && Math.abs(ticketGuess - storedBase) < 0.05;
+                const sellMatchesFinal = storedFinal > 0 && Math.abs(ticketGuess - storedFinal) < 0.05;
+                if (!sellMatchesBase && sellMatchesFinal) {
+                    if (tour.adultSell > 0) tour.adultSell = enquiryProSplitDmcMarkupFromFinal(tour.adultSell, 'other').base_price;
+                    if (tour.childSell > 0) tour.childSell = enquiryProSplitDmcMarkupFromFinal(tour.childSell, 'other').base_price;
+                    if (tour.infantSell > 0) tour.infantSell = enquiryProSplitDmcMarkupFromFinal(tour.infantSell, 'other').base_price;
+                    if (!(tour.adultCost > 0)) tour.adultCost = tour.adultSell;
+                    if (!(tour.childCost > 0)) tour.childCost = tour.childSell;
+                    if (!(tour.infantCost > 0)) tour.infantCost = tour.infantSell;
+                }
+                if (!(storedBase > 0) && storedFinal > 0) {
+                    const peeled = enquiryProSplitDmcMarkupFromFinal(storedFinal, 'other');
+                    tour.base_grand_total = peeled.base_price;
+                    tour.dmc_profile_markup = peeled;
+                    tour.online_price_breakdown = peeled;
+                }
+            }
+        }
         
         // Check for transferInfo directly in data (priority) or transfer_options or transferId
         const transferInfo = data.transferInfo || null;

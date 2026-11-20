@@ -124,8 +124,7 @@ class OnlineTourCancelRefundService
         $queued = 0;
         $skipped = 0;
 
-        // Supplier cancel first (cannot roll back). Soft-fail: persist failed/pending and
-        // still queue the refund — TravClicks wallet stays blocked until confirmed/resolved.
+        // Defer supplier cancel + wallet to TravClicks auto-refund (Refunds page).
         foreach ($orders as $order) {
             if (! $this->orderLooksPaidOnline($order, $onlinePaid)) {
                 $skipped++;
@@ -133,48 +132,16 @@ class OnlineTourCancelRefundService
             }
 
             try {
-                $hotelResult = $this->hotelCancellation->cancelIfApplicable($order, true);
-                $attractionResult = $this->attractionCancellation->cancelIfApplicable(
+                app(SupplierCancellationStatusService::class)->markPending(
                     $order,
-                    'Tour cancelled',
-                    true
+                    'Queued for TravClicks auto-refund: supplier cancel + wallet credit pending.'
                 );
-
-                foreach ([$hotelResult, $attractionResult] as $cancelResult) {
-                    if (! is_array($cancelResult) || empty($cancelResult['soft_failed'])) {
-                        continue;
-                    }
-
-                    Log::warning('Online supplier cancellation soft-failed during tour cancel', [
-                        'tour_id' => $tourId,
-                        'order_id' => $order->id,
-                        'booking_id' => $order->booking_id,
-                        'type' => $order->type ?? null,
-                        'message' => $cancelResult['message'] ?? null,
-                        'status' => $cancelResult['status'] ?? 'failed',
-                    ]);
-                }
             } catch (Throwable $e) {
-                Log::error('Online supplier cancellation unexpected error during tour cancel', [
+                Log::warning('Could not mark supplier cancellation pending during tour cancel', [
                     'tour_id' => $tourId,
                     'order_id' => $order->id,
-                    'booking_id' => $order->booking_id,
-                    'type' => $order->type ?? null,
                     'error' => $e->getMessage(),
                 ]);
-
-                // Soft-fail unexpected errors too so refund can still queue for manual review.
-                try {
-                    app(SupplierCancellationStatusService::class)->markFailed(
-                        $order,
-                        $e->getMessage() ?: 'Unexpected supplier cancellation error.'
-                    );
-                } catch (Throwable $statusError) {
-                    Log::warning('Could not persist supplier cancellation failed status', [
-                        'order_id' => $order->id,
-                        'error' => $statusError->getMessage(),
-                    ]);
-                }
             }
         }
 
@@ -230,6 +197,7 @@ class OnlineTourCancelRefundService
             }
         });
 
+        // TravClicks Refunds page auto-refund will cancel supplier API + credit wallet.
         return ['queued' => $queued, 'skipped' => $skipped];
     }
 

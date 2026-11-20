@@ -315,6 +315,16 @@
         top: 0;
         transform-origin: bottom center;
     }
+    /* Long service-refund tooltips: wrap into a compact multi-line card */
+    #service-icon-global-tooltip.is-multiline {
+        white-space: pre-line;
+        max-width: min(22rem, calc(100vw - 1.5rem));
+        line-height: 1.45;
+        text-align: left;
+        padding: 0.55rem 0.75rem;
+        font-weight: 450;
+        letter-spacing: 0.01em;
+    }
 
     /* Compact header + stats + filter bar */
     .new-enq-header-bar { background: linear-gradient(135deg, #f8f9fc 0%, #fff 100%); border-radius: 0.5rem; border: 1px solid rgba(105, 108, 255, 0.08); }
@@ -1517,20 +1527,66 @@
         if (!$globalTooltip.length) {
             $globalTooltip = $('<div id="service-icon-global-tooltip" aria-hidden="true"></div>').appendTo('body');
         }
+
+        function placeGlobalTooltip(anchorEl, text, multiline) {
+            var rect = anchorEl.getBoundingClientRect();
+            var left = rect.left + rect.width / 2;
+            var top = rect.top - 6;
+            $globalTooltip
+                .toggleClass('is-multiline', !!multiline)
+                .css({
+                    display: 'block',
+                    left: left + 'px',
+                    top: top + 'px',
+                    transform: 'translate(-50%, -100%)',
+                })
+                .text(text);
+
+            // Keep long tooltips inside the viewport.
+            if (multiline) {
+                var tipRect = $globalTooltip[0].getBoundingClientRect();
+                var pad = 8;
+                var shiftX = 0;
+                if (tipRect.left < pad) {
+                    shiftX = pad - tipRect.left;
+                } else if (tipRect.right > window.innerWidth - pad) {
+                    shiftX = (window.innerWidth - pad) - tipRect.right;
+                }
+                if (tipRect.top < pad) {
+                    $globalTooltip.css({
+                        top: (rect.bottom + 6) + 'px',
+                        transform: 'translate(-50%, 0)',
+                    });
+                }
+                if (shiftX !== 0) {
+                    $globalTooltip.css('left', (left + shiftX) + 'px');
+                }
+            }
+        }
+
         $(document).on('mouseenter', '#toursTable thead .th-tooltip', function() {
             var txt = $(this).attr('data-tooltip') || $(this).attr('title') || $(this).text();
             if (!txt) return;
-            var rect = this.getBoundingClientRect();
-            $globalTooltip.css({ display: 'block', left: (rect.left + rect.width / 2) + 'px', top: (rect.top - 6) + 'px', transform: 'translate(-50%, -100%)' }).text(txt);
+            placeGlobalTooltip(this, String(txt).trim(), false);
         });
-        $(document).on('mouseleave', '#toursTable thead .th-tooltip', function() { $globalTooltip.hide(); });
+        $(document).on('mouseleave', '#toursTable thead .th-tooltip', function() {
+            $globalTooltip.removeClass('is-multiline').hide();
+        });
         $(document).on('mouseenter', '#toursTable .action-icon-badge', function() {
             var txt = $(this).attr('data-tooltip') || $(this).attr('title') || '';
             if (!txt) return;
-            var rect = this.getBoundingClientRect();
-            $globalTooltip.css({ display: 'block', left: (rect.left + rect.width / 2) + 'px', top: (rect.top - 6) + 'px', transform: 'translate(-50%, -100%)' }).text(txt);
+            // Split " · " segments onto separate lines for readable 3–4 line tooltips.
+            var formatted = String(txt)
+                .replace(/\s*·\s*/g, '\n')
+                .replace(/\s+\-\s+/g, '\n')
+                .replace(/\n{2,}/g, '\n')
+                .trim();
+            var multiline = formatted.indexOf('\n') !== -1 || formatted.length > 64;
+            placeGlobalTooltip(this, formatted, multiline);
         });
-        $(document).on('mouseleave', '#toursTable .action-icon-badge', function() { $globalTooltip.hide(); });
+        $(document).on('mouseleave', '#toursTable .action-icon-badge', function() {
+            $globalTooltip.removeClass('is-multiline').hide();
+        });
     });
 
 // Process refund function
@@ -1860,7 +1916,10 @@ function processSingleOrderRefund(tourId, orderId, event) {
             + (refundCurrency ? refundCurrency + ' ' : '')
             + suggestedVal;
         if (cancelSummary) {
-            initiateMessage += '<br><span class="small">' + cancelSummary + '</span>';
+            const isFreeCancel = /free cancellation/i.test(cancelSummary);
+            initiateMessage += isFreeCancel
+                ? '<br><span class="small" style="color:#dc2626;font-weight:600;">' + cancelSummary + '</span>'
+                : '<br><span class="small">' + cancelSummary + '</span>';
         }
         if (isTravclicksRefund) {
             initiateMessage += '<br><br>Amounts are in SGD. The converted DMC-currency amount below is credited to the DMC wallet.';

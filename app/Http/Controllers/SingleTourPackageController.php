@@ -43,6 +43,7 @@ use App\Services\AttractionSuppliers\OnlineAttractionCancellationService;
 use App\Services\AttractionSuppliers\OnlineAttractionAggregator;
 use App\Services\AttractionSuppliers\OnlineAttractionOrderService;
 use App\Services\EnquiryAmountTopUpService;
+use App\Support\SupplierFacingCopy;
 
 class SingleTourPackageController extends Controller
 {
@@ -309,38 +310,58 @@ class SingleTourPackageController extends Controller
         // Pass restaurant_data for detailed display
         $restaurant_data = isset($enquiry->restaurant_ids) ? json_decode($enquiry->restaurant_ids, true) : [];
 
+        // Prefill cities (+ stay dates) for lite create when opening from enquiry list.
+        // inquiry_form.city may be multi-city: "Singapore (Singapore) [2026-12-01→2026-12-09], Batam (Indonesia) [2026-12-09→2026-12-17]"
+        // inquiry_form.country may be CSV: "Singapore, Indonesia"
+        $enquiryPrefillCities = [];
+        if ($enquiry && !empty($enquiry->city)) {
+            $enquiryPrefillCities = $this->buildEnquiryPrefillCities(
+                (string) $enquiry->city,
+                (string) ($enquiry->country ?? '')
+            );
+        }
+
+        // Overall travel window: prefer enquiry check-in/out; else min/max of city stay dates
+        $enquiryTravelStart = null;
+        $enquiryTravelEnd = null;
+        if ($enquiry && !empty($enquiry->check_in_time)) {
+            try {
+                $enquiryTravelStart = \Carbon\Carbon::parse($enquiry->check_in_time)->format('Y-m-d');
+            } catch (\Throwable $e) {
+                $enquiryTravelStart = null;
+            }
+        }
+        if ($enquiry && !empty($enquiry->check_out_time)) {
+            try {
+                $enquiryTravelEnd = \Carbon\Carbon::parse($enquiry->check_out_time)->format('Y-m-d');
+            } catch (\Throwable $e) {
+                $enquiryTravelEnd = null;
+            }
+        }
+        if ((!$enquiryTravelStart || !$enquiryTravelEnd) && !empty($enquiryPrefillCities)) {
+            $starts = array_values(array_filter(array_column($enquiryPrefillCities, 'start')));
+            $ends = array_values(array_filter(array_column($enquiryPrefillCities, 'end')));
+            if (!$enquiryTravelStart && !empty($starts)) {
+                sort($starts);
+                $enquiryTravelStart = $starts[0];
+            }
+            if (!$enquiryTravelEnd && !empty($ends)) {
+                rsort($ends);
+                $enquiryTravelEnd = $ends[0];
+            }
+        }
+
         $portsCountryName = null;
         if ($enquiry && !empty($enquiry->country)) {
-            $portsCountryName = $enquiry->country;
+            $countryParts = array_values(array_filter(array_map('trim', explode(',', (string) $enquiry->country))));
+            $portsCountryName = $countryParts[0] ?? null;
+        } elseif (!empty($enquiryPrefillCities[0]['country'])) {
+            $portsCountryName = $enquiryPrefillCities[0]['country'];
         } elseif ($request->filled('country')) {
             $countryForPorts = Country::find($request->country) ?? Country::where('name', $request->country)->first();
             $portsCountryName = $countryForPorts?->name;
         }
         $ports = $this->getPortsForDmc($portsCountryName);
-
-        // Prefill city for lite create when opening from enquiry list
-        $enquiryPrefillCities = [];
-        if ($enquiry && !empty($enquiry->city)) {
-            $cityName = trim((string) $enquiry->city);
-            $countryName = trim((string) ($enquiry->country ?? ''));
-            $cityRow = City::query()
-                ->when($countryName !== '', function ($q) use ($countryName) {
-                    $q->whereRaw('LOWER(TRIM(country)) = ?', [mb_strtolower($countryName)]);
-                })
-                ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($cityName)])
-                ->first();
-            if (!$cityRow) {
-                $cityRow = City::query()
-                    ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($cityName)])
-                    ->first();
-            }
-            $enquiryPrefillCities[] = [
-                'id' => $cityRow ? (string) ($cityRow->city_id ?? $cityRow->id ?? $cityName) : $cityName,
-                'name' => $cityName,
-                'country' => $countryName !== '' ? $countryName : (string) ($cityRow->country ?? ''),
-                'text' => $countryName !== '' ? ($cityName . ' (' . $countryName . ')') : $cityName,
-            ];
-        }
 
         $viewData = compact(
             'countries',
@@ -371,7 +392,9 @@ class SingleTourPackageController extends Controller
             'siblingDmcCityMap',
             'siblingDmcZoneOnMap',
             'userDmcId',
-            'enquiryPrefillCities'
+            'enquiryPrefillCities',
+            'enquiryTravelStart',
+            'enquiryTravelEnd'
         );
 
         // Lite create only (create.blade.php / create.backup.blade.php kept as file backups)
@@ -765,55 +788,21 @@ class SingleTourPackageController extends Controller
             $cancelReason = trim((string) $request->input('cancel_reason', ''));
             $voucherCancelResult = null;
 
-            // Soft-fail supplier cancel: local remove + refund queue still proceed;
-            // failed/pending blocks TravClicks wallet until retry or manual resolve.
+            // Defer supplier cancel + TravClicks wallet to TravClicks auto-refund.
+            $voucherCancelResult = null;
             $supplierCancelSoftFailed = false;
-            try {
-                $hotelCancelResult = app(OnlineHotelCancellationService::class)
-                    ->cancelIfApplicable($order, true);
-                $voucherCancelResult = app(OnlineAttractionCancellationService::class)
-                    ->cancelIfApplicable($order, $cancelReason !== '' ? $cancelReason : null, true);
-
-                foreach ([$hotelCancelResult, $voucherCancelResult] as $cancelResult) {
-                    if (is_array($cancelResult) && ! empty($cancelResult['soft_failed'])) {
-                        $supplierCancelSoftFailed = true;
-                        Log::warning('Online supplier cancellation soft-failed during order remove', [
-                            'order_id' => $order->id,
-                            'booking_id' => $order->booking_id,
-                            'type' => $order->type ?? null,
-                            'message' => $cancelResult['message'] ?? null,
-                        ]);
-                    }
-                }
-            } catch (\Throwable $e) {
-                $supplierCancelSoftFailed = true;
-                Log::error('Online supplier cancellation unexpected error during order remove', [
-                    'order_id' => $order->id,
-                    'booking_id' => $order->booking_id,
-                    'order_type' => $order->order_type ?? null,
-                    'type' => $order->type ?? null,
-                    'error' => $e->getMessage(),
-                    'previous' => $e->getPrevious()?->getMessage(),
-                ]);
-
+            if (strtolower(trim((string) ($order->order_type ?? ''))) === 'online') {
                 try {
-                    app(\App\Services\Payment\SupplierCancellationStatusService::class)->markFailed(
+                    app(\App\Services\Payment\SupplierCancellationStatusService::class)->markPending(
                         $order,
-                        $e->getMessage() ?: 'Unexpected supplier cancellation error.'
+                        'Queued for TravClicks auto-refund: supplier cancel + wallet credit pending.'
                     );
-                } catch (\Throwable $statusError) {
-                    Log::warning('Could not persist supplier cancellation failed status', [
+                } catch (\Throwable $e) {
+                    Log::warning('Could not mark supplier cancellation pending on order remove', [
                         'order_id' => $order->id,
-                        'error' => $statusError->getMessage(),
+                        'error' => $e->getMessage(),
                     ]);
                 }
-
-                $voucherCancelResult = [
-                    'success' => false,
-                    'message' => $e->getMessage(),
-                    'soft_failed' => true,
-                    'status' => 'failed',
-                ];
             }
 
             DB::transaction(function () use ($order, $tourId, $tourStatus) {
@@ -849,9 +838,25 @@ class SingleTourPackageController extends Controller
                 }
 
                 // Definite/Actual: flag order for refund workflow before soft delete (same as booking reject).
+                // without_refund=1 completes refund at 0 (same as hotel Cancel without refund).
                 $refundPayload = CommonHelper::withDefiniteOrActualTourIsRefundFlag($tourId, []);
                 if (isset($refundPayload['is_refund'])) {
                     $order->is_refund = $refundPayload['is_refund'];
+                }
+                if (array_key_exists('refund_amount', $refundPayload)) {
+                    $order->refund_amount = $refundPayload['refund_amount'];
+                }
+                if (array_key_exists('is_verify', $refundPayload)) {
+                    $order->is_verify = $refundPayload['is_verify'];
+                }
+                if (array_key_exists('refunded', $refundPayload)) {
+                    $order->refunded = $refundPayload['refunded'];
+                }
+                if (isset($refundPayload['is_refund'])
+                    || array_key_exists('refund_amount', $refundPayload)
+                    || array_key_exists('is_verify', $refundPayload)
+                    || array_key_exists('refunded', $refundPayload)
+                ) {
                     $order->save();
                 }
 
@@ -862,25 +867,18 @@ class SingleTourPackageController extends Controller
                 CommonHelper::maybeRevertTourStatusToNewEnquiry($tourId);
             });
 
+            $walletAuto = null;
             $message = 'Order cancelled successfully';
-            if (is_array($voucherCancelResult) && ! empty($voucherCancelResult['success'])) {
-                $message = 'Online attraction voucher cancelled and booking removed successfully.';
-                if (! empty($voucherCancelResult['message'])) {
-                    $message .= ' ' . $voucherCancelResult['message'];
-                }
-            } elseif ($supplierCancelSoftFailed) {
-                $message = 'Service removed and queued for refund, but supplier cancellation failed or is pending. TravClicks must retry or mark resolved before wallet credit.';
+            if (strtolower(trim((string) ($order->order_type ?? ''))) === 'online') {
+                $message = 'Online service removed and queued for refund. TravClicks will cancel the supplier booking and credit the DMC wallet on auto-refund.';
             }
 
             return response()->json([
                 'success' => true,
                 'message' => $message,
                 'data' => [
-                    'voucher_cancel' => $voucherCancelResult,
-                    'voucher_code' => is_array($voucherCancelResult)
-                        ? ($voucherCancelResult['voucher_code'] ?? null)
-                        : null,
-                    'supplier_cancel_soft_failed' => $supplierCancelSoftFailed,
+                    'supplier_cancel_deferred' => strtolower(trim((string) ($order->order_type ?? ''))) === 'online',
+                    'wallet_auto_refund' => $walletAuto,
                 ],
             ]);
         } catch (\Exception $e) {
@@ -1571,6 +1569,95 @@ class SingleTourPackageController extends Controller
             ->unique()
             ->values()
             ->all();
+    }
+
+    /**
+     * Parse inquiry_form.city into lite create prefill rows (multi-city + stay dates).
+     *
+     * Examples:
+     * - "Singapore (Singapore) [2026-12-01→2026-12-09], Batam (Indonesia) [2026-12-09→2026-12-17]"
+     * - "Singapore (Singapore)"
+     * - "Singapore"
+     *
+     * Same city appearing twice = Return stay (both rows kept for JS seed).
+     *
+     * @return array<int, array{id:string,name:string,country:string,text:string,start:string,end:string}>
+     */
+    private function buildEnquiryPrefillCities(?string $cityRaw, ?string $countryCsv = null): array
+    {
+        $raw = trim((string) $cityRaw);
+        if ($raw === '') {
+            return [];
+        }
+
+        $fallbackCountries = array_values(array_filter(array_map('trim', explode(',', (string) $countryCsv))));
+        $planRe = '/^(.+?)\s*\[(\d{4}-\d{2}-\d{2})\s*(?:→|->)\s*(\d{4}-\d{2}-\d{2})\]\s*$/u';
+        $parts = preg_split('/\s*,\s*/', $raw) ?: [];
+        $rows = [];
+        $partIndex = 0;
+
+        foreach ($parts as $part) {
+            $part = trim((string) $part);
+            if ($part === '') {
+                continue;
+            }
+
+            $startYmd = '';
+            $endYmd = '';
+            if (preg_match($planRe, $part, $dm)) {
+                $part = trim((string) $dm[1]);
+                $startYmd = trim((string) $dm[2]);
+                $endYmd = trim((string) $dm[3]);
+            } else {
+                $part = trim((string) preg_replace('/\s*\[[^\]]*\]\s*/u', '', $part));
+            }
+
+            $cityName = $part;
+            $countryName = '';
+            if (preg_match('/^(.+?)\s*\(([^)]+)\)\s*$/u', $part, $m)) {
+                $cityName = trim((string) $m[1]);
+                $countryName = trim((string) $m[2]);
+            }
+
+            if ($cityName === '') {
+                continue;
+            }
+
+            if ($countryName === '' && isset($fallbackCountries[$partIndex])) {
+                $countryName = $fallbackCountries[$partIndex];
+            }
+
+            $cityRow = City::query()
+                ->when($countryName !== '', function ($q) use ($countryName) {
+                    $q->whereRaw('LOWER(TRIM(country)) = ?', [mb_strtolower($countryName)]);
+                })
+                ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($cityName)])
+                ->first();
+            if (!$cityRow) {
+                $cityRow = City::query()
+                    ->whereRaw('LOWER(TRIM(name)) = ?', [mb_strtolower($cityName)])
+                    ->first();
+            }
+
+            if ($countryName === '' && $cityRow && !empty($cityRow->country)) {
+                $countryName = trim((string) $cityRow->country);
+            }
+            if ($countryName === '' && count($fallbackCountries) === 1) {
+                $countryName = $fallbackCountries[0];
+            }
+
+            $rows[] = [
+                'id' => $cityRow ? (string) ($cityRow->city_id ?? $cityRow->id ?? $cityName) : $cityName,
+                'name' => $cityName,
+                'country' => $countryName,
+                'text' => $countryName !== '' ? ($cityName . ' (' . $countryName . ')') : $cityName,
+                'start' => $startYmd,
+                'end' => $endYmd,
+            ];
+            $partIndex++;
+        }
+
+        return $rows;
     }
 
     /**
@@ -3787,7 +3874,7 @@ class SingleTourPackageController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ], 422);
         } catch (\Throwable $e) {
             Log::error('Online hotel search exception', [
@@ -3797,7 +3884,7 @@ class SingleTourPackageController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error fetching online hotels: ' . $e->getMessage(),
+                'message' => SupplierFacingCopy::mask('Error fetching online hotels: ' . $e->getMessage()),
             ], 500);
         }
     }
@@ -3837,7 +3924,7 @@ class SingleTourPackageController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ], 422);
         } catch (\Throwable $e) {
             Log::error('Online hotel room search exception', [
@@ -3848,7 +3935,7 @@ class SingleTourPackageController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error fetching hotel rooms: ' . $e->getMessage(),
+                'message' => SupplierFacingCopy::mask('Error fetching hotel rooms: ' . $e->getMessage()),
             ], 500);
         }
     }
@@ -3898,7 +3985,7 @@ class SingleTourPackageController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ], 422);
         } catch (\Throwable $e) {
             Log::error('Online attraction search exception', [
@@ -3908,7 +3995,7 @@ class SingleTourPackageController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error fetching online attractions: ' . $e->getMessage(),
+                'message' => SupplierFacingCopy::mask('Error fetching online attractions: ' . $e->getMessage()),
             ], 500);
         }
     }
@@ -3936,7 +4023,7 @@ class SingleTourPackageController extends Controller
         } catch (\RuntimeException $e) {
             return response()->json([
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ], 422);
         } catch (\Throwable $e) {
             Log::error('Online attraction tickets exception', [
@@ -3946,7 +4033,7 @@ class SingleTourPackageController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Error fetching attraction tickets: ' . $e->getMessage(),
+                'message' => SupplierFacingCopy::mask('Error fetching attraction tickets: ' . $e->getMessage()),
             ], 500);
         }
     }
@@ -8567,6 +8654,7 @@ class SingleTourPackageController extends Controller
     private function createOnlineAttractionExternalOrders(array $attractions, int $tourId): array
     {
         $refs = [];
+        $claimedRefs = [];
         $service = app(OnlineAttractionOrderService::class);
 
         foreach ($attractions as $index => $attraction) {
@@ -8575,22 +8663,46 @@ class SingleTourPackageController extends Controller
                 continue;
             }
 
+            $fingerprint = OnlineAttractionOrderService::ticketFingerprint($attraction);
             $existing = OnlineAttractionOrderService::extractSavedRef((object) [
                 'order_ref_no' => $attraction['order_ref_no'] ?? null,
             ], $attraction);
+
+            $forceNew = false;
+            if ($existing !== null && isset($claimedRefs[$existing]) && $claimedRefs[$existing] !== $fingerprint) {
+                \Illuminate\Support\Facades\Log::warning('Attraction create-order: clearing shared supplier ref for distinct ticket', [
+                    'tour_id' => $tourId,
+                    'order_ref_id' => $existing,
+                    'previous_ticket' => $claimedRefs[$existing],
+                    'ticket' => $fingerprint,
+                ]);
+                $forceNew = true;
+                $existing = null;
+            }
+
             if ($existing !== null) {
                 $refs[$index] = $existing;
+                $claimedRefs[$existing] = $fingerprint;
                 continue;
             }
 
-            $result = $service->createOrder($attraction, $tourId);
+            $result = $service->createOrder($attraction, $tourId, false, $forceNew);
             $ref = $result['order_ref_id'] ?? null;
             $ref = (is_string($ref) && $ref !== '' && ! OnlineAttractionOrderService::isPlaceholderRef($ref))
                 ? $ref
                 : null;
 
+            if ($ref !== null && isset($claimedRefs[$ref]) && $claimedRefs[$ref] !== $fingerprint) {
+                $result = $service->createOrder($attraction, $tourId, false, true);
+                $ref = $result['order_ref_id'] ?? null;
+                $ref = (is_string($ref) && $ref !== '' && ! OnlineAttractionOrderService::isPlaceholderRef($ref))
+                    ? $ref
+                    : null;
+            }
+
             if ($ref !== null) {
                 $refs[$index] = $ref;
+                $claimedRefs[$ref] = $fingerprint;
                 continue;
             }
 

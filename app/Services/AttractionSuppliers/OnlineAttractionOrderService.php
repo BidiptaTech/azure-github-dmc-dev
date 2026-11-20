@@ -6,6 +6,7 @@ use App\Models\Tour;
 use App\Services\ApiEnvironmentResolver;
 use App\Services\SupplierConfigResolver;
 use App\Services\SupplierEnvService;
+use App\Support\SupplierFacingCopy;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -60,6 +61,7 @@ class OnlineAttractionOrderService
     {
         $candidates = [
             $order->order_ref_no ?? null,
+            $attraction['order_reference_id'] ?? null,
             $attraction['external_order_ref_id'] ?? null,
             $attraction['attraction_order_ref_id'] ?? null,
         ];
@@ -84,8 +86,13 @@ class OnlineAttractionOrderService
      * @param  array<string, mixed>  $attraction
      * @return array{success: bool, order_ref_id: ?string, external_status: ?string, message: ?string, credits_insufficient: bool}
      */
-    public function createOrder(array $attraction, ?int $tourId = null, bool $chargeCredits = false): array
+    public function createOrder(array $attraction, ?int $tourId = null, bool $chargeCredits = false, bool $forceNew = false): array
     {
+        if ($forceNew) {
+            $attraction = $this->clearAttractionOrderRef($attraction);
+            $this->forgetPendingRefCache($attraction, $tourId);
+        }
+
         $existing = self::extractSavedRef((object) ['order_ref_no' => $attraction['order_ref_no'] ?? null], $attraction);
         if ($existing !== null) {
             Log::info('Attraction external create-order skipped (payload already has order_ref_id)', [
@@ -106,6 +113,7 @@ class OnlineAttractionOrderService
         if (is_string($cached) && ! self::isPlaceholderRef($cached)) {
             Log::info('Attraction external create-order skipped (cached order_ref_id from prior attempt)', [
                 'order_ref_id' => $cached,
+                'ticket' => self::ticketFingerprint($attraction),
             ]);
 
             return [
@@ -179,7 +187,7 @@ class OnlineAttractionOrderService
                 }
 
                 Log::warning('Attraction external create-order failed', [
-                    'message' => $result['message'] ?? null,
+                    'message' => SupplierFacingCopy::mask($result['message'] ?? null) ?: null,
                     'sku_id' => $payload['item_sku_id_1'] ?? null,
                     'supplier_code' => $supplierCode,
                     'credits_insufficient' => $creditsInsufficient,
@@ -191,19 +199,19 @@ class OnlineAttractionOrderService
                 'success' => (bool) ($result['success'] ?? false),
                 'order_ref_id' => is_string($ref) && $ref !== '' ? $ref : null,
                 'external_status' => $result['external_status'] ?? null,
-                'message' => $message ?? ($result['message'] ?? null),
+                'message' => SupplierFacingCopy::mask($message ?? ($result['message'] ?? null)) ?: null,
                 'credits_insufficient' => $creditsInsufficient,
             ];
         } catch (Throwable $e) {
             Log::error('Attraction external create-order exception', [
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ]);
 
             return [
                 'success' => false,
                 'order_ref_id' => null,
                 'external_status' => null,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
                 'credits_insufficient' => false,
             ];
         }
@@ -267,13 +275,13 @@ class OnlineAttractionOrderService
         } catch (Throwable $e) {
             Log::error('Attraction external pay exception', [
                 'order_ref_id' => $orderRefId,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ]);
 
             return [
                 'success' => false,
                 'credits_insufficient' => false,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
                 'provider_status' => null,
             ];
         }
@@ -288,6 +296,7 @@ class OnlineAttractionOrderService
             return $attraction;
         }
 
+        $attraction['order_reference_id'] = $ref;
         $attraction['external_order_ref_id'] = $ref;
         $attraction['attraction_order_ref_id'] = $ref;
         if ($status !== null && $status !== '') {
@@ -319,13 +328,13 @@ class OnlineAttractionOrderService
             return $adapter->fetchCredits($credentials);
         } catch (Throwable $e) {
             Log::warning('Attraction credits lookup failed', [
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ]);
 
             return [
                 'success' => false,
                 'credits_balance' => null,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ];
         }
     }
@@ -337,8 +346,18 @@ class OnlineAttractionOrderService
      */
     public function requiredPaymentAmount(array $attraction): float
     {
-        $adults = max(0, (int) ($attraction['adultCount'] ?? 0));
-        $children = max(0, (int) ($attraction['childCount'] ?? 0));
+        $adults = max(0, (int) (
+            $attraction['adultCount']
+            ?? $attraction['adultsQty']
+            ?? $attraction['adults']
+            ?? 0
+        ));
+        $children = max(0, (int) (
+            $attraction['childCount']
+            ?? $attraction['childQty']
+            ?? $attraction['children']
+            ?? 0
+        ));
         $quantity = max(1, $adults + $children);
         $skuId = trim((string) ($attraction['sku_id'] ?? $attraction['ticket_sku_id'] ?? ''));
         $ticket = $this->ticketFromAttractionPayload($attraction, $skuId);
@@ -444,19 +463,19 @@ class OnlineAttractionOrderService
 
             return [
                 'success' => (bool) ($result['success'] ?? false),
-                'message' => $result['message'] ?? null,
+                'message' => SupplierFacingCopy::mask($result['message'] ?? null) ?: null,
                 'provider_status' => $result['provider_status'] ?? null,
                 'provider' => $result['provider'] ?? null,
             ];
         } catch (Throwable $e) {
             Log::error('Attraction voucher cancel exception', [
                 'code' => $code,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ]);
 
             return [
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
                 'provider_status' => null,
                 'provider' => null,
             ];
@@ -464,7 +483,7 @@ class OnlineAttractionOrderService
     }
 
     /**
-     * GET /order/details for a paid AttractionsSG order. Does not touch the database.
+     * GET /order/details for a paid online attraction order. Does not touch the database.
      *
      * @param  array<string, mixed>  $attraction
      * @return array{success: bool, message: ?string, data: ?array, vouchers: array<int, array<string, mixed>>}
@@ -497,19 +516,19 @@ class OnlineAttractionOrderService
 
             return [
                 'success' => ! empty($result['success']),
-                'message' => $result['message'] ?? null,
+                'message' => SupplierFacingCopy::mask($result['message'] ?? null) ?: null,
                 'data' => is_array($result['data'] ?? null) ? $result['data'] : null,
                 'vouchers' => is_array($result['vouchers'] ?? null) ? $result['vouchers'] : [],
             ];
         } catch (Throwable $e) {
             Log::error('Attraction order-details exception', [
                 'order_ref_id' => $orderRefId,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
             ]);
 
             return [
                 'success' => false,
-                'message' => $e->getMessage(),
+                'message' => SupplierFacingCopy::mask($e->getMessage()),
                 'data' => null,
                 'vouchers' => [],
             ];
@@ -538,12 +557,16 @@ class OnlineAttractionOrderService
             $first = $vouchers[0] ?? null;
             if (is_array($first)) {
                 $code = trim((string) ($first['code'] ?? $first['voucher_code'] ?? ''));
-                $download = trim((string) ($first['download_link'] ?? $first['voucher'] ?? ''));
+                $download = trim((string) ($first['download_link'] ?? $first['voucher'] ?? $first['voucher_url'] ?? $first['voucher_image'] ?? ''));
+                $image = trim((string) ($first['voucher'] ?? $first['voucher_url'] ?? $first['voucher_image'] ?? $first['download_link'] ?? ''));
                 if ($code !== '') {
                     $attraction['voucher_code'] = $code;
                 }
                 if ($download !== '') {
                     $attraction['voucher_download_link'] = $download;
+                }
+                if ($image !== '') {
+                    $attraction['voucher_image'] = $image;
                 }
             }
         }
@@ -633,7 +656,7 @@ class OnlineAttractionOrderService
             } catch (Throwable $e) {
                 Log::warning('Attraction supplier resolve by city failed; using stored supplier code', [
                     'supplier_code' => $supplierCode,
-                    'message' => $e->getMessage(),
+                    'message' => SupplierFacingCopy::mask($e->getMessage()),
                 ]);
             }
         }
@@ -663,14 +686,30 @@ class OnlineAttractionOrderService
             }
         }
 
-        $adults = max(0, (int) ($attraction['adultCount'] ?? 0));
-        $children = max(0, (int) ($attraction['childCount'] ?? 0));
+        $adults = max(0, (int) (
+            $attraction['adultCount']
+            ?? $attraction['adultsQty']
+            ?? $attraction['adults']
+            ?? 0
+        ));
+        $children = max(0, (int) (
+            $attraction['childCount']
+            ?? $attraction['childQty']
+            ?? $attraction['children']
+            ?? 0
+        ));
         $quantity = $adults + $children;
         if ($quantity < 1) {
             $quantity = 1;
         }
 
-        $visitDate = $this->normalizeVisitDate($attraction['bookingDate'] ?? '');
+        $visitDate = $this->normalizeVisitDate(
+            $attraction['bookingDate']
+            ?? $attraction['date']
+            ?? $attraction['dateTime']
+            ?? $attraction['booking_date']
+            ?? ''
+        );
         $ticket = $this->resolveProviderTicket($attraction, $skuId, $tourId);
         $orderSku = $ticket['sku_id'] !== '' ? $ticket['sku_id'] : $skuId;
 
@@ -777,7 +816,7 @@ class OnlineAttractionOrderService
             } catch (Throwable $e) {
                 Log::warning('Attraction provider ticket lookup failed', [
                     'sku_id' => $skuId,
-                    'message' => $e->getMessage(),
+                    'message' => SupplierFacingCopy::mask($e->getMessage()),
                 ]);
             }
         }
@@ -844,10 +883,24 @@ class OnlineAttractionOrderService
             $ticketSku = $ticketId;
         }
 
+        // Fallback only when live fetchTickets is unavailable. Prefer peeling stamped
+        // catalog prices; never use DMC sell / provider_total_amount (commercial totals).
+        $unit = $this->rawCatalogUnitFromAttractionPayload($attraction);
+        if ($unit <= 0) {
+            $unit = (float) (
+                $attraction['provider_unit_price']
+                ?? $attraction['adultCost']
+                ?? $attraction['ticket_details']['adult_cost']
+                ?? $attraction['cost_price']
+                ?? $attraction['cost']
+                ?? 0
+            );
+        }
+
         return [
             'sku_id' => $ticketSku,
             'ticket_id' => $ticketId,
-            'adult_price' => (float) ($attraction['ticket_details']['adult_price'] ?? 0),
+            'adult_price' => $unit,
         ];
     }
 
@@ -1032,57 +1085,304 @@ class OnlineAttractionOrderService
     }
 
     /**
-     * Provider net total (not DMC markup). /order/create validates this against catalog price.
+     * Provider catalog total for /order/create and credit checks.
+     * Supplier validates: total_amount === catalog_unit_price × item_quantity_1.
+     *
+     * Always prefer the live ticket unit from fetchTickets (raw catalog, no TravClicks
+     * admin/DMC markup). Pro "cost"/"provider_total_amount" are commercial fields after
+     * peel and caused "Total amount discrepancy" (e.g. sent 13.00 vs catalog 10.00).
      *
      * @param  array<string, mixed>  $attraction
      * @param  array{sku_id?: string, ticket_id?: string, adult_price?: float}  $ticket
      */
     private function providerTotalAmount(array $attraction, int $adults, int $children, int $quantity, array $ticket = []): string
     {
-        $raw = [];
-        if (is_array($attraction['onlineAttractionRaw'] ?? null)) {
-            $raw = $attraction['onlineAttractionRaw'];
-        } elseif (is_array($attraction['raw'] ?? null)) {
-            $raw = $attraction['raw'];
+        $qty = max(1, $quantity > 0 ? $quantity : ($adults + $children));
+
+        // 1) Live catalog unit from resolveProviderTicket → adapter fetchTickets (no markup).
+        $unit = (float) ($ticket['adult_price'] ?? 0);
+
+        // 2) Raw ticket price embedded in onlineAttractionRaw (before UI markup), if present.
+        if ($unit <= 0) {
+            $unit = $this->rawCatalogUnitFromAttractionPayload($attraction);
         }
 
-        $low = (float) ($raw['lowest_ticket_price'] ?? $attraction['lowest_ticket_price'] ?? 0);
-        $high = (float) ($raw['highest_ticket_price'] ?? $attraction['highest_ticket_price'] ?? $low);
-        $wantPremium = stripos((string) ($attraction['ticketName'] ?? $attraction['ticketId'] ?? ''), 'premium') !== false;
-        $unit = ($wantPremium && $high > 0) ? $high : $low;
-
-        $ticketUnit = (float) ($ticket['adult_price'] ?? 0);
-        if ($ticketUnit > 0) {
-            $unit = $ticketUnit;
+        // 3) Last resort: stored cost fields (may still drift if markup peel is incomplete).
+        if ($unit <= 0) {
+            $unit = (float) (
+                $attraction['provider_unit_price']
+                ?? $attraction['adultCost']
+                ?? $attraction['ticket_details']['adult_cost']
+                ?? $attraction['cost_price']
+                ?? $attraction['cost']
+                ?? 0
+            );
         }
 
         if ($unit <= 0) {
-            $unit = (float) ($attraction['ticket_details']['adult_price'] ?? $attraction['adultPrice'] ?? 0);
+            $raw = [];
+            if (is_array($attraction['onlineAttractionRaw'] ?? null)) {
+                $raw = $attraction['onlineAttractionRaw'];
+            } elseif (is_array($attraction['raw'] ?? null)) {
+                $raw = $attraction['raw'];
+            }
+            $low = (float) ($raw['lowest_ticket_price'] ?? $attraction['lowest_ticket_price'] ?? 0);
+            $high = (float) ($raw['highest_ticket_price'] ?? $attraction['highest_ticket_price'] ?? $low);
+            $wantPremium = stripos((string) ($attraction['ticketName'] ?? $attraction['ticketId'] ?? ''), 'premium') !== false;
+            $unit = ($wantPremium && $high > 0) ? $high : $low;
         }
 
-        $childUnit = (float) ($attraction['ticket_details']['child_price'] ?? $unit);
-        $total = ($adults * $unit) + ($children * $childUnit);
-        if ($total <= 0) {
-            $total = $unit * $quantity;
+        return number_format(max(0, $unit * $qty), 2, '.', '');
+    }
+
+    /**
+     * Best-effort raw catalog unit from the attraction JSON (undo markup when rules are stamped).
+     *
+     * @param  array<string, mixed>  $attraction
+     */
+    private function rawCatalogUnitFromAttractionPayload(array $attraction): float
+    {
+        $ticketSku = trim((string) (
+            $attraction['ticket_sku_id']
+            ?? $attraction['provider_ticket_id']
+            ?? $attraction['ticketId']
+            ?? $attraction['ticket_id']
+            ?? ''
+        ));
+        $sources = [];
+        foreach (['onlineAttractionRaw', 'onlineAddSnapshot'] as $key) {
+            if (is_array($attraction[$key] ?? null)) {
+                $sources[] = $attraction[$key];
+            }
+        }
+        if (is_array($attraction['onlineAddSnapshot']['onlineAttractionRaw'] ?? null)) {
+            $sources[] = $attraction['onlineAddSnapshot']['onlineAttractionRaw'];
         }
 
-        return number_format($total, 2, '.', '');
+        foreach ($sources as $source) {
+            $ticketLists = [];
+            foreach (['tickets', 'ticketDetails'] as $listKey) {
+                if (is_array($source[$listKey] ?? null)) {
+                    $ticketLists[] = $source[$listKey];
+                }
+            }
+            foreach ($ticketLists as $list) {
+                foreach ($list as $row) {
+                    if (! is_array($row)) {
+                        continue;
+                    }
+                    $rowSku = trim((string) (
+                        $row['sku_id'] ?? $row['ticketId'] ?? $row['ticket_id'] ?? $row['ticket_sku_id'] ?? ''
+                    ));
+                    if ($ticketSku !== '' && $rowSku !== '' && strcasecmp($rowSku, $ticketSku) !== 0) {
+                        continue;
+                    }
+                    $marked = 0.0;
+                    $price = $row['price'] ?? null;
+                    if (is_numeric($price)) {
+                        $marked = (float) $price;
+                    } elseif (is_array($price)) {
+                        $marked = (float) ($price['adult'] ?? $price['price'] ?? 0);
+                    } else {
+                        $marked = (float) ($row['adult_price'] ?? $row['adult'] ?? 0);
+                    }
+                    if ($marked <= 0) {
+                        continue;
+                    }
+                    // Prefer undoing stamped markup stack when present (admin + DMC).
+                    $raw = $this->peelAttractionMarkupToCatalog($marked, is_array($row['markup'] ?? null) ? $row['markup'] : null);
+                    if ($raw > 0) {
+                        return $raw;
+                    }
+
+                    return $marked;
+                }
+            }
+        }
+
+        return 0.0;
+    }
+
+    /**
+     * Reverse AttractionPriceMarkupApplier stack to recover supplier catalog unit.
+     *
+     * @param  array<string, mixed>|null  $markup
+     */
+    private function peelAttractionMarkupToCatalog(float $marked, ?array $markup): float
+    {
+        if ($marked <= 0 || $markup === null) {
+            return 0.0;
+        }
+
+        $value = $marked;
+        // Undo DMC rule first (applied last), then admin.
+        foreach (['dmc_rule', 'admin_rule'] as $ruleKey) {
+            $rule = is_array($markup[$ruleKey] ?? null) ? $markup[$ruleKey] : null;
+            if ($rule === null) {
+                continue;
+            }
+            $type = strtolower(trim((string) ($rule['type'] ?? $rule['markup_type'] ?? '')));
+            $amount = (float) ($rule['amount'] ?? $rule['value'] ?? $rule['markup_value'] ?? 0);
+            if ($amount <= 0) {
+                continue;
+            }
+            if ($type === 'percentage' || $type === 'percent') {
+                $value = $value / (1 + ($amount / 100));
+            } elseif ($type === 'flat' || $type === 'fixed') {
+                $value = $value - $amount;
+            }
+        }
+
+        return $value > 0 ? round($value, 2) : 0.0;
     }
 
     /**
      * @param  array<string, mixed>  $attraction
      */
+    /**
+     * Stable ticket fingerprint so two tickets of the same attraction (same catalog sku/date/pax)
+     * never share a pending supplier order_ref (that caused pay "Invalid parameter(s)" on the 2nd).
+     *
+     * @param  array<string, mixed>  $attraction
+     */
+    public static function ticketFingerprint(array $attraction): string
+    {
+        $ticketSku = trim((string) (
+            $attraction['ticket_sku_id']
+            ?? $attraction['item_sku_id']
+            ?? $attraction['provider_sku_id']
+            ?? $attraction['provider_ticket_id']
+            ?? $attraction['ticketId']
+            ?? $attraction['ticket_id']
+            ?? ''
+        ));
+        $ticketName = strtolower(trim((string) (
+            $attraction['ticketName']
+            ?? $attraction['ticket_name']
+            ?? ''
+        )));
+        $localId = trim((string) ($attraction['id'] ?? ''));
+
+        return implode('|', [$ticketSku, $ticketName, $localId]);
+    }
+
+    /**
+     * Strip a wrongly shared / stale supplier ref so createOrder opens a new vendor order.
+     *
+     * @param  array<string, mixed>  $attraction
+     * @return array<string, mixed>
+     */
+    public function clearAttractionOrderRef(array $attraction): array
+    {
+        unset(
+            $attraction['order_ref_no'],
+            $attraction['order_reference_id'],
+            $attraction['external_order_ref_id'],
+            $attraction['attraction_order_ref_id']
+        );
+
+        return $attraction;
+    }
+
+    /**
+     * True when another attraction order on this tour already owns this supplier ref
+     * (approved, or an earlier pending row — first ticket keeps the shared legacy ref).
+     */
+    public static function isSupplierRefOwnedBySibling(int $tourId, int $orderId, string $ref): bool
+    {
+        $ref = trim($ref);
+        if ($ref === '' || self::isPlaceholderRef($ref)) {
+            return false;
+        }
+
+        return \Illuminate\Support\Facades\DB::table('orders')
+            ->where('tour_id', $tourId)
+            ->where('id', '!=', $orderId)
+            ->whereNull('deleted_at')
+            ->where('order_ref_no', $ref)
+            ->where(function ($q) use ($orderId) {
+                $q->where('is_approve', 1)
+                    ->orWhere('id', '<', $orderId);
+            })
+            ->exists();
+    }
+
+    /**
+     * Drop current + legacy (pre-ticket) pending-ref cache entries.
+     *
+     * @param  array<string, mixed>  $attraction
+     */
+    public function forgetPendingRefCache(array $attraction, ?int $tourId): void
+    {
+        Cache::forget($this->pendingRefCacheKey($attraction, $tourId));
+        Cache::forget($this->legacyPendingRefCacheKey($attraction, $tourId));
+    }
+
+    /**
+     * @param  array<string, mixed>  $attraction
+     */
+    private function legacyPendingRefCacheKey(array $attraction, ?int $tourId): string
+    {
+        $sku = (string) ($attraction['sku_id'] ?? $attraction['AttractionId'] ?? $attraction['attractionId'] ?? '');
+        $date = (string) (
+            $attraction['bookingDate']
+            ?? $attraction['date']
+            ?? $attraction['dateTime']
+            ?? $attraction['booking_date']
+            ?? ''
+        );
+        $adults = (string) (
+            $attraction['adultCount']
+            ?? $attraction['adultsQty']
+            ?? $attraction['adults']
+            ?? 0
+        );
+        $children = (string) (
+            $attraction['childCount']
+            ?? $attraction['childQty']
+            ?? $attraction['children']
+            ?? 0
+        );
+
+        // Pre-fix key omitted ticket_sku — collisions reused one order_ref for two tickets.
+        return 'sg_attractions_pending_order_ref:' . md5(implode('|', [
+            (string) ($tourId ?? 0),
+            (string) ($attraction['api_environment'] ?? 'demo'),
+            $sku,
+            $date,
+            $adults,
+            $children,
+        ]));
+    }
+
     private function pendingRefCacheKey(array $attraction, ?int $tourId): string
     {
-        $sku = (string) ($attraction['sku_id'] ?? $attraction['AttractionId'] ?? '');
-        $date = (string) ($attraction['bookingDate'] ?? '');
-        $adults = (string) ($attraction['adultCount'] ?? 0);
-        $children = (string) ($attraction['childCount'] ?? 0);
+        $sku = (string) ($attraction['sku_id'] ?? $attraction['AttractionId'] ?? $attraction['attractionId'] ?? '');
+        $date = (string) (
+            $attraction['bookingDate']
+            ?? $attraction['date']
+            ?? $attraction['dateTime']
+            ?? $attraction['booking_date']
+            ?? ''
+        );
+        $adults = (string) (
+            $attraction['adultCount']
+            ?? $attraction['adultsQty']
+            ?? $attraction['adults']
+            ?? 0
+        );
+        $children = (string) (
+            $attraction['childCount']
+            ?? $attraction['childQty']
+            ?? $attraction['children']
+            ?? 0
+        );
 
         return 'sg_attractions_pending_order_ref:' . md5(implode('|', [
             (string) ($tourId ?? 0),
             (string) ($attraction['api_environment'] ?? 'demo'),
             $sku,
+            self::ticketFingerprint($attraction),
             $date,
             $adults,
             $children,

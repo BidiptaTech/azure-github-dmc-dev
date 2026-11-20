@@ -1,6 +1,6 @@
 /* === STP LITE: attraction.js ===
  * Attraction tickets — cascade → Transfer/Guide extras → Get Price → Add → list
- * Online: reuses partials/online-attraction-modal.blade.php (SG Attractions API)
+ * Online: reuses partials/online-attraction-modal.blade.php (TravClicks online attractions)
  * Payload: attraction_data
  * === */
 (function (window, document) {
@@ -19,62 +19,59 @@
     }
 
     /**
-     * Confirmed/Definite edit: cancel supplier voucher (credits refund) then soft-delete order.
+     * Confirmed/Definite edit: hotel-style Cancel with/without refund.
+     * Voucher code + cancel-voucher API are handled internally (no reason/code modal).
      * @returns {Promise<boolean>}
      */
     function cancelOnlineAttractionFromLiteEdit(row) {
-        var code = String(row.voucher_code || '').trim();
         var name = row.AttractionName || row.attraction_name || 'Online attraction';
         var bookingKey = row._booking_id || row.booking_id || row._order_id || row.orderId;
         if (!bookingKey) {
-            alert('Cannot cancel voucher: booking id is missing. Save the tour once, then try again.');
+            alert('Cannot cancel: booking id is missing. Save the tour once, then try again.');
             return Promise.resolve(false);
         }
 
-        function askReason() {
+        var refundsUrl = (cfg().routes && cfg().routes.refunds) || '/bookings/refunds';
+
+        function askWithWithoutRefund() {
             if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
                 return Swal.fire({
-                    title: 'Cancel Online Voucher?',
-                    html: '<p class="mb-2 text-start">Removing <strong>' + String(name).replace(/</g, '&lt;') +
-                        '</strong> will cancel the supplier voucher and refund credits.</p>' +
-                        '<div class="text-start mb-2"><label class="form-label fw-semibold mb-1">Voucher Code</label>' +
-                        '<input type="text" class="form-control" value="' + code.replace(/"/g, '&quot;') + '" readonly></div>' +
-                        '<div class="text-start"><label class="form-label fw-semibold mb-1">Cancel Reason <span class="text-danger">*</span></label>' +
-                        '<textarea id="liteCancelVoucherReason" class="form-control" rows="3" minlength="10" maxlength="1000" ' +
-                        'placeholder="Reason for cancelling this voucher..."></textarea></div>',
-                    icon: 'warning',
+                    title: '',
+                    html: '<div style="text-align:center">'
+                        + '<div style="width:56px;height:56px;margin:0 auto 1rem;border-radius:14px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#fff7ed,#fed7aa);color:#ea580c;font-size:1.75rem"><i class="ri-error-warning-line"></i></div>'
+                        + '<h2 style="font-size:1.25rem;font-weight:700;color:#1e293b;margin:0 0 .5rem">Partial cancellation &amp; Refund?</h2>'
+                        + '<p style="font-size:.9375rem;color:#64748b;margin:0">Cancel <strong>' + String(name).replace(/</g, '&lt;')
+                        + '</strong>? Supplier voucher is cancelled automatically and credits return to SG Attractions balance.</p></div>',
+                    showDenyButton: true,
                     showCancelButton: true,
-                    confirmButtonColor: '#dc2626',
-                    cancelButtonColor: '#64748b',
-                    confirmButtonText: 'Confirm Cancel Voucher',
+                    confirmButtonText: 'Cancel with refund',
+                    denyButtonText: 'Cancel without refund',
                     cancelButtonText: 'Keep Booking',
-                    width: '440px',
-                    preConfirm: function () {
-                        var reason = String((document.getElementById('liteCancelVoucherReason') || {}).value || '').trim();
-                        if (reason.length < 10) {
-                            Swal.showValidationMessage('Please enter a cancel reason (at least 10 characters).');
-                            return false;
-                        }
-                        return reason;
-                    }
+                    confirmButtonColor: '#dc2626',
+                    denyButtonColor: '#64748b',
+                    cancelButtonColor: '#94a3b8',
+                    width: '460px'
                 }).then(function (result) {
-                    return result.isConfirmed ? result.value : null;
+                    if (result.isConfirmed) return { withoutRefund: false };
+                    if (result.isDenied) return { withoutRefund: true };
+                    return null;
                 });
             }
-            var reason = window.prompt('Cancel voucher ' + code + '. Enter cancel reason (min 10 chars):', '');
-            if (reason == null) return Promise.resolve(null);
-            if (String(reason).trim().length < 10) {
-                alert('Cancel reason must be at least 10 characters.');
-                return Promise.resolve(null);
-            }
-            return Promise.resolve(String(reason).trim());
+            if (!window.confirm('Cancel "' + name + '" with refund?')) return Promise.resolve(null);
+            return Promise.resolve({ withoutRefund: false });
         }
 
-        return askReason().then(function (reason) {
-            if (!reason) return false;
+        return askWithWithoutRefund().then(function (choice) {
+            if (!choice) return false;
+            var withoutRefund = !!choice.withoutRefund;
             var urlTemplate = (cfg().routes && cfg().routes.cancelOrder) || '/api/orders/__ID__/cancel';
             var url = String(urlTemplate).replace('__ID__', encodeURIComponent(bookingKey));
             var tourId = (window.STP_LITE_EDIT && window.STP_LITE_EDIT.tourId) || cfg().tourId || 0;
+            var payload = {
+                tour_id: tourId || undefined,
+                cancel_reason: withoutRefund ? 'Cancelled without refund' : 'Rejected for refund processing'
+            };
+            if (withoutRefund) payload.without_refund = 1;
             return fetch(url, {
                 method: 'POST',
                 headers: {
@@ -82,17 +79,14 @@
                     'Accept': 'application/json',
                     'X-CSRF-TOKEN': csrfToken()
                 },
-                body: JSON.stringify({
-                    tour_id: tourId || undefined,
-                    cancel_reason: reason
-                })
+                body: JSON.stringify(payload)
             }).then(function (resp) {
                 return resp.json().then(function (data) {
                     return { ok: resp.ok, data: data || {} };
                 });
             }).then(function (result) {
                 if (!result.ok || !result.data.success) {
-                    var errMsg = (result.data && result.data.message) || 'Failed to cancel online attraction voucher.';
+                    var errMsg = (result.data && result.data.message) || 'Failed to cancel online attraction.';
                     if (typeof Swal !== 'undefined' && Swal.fire) {
                         Swal.fire({ icon: 'error', title: 'Cancel failed', text: errMsg });
                     } else {
@@ -102,22 +96,28 @@
                 }
                 var providerMsg = (result.data.data && result.data.data.voucher_cancel && result.data.data.voucher_cancel.message)
                     || result.data.message
-                    || 'Voucher cancelled.';
+                    || (withoutRefund ? 'Cancelled without refund.' : 'Cancelled — sent to Refunds.');
+                var title = withoutRefund ? 'Cancelled without refund' : 'Sent to Refunds';
+                var afterOk = function () {
+                    if (!withoutRefund) {
+                        window.location.href = refundsUrl;
+                        return false; // page navigating; skip local drop if redirecting
+                    }
+                    return true;
+                };
                 if (typeof Swal !== 'undefined' && Swal.fire) {
                     return Swal.fire({
                         icon: 'success',
-                        title: 'Voucher cancelled',
-                        html: '<div class="text-start"><div class="mb-2">' + String(providerMsg).replace(/</g, '&lt;') + '</div>' +
-                            (code ? ('<div class="small text-muted">Code: <strong>' + code.replace(/</g, '&lt;') + '</strong></div>') : '') +
-                            '</div>',
+                        title: title,
+                        html: '<div class="text-start"><div class="mb-2">' + String(providerMsg).replace(/</g, '&lt;') + '</div></div>',
                         confirmButtonText: 'OK'
-                    }).then(function () { return true; });
+                    }).then(function () { return afterOk(); });
                 }
                 alert(providerMsg);
-                return true;
+                return afterOk();
             }).catch(function (err) {
-                console.error('Lite attraction voucher cancel failed', err);
-                alert((err && err.message) || 'Failed to cancel voucher.');
+                console.error('Lite attraction cancel failed', err);
+                alert((err && err.message) || 'Failed to cancel attraction.');
                 return false;
             });
         });
@@ -141,8 +141,8 @@
 
     function attractionSourceToggleHtml(stay) {
         // TEMP: hide Offline / Online Attraction Source toggle — always use Offline (DMC inventory).
-        return '';
-        /*
+        // return '';
+        
         if (!onlineApiEnabled()) return '';
         var T = S();
         var key = String(stay.planIndex || '0') + '_' +
@@ -174,7 +174,7 @@
             '    </div>' +
             '  </div>'
         );
-        */
+        
     }
 
     function shellHtml(stay) {
@@ -663,15 +663,21 @@
         var adults = Math.max(0, parseInt(payload.adults, 10) || 0);
         var children = Math.max(0, parseInt(payload.children, 10) || 0);
         var infants = Math.max(0, parseInt(payload.infants, 10) || 0);
-        var adultP = Number(payload.adultPrice) || 0;
-        var childP = Number(payload.childPrice) || 0;
-        var seniorP = Number(payload.seniorPrice) || 0;
+        // Modal/API units already include supplier + DMC other — keep as commercial final.
+        var adultFinal = Number(payload.adultPrice) || 0;
+        var childFinal = Number(payload.childPrice) || 0;
+        var seniorFinal = Number(payload.seniorPrice) || 0;
         var total = Number(payload.totalPrice);
         if (!Number.isFinite(total) || total <= 0) {
-            total = (adultP * adults) + (childP * children);
+            total = (adultFinal * adults) + (childFinal * children);
         }
         var cur = payload.currency || stay.currency || root.getAttribute('data-currency') || 'SGD';
         var supplement = T.autoSupplement ? T.autoSupplement(adults) : false;
+        var mk = null;
+        if (total > 0 && window.StpLiteDmcMarkup && typeof window.StpLiteDmcMarkup.splitFromFinal === 'function') {
+            mk = window.StpLiteDmcMarkup.splitFromFinal(total, 'other');
+            if (mk && typeof mk === 'object') mk.currency = cur;
+        }
 
         return {
             AttractionId: String(payload.attractionId || payload.skuId || ''),
@@ -679,16 +685,16 @@
             ticketId: String(payload.ticketId || ''),
             ticketName: payload.ticketName || 'Ticket',
             ticket_details: {
-                // Online: cost === sell
-                adult_price: adultP,
-                adult_cost: adultP,
-                adult_sell: adultP,
-                child_price: childP,
-                child_cost: childP,
-                child_sell: childP,
-                senior_adult_price: seniorP,
-                senior_price: seniorP,
-                senior_cost: seniorP
+                // Online: cost === sell (Estimated / API marked units). Zero unused pax types.
+                adult_price: adults > 0 ? adultFinal : 0,
+                adult_cost: adults > 0 ? adultFinal : 0,
+                adult_sell: adults > 0 ? adultFinal : 0,
+                child_price: children > 0 ? childFinal : 0,
+                child_cost: children > 0 ? childFinal : 0,
+                child_sell: children > 0 ? childFinal : 0,
+                senior_adult_price: seniorFinal,
+                senior_price: seniorFinal,
+                senior_cost: seniorFinal
             },
             adultCount: adults,
             childCount: children,
@@ -697,10 +703,10 @@
             adults: adults,
             children: children,
             infants: infants,
-            adultCost: adultP,
-            adultSell: adultP,
-            childCost: childP,
-            childSell: childP,
+            adultCost: adults > 0 ? adultFinal : 0,
+            adultSell: adults > 0 ? adultFinal : 0,
+            childCost: children > 0 ? childFinal : 0,
+            childSell: children > 0 ? childFinal : 0,
             visitTime: payload.timeSlot || '',
             bookingDate: payload.visitDate || stay.start || '',
             totalPrice: total,
@@ -709,6 +715,9 @@
             cost: total,
             sell: total,
             cost_price: total,
+            base_grand_total: mk ? Number(mk.base_price) || total : total,
+            dmc_profile_markup: mk,
+            online_price_breakdown: mk,
             supplement: !!supplement,
             is_supplement: !!supplement,
             transfer_options: null,
@@ -1091,19 +1100,12 @@
                 };
 
                 if (needsVoucherCancel) {
-                    var cancelThenDrop = function () {
-                        cancelOnlineAttractionFromLiteEdit(row).then(function (ok) {
-                            if (!ok) return;
-                            dropAttractionRow();
-                        });
-                    };
-                    if (tourStatus === 'definite'
-                        && window.StpLiteTransportShared
-                        && window.StpLiteTransportShared.requestServiceRemoval) {
-                        window.StpLiteTransportShared.requestServiceRemoval(row, cancelThenDrop, 'Attraction');
-                    } else {
-                        cancelThenDrop();
-                    }
+                    // Hotel-style with/without refund lives inside cancelOnlineAttractionFromLiteEdit
+                    // (do not also open requestServiceRemoval — that would double the dialog).
+                    cancelOnlineAttractionFromLiteEdit(row).then(function (ok) {
+                        if (!ok) return;
+                        dropAttractionRow();
+                    });
                     return;
                 }
 
@@ -1133,6 +1135,7 @@
                 var xfer = r.transfer_options || {};
                 var guide = r.guide_options || {};
                 var cur = r.currency || root.getAttribute('data-currency') || 'SGD';
+                var isOnline = !!(r.isOnlineAttraction || r.attractionSourceType === 'online');
                 var infants = Math.max(0, parseInt(r.infantCount != null ? r.infantCount : r.infants, 10) || 0);
                 if (infants <= 0 && T.tourGuests) {
                     infants = Math.max(0, parseInt((T.tourGuests() || {}).infants, 10) || 0);
@@ -1162,6 +1165,32 @@
                         cur + ' ' + Number(guide.total_price || 0).toFixed(2)
                     );
                 }
+                // Online ticket units already include DMC other (API stack). Peel for Items
+                // only when the unit equals the marked final — never peel an already-base sell.
+                var peelUnit = function (amt) {
+                    amt = Number(amt) || 0;
+                    if (!isOnline || amt <= 0) return amt;
+                    if (!(window.StpLiteDmcMarkup && typeof window.StpLiteDmcMarkup.splitFromFinal === 'function')) {
+                        return amt;
+                    }
+                    var stamped = r.dmc_profile_markup || r.online_price_breakdown || null;
+                    var finalHint = Number((stamped && stamped.price) || r.totalPrice || r.grand_total || 0) || 0;
+                    var baseHint = Number((stamped && stamped.base_price) || r.base_grand_total || 0) || 0;
+                    if (baseHint > 0 && Math.abs(amt - baseHint) < 0.05) return amt;
+                    if (finalHint > 0 && Math.abs(amt - finalHint) < 0.05) {
+                        return window.StpLiteDmcMarkup.splitFromFinal(amt, 'other').base_price;
+                    }
+                    // Per-unit: peel only if applying markup lands on a plausible final unit.
+                    var applied = window.StpLiteDmcMarkup.apply(amt, 'other');
+                    if (finalHint > 0 && Math.abs(applied.price - finalHint) < 0.05) return amt;
+                    return window.StpLiteDmcMarkup.splitFromFinal(amt, 'other').base_price;
+                };
+                var adultN = Number(r.adultCount || r.adults || 0) || 0;
+                var childN = Number(r.childCount || r.children || 0) || 0;
+                var seniorN = Number(r.seniorCount || 0) || 0;
+                var adultUnit = adultN > 0 ? peelUnit(td.adult_price || r.adultSell || 0) : 0;
+                var childUnit = childN > 0 ? peelUnit(td.child_price || r.childSell || 0) : 0;
+                var seniorUnit = seniorN > 0 ? peelUnit(td.senior_adult_price || 0) : 0;
                 var detailHtml = typeof T.paxPriceLinesHtml === 'function'
                     ? T.paxPriceLinesHtml({
                         currency: cur,
@@ -1171,29 +1200,36 @@
                         children: r.childCount || r.children || 0,
                         seniors: r.seniorCount || 0,
                         infants: infants,
-                        adultPrice: Number(td.adult_price || 0),
-                        childPrice: Number(td.child_price || 0),
-                        seniorPrice: Number(td.senior_adult_price || 0),
+                        adultPrice: adultUnit,
+                        childPrice: childUnit,
+                        seniorPrice: seniorUnit,
                         infantPrice: 0,
                         extraHtml: (transferHtml || '') + guideHtml
                     })
                     : '';
-                // Detail lines are pre-markup (ticket/transfer/guide). Build the same
-                // base total as Get Price, then apply DMC markup so the modal's
-                // splitFromFinal matches the panel (before + markup + final).
-                var ticketBase = (typeof T.ticketOrMealBaseFromRow === 'function')
-                    ? T.ticketOrMealBaseFromRow(r)
-                    : ((Number(r.adultCount || r.adults || 0) * Number(td.adult_price || 0))
-                        + (Number(r.childCount || r.children || 0) * Number(td.child_price || 0))
-                        + (Number(r.seniorCount || 0) * Number(td.senior_adult_price || 0)));
+                var ticketBase = (Number(r.adultCount || r.adults || 0) * adultUnit)
+                    + (Number(r.childCount || r.children || 0) * childUnit)
+                    + (Number(r.seniorCount || 0) * seniorUnit);
                 var xferCost = (xfer.transfer_required || xfer.vehicle_id || xfer.cost)
                     ? (Number(xfer.cost) || 0) : 0;
                 var guideCost = (guide.guide_required || guide.guide_id || guide.total_price)
                     ? (Number(guide.total_price) || 0) : 0;
                 var baseBeforeMarkup = ticketBase + xferCost + guideCost;
-                var modalTotal = (window.StpLiteDmcMarkup && typeof window.StpLiteDmcMarkup.apply === 'function')
-                    ? window.StpLiteDmcMarkup.apply(baseBeforeMarkup, 'other').price
-                    : baseBeforeMarkup;
+                var modalTotal;
+                if (isOnline) {
+                    // Estimated / row total already includes DMC — pass final; modal peels once for display.
+                    modalTotal = Number(r.totalPrice != null ? r.totalPrice : (r.grand_total || 0)) || baseBeforeMarkup;
+                    if (window.StpLiteDmcMarkup && typeof window.StpLiteDmcMarkup.apply === 'function'
+                        && Math.abs(modalTotal - baseBeforeMarkup) < 0.05) {
+                        // Row stored base-only; derive final once for Summary.
+                        modalTotal = window.StpLiteDmcMarkup.apply(baseBeforeMarkup, 'other').price;
+                    }
+                } else {
+                    // Offline: detail lines are pre-markup; apply DMC so splitFromFinal matches panel.
+                    modalTotal = (window.StpLiteDmcMarkup && typeof window.StpLiteDmcMarkup.apply === 'function')
+                        ? window.StpLiteDmcMarkup.apply(baseBeforeMarkup, 'other').price
+                        : baseBeforeMarkup;
+                }
                 T.showPriceBreakdownModal(
                     r.AttractionName || 'Attraction',
                     cur,

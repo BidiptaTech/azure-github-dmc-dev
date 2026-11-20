@@ -78,6 +78,7 @@ class OnlineHotelCancellationService
                 'supplier_code' => (string) ($details['supplier_code'] ?? ''),
             ]);
 
+            // Wallet credit is TravClicks-only via TravclicksOnlineWalletRefundService::tryAutoRefund.
             return is_array($details['cancellation'] ?? null) ? $details['cancellation'] : [
                 'status' => 'confirmed',
                 'already_cancelled' => true,
@@ -151,9 +152,13 @@ class OnlineHotelCancellationService
             ]);
 
             $message = 'Failed to cancel the online hotel reservation with the supplier.';
-            $this->cancellationStatus->markFailed($order, $e->getMessage() ?: $message, [
-                'supplier_code' => $supplierCode,
-            ]);
+            $this->cancellationStatus->markFailed(
+                $order,
+                \App\Support\SupplierFacingCopy::mask($e->getMessage() ?: $message),
+                [
+                    'supplier_code' => $supplierCode,
+                ]
+            );
 
             if ($softFailOnError) {
                 return [
@@ -161,7 +166,7 @@ class OnlineHotelCancellationService
                     'soft_failed' => true,
                     'message' => $message,
                     'supplier_code' => $supplierCode,
-                    'error' => $e->getMessage(),
+                    'error' => \App\Support\SupplierFacingCopy::mask($e->getMessage()),
                 ];
             }
 
@@ -234,6 +239,7 @@ class OnlineHotelCancellationService
             ]);
         }
 
+        // Wallet credit is TravClicks-only via TravclicksOnlineWalletRefundService::tryAutoRefund.
         Log::info('Online hotel cancelled with supplier', [
             'order_id' => $order->id,
             'booking_id' => $order->booking_id,

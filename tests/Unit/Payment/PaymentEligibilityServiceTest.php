@@ -147,6 +147,7 @@ class PaymentEligibilityServiceTest extends TestCase
             'currency' => 'SGD',
         ]);
         $classification->shouldReceive('resolveTourCurrency')->andReturn('SGD');
+        $classification->shouldReceive('unpaidOnlineAmount')->andReturn(0.0);
 
         $settings = Mockery::mock(PaymentSettingsService::class);
         $settings->shouldReceive('get')->andReturn([

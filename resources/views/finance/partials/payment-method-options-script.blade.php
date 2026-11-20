@@ -1,4 +1,4 @@
-{{--
+﻿{{--
   Extends existing Add Payment modals with server-driven Wallet / Stripe options.
   Laravel-only payment service (no Python / no Razorpay).
   Use url() so APP_URL subpath (e.g. /backadm-dmc) is included — root /payment-service returns HTML.
@@ -156,6 +156,11 @@
     }
 
     function maxOrderAmount(tourId) {
+        // Online services due: the server payable (only unpaid services) is the exact amount.
+        const elig = window.__paymentEligibility?.[tourId];
+        if (elig?.amount_readonly && Number(elig.payable_amount) > 0) {
+            return Number(elig.payable_amount);
+        }
         const hidden = document.getElementById(`payment_amount${tourId}`);
         const fromData = parseFloat(hidden?.dataset?.maxOrder || '');
         if (Number.isFinite(fromData) && fromData > 0) {
@@ -220,7 +225,9 @@
         }
 
         const { fx, walletCur, orderCur, converted } = fxCurrencies(eligibility);
-        const maxOrder = maxOrderAmount(tourId);
+        const maxOrder = eligibility?.amount_readonly && Number(eligibility.payable_amount) > 0
+            ? Number(eligibility.payable_amount)
+            : maxOrderAmount(tourId);
         const orderSeed = maxOrder > 0
             ? maxOrder
             : (parseFloat(orderHidden.value) || Number(eligibility?.payable_amount || 0) || 0);
@@ -502,6 +509,26 @@
             }
         });
 
+        // Online services due (e.g. a service added after the tour was paid): Wallet / Online only.
+        const onlineDue = eligibility.payment_stage === 'supplier_initial';
+        Array.from(selectEl.options).forEach((opt) => {
+            if (!opt.value || opt.value === 'wallet' || opt.value === 'stripe') {
+                return;
+            }
+            const m = eligibility.methods.find((x) => x.code === opt.value || x.legacy_value === opt.value);
+            if (onlineDue && m && !m.available) {
+                opt.disabled = true;
+                opt.dataset.tcStageDisabled = '1';
+                opt.dataset.reason = 'Online services are paid by Wallet or Online Payment.';
+                if (selectEl.value === opt.value) {
+                    selectEl.value = '';
+                }
+            } else if (opt.dataset.tcStageDisabled === '1') {
+                opt.disabled = false;
+                delete opt.dataset.tcStageDisabled;
+            }
+        });
+
         let msg = `Stage: ${eligibility.payment_stage}. Recipient: ${eligibility.payment_recipient}.`;
         const walletMethod = eligibility.methods.find((m) => m.code === 'wallet');
         if (walletMethod && !walletMethod.available && walletMethod.reason) {
@@ -621,6 +648,329 @@
         }
     }
 
+    /* ------------------------------------------------------------------
+     | Pay Now UI: full-screen blocking loader + result window.
+     | While visible nothing behind it can be clicked (and Esc is ignored),
+     | so a payment / supplier booking can't be interrupted or double-submitted.
+     * ------------------------------------------------------------------ */
+    const PayUi = (function () {
+        let escBlocker = null;
+
+        function esc(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+            });
+        }
+        function money(cur, n) {
+            return esc(String(cur || '').toUpperCase()) + ' '
+                + (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+        function ensureStyles() {
+            if (document.getElementById('tcPayUiStyles')) return;
+            const st = document.createElement('style');
+            st.id = 'tcPayUiStyles';
+            st.textContent = `
+                #tcPayOverlay{position:fixed;inset:0;z-index:20000;background:rgba(15,23,42,.55);backdrop-filter:blur(2px);
+                    display:flex;align-items:center;justify-content:center;padding:16px;}
+                #tcPayOverlay[hidden]{display:none!important;}
+                #tcPayOverlay .tc-pay-card{background:#fff;border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,.25);
+                    width:100%;max-width:440px;padding:26px 24px;text-align:center;font-family:inherit;}
+                #tcPayOverlay .tc-pay-spinner{width:48px;height:48px;border-radius:50%;border:4px solid #d1fae5;
+                    border-top-color:#0f766e;margin:4px auto 16px;animation:tcPaySpin .9s linear infinite;}
+                @keyframes tcPaySpin{to{transform:rotate(360deg);}}
+                #tcPayOverlay .tc-pay-title{font-size:1.05rem;font-weight:700;color:#0f172a;margin-bottom:6px;}
+                #tcPayOverlay .tc-pay-sub{font-size:.85rem;color:#64748b;line-height:1.45;}
+                #tcPayOverlay .tc-pay-steps{list-style:none;padding:0;margin:14px 0 0;text-align:left;font-size:.82rem;color:#475569;}
+                #tcPayOverlay .tc-pay-steps li{padding:3px 0;}
+                #tcPayOverlay .tc-pay-steps li.is-done{color:#0f766e;}
+                #tcPayOverlay .tc-pay-steps li.is-active{color:#0f172a;font-weight:600;}
+                #tcPayOverlay .tc-pay-icon{width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+                    margin:0 auto 12px;font-size:28px;color:#fff;}
+                #tcPayOverlay .tc-pay-icon.ok{background:#16a34a;} #tcPayOverlay .tc-pay-icon.warn{background:#f59e0b;}
+                #tcPayOverlay .tc-pay-icon.bad{background:#dc2626;} #tcPayOverlay .tc-pay-icon.info{background:#0f766e;}
+                #tcPayOverlay .tc-pay-list{list-style:none;padding:0;margin:14px 0;text-align:left;border:1px solid #e2e8f0;border-radius:10px;
+                    max-height:220px;overflow:auto;}
+                #tcPayOverlay .tc-pay-list li{display:flex;gap:10px;align-items:flex-start;padding:9px 12px;border-bottom:1px solid #f1f5f9;font-size:.84rem;}
+                #tcPayOverlay .tc-pay-list li:last-child{border-bottom:0;}
+                #tcPayOverlay .tc-pay-badge{flex:0 0 auto;font-size:.68rem;font-weight:700;border-radius:999px;padding:2px 8px;margin-top:1px;}
+                #tcPayOverlay .tc-pay-badge.ok{background:#dcfce7;color:#166534;} #tcPayOverlay .tc-pay-badge.bad{background:#fee2e2;color:#991b1b;}
+                #tcPayOverlay .tc-pay-name{font-weight:600;color:#0f172a;}
+                #tcPayOverlay .tc-pay-why{display:block;color:#64748b;font-size:.76rem;margin-top:2px;}
+                #tcPayOverlay .tc-pay-totals{text-align:left;font-size:.85rem;background:#f8fafc;border-radius:10px;padding:10px 12px;margin-bottom:16px;}
+                #tcPayOverlay .tc-pay-totals div{display:flex;justify-content:space-between;padding:2px 0;}
+                #tcPayOverlay .tc-pay-totals .is-charged{font-weight:700;color:#0f172a;}
+                #tcPayOverlay .tc-pay-totals .is-released{color:#b45309;}
+                #tcPayOverlay .tc-pay-ok{min-width:140px;}
+                #tcPayOverlay .tc-pay-card.is-wide{max-width:520px;}
+                #tcPayOverlay .tc-pay-badge.up{background:#fee2e2;color:#991b1b;} #tcPayOverlay .tc-pay-badge.down{background:#dcfce7;color:#166534;}
+                #tcPayOverlay .tc-pay-badge.same{background:#f1f5f9;color:#475569;} #tcPayOverlay .tc-pay-badge.warn{background:#fef3c7;color:#92400e;}
+                #tcPayOverlay .tc-pay-prices{display:block;margin-top:4px;font-size:.8rem;color:#334155;}
+                #tcPayOverlay .tc-pay-prices s{color:#94a3b8;margin-right:4px;}
+                #tcPayOverlay .tc-pay-prices b.up{color:#b91c1c;} #tcPayOverlay .tc-pay-prices b.down{color:#15803d;}
+                #tcPayOverlay .tc-pay-totals .is-diff-up{color:#b91c1c;} #tcPayOverlay .tc-pay-totals .is-diff-down{color:#15803d;}
+                #tcPayOverlay .tc-pay-totals .is-wallet{color:#64748b;font-size:.78rem;}
+                #tcPayOverlay .tc-pay-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+                body.tc-pay-busy{overflow:hidden;}
+            `;
+            document.head.appendChild(st);
+        }
+        function overlay() {
+            ensureStyles();
+            let el = document.getElementById('tcPayOverlay');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'tcPayOverlay';
+                el.setAttribute('role', 'dialog');
+                el.setAttribute('aria-modal', 'true');
+                el.setAttribute('aria-live', 'polite');
+                el.hidden = true;
+                el.innerHTML = '<div class="tc-pay-card"></div>';
+                document.body.appendChild(el);
+            }
+            return el;
+        }
+        function lock() {
+            document.body.classList.add('tc-pay-busy');
+            if (!escBlocker) {
+                escBlocker = function (e) {
+                    if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); }
+                };
+                document.addEventListener('keydown', escBlocker, true);
+            }
+        }
+        function unlock() {
+            document.body.classList.remove('tc-pay-busy');
+            if (escBlocker) {
+                document.removeEventListener('keydown', escBlocker, true);
+                escBlocker = null;
+            }
+        }
+
+        const STEPS = ['Processing payment', 'Holding the amount', 'Booking services with suppliers', 'Finalising'];
+
+        /** Blocking loader; step = index into STEPS (shows progress list). */
+        function busy(title, sub, step) {
+            const el = overlay();
+            const steps = typeof step === 'number'
+                ? '<ul class="tc-pay-steps">' + STEPS.map(function (s, i) {
+                    const cls = i < step ? 'is-done' : (i === step ? 'is-active' : '');
+                    const mark = i < step ? '✓' : (i === step ? '•' : '○');
+                    return '<li class="' + cls + '">' + mark + ' ' + esc(s) + '</li>';
+                }).join('') + '</ul>'
+                : '';
+            el.querySelector('.tc-pay-card').classList.remove('is-wide');
+            el.querySelector('.tc-pay-card').innerHTML =
+                '<div class="tc-pay-spinner" aria-hidden="true"></div>'
+                + '<div class="tc-pay-title">' + esc(title || 'Processing…') + '</div>'
+                + '<div class="tc-pay-sub">' + esc(sub || 'Please wait and do not close or refresh this page.') + '</div>'
+                + steps;
+            el.hidden = false;
+            lock();
+        }
+
+        function hide() {
+            const el = document.getElementById('tcPayOverlay');
+            if (el) el.hidden = true;
+            unlock();
+        }
+
+        function finish(kind, title, bodyHtml, onClose, closingText) {
+            const el = overlay();
+            const icon = { ok: '✓', warn: '!', bad: '✕', info: 'i' }[kind] || 'i';
+            el.querySelector('.tc-pay-card').classList.remove('is-wide');
+            el.querySelector('.tc-pay-card').innerHTML =
+                '<div class="tc-pay-icon ' + kind + '" aria-hidden="true">' + icon + '</div>'
+                + '<div class="tc-pay-title">' + esc(title) + '</div>'
+                + bodyHtml
+                + '<button type="button" class="btn btn-primary tc-pay-ok">OK</button>';
+            el.hidden = false;
+            lock();
+            const btn = el.querySelector('.tc-pay-ok');
+            btn.focus();
+            btn.addEventListener('click', function () {
+                if (closingText) {
+                    btn.disabled = true;
+                    btn.textContent = closingText;
+                }
+                if (typeof onClose === 'function') onClose();
+            });
+        }
+
+        /** Result window after Pay Now (per-service outcome + charged / released). */
+        function result(done, onClose) {
+            const ab = (done && done.auto_booking) || {};
+            const rows = Array.isArray(ab.results) ? ab.results : (ab.results ? Object.values(ab.results) : []);
+            const at = (done && done.attempt) || {};
+            const cur = at.currency_code || '';
+            const held = Number(at.requested_amount || at.authorized_amount || 0);
+            const charged = Number(at.captured_amount || 0);
+            const released = Number(at.released_amount || 0);
+
+            if (!rows.length) {
+                finish('info', 'Payment received',
+                    '<div class="tc-pay-sub">' + esc((done && done.message)
+                        || 'Your online services are being booked with the suppliers. Refresh in a moment to see the result.') + '</div><br>',
+                    onClose, 'Refreshing…');
+                return;
+            }
+
+            const booked = rows.filter(function (r) { return r.status === 'booked'; }).length;
+            const total = rows.length;
+            const kind = booked === total ? 'ok' : (booked === 0 ? 'bad' : 'warn');
+            const title = booked === total
+                ? (total === 1 ? 'Service booked' : 'All ' + total + ' services booked')
+                : (booked === 0 ? 'No service could be booked' : booked + ' of ' + total + ' services booked');
+
+            const list = '<ul class="tc-pay-list">' + rows.map(function (r) {
+                const ok = r.status === 'booked';
+                return '<li><span class="tc-pay-badge ' + (ok ? 'ok' : 'bad') + '">' + (ok ? 'Booked' : 'Not booked') + '</span>'
+                    + '<span><span class="tc-pay-name">' + esc(r.name || r.type || 'Service') + '</span>'
+                    + (ok ? '<span class="tc-pay-why">Confirmed with supplier · approved'
+                              + (function () {
+                                    var ref = r.supplier_reference || r.supplier_booking_reference || r.reference_id || '';
+                                    return ref ? '<br>Reference ID: <b>' + esc(ref) + '</b>' : '';
+                                })()
+                              + (r.display_due_date ? '<br>Due: <b>' + esc(r.display_due_date) + '</b>' : '')
+                              + (r.actual_due_date
+                                  ? '<br><span style="color:#dc2626;font-weight:600;">(free cancellation until '
+                                      + esc(String(r.actual_due_date).slice(0, 10)) + ')</span>'
+                                  : '')
+                              + '</span>'
+                          : '<span class="tc-pay-why">' + esc(r.message || 'Could not be booked.') + '</span>')
+                    + '</span></li>';
+            }).join('') + '</ul>';
+
+            const totals = '<div class="tc-pay-totals">'
+                + (held > 0 ? '<div><span>Amount held</span><span>' + money(cur, held) + '</span></div>' : '')
+                + '<div class="is-charged"><span>Charged</span><span>' + money(cur, charged) + '</span></div>'
+                + (released > 0.009 ? '<div class="is-released"><span>Released back</span><span>' + money(cur, released) + '</span></div>' : '')
+                + '</div>';
+
+            finish(kind, title, list + totals, onClose, 'Refreshing…');
+        }
+
+        /** Failure window; OK just closes it (nothing changed, user can retry). */
+        function fail(message) {
+            finish('bad', 'Payment could not be completed',
+                '<div class="tc-pay-sub">' + esc(message || 'Payment failed.') + '</div><br>',
+                hide, '');
+        }
+
+        /** Two-button dialog → Promise<boolean> (true = confirmed). */
+        function confirm(kind, title, bodyHtml, okText, cancelText) {
+            return new Promise(function (resolve) {
+                const el = overlay();
+                const card = el.querySelector('.tc-pay-card');
+                const icon = { ok: '✓', warn: '!', bad: '✕', info: 'i' }[kind] || 'i';
+                card.classList.add('is-wide');
+                card.innerHTML =
+                    '<div class="tc-pay-icon ' + kind + '" aria-hidden="true">' + icon + '</div>'
+                    + '<div class="tc-pay-title">' + esc(title) + '</div>'
+                    + bodyHtml
+                    + '<div class="tc-pay-actions">'
+                    + '<button type="button" class="btn btn-outline-secondary tc-pay-cancel">' + esc(cancelText || 'Cancel') + '</button>'
+                    + '<button type="button" class="btn btn-primary tc-pay-ok">' + esc(okText || 'Continue') + '</button>'
+                    + '</div>';
+                el.hidden = false;
+                lock();
+                const ok = card.querySelector('.tc-pay-ok');
+                ok.focus();
+                ok.addEventListener('click', function () { resolve(true); });
+                card.querySelector('.tc-pay-cancel').addEventListener('click', function () { resolve(false); });
+            });
+        }
+
+        /**
+         * Live price check before paying: quoted vs current price per online service.
+         * @param check  price-check response
+         * @param walletEstimate  optional {currency, amount} the wallet will be charged
+         */
+        function priceReview(check, walletEstimate) {
+            const items = Array.isArray(check.items) ? check.items : [];
+            const cur = check.currency || '';
+            const changed = !!check.changed;
+            const list = '<ul class="tc-pay-list">' + items.map(function (it) {
+                const c = it.currency || cur;
+                const diff = Number(it.difference || 0);
+                const badge = {
+                    increased: ['up', 'Price increased'],
+                    decreased: ['down', 'Price reduced'],
+                    unverified: ['warn', 'Not verified'],
+                }[it.status] || ['same', 'No change'];
+                let prices;
+                if (it.status === 'increased' || it.status === 'decreased') {
+                    prices = '<span class="tc-pay-prices">Quoted <s>' + money(c, it.old_price) + '</s> → Now <b class="'
+                        + (diff > 0 ? 'up' : 'down') + '">' + money(c, it.new_price) + '</b> ('
+                        + (diff > 0 ? '+' : '−') + money(c, Math.abs(diff)) + ')</span>';
+                } else {
+                    prices = '<span class="tc-pay-prices">Price: <b>' + money(c, it.new_price) + '</b></span>';
+                }
+                return '<li><span class="tc-pay-badge ' + badge[0] + '">' + badge[1] + '</span>'
+                    + '<span><span class="tc-pay-name">' + esc(it.name || it.type || 'Service') + '</span>'
+                    + prices
+                    + (it.message ? '<span class="tc-pay-why">' + esc(it.message) + '</span>' : '')
+                    + '</span></li>';
+            }).join('') + '</ul>';
+
+            const diff = Number(check.difference || 0);
+            const totals = '<div class="tc-pay-totals">'
+                + (changed ? '<div><span>Previously quoted</span><span><s>' + money(cur, check.old_total) + '</s></span></div>' : '')
+                + (changed ? '<div class="' + (diff > 0 ? 'is-diff-up' : 'is-diff-down') + '"><span>Difference</span><span>'
+                    + (diff > 0 ? '+' : '−') + money(cur, Math.abs(diff)) + '</span></div>' : '')
+                + '<div class="is-charged"><span>' + (changed ? 'New amount to pay' : 'Amount to pay') + '</span><span>'
+                    + money(cur, check.new_total) + '</span></div>'
+                + (walletEstimate && walletEstimate.amount > 0
+                    ? '<div class="is-wallet"><span>≈ from your wallet (incl. conversion)</span><span>'
+                        + money(walletEstimate.currency, walletEstimate.amount) + '</span></div>'
+                    : '')
+                + '</div>';
+
+            const sub = changed
+                ? '<div class="tc-pay-sub" style="margin-bottom:4px">The supplier\'s live price changed since this service was quoted. '
+                    + 'You will be charged the <b>current</b> price shown below. Nothing has been charged yet.</div>'
+                : '<div class="tc-pay-sub" style="margin-bottom:4px">Some services could not be verified with the supplier right now. '
+                    + 'You can still pay — anything that cannot be booked is released back automatically.</div>';
+
+            return confirm(changed ? 'warn' : 'info',
+                changed ? 'Price updated by supplier' : 'Please confirm',
+                sub + list + totals,
+                changed ? 'Accept new price & pay' : 'Continue to pay',
+                'Cancel');
+        }
+
+        return { busy: busy, hide: hide, result: result, finish: finish, fail: fail, confirm: confirm, priceReview: priceReview };
+    })();
+    window.TcPayUi = PayUi;
+
+    function afterAcceptancePayNavigate(done) {
+        const redirect = (done && (done.redirect_url || done.redirectUrl)) || window.__acceptancePayRedirectUrl || '';
+        if (redirect) {
+            window.location.href = redirect;
+            return;
+        }
+        if (/new-enquir|enquiry/i.test(window.location.pathname || '')) {
+            window.location.href = @json(url('/bookings/definite'));
+            return;
+        }
+        window.location.reload();
+    }
+
+    /** Show the outcome of a Pay Now (hold → auto-booking). Optional onClose for edit-tour pay flow. */
+    function showPayOutcome(done, fallbackMessage, onClose) {
+        const close = typeof onClose === 'function'
+            ? onClose
+            : function () { afterAcceptancePayNavigate(done); };
+        if (done && done.hold) {
+            PayUi.result(done, close);
+            return;
+        }
+        PayUi.finish('ok', 'Payment successful',
+            '<div class="tc-pay-sub">' + String((done && done.message) || fallbackMessage || 'Payment processed successfully.')
+                .replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; })
+                + '</div><br>',
+            close, 'Refreshing…');
+    }
+
     async function initiatePayment(tourId, paymentMethod, amount, extra = {}) {
         const body = {
             payment_method: paymentMethod,
@@ -643,6 +993,63 @@
             throw new Error(json.message || 'Payment initiation failed');
         }
         return json.data;
+    }
+
+    async function postJson(path, body) {
+        const res = await fetch(`${PAYMENT_SERVICE_BASE}/tours/${path}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrf,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify(body || {}),
+        });
+        const json = await parseJsonResponse(res);
+        if (!res.ok || !json.success) {
+            throw new Error(json.message || 'Request failed');
+        }
+        return json.data;
+    }
+
+    /**
+     * Before paying for online services: recheck each unpaid service's live supplier price.
+     * Unchanged → continue silently. Changed → show quoted vs current, and the payer must accept
+     * (orders are re-priced, so exactly the new total is charged).
+     * Resolves { token, eligibility|null } or null when the payer cancels.
+     */
+    async function confirmLivePrices(tourId, eligibility) {
+        PayUi.busy('Checking latest prices…',
+            'Confirming the live price and availability of each online service with the supplier. Nothing is charged yet.');
+        const check = await postJson(`${tourId}/price-check`, {});
+        if (!check.requires_acceptance && !check.unverified) {
+            return { token: check.token, eligibility: null };
+        }
+
+        let walletEstimate = null;
+        const { fx, walletCur, converted } = fxCurrencies(eligibility || {});
+        if (converted && Number(fx.exchange_rate || 0) > 0) {
+            walletEstimate = { currency: walletCur, amount: roundMoney(orderToDmc(check.new_total, fx), walletCur) };
+        }
+
+        const ok = await PayUi.priceReview(check, walletEstimate);
+        if (!ok) {
+            PayUi.hide();
+            return null;
+        }
+        if (!check.requires_acceptance) {
+            return { token: check.token, eligibility: null };
+        }
+
+        PayUi.busy('Updating to the current price…', 'Please wait and do not close or refresh this page.');
+        const accepted = await postJson(`${tourId}/price-accept`, { price_check_token: check.token });
+        const fresh = accepted.eligibility || null;
+        if (fresh) {
+            window.__paymentEligibility = window.__paymentEligibility || {};
+            window.__paymentEligibility[tourId] = fresh;
+        }
+        return { token: check.token, eligibility: fresh };
     }
 
     async function confirmStripeCard(stripePayload) {
@@ -685,30 +1092,54 @@
 
         try {
             if (btn) btn.disabled = true;
-            const result = await initiatePayment(tourId, method, amountEl ? amountEl.value : null);
 
+            // Online services: confirm today's supplier price first (only unpaid services are charged).
+            let elig = window.__paymentEligibility?.[tourId] || null;
+            if (!elig) {
+                elig = (await fetchEligibility(tourId))?.data || null;
+            }
+            const extra = {};
+            let amount = amountEl ? amountEl.value : null;
+            if (elig?.payment_stage === 'supplier_initial') {
+                const priced = await confirmLivePrices(tourId, elig);
+                if (!priced) {
+                    return; // payer cancelled — nothing charged
+                }
+                extra.price_check_token = priced.token;
+                if (priced.eligibility) {
+                    amount = priced.eligibility.payable_amount;
+                    if (amountEl) amountEl.value = amount;
+                    applyMethodsToSelect(typeEl, priced.eligibility);
+                }
+            }
+
+            if (method === 'wallet') {
+                PayUi.busy('Processing payment…', 'Holding the amount and booking each online service with its supplier. Please do not close or refresh this page.', 2);
+            } else {
+                PayUi.busy('Processing payment…', 'Please wait and do not close or refresh this page.', 0);
+            }
+            const result = await initiatePayment(tourId, method, amount, extra);
+
+            let done = result;
             if (method === 'stripe' && result.stripe?.client_secret) {
+                PayUi.busy('Confirming your card…', 'Complete any card verification shown by your bank.', 1);
                 await confirmStripeCard(result.stripe);
                 const uuid = result.attempt?.attempt_uuid;
-                let done = null;
                 if (uuid && result.requires_supplier_booking) {
-                    // Hold flow: server verifies the authorisation and places the amount on hold.
+                    // Hold flow: server verifies the authorisation, holds it and books the services.
+                    PayUi.busy('Booking your services…', 'Booking each online service with its supplier, one by one.', 2);
                     done = await finalizeStripe(tourId, uuid);
                 }
-                alert(done?.message || 'Card payment successful.');
-                window.location.reload();
             } else if (result.requires_supplier_booking && result.attempt?.attempt_uuid) {
-                const done = await finalizeWallet(tourId, result.attempt.attempt_uuid);
-                alert(done?.message || 'Payment completed.');
-                window.location.reload();
-            } else {
-                alert(result.message || (method === 'wallet'
-                    ? 'Wallet deducted and payment auto-verified.'
-                    : 'Payment processed successfully.'));
-                window.location.reload();
+                PayUi.busy('Booking your services…', 'Booking each online service with its supplier, one by one.', 2);
+                done = await finalizeWallet(tourId, result.attempt.attempt_uuid);
             }
+
+            showPayOutcome(done, method === 'wallet'
+                ? 'Wallet deducted and payment auto-verified.'
+                : 'Payment processed successfully.');
         } catch (e) {
-            alert(e.message || 'Payment failed');
+            PayUi.fail(e.message || 'Payment failed');
         } finally {
             if (btn) btn.disabled = false;
         }
@@ -780,6 +1211,7 @@
                     </div>
                     <div class="modal-body">
                         <p id="acceptancePayHint" class="small mb-3"></p>
+                        <div id="acceptancePayServices" class="mb-3 d-none"></div>
                         <label class="form-label" for="acceptancePayAmount">Amount due</label>
                         <input id="acceptancePayAmount" class="form-control mb-3" readonly>
                         <label class="form-label" for="acceptancePayMethod">Payment method</label>
@@ -810,13 +1242,87 @@
         return modal;
     }
 
-    async function openAcceptancePay(tourId) {
+    function escPayHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function renderAcceptancePayServices(services) {
+        const host = document.getElementById('acceptancePayServices');
+        if (!host) {
+            return;
+        }
+        const list = Array.isArray(services) ? services : [];
+        if (!list.length) {
+            host.classList.add('d-none');
+            host.innerHTML = '';
+            return;
+        }
+        host.classList.remove('d-none');
+        const rows = list.map(function (svc) {
+            const type = String(svc.type || 'service').toLowerCase();
+            const typeLabel = type === 'attraction' ? 'Attraction' : (type === 'hotel' ? 'Hotel' : 'Service');
+            const icon = type === 'attraction' ? 'ri-camera-line'
+                : (type === 'hotel' ? 'ri-hotel-line' : 'ri-checkbox-blank-circle-line');
+            const name = escPayHtml(svc.name || 'Online service');
+            const ticket = escPayHtml(svc.ticket_name || '');
+            const visit = escPayHtml(svc.visit_date || '');
+            // order_ref stays internal (orders / update-order) — not shown in Pay Now UI.
+            const amount = Number(svc.amount || 0);
+            const currency = escPayHtml(svc.currency || 'SGD');
+            const meta = [ticket, visit].filter(Boolean).join(' · ');
+            return ''
+                + '<div class="acceptance-pay-svc-row">'
+                +   '<div class="acceptance-pay-svc-ico"><i class="' + icon + '" aria-hidden="true"></i></div>'
+                +   '<div class="acceptance-pay-svc-main">'
+                +     '<div class="acceptance-pay-svc-top">'
+                +       '<span class="acceptance-pay-svc-type">' + escPayHtml(typeLabel) + '</span>'
+                +       '<span class="acceptance-pay-svc-name">' + name + '</span>'
+                +     '</div>'
+                +     (meta ? '<div class="acceptance-pay-svc-meta">' + meta + '</div>' : '')
+                +   '</div>'
+                +   (amount > 0
+                    ? '<div class="acceptance-pay-svc-due">' + currency + '&nbsp;' + amount.toFixed(2) + '</div>'
+                    : '')
+                + '</div>';
+        }).join('');
+        host.innerHTML = '<div class="acceptance-pay-svc-list">' + rows + '</div>';
+    }
+
+    /**
+     * @param opts  optional { title, hint, onDone(done), onCancel() } — used by the edit-tour page
+     *              (pay for newly added online services right after saving). Default: reload/redirect.
+     */
+    async function openAcceptancePay(tourId, opts = {}) {
         try {
             const payload = await fetchEligibility(tourId);
             const eligibility = payload.data || {};
+            window.__acceptancePayRedirectUrl = eligibility.redirect_url || '';
             const modalEl = ensureAcceptanceModal();
-            document.getElementById('acceptancePayTitle').textContent = eligibility.acceptance?.button_label || 'Payment';
-            document.getElementById('acceptancePayHint').textContent = eligibility.acceptance?.hint || '';
+            const onDone = typeof opts.onDone === 'function' ? opts.onDone : null;
+            let paid = false;
+            if (typeof opts.onCancel === 'function' && window.bootstrap?.Modal) {
+                modalEl.addEventListener('hidden.bs.modal', function () {
+                    if (!paid) opts.onCancel();
+                }, { once: true });
+            }
+            // Older cached pages may lack the services host — inject above Amount due.
+            if (!document.getElementById('acceptancePayServices')) {
+                const amountLabel = document.querySelector('label[for="acceptancePayAmount"]');
+                const servicesHost = document.createElement('div');
+                servicesHost.id = 'acceptancePayServices';
+                servicesHost.className = 'mb-3 d-none';
+                if (amountLabel && amountLabel.parentNode) {
+                    amountLabel.parentNode.insertBefore(servicesHost, amountLabel);
+                }
+            }
+            document.getElementById('acceptancePayTitle').textContent = opts.title || eligibility.acceptance?.button_label || 'Payment';
+            document.getElementById('acceptancePayHint').textContent = opts.hint || eligibility.acceptance?.hint || '';
+            renderAcceptancePayServices(eligibility.online_services || []);
             const amountEl = document.getElementById('acceptancePayAmount');
             const fx = eligibility.fx || {};
             const payable = Number(eligibility.payable_amount || 0);
@@ -845,6 +1351,13 @@
                 opt.dataset.reason = method.reason || '';
                 select.appendChild(opt);
             });
+            // Prefer Wallet for online attraction / hotel Pay Now (same as hotel flow).
+            if (walletMethod && walletMethod.available) {
+                const walletOpt = Array.from(select.options).find((o) => o.value === 'wallet' && !o.disabled);
+                if (walletOpt) {
+                    select.value = 'wallet';
+                }
+            }
             const txnEl = document.getElementById('acceptancePayTransactionId');
             if (txnEl) txnEl.value = '';
             const remarksEl = document.getElementById('acceptancePayRemarks');
@@ -863,7 +1376,10 @@
                 && orderCur && orderCur !== walletCurrency)
                 ? ` Rate: 1 SGD = ${sgdEffective.toFixed(2)} ${walletCurrency}.`
                 : '';
-            help.textContent = `${walletLine}${rateLine}`;
+            const creditNote = (eligibility.online_services || []).some((s) => String(s.type || '') === 'attraction')
+                ? ' Supplier attraction credit is deducted in SGD via update-order after payment.'
+                : '';
+            help.textContent = `${walletLine}${rateLine}${creditNote}`;
             const submit = document.getElementById('acceptancePaySubmit');
             submit.disabled = payable <= 0;
                 submit.onclick = async () => {
@@ -880,17 +1396,68 @@
                 try {
                     const userRemarks = (document.getElementById('acceptancePayRemarks')?.value || '').trim();
                     const transactionId = (document.getElementById('acceptancePayTransactionId')?.value || '').trim();
-                    const result = await initiatePayment(tourId, method, eligibility.payable_amount, {
+
+                    // Confirm today's supplier price first; a change must be accepted before paying.
+                    const priced = await confirmLivePrices(tourId, eligibility);
+                    if (!priced) {
+                        return; // payer cancelled — nothing charged
+                    }
+                    let payAmount = eligibility.payable_amount;
+                    if (priced.eligibility) {
+                        payAmount = priced.eligibility.payable_amount;
+                        const pfx = priced.eligibility.fx || {};
+                        const showW = pfx.wallet_currency && pfx.wallet_currency !== priced.eligibility.currency
+                            && Number(pfx.wallet_payable_amount) > 0;
+                        amountEl.value = showW
+                            ? `${Number(pfx.wallet_payable_amount).toFixed(2)} ${pfx.wallet_currency}`
+                            : `${Number(payAmount).toFixed(2)} ${priced.eligibility.currency || ''}`.trim();
+                        const newWallet = (priced.eligibility.methods || []).find((m) => m.code === method);
+                        if (newWallet && !newWallet.available) {
+                            throw new Error((newWallet.reason || 'This payment method is not available for the new amount.')
+                                + ' The price has been updated — choose another method or top up and pay again.');
+                        }
+                    }
+
+                    if (method === 'wallet') {
+                        PayUi.busy('Processing payment…', 'Holding the amount and booking each online service with its supplier. Please do not close or refresh this page.', 2);
+                    } else {
+                        PayUi.busy('Processing payment…', 'Please wait and do not close or refresh this page.', 0);
+                    }
+                    const result = await initiatePayment(tourId, method, payAmount, {
                         user_remarks: userRemarks,
                         transaction_id: transactionId || undefined,
+                        price_check_token: priced.token,
                     });
+                    let done = result;
                     if (method === 'stripe' && result.stripe?.client_secret) {
+                        PayUi.busy('Confirming your card…', 'Complete any card verification shown by your bank.', 1);
                         await confirmStripeCard(result.stripe);
                         if (result.attempt?.attempt_uuid && result.requires_supplier_booking) {
-                            await finalizeStripe(tourId, result.attempt.attempt_uuid);
+                            PayUi.busy('Booking your services…', 'Booking each online service with its supplier, one by one.', 2);
+                            done = await finalizeStripe(tourId, result.attempt.attempt_uuid);
                         }
                     } else if (result.requires_supplier_booking && result.attempt?.attempt_uuid) {
-                        await finalizeWallet(tourId, result.attempt.attempt_uuid);
+                        PayUi.busy('Booking your services…', 'Booking each online service with its supplier, one by one.', 2);
+                        done = await finalizeWallet(tourId, result.attempt.attempt_uuid);
+                    }
+
+                    // Held payment → online services were booked automatically with the suppliers
+                    // (no Approve window). Show the per-service outcome; OK refreshes.
+                    paid = true;
+                    if (done && done.hold) {
+                        if (window.bootstrap?.Modal) {
+                            window.bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+                        }
+                        showPayOutcome(done, null, onDone ? function () { onDone(done); } : null);
+                        return;
+                    }
+                    PayUi.hide();
+                    if (onDone) {
+                        if (window.bootstrap?.Modal) {
+                            window.bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+                        }
+                        onDone(done);
+                        return;
                     }
 
                     // Close pay modal, then open the same online-hotel approve flow used on confirmed.
@@ -906,9 +1473,9 @@
                         return;
                     }
 
-                    window.location.reload();
+                    afterAcceptancePayNavigate(done);
                 } catch (e) {
-                    alert(e.message || 'Payment failed');
+                    PayUi.fail(e.message || 'Payment failed');
                 } finally {
                     submit.disabled = false;
                 }
@@ -921,7 +1488,26 @@
             }
         } catch (e) {
             alert(e.message || 'Unable to open payment options');
+            if (typeof opts.onCancel === 'function') opts.onCancel();
         }
+    }
+
+    /**
+     * Pay whatever online services are still unpaid on this tour (e.g. just added in edit).
+     * Resolves 'none' (nothing due), 'paid' (payment + booking finished, result window closed)
+     * or 'cancelled' (window closed without paying).
+     */
+    async function payOnlineDue(tourId, opts = {}) {
+        const elig = (await fetchEligibility(tourId))?.data || {};
+        if (elig.payment_stage !== 'supplier_initial' || !(Number(elig.payable_amount) > 0)) {
+            return 'none';
+        }
+        return new Promise(function (resolve) {
+            openAcceptancePay(tourId, Object.assign({}, opts, {
+                onDone: function () { resolve('paid'); },
+                onCancel: function () { resolve('cancelled'); },
+            }));
+        });
     }
 
     // DMC-first amount field: validate typed DMC, clamp to max, sync hidden order amount.
@@ -995,6 +1581,7 @@
         initiatePayment,
         confirmStripeCard,
         openAcceptancePay,
+        payOnlineDue,
         syncOrderFromDmcPay,
         seedDmcPayFromOrder,
     };
@@ -1025,17 +1612,93 @@
         padding: 1.15rem 1.25rem 0.5rem;
     }
     #acceptancePayModal #acceptancePayHint {
-        margin-bottom: 1rem;
-        padding: 0.65rem 0.75rem;
-        border-radius: 0.65rem;
+        margin-bottom: 0.75rem;
+        padding: 0.5rem 0.65rem;
+        border-radius: 0.5rem;
         background: #f0fdfa;
         border: 1px solid #99f6e4;
         color: #134e4a;
-        font-size: 0.82rem;
-        line-height: 1.4;
+        font-size: 0.78rem;
+        line-height: 1.35;
     }
     #acceptancePayModal #acceptancePayHint:empty {
         display: none;
+    }
+    #acceptancePayModal #acceptancePayServices {
+        margin-bottom: 0.75rem !important;
+    }
+    #acceptancePayModal .acceptance-pay-svc-list {
+        border: 1px solid #e2e8f0;
+        border-radius: 0.65rem;
+        overflow: auto;
+        max-height: 11.5rem;
+        background: #f8fafc;
+    }
+    #acceptancePayModal .acceptance-pay-svc-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+        padding: 0.45rem 0.65rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    #acceptancePayModal .acceptance-pay-svc-row:last-child {
+        border-bottom: 0;
+    }
+    #acceptancePayModal .acceptance-pay-svc-ico {
+        width: 1.35rem;
+        height: 1.35rem;
+        margin-top: 0.1rem;
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #0f766e;
+        font-size: 0.95rem;
+    }
+    #acceptancePayModal .acceptance-pay-svc-main {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+    #acceptancePayModal .acceptance-pay-svc-top {
+        display: flex;
+        align-items: baseline;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+        line-height: 1.25;
+    }
+    #acceptancePayModal .acceptance-pay-svc-type {
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        color: #64748b;
+    }
+    #acceptancePayModal .acceptance-pay-svc-name {
+        font-size: 0.82rem;
+        font-weight: 650;
+        color: #0f172a;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+    }
+    #acceptancePayModal .acceptance-pay-svc-meta {
+        margin-top: 0.1rem;
+        font-size: 0.7rem;
+        color: #64748b;
+        line-height: 1.25;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    #acceptancePayModal .acceptance-pay-svc-due {
+        flex-shrink: 0;
+        margin-left: 0.25rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #0f766e;
+        white-space: nowrap;
+        line-height: 1.25;
     }
     #acceptancePayModal .form-label {
         font-size: 0.78rem;

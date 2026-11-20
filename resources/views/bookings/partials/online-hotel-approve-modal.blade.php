@@ -71,6 +71,19 @@
         return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
     }
 
+    /** Never show underlying API vendor brands to DMC — TravClicks is the public provider. */
+    function maskOnlineVendorBrands(text) {
+        let out = String(text == null ? '' : text);
+        const brands = [
+            /MG\s*Bed\s*Bank/gi, /MGBedbank/gi, /mg_bedbank/gi, /mgbedbank/gi, /MG\s*Booking/gi,
+            /Hotel\s*Beds/gi, /Hotelbeds/gi, /hotelbeds/gi,
+            /Tinivia/gi, /Tiniva/gi, /tinivia/gi, /tiniva/gi,
+            /SG\s*Attractions/gi, /Attractions\s*SG/gi, /AttractionsSG/gi, /sg_attractions/gi,
+        ];
+        brands.forEach(function (re) { out = out.replace(re, 'TravClicks'); });
+        return out.replace(/(TravClicks)(?:\s+TravClicks)+/gi, 'TravClicks');
+    }
+
     function closeIndividualHotelModal(modalId) {
         try {
             const modalElement = document.getElementById(modalId);
@@ -759,6 +772,18 @@
 
             const cancellationHtml = buildOnlineCancellationHtmlForConfirm(recheck.data, approveCtx);
 
+            // Online hotel already paid and the price is not higher than quoted:
+            // book straight away — no "Confirm online hotel booking?" dialog.
+            // (If the price went up, the dialog below still shows so it can be reviewed.)
+            if (recheck.data.auto_confirm) {
+                if (approveButton) {
+                    approveButton.innerHTML = '<i class="ri-loader-4-line me-2"></i>Booking with supplier...';
+                    approveButton.disabled = true;
+                }
+                finalizeOnlineHotelApproval(tourId, hotelOrderIndex, bookingIndex, recheck.recheck_token, referenceFile, approveButton, originalText);
+                return;
+            }
+
             if (typeof Swal === 'undefined') {
                 const comparisonLine = markupApplied
                     ? `Customer price now: ${money(customerPrice)}`
@@ -817,7 +842,7 @@
         })
         .catch(error => {
             console.error('Online hotel recheck failed:', error);
-            alert('Online availability check failed: ' + error.message);
+            alert('Online availability check failed: ' + maskOnlineVendorBrands(error && error.message ? error.message : error));
             if (approveButton) {
                 approveButton.innerHTML = originalText;
                 approveButton.disabled = false;
@@ -927,11 +952,11 @@
             }
 
             if (returnPromise && typeof Swal !== 'undefined') {
-                Swal.showValidationMessage(error.message || 'Booking failed');
+                Swal.showValidationMessage(maskOnlineVendorBrands(error.message || 'Booking failed'));
                 return false;
             }
 
-            alert('Online booking failed: ' + (error && error.message ? error.message : error));
+            alert('Online booking failed: ' + maskOnlineVendorBrands(error && error.message ? error.message : error));
             if (returnPromise) {
                 return false;
             }

@@ -356,9 +356,31 @@ class EnquiryFormPro extends Controller
             $country = $fromFallback[0] ?? '';
         }
 
-        $currency = trim((string) ($payload['currency'] ?? ''));
-        if ($currency === '' && $country !== '') {
+        // Online hotel/attraction quotes often use SGD even when city is Bali/IDR — prefer payload currency.
+        $currency = strtoupper(trim((string) ($payload['currency'] ?? '')));
+        if ($currency === '' && is_array($payload['price_payload'] ?? null)) {
+            $currency = strtoupper(trim((string) ($payload['price_payload']['currency'] ?? '')));
+        }
+        if ($currency === '' && is_array($payload['dmc_profile_markup'] ?? null)) {
+            $currency = strtoupper(trim((string) ($payload['dmc_profile_markup']['currency'] ?? '')));
+        }
+        if ($currency === '' && is_array($payload['online_price_breakdown'] ?? null)) {
+            $currency = strtoupper(trim((string) ($payload['online_price_breakdown']['currency'] ?? '')));
+        }
+        if ($currency === '' && is_array($payload['onlineHotelBooking'] ?? null)) {
+            $currency = strtoupper(trim((string) ($payload['onlineHotelBooking']['currency'] ?? '')));
+        }
+        $isOnlineService = ! empty($payload['isOnlineHotel'])
+            || ($payload['hotelSourceType'] ?? '') === 'online'
+            || strtolower((string) ($payload['priceMode'] ?? '')) === 'online'
+            || ! empty($payload['isOnlineAttraction'])
+            || ($payload['attractionSourceType'] ?? '') === 'online'
+            || strtolower((string) ($payload['mode'] ?? '')) === 'online';
+        if ($currency === '' && $country !== '' && ! $isOnlineService) {
             $currency = strtoupper(trim((string) (Country::where('name', $country)->value('currency') ?? '')));
+        }
+        if ($currency === '' && $isOnlineService) {
+            $currency = 'SGD';
         }
 
         return [
@@ -478,6 +500,7 @@ class EnquiryFormPro extends Controller
     private function createOnlineAttractionExternalOrders(array $attractions, int $tourId): array
     {
         $refs = [];
+        $claimedRefs = [];
         $service = app(OnlineAttractionOrderService::class);
 
         foreach ($attractions as $index => $attraction) {
@@ -486,22 +509,47 @@ class EnquiryFormPro extends Controller
                 continue;
             }
 
+            $fingerprint = OnlineAttractionOrderService::ticketFingerprint($attraction);
             $existing = OnlineAttractionOrderService::extractSavedRef((object) [
                 'order_ref_no' => $attraction['order_ref_no'] ?? null,
             ], $attraction);
+
+            // Same catalog attraction can have 2+ tickets — never reuse another row's supplier ref.
+            $forceNew = false;
+            if ($existing !== null && isset($claimedRefs[$existing]) && $claimedRefs[$existing] !== $fingerprint) {
+                \Illuminate\Support\Facades\Log::warning('Attraction create-order: clearing shared supplier ref for distinct ticket', [
+                    'tour_id' => $tourId,
+                    'order_ref_id' => $existing,
+                    'previous_ticket' => $claimedRefs[$existing],
+                    'ticket' => $fingerprint,
+                ]);
+                $forceNew = true;
+                $existing = null;
+            }
+
             if ($existing !== null) {
                 $refs[$index] = $existing;
+                $claimedRefs[$existing] = $fingerprint;
                 continue;
             }
 
-            $result = $service->createOrder($attraction, $tourId);
+            $result = $service->createOrder($attraction, $tourId, false, $forceNew);
             $ref = $result['order_ref_id'] ?? null;
             $ref = (is_string($ref) && $ref !== '' && ! OnlineAttractionOrderService::isPlaceholderRef($ref))
                 ? $ref
                 : null;
 
+            if ($ref !== null && isset($claimedRefs[$ref]) && $claimedRefs[$ref] !== $fingerprint) {
+                $result = $service->createOrder($attraction, $tourId, false, true);
+                $ref = $result['order_ref_id'] ?? null;
+                $ref = (is_string($ref) && $ref !== '' && ! OnlineAttractionOrderService::isPlaceholderRef($ref))
+                    ? $ref
+                    : null;
+            }
+
             if ($ref !== null) {
                 $refs[$index] = $ref;
+                $claimedRefs[$ref] = $fingerprint;
                 continue;
             }
 
@@ -4578,9 +4626,12 @@ class EnquiryFormPro extends Controller
                 }
                 $uniqueKey = md5(json_encode([
                     'id' => $tourItem['id'] ?? '',
-                    'attraction_id' => $tourItem['attraction_id'] ?? '',
-                    'AttractionName' => $tourItem['AttractionName'] ?? '',
-                    'bookingDate' => $tourItem['bookingDate'] ?? '',
+                    'attraction_id' => $tourItem['attraction_id'] ?? $tourItem['attractionId'] ?? '',
+                    'AttractionName' => $tourItem['AttractionName'] ?? $tourItem['attractionName'] ?? '',
+                    'bookingDate' => $tourItem['bookingDate'] ?? $tourItem['date'] ?? '',
+                    // Two tickets of same attraction must not collapse into one order row
+                    'ticket_sku_id' => $tourItem['ticket_sku_id'] ?? $tourItem['ticketId'] ?? '',
+                    'ticketName' => $tourItem['ticketName'] ?? '',
                 ]));
                 if (in_array($uniqueKey, $seenTours, true)) {
                     continue;
@@ -5301,39 +5352,19 @@ class EnquiryFormPro extends Controller
         }
 
         $deleted = 0;
-        $cancelService = app(\App\Services\AttractionSuppliers\OnlineAttractionCancellationService::class);
         foreach ($orphans as $orphan) {
-            try {
-                $cancelResult = $cancelService->cancelIfApplicable(
-                    $orphan,
-                    'Removed from Pro enquiry edit form',
-                    true
-                );
-                if (is_array($cancelResult) && ! empty($cancelResult['soft_failed'])) {
-                    \Log::warning('Pro edit: online attraction voucher cancel soft-failed during orphan soft-delete', [
+            // Defer supplier cancel + wallet to TravClicks auto-refund.
+            if (strtolower(trim((string) ($orphan->order_type ?? ''))) === 'online') {
+                try {
+                    app(\App\Services\Payment\SupplierCancellationStatusService::class)->markPending(
+                        $orphan,
+                        'Queued for TravClicks auto-refund: supplier cancel + wallet credit pending.'
+                    );
+                } catch (\Throwable $e) {
+                    \Log::warning('Pro edit: could not mark supplier cancellation pending', [
                         'tour_id' => $tour->tour_id,
                         'order_id' => $orphan->id,
-                        'booking_id' => $orphan->booking_id,
-                        'message' => $cancelResult['message'] ?? null,
-                    ]);
-                }
-            } catch (\Throwable $e) {
-                \Log::error('Pro edit: online attraction voucher cancel unexpected error during orphan soft-delete', [
-                    'tour_id' => $tour->tour_id,
-                    'order_id' => $orphan->id,
-                    'booking_id' => $orphan->booking_id,
-                    'error' => $e->getMessage(),
-                ]);
-
-                try {
-                    app(\App\Services\Payment\SupplierCancellationStatusService::class)->markFailed(
-                        $orphan,
-                        $e->getMessage() ?: 'Unexpected supplier cancellation error.'
-                    );
-                } catch (\Throwable $statusError) {
-                    \Log::warning('Could not persist supplier cancellation failed status', [
-                        'order_id' => $orphan->id,
-                        'error' => $statusError->getMessage(),
+                        'error' => $e->getMessage(),
                     ]);
                 }
             }

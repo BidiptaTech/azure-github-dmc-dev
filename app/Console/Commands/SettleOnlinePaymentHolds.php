@@ -58,6 +58,19 @@ class SettleOnlinePaymentHolds extends Command
                 continue;
             }
 
+            // Catch-up: auto-booking never ran for this hold (queue down / crash) → run it now.
+            if (! $force && config('payment.online_hold.auto_book', true)) {
+                foreach ($attempts as $a) {
+                    $meta = json_decode((string) $a->metadata, true) ?: [];
+                    if (empty($meta['auto_booking']['finished_at'])) {
+                        $uuid = (string) DB::table('payment_attempts')->where('id', $a->id)->value('attempt_uuid');
+                        $r = app(\App\Services\Payment\OnlineServiceAutoBookingService::class)
+                            ->run((int) $tourId, $uuid, isset($meta['paid_by_user_id']) ? (int) $meta['paid_by_user_id'] : null);
+                        $this->line(sprintf('Tour #%d · auto-booking %s (booked %d, failed %d)', $tourId, $r['state'], $r['booked'], $r['failed']));
+                    }
+                }
+            }
+
             $results = $orchestrator->syncOnlineHold((int) $tourId, $force, $force ? 'hold_expiry' : 'all_services_resolved');
             foreach ($results as $r) {
                 $this->line(sprintf('Tour #%d · %s · %s', $tourId, $r['attempt_uuid'] ?? '-', $r['state'] ?? '-'));

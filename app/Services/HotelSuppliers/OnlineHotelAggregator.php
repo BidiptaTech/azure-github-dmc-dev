@@ -60,8 +60,9 @@ class OnlineHotelAggregator
             'hotels' => $frontendHotels,
             'total_hotels' => count($frontendHotels),
             'two_step' => $twoStep,
+            // Keep supplier_code for internal booking logic; never expose vendor brand to DMC.
             'supplier_code' => $resolved['supplier']->code,
-            'supplier_name' => $resolved['supplier']->name,
+            'supplier_name' => \App\Support\SupplierFacingCopy::publicSupplierName(),
             'country_id' => $resolved['country_id'],
             'city' => $searchRequest->cityName,
             'rooms' => $searchRequest->roomCount(),
@@ -99,7 +100,7 @@ class OnlineHotelAggregator
         [$searchRequest, $adapter, $resolved] = $this->prepare($cityName, $checkIn, $checkOut, $paxInfo, $rooms);
 
         if (! $adapter instanceof TwoStepHotelSupplierAdapter) {
-            throw new RuntimeException("{$resolved['supplier']->name} returns rates with the hotel list; no room lookup is needed.");
+            throw new RuntimeException('This online hotel provider returns rates with the hotel list; no room lookup is needed.');
         }
 
         Log::info('Online hotel room search', [
@@ -122,7 +123,7 @@ class OnlineHotelAggregator
                 'room_count' => $searchRequest->roomCount(),
                 'session_id' => $result['session_id'] ?? null,
                 'supplier_code' => $resolved['supplier']->code,
-                'supplier_name' => $resolved['supplier']->name,
+                'supplier_name' => \App\Support\SupplierFacingCopy::publicSupplierName(),
                 'message' => 'No rooms are available for this hotel on the selected dates.',
                 'api_environment' => $resolved['api_environment'] ?? null,
                 'provider' => $result['provider'],
@@ -139,7 +140,7 @@ class OnlineHotelAggregator
             'room_count' => $searchRequest->roomCount(),
             'session_id' => $result['session_id'] ?? null,
             'supplier_code' => $resolved['supplier']->code,
-            'supplier_name' => $resolved['supplier']->name,
+            'supplier_name' => \App\Support\SupplierFacingCopy::publicSupplierName(),
             'api_environment' => $resolved['api_environment'] ?? null,
             'request' => $searchRequest->toPayload(),
             'provider' => $result['provider'],
