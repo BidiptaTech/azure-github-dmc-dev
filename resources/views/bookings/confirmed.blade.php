@@ -7734,11 +7734,41 @@ window.approveIndividualAttraction = function(tourId, attractionOrderIndex, book
     createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'approve', autoCancelDate, attractionOrderId);
 }
 
-// Override any previous definitions - this is the correct attraction reject function
+// Hotel-style cancel: message modal → API (voucher internal). No reason/code form.
 window.rejectIndividualAttraction = function(tourId, attractionOrderIndex, bookingIndex, autoCancelDate=null) {
-    showRejectServiceAlert('attraction', () => {
-        createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'reject', autoCancelDate);
-    }, tourId);
+    var withoutRefund = window.__cancelWithoutRefund === true;
+    window.__cancelWithoutRefund = false;
+    window.__attractionCancelVoucherMode = false;
+    showRejectServiceAlert('attraction', function () {
+        var token = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+        var payload = {
+            tour_id: tourId,
+            attraction_order_index: attractionOrderIndex,
+            booking_index: bookingIndex,
+            cancel_reason: withoutRefund ? 'Cancelled without refund' : 'Rejected for refund processing'
+        };
+        if (withoutRefund) payload.without_refund = 1;
+        fetch(@json(url('/booking/reject-attraction-booking')), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': token
+            },
+            body: JSON.stringify(payload)
+        }).then(function (r) { return r.json().catch(function () { return { success: false }; }); })
+          .then(function (data) {
+            if (data && data.success) {
+                if (withoutRefund) {
+                    window.location.reload();
+                } else {
+                    window.location.href = @json(route('bookings.refunds'));
+                }
+            } else {
+                alert((data && data.message) || 'Could not cancel attraction.');
+            }
+          });
+    }, tourId, withoutRefund);
 }
 
 function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, action, autoCancelDate=null, attractionOrderId=null) {
@@ -21728,27 +21758,39 @@ function approveIndividualAttraction(tourId, attractionOrderIndex, bookingIndex,
 }
 
 function rejectIndividualAttraction(tourId, attractionOrderIndex, bookingIndex, autoCancelDate=null) {
-    try {
-        console.log('Opening individual attraction reject modal for tour:', tourId, 'attraction order:', attractionOrderIndex, 'booking:', bookingIndex);
-        
-        // Close the attraction details modal first
-        const attractionDetailsModal = document.getElementById('attractionDetailsModal' + tourId);
-        if (attractionDetailsModal) {
-            const attractionModal = bootstrap.Modal.getInstance(attractionDetailsModal);
-            if (attractionModal) {
-                attractionModal.hide();
-            }
-        }
-        
-        // Wait a moment for the modal to close, then show individual reject modal
-        setTimeout(() => {
-            createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'reject', autoCancelDate);
-        }, 300);
-        
-    } catch (error) {
-        console.error('Error opening individual attraction reject modal:', error);
-        alert('Error opening reject modal. Please try again.');
+    // Prefer window override (hotel-style cancel → API, no reason/code form)
+    if (window.rejectIndividualAttraction && window.rejectIndividualAttraction !== rejectIndividualAttraction) {
+        return window.rejectIndividualAttraction(tourId, attractionOrderIndex, bookingIndex, autoCancelDate);
     }
+    var withoutRefund = window.__cancelWithoutRefund === true;
+    window.__cancelWithoutRefund = false;
+    window.__attractionCancelVoucherMode = false;
+    showRejectServiceAlert('attraction', function () {
+        var token = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+        var payload = {
+            tour_id: tourId,
+            attraction_order_index: attractionOrderIndex,
+            booking_index: bookingIndex,
+            cancel_reason: withoutRefund ? 'Cancelled without refund' : 'Rejected for refund processing'
+        };
+        if (withoutRefund) payload.without_refund = 1;
+        fetch(@json(url('/booking/reject-attraction-booking')), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': token
+            },
+            body: JSON.stringify(payload)
+        }).then(function (r) { return r.json().catch(function () { return { success: false }; }); })
+          .then(function (data) {
+            if (data && data.success) {
+                window.location.href = withoutRefund ? window.location.href : @json(route('bookings.refunds'));
+            } else {
+                alert((data && data.message) || 'Could not cancel attraction.');
+            }
+          });
+    }, tourId, withoutRefund);
 }
 
 function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, action, autoCancelDate=null, attractionOrderId=null) {

@@ -411,6 +411,10 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
             sku_id: payload.skuId || payload.attractionId || null,
             ticket_sku_id: payload.ticketSkuId || null,
             provider_ticket_id: payload.providerTicketId || null,
+            // Lite/API create-order fields (pending-ref cache + quantity)
+            adultCount: adults,
+            childCount: children,
+            bookingDate: visitDate,
             lowest_ticket_price: toNum(payload.lowestTicketPrice) || null,
             highest_ticket_price: toNum(payload.highestTicketPrice) || null,
             supplier_code: payload.supplierCode || 'sg_attractions',
@@ -886,6 +890,10 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
             dmc_profile_markup: priceStamp,
             online_price_breakdown: priceStamp
         };
+        // Per-night avgs (same basis as mapOnlineHotelToTour / create listing).
+        // beds.price stays as stay total for Lite; avgCost/avgSell keep edit hydrate correct.
+        const perNightBase = nights > 0 ? Math.round((hotelPrice / nights) * 100) / 100 : hotelPrice;
+        const perNightSell = nights > 0 ? Math.round((stayTotal / nights) * 100) / 100 : stayTotal;
 
         return {
             fullName: proRow.fullName || '',
@@ -964,19 +972,23 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
                     extra_bed: 0,
                     extra_bed_price: 0,
                     extra_bed_cost: 0,
-                    // Online: cost === sell (stay total)
+                    // Stay totals on price/cost/sell (Lite); avg* = per-night for Pro edit listing
                     price: stayTotal,
                     cost: stayTotal,
                     sell: stayTotal,
                     cost_price: stayTotal,
+                    avgCost: perNightBase,
+                    avgSell: perNightSell,
                     mealTypes: [mealPlan],
                     meal_plan: mealPlan
                 }]
             }],
             totalPrice: stayTotal,
             price: stayTotal,
-            cost: stayTotal,
-            sell: stayTotal,
+            cost: perNightBase,
+            sell: perNightSell,
+            avgCost: perNightBase,
+            avgSell: perNightSell,
             cost_price: stayTotal,
             transfer_options: null,
             child_with_bed: null,
@@ -1164,9 +1176,13 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
                     row.adultSell = toNum(src.adultSell || src.adultCost);
                     row.childSell = toNum(src.childSell || src.childCost);
                     row.infantSell = toNum(src.infantSell || src.infantCost);
-                    const adults = Math.max(0, parseInt(row.adultsQty || row.adultCount || src.adultsQty, 10) || 0);
-                    const children = Math.max(0, parseInt(row.childQty || row.childCount || src.childQty, 10) || 0);
+                    const adults = Math.max(0, parseInt(row.adultsQty || row.adultCount || src.adultsQty || src.adultCount, 10) || 0);
+                    const children = Math.max(0, parseInt(row.childQty || row.childCount || src.childQty || src.childCount, 10) || 0);
                     const infants = Math.max(0, parseInt(row.infantQty || row.infants || src.infantQty, 10) || 0);
+                    // Lite/API create-order fields (must be AFTER adults/children — TDZ safe)
+                    row.adultCount = adults;
+                    row.childCount = children;
+                    row.bookingDate = ymdOnly(src.dateTime || src.bookingDate || row.bookingDate || row.dateTime || '') || row.bookingDate;
                     const providerLine = (row.adultCost * adults) + (row.childCost * children) + (row.infantCost * infants);
                     const baseLine = (row.adultSell * adults) + (row.childSell * children) + (row.infantSell * infants);
                     const stamp = src.dmc_profile_markup || src.online_price_breakdown || null;
