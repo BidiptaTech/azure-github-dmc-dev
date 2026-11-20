@@ -20,6 +20,11 @@
     $fxPct = (float) ($fxChargePercent ?? 0);
     $sgdRates = is_array($sgdRates ?? null) ? $sgdRates : [];
     $fxCharge = app(\App\Services\Payment\FxConversionCharge::class);
+
+    $isFxLine = function ($line) {
+        $channel = strtolower(trim((string) ($line->channel ?? '')));
+        return $channel === 'fx' || (float) ($line->conversion_charge ?? 0) > 0.0001;
+    };
 @endphp
 <style>
     .cs-page .cs-hero {
@@ -63,29 +68,62 @@
         font-size: .8rem;
         font-weight: 600;
     }
-    .cs-page .cs-pill.is-fx {
-        background: #fff7ed;
-        color: #9a3412;
-    }
-    .cs-page .cs-fx-banner {
-        border-radius: .85rem;
-        border: 1px solid #fed7aa;
-        background: #fffbeb;
-        color: #9a3412;
-        padding: .85rem 1rem;
-        font-size: .875rem;
-        line-height: 1.45;
-    }
     .cs-page .cs-stat {
         border-radius: .85rem;
         background: #f8fafc;
         border: 1px solid #e2e8f0;
         padding: .75rem 1rem;
-        min-width: 140px;
+        min-width: 148px;
     }
     .cs-page .cs-stat .label { font-size: .72rem; color: #64748b; text-transform: uppercase; letter-spacing: .04em; }
     .cs-page .cs-stat .value { font-size: 1.05rem; font-weight: 700; color: #0f172a; }
+    .cs-page .cs-stat.is-muted { background: #fff7ed; border-color: #fed7aa; }
+    .cs-page .cs-stat.is-muted .value { color: #9a3412; }
     .cs-page tr.cs-online td { background: rgba(14, 165, 233, .04); }
+    .cs-page .cs-section-title {
+        font-size: .78rem;
+        font-weight: 700;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        color: #64748b;
+        margin: 0 0 .65rem;
+    }
+    .cs-page .cs-fx-note {
+        border-radius: .85rem;
+        border: 1px dashed #fdba74;
+        background: #fffbeb;
+        color: #9a3412;
+        padding: .9rem 1rem;
+        display: flex;
+        gap: .85rem;
+        align-items: flex-start;
+    }
+    .cs-page .cs-fx-note .cs-fx-amount {
+        font-size: 1.1rem;
+        font-weight: 700;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+    }
+    .cs-page .cs-fx-note p { margin: 0; font-size: .875rem; line-height: 1.45; }
+    .cs-page .cs-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .5rem 1rem;
+        font-size: .8rem;
+        color: #64748b;
+    }
+    .cs-page .cs-legend span { display: inline-flex; align-items: center; gap: .35rem; }
+    .cs-page .cs-dot {
+        width: .55rem; height: .55rem; border-radius: 50%; display: inline-block;
+    }
+    .cs-page .cs-dot.is-service { background: #0ea5e9; }
+    .cs-page .cs-dot.is-fx { background: #f97316; }
+    .cs-page .cs-row-meta { font-size: .78rem; color: #64748b; }
+    .cs-page .cs-empty {
+        text-align: center;
+        color: #64748b;
+        padding: 2rem 1rem;
+    }
 </style>
 
 <div class="container-xxl flex-grow-1 container-p-y cs-page">
@@ -95,19 +133,17 @@
                 <h4 class="mb-1 text-white">Commission statement</h4>
                 <p class="mb-0 text-muted-hero">
                     @if($viewer === 'travclicks')
-                        Travclicks online markup commission, API cost, DMC commission, and FX conversion charges — by tour id.
+                        Service commissions, API cost, and FX notes by order. FX is shown for reference — not added into totals.
                     @elseif($viewer === 'agent')
-                        Amount charged on your wallet or card, the order id, and any currency conversion charge.
+                        What you paid per order. Currency conversion (if any) is already inside the paid amount.
                     @else
-                        Your DMC commission (including online services) and wallet credits, by tour id.
+                        Your DMC commission and wallet credits by order. FX is informational only.
                     @endif
                 </p>
             </div>
-            <div class="d-flex flex-wrap gap-2">
-                <span class="cs-pill">
-                    <i class="ri-funds-line"></i>
-                    Rate display: 1 SGD = …
-                </span>
+            <div class="cs-legend text-white-50">
+                <span><i class="cs-dot is-service"></i> Services in total</span>
+                <span><i class="cs-dot is-fx"></i> FX shown, not added</span>
             </div>
         </div>
     </div>
@@ -116,11 +152,14 @@
         <div class="card-body d-flex flex-wrap gap-2 align-items-end">
             <div class="flex-grow-1" style="min-width: 200px;">
                 <label class="form-label" for="tour_id">Order / tour id</label>
-                <input class="form-control" id="tour_id" name="tour_id" value="{{ $tourId }}" placeholder="Tour id">
+                <input class="form-control" id="tour_id" name="tour_id" value="{{ $tourId }}" placeholder="e.g. 4475">
             </div>
             <button class="btn btn-primary" type="submit">
                 <i class="ri-search-line me-1"></i> Open order
             </button>
+            @if($tourId)
+                <a class="btn btn-outline-secondary" href="{{ route('finance.commission.index') }}">Clear</a>
+            @endif
         </div>
     </form>
 
@@ -128,7 +167,7 @@
         <div class="card-header d-flex justify-content-between align-items-center">
             <div>
                 <h5 class="mb-0">Orders</h5>
-                <small class="text-muted">Commission roll-up by tour</small>
+                <small class="text-muted">Totals are service amounts only</small>
             </div>
         </div>
         <div class="table-responsive">
@@ -137,7 +176,7 @@
                     <tr>
                         <th>Order</th>
                         <th>Currency</th>
-                        <th class="text-end">Total amount</th>
+                        <th class="text-end">Services total</th>
                         @if($viewer !== 'agent')
                             <th class="text-end">DMC commission</th>
                         @endif
@@ -147,12 +186,13 @@
                         @if($viewer === 'travclicks')
                             <th class="text-end">Travclicks commission</th>
                             <th class="text-end">API cost</th>
+                            <th class="text-end">FX (info)</th>
                         @endif
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($tours as $row)
-                        <tr class="{{ !empty($row->has_online_commission) ? 'cs-online' : '' }}">
+                        <tr class="{{ !empty($row->has_online_commission) ? 'cs-online' : '' }} {{ (int) $tourId === (int) $row->tour_id ? 'table-active' : '' }}">
                             <td>
                                 <a class="fw-semibold" href="{{ route('finance.commission.index', ['tour_id' => $row->tour_id]) }}">#{{ $row->tour_id }}</a>
                                 @if(!empty($row->has_online_commission) || ($row->markup_label ?? '') === 'Online')
@@ -178,11 +218,18 @@
                             @if($viewer === 'travclicks')
                                 <td class="text-end cs-amount">{{ $money($row->travclicks_commission) }}</td>
                                 <td class="text-end cs-amount">{{ $money($row->api_cost) }}</td>
+                                <td class="text-end cs-amount text-muted">
+                                    @if((float) ($row->conversion_charge ?? 0) > 0)
+                                        {{ $money($row->conversion_charge) }}
+                                    @else
+                                        —
+                                    @endif
+                                </td>
                             @endif
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="text-center text-muted py-4">
+                            <td colspan="8" class="cs-empty">
                                 @if($viewer === 'travclicks')
                                     No commission yet. Online service markup appears here when the service is approved.
                                 @elseif($viewer === 'dmc')
@@ -202,48 +249,103 @@
         @php
             $opened = $tours->firstWhere('tour_id', (int) $tourId);
             $headerCur = strtoupper((string) ($opened->currency_code ?? $displayCurrency ?? 'SGD'));
+
+            $approveLines = collect();
+            $walletLines = collect();
+            $fxLines = collect();
+            $otherLines = collect();
+            foreach ($lines as $line) {
+                if ($isFxLine($line)) {
+                    $fxLines->push($line);
+                    continue;
+                }
+                $method = (string) ($line->payment_method ?? '');
+                if ($method === 'online_approve') {
+                    $approveLines->push($line);
+                } elseif ($method === 'wallet') {
+                    $walletLines->push($line);
+                } else {
+                    $otherLines->push($line);
+                }
+            }
+            // Prefer approve rows for the main breakdown (avoids duplicate hotel/wallet rows).
+            $serviceLines = $approveLines->isNotEmpty()
+                ? $approveLines
+                : ($walletLines->isNotEmpty() ? $walletLines : $otherLines);
+
+            $fxTotal = (float) ($totals['conversion_charge'] ?? ($opened->conversion_charge ?? 0));
+            if ($fxTotal <= 0 && $fxLines->isNotEmpty()) {
+                $fxTotal = (float) $fxLines->sum(fn ($l) => (float) ($l->conversion_charge ?? $l->agent_price ?? 0));
+            }
+            $serviceTotal = (float) ($totals['agent_price'] ?? ($opened->charged_amount ?? 0));
         @endphp
+
         <div class="card cs-card mb-3">
             <div class="card-header">
                 <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
                     <div>
                         <h5 class="mb-1">Order #{{ $tourId }} {{ $selectedTour?->display_id ? '· '.$selectedTour->display_id : '' }}</h5>
-                        <div class="d-flex flex-wrap gap-2 align-items-center">
-                            <span class="cs-pill">
-                                Amounts in {!! $curBadge($headerCur) !!}
-                            </span>
+                        <div class="d-flex flex-wrap gap-2 align-items-center mt-1">
+                            <span class="cs-pill">Amounts in {!! $curBadge($headerCur) !!}</span>
+                            @if($selectedTour)
+                                <span class="cs-row-meta">
+                                    {{ $selectedTour->agent->name ?? ('Agent #'.($selectedTour->agent_id ?? '—')) }}
+                                    <i class="ri-arrow-right-s-line"></i>
+                                    {{ $selectedTour->dmc->name ?? ('DMC #'.($selectedTour->dmc_id ?? '—')) }}
+                                </span>
+                            @endif
                         </div>
                     </div>
                     @if($opened)
                         <div class="d-flex flex-wrap gap-2">
                             <div class="cs-stat">
-                                <div class="label">Total</div>
-                                <div class="value">{{ $money($opened->charged_amount) }}{!! $curBadge($headerCur) !!}</div>
+                                <div class="label">Services total</div>
+                                <div class="value">{{ $money($serviceTotal) }}{!! $curBadge($headerCur) !!}</div>
                             </div>
                             <div class="cs-stat">
-                                <div class="label">Commission</div>
+                                <div class="label">DMC commission</div>
                                 <div class="value">{{ $money($opened->dmc_commission) }}{!! $curBadge($headerCur) !!}</div>
                             </div>
+                            @if($viewer === 'travclicks')
+                                <div class="cs-stat">
+                                    <div class="label">Travclicks</div>
+                                    <div class="value">{{ $money($opened->travclicks_commission) }}{!! $curBadge($headerCur) !!}</div>
+                                </div>
+                                <div class="cs-stat">
+                                    <div class="label">API cost</div>
+                                    <div class="value">{{ $money($opened->api_cost) }}{!! $curBadge($headerCur) !!}</div>
+                                </div>
+                            @endif
                             @if($viewer === 'dmc' && (float) ($opened->wallet_credited_amount ?? 0) > 0)
                                 <div class="cs-stat">
-                                    <div class="label">Wallet</div>
+                                    <div class="label">Wallet credited</div>
                                     <div class="value">{{ $money($opened->wallet_credited_amount) }}</div>
+                                </div>
+                            @endif
+                            @if($fxTotal > 0)
+                                <div class="cs-stat is-muted">
+                                    <div class="label">FX (not in total)</div>
+                                    <div class="value">{{ $money($fxTotal) }}{!! $curBadge($headerCur) !!}</div>
                                 </div>
                             @endif
                         </div>
                     @endif
                 </div>
             </div>
+
+            <div class="card-body pb-0">
+                <p class="cs-section-title">1 · Services</p>
+            </div>
             <div class="table-responsive">
                 <table class="table mb-0 align-middle">
                     <thead class="table-light">
                         <tr>
-                            <th>Item</th>
-                            <th>Channel</th>
+                            <th>Service</th>
+                            <th>Source</th>
                             @if($viewer === 'travclicks')
                                 <th>API</th>
                                 <th class="text-end">API cost</th>
-                                <th class="text-end">Travclicks commission</th>
+                                <th class="text-end">Travclicks</th>
                             @endif
                             @if($viewer !== 'agent')
                                 <th class="text-end">DMC commission</th>
@@ -252,23 +354,30 @@
                                 <th class="text-end">Wallet credited</th>
                             @endif
                             <th class="text-end">Agent price</th>
-                            <th>Agent</th>
-                            <th>DMC</th>
-                            <th>Reference</th>
+                            <th>Flow</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse($lines as $line)
+                        @forelse($serviceLines as $line)
                             <tr>
-                                <td>{{ $line->item_label }}</td>
-                                <td>{{ $line->channel }}{{ ($line->payment_method ?? '') === 'online_approve' ? ' · online approve' : '' }}</td>
+                                <td>
+                                    <div class="fw-semibold">{{ $line->item_label ?: 'Service' }}</div>
+                                    <div class="cs-row-meta">Tour #{{ $line->tour_id }}</div>
+                                </td>
+                                <td>
+                                    @if(($line->payment_method ?? '') === 'online_approve')
+                                        <span class="badge bg-label-info">Online approve</span>
+                                    @else
+                                        <span class="badge bg-label-secondary">{{ ucfirst((string) ($line->channel ?: $line->payment_method ?: '—')) }}</span>
+                                    @endif
+                                </td>
                                 @if($viewer === 'travclicks')
                                     <td>{{ $line->supplier_api ?: '—' }}</td>
                                     <td class="text-end cs-amount">{{ $line->api_cost === null ? '—' : $money($line->api_cost) }}</td>
                                     <td class="text-end cs-amount">{{ $money($line->travclicks_commission) }}</td>
                                 @endif
                                 @if($viewer !== 'agent')
-                                    <td class="text-end cs-amount">{{ $money($line->dmc_commission) }}</td>
+                                    <td class="text-end cs-amount text-success">{{ $money($line->dmc_commission) }}</td>
                                 @endif
                                 @if($viewer === 'dmc')
                                     <td class="text-end cs-amount">
@@ -280,22 +389,22 @@
                                     </td>
                                 @endif
                                 <td class="text-end cs-amount">{{ $money($line->agent_price) }}</td>
-                                <td>{{ $line->agent_entry === 'debit' ? 'Debit' : '—' }}</td>
-                                <td>{{ $line->dmc_entry === 'credit' ? 'Credit' : '—' }}</td>
-                                <td class="small">
-                                    Tour #{{ $line->tour_id }}
-                                    @if($line->stripe_transfer_id)
-                                        <div class="text-muted">Stripe {{ $line->stripe_transfer_id }}</div>
-                                    @elseif($line->transfer_status)
-                                        <div class="text-muted">{{ str_replace('_', ' ', $line->transfer_status) }}</div>
+                                <td class="cs-row-meta">
+                                    @if(($line->agent_entry ?? '') === 'debit') Agent debit @endif
+                                    @if(($line->dmc_entry ?? '') === 'credit')
+                                        @if(($line->agent_entry ?? '') === 'debit') · @endif
+                                        DMC credit
+                                    @endif
+                                    @if(($line->agent_entry ?? '') !== 'debit' && ($line->dmc_entry ?? '') !== 'credit')
+                                        —
                                     @endif
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="11" class="text-center text-muted py-4">
+                                <td colspan="9" class="cs-empty">
                                     @if($opened)
-                                        All amounts in {{ $opened->currency_code }}. Commission {{ $money($opened->dmc_commission) }}. Total {{ $money($opened->charged_amount) }}.
+                                        No service commission lines yet for this order.
                                     @else
                                         No commission lines for this tour yet.
                                     @endif
@@ -303,10 +412,10 @@
                             </tr>
                         @endforelse
                     </tbody>
-                    @if($lines->isNotEmpty())
+                    @if($serviceLines->isNotEmpty())
                         <tfoot class="table-light">
                             <tr class="fw-semibold">
-                                <td colspan="{{ $viewer === 'travclicks' ? 3 : 2 }}">Total</td>
+                                <td colspan="{{ $viewer === 'travclicks' ? 3 : 2 }}">Services total</td>
                                 @if($viewer === 'travclicks')
                                     <td class="text-end">{{ $money($totals['api_cost']) }}</td>
                                     <td class="text-end">{{ $money($totals['travclicks_commission']) }}</td>
@@ -317,13 +426,34 @@
                                 @if($viewer === 'dmc')
                                     <td class="text-end">{{ $money($totals['wallet_credited_amount']) }}</td>
                                 @endif
-                                <td class="text-end">{{ $money($totals['agent_price']) }}</td>
-                                <td colspan="3"></td>
+                                <td class="text-end">{{ $money($serviceTotal) }}</td>
+                                <td></td>
                             </tr>
                         </tfoot>
                     @endif
                 </table>
             </div>
+
+            @if($fxTotal > 0)
+                <div class="card-body">
+                    <p class="cs-section-title">2 · Currency conversion</p>
+                    <div class="cs-fx-note">
+                        <div>
+                            <div class="cs-fx-amount">{{ $money($fxTotal) }}{!! $curBadge($headerCur) !!}</div>
+                            @if($fxPct > 0)
+                                <div class="small mt-1 opacity-75">{{ rtrim(rtrim(number_format($fxPct, 2), '0'), '.') }}% conversion fee</div>
+                            @endif
+                        </div>
+                        <div>
+                            <p class="fw-semibold mb-1">Already included in the payment</p>
+                            <p>
+                                This conversion fee was charged with the wallet payment.
+                                It is shown here for your information only — it is <strong>not added again</strong> to the Services total above.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            @endif
         </div>
 
         @php
@@ -348,15 +478,10 @@
             <div class="card-header">
                 <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
                     <div>
-                        <h5 class="mb-1">Transactions</h5>
+                        <h5 class="mb-1">3 · Payments</h5>
                         <small class="text-muted">
-                            Order #{{ $tourId }} · {{ count($payments) }} {{ \Illuminate\Support\Str::plural('payment', count($payments)) }}
+                            {{ count($payments) }} {{ \Illuminate\Support\Str::plural('transaction', count($payments)) }} on this order
                         </small>
-                        <div class="mt-2 small text-muted">
-                            From <strong>{{ $selectedTour?->agent?->name ?? ('Agent #'.($selectedTour->agent_id ?? '—')) }}</strong>
-                            <i class="ri-arrow-right-line mx-1"></i>
-                            To <strong>{{ $selectedTour?->dmc?->name ?? ('DMC #'.($selectedTour->dmc_id ?? '—')) }}</strong>
-                        </div>
                     </div>
                     <div class="d-flex flex-wrap gap-2">
                         <div class="cs-stat">
@@ -365,7 +490,7 @@
                         </div>
                         @if($verifiedWalletTotal > 0 && $verifiedWalletCur !== '' && $verifiedWalletCur !== $orderCur)
                             <div class="cs-stat">
-                                <div class="label">Verified (wallet)</div>
+                                <div class="label">Verified (wallet paid-in)</div>
                                 <div class="value">{{ $money($verifiedWalletTotal) }}{!! $curBadge($verifiedWalletCur) !!}</div>
                             </div>
                         @endif
@@ -380,7 +505,7 @@
                             <th>Date &amp; time</th>
                             <th>Method</th>
                             <th>Transaction</th>
-                            <th class="text-end">Amount</th>
+                            <th class="text-end">Order amount</th>
                             <th class="text-end">Paid in</th>
                             <th class="text-end">Rate</th>
                             <th>Status</th>
@@ -458,7 +583,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="text-center text-muted py-4">No payment transactions recorded on this order.</td>
+                                <td colspan="9" class="cs-empty">No payment transactions recorded on this order.</td>
                             </tr>
                         @endforelse
                     </tbody>

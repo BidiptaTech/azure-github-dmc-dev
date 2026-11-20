@@ -50,7 +50,13 @@ class CommissionReportController extends Controller
             ? (json_decode((string) $selectedTour->payment_details, true) ?: [])
             : [];
 
-        $fxChargePercent = app(\App\Services\Payment\FxConversionCharge::class)->percent();
+        // Prefer the percent stored at payment time (snapshot / attempt). Live .env is fallback only.
+        $fxChargePercent = $this->resolveStoredFxChargePercent(
+            $tourId,
+            $lines,
+            is_array($payments) ? $payments : []
+        );
+
         $sgdRates = [];
         foreach (['SGD', 'IDR', 'USD', 'INR', 'EUR', 'GBP', 'MYR', 'THB', 'AUD'] as $code) {
             $rate = Country::sgdRateFor($code);
@@ -75,15 +81,95 @@ class CommissionReportController extends Controller
     }
 
     /**
+     * FX % that was applied when the order was paid (immutable), not the live .env value.
+     *
+     * @param  Collection<int, object>|iterable<int, object>  $lines
+     * @param  array<int, array<string, mixed>>  $payments
+     */
+    protected function resolveStoredFxChargePercent(?int $tourId, $lines, array $payments): float
+    {
+        foreach ($lines as $line) {
+            $channel = strtolower(trim((string) ($line->channel ?? '')));
+            $isFx = $channel === 'fx' || (float) ($line->conversion_charge ?? 0) > 0.0001;
+            if (! $isFx) {
+                continue;
+            }
+
+            $meta = $this->decodeMeta($line->metadata ?? null);
+            $snapId = (int) ($meta['fx_snapshot_id'] ?? 0);
+            if ($snapId > 0 && Schema::hasTable('currency_conversion_snapshots')) {
+                $snapMeta = $this->decodeMeta(
+                    DB::table('currency_conversion_snapshots')->where('id', $snapId)->value('metadata')
+                );
+                $pct = (float) ($snapMeta['conversion_charge_percent'] ?? $snapMeta['charge_percent'] ?? 0);
+                if ($pct > 0) {
+                    return round($pct, 4);
+                }
+            }
+
+            $attemptUuid = trim((string) ($line->payment_attempt_uuid ?? ''));
+            if ($attemptUuid !== '' && Schema::hasTable('payment_attempts')) {
+                $attempt = DB::table('payment_attempts')->where('attempt_uuid', $attemptUuid)->first();
+                if ($attempt) {
+                    $attemptMeta = $this->decodeMeta($attempt->metadata ?? null);
+                    $pct = (float) (
+                        $attemptMeta['conversion_charge_percent']
+                        ?? $attemptMeta['charge_percent']
+                        ?? 0
+                    );
+                    if ($pct > 0) {
+                        return round($pct, 4);
+                    }
+                    $elig = $this->decodeMeta($attempt->eligibility_snapshot ?? null);
+                    $pct = (float) ($elig['fx']['charge_percent'] ?? $elig['fx']['conversion_charge_percent'] ?? 0);
+                    if ($pct > 0) {
+                        return round($pct, 4);
+                    }
+                }
+            }
+        }
+
+        foreach ($payments as $payment) {
+            if (! is_array($payment)) {
+                continue;
+            }
+            $pct = (float) (
+                $payment['conversion_charge_percent']
+                ?? $payment['charge_percent']
+                ?? 0
+            );
+            if ($pct > 0) {
+                return round($pct, 4);
+            }
+        }
+
+        // No historical row — only then show current config (for empty/new views).
+        if (! $tourId) {
+            return app(\App\Services\Payment\FxConversionCharge::class)->percent();
+        }
+
+        return 0.0;
+    }
+
+    /**
      * @param  Collection<int, object>  $lines
      * @return array<string, float>
      */
     protected function totals($lines, ?object $opened = null): array
     {
+        // FX is already inside the paid wallet amount — show it, never add it into Total / Agent price.
         if ($opened) {
+            $serviceTotal = (float) ($opened->service_amount ?? 0);
+            if ($serviceTotal <= 0) {
+                $serviceTotal = max(
+                    0.0,
+                    (float) ($opened->charged_amount ?? 0) - (float) ($opened->conversion_charge ?? 0)
+                );
+            }
+
             return [
-                'charged_amount' => (float) ($opened->charged_amount ?? 0),
-                'agent_price' => (float) ($opened->charged_amount ?? 0),
+                'charged_amount' => $serviceTotal,
+                'agent_price' => $serviceTotal,
                 'dmc_commission' => (float) ($opened->dmc_commission ?? 0),
                 'travclicks_commission' => (float) ($opened->travclicks_commission ?? 0),
                 'api_cost' => (float) ($opened->api_cost ?? 0),
@@ -101,10 +187,14 @@ class CommissionReportController extends Controller
         foreach ($lines as $line) {
             $wallet += (float) ($line->wallet_credited_amount ?? 0);
         }
+        $serviceTotal = (float) ($agg['service_amount'] ?? 0);
+        if ($serviceTotal <= 0) {
+            $serviceTotal = max(0.0, (float) $agg['charged_amount'] - (float) $agg['conversion_charge']);
+        }
 
         return [
-            'charged_amount' => $agg['charged_amount'],
-            'agent_price' => $agg['charged_amount'],
+            'charged_amount' => $serviceTotal,
+            'agent_price' => $serviceTotal,
             'dmc_commission' => $agg['dmc_commission'],
             'travclicks_commission' => $agg['travclicks_commission'],
             'api_cost' => $agg['api_cost'],
@@ -171,14 +261,20 @@ class CommissionReportController extends Controller
 
                 $agg = $this->aggregateTourCommissionLines($tourLines);
                 $walletAgg = $this->walletCreditsForTour((int) $tid);
+                $serviceAmount = (float) ($agg['service_amount'] ?? 0);
+                if ($serviceAmount <= 0) {
+                    $serviceAmount = max(0.0, (float) $agg['charged_amount'] - (float) $agg['conversion_charge']);
+                }
                 $row = (object) [
                     'tour_id' => (int) $tid,
                     'currency_code' => $agg['currency_code'],
-                    'charged_amount' => $agg['charged_amount'],
+                    // List "Total amount" = services only (FX already inside payment; shown separately).
+                    'charged_amount' => $serviceAmount,
+                    'service_amount' => $serviceAmount,
                     'charged_currency' => $agg['charged_currency'],
                     'dmc_commission' => $agg['dmc_commission'],
                     'markup_label' => $agg['has_online'] ? 'Online' : 'Paid',
-                    'base_amount' => $agg['charged_amount'],
+                    'base_amount' => $serviceAmount,
                     'travclicks_commission' => $agg['travclicks_commission'],
                     'api_cost' => $agg['api_cost'],
                     'conversion_charge' => $agg['conversion_charge'],
@@ -248,6 +344,7 @@ class CommissionReportController extends Controller
                 'travclicks_commission' => (float) ($row['travclicks_commission'] ?? 0),
                 'api_cost' => (float) ($row['api_cost'] ?? 0),
                 'conversion_charge' => (float) ($row['conversion_charge'] ?? 0),
+                'service_amount' => (float) ($row['charged_amount'] ?? 0),
                 'order_currency' => (string) ($row['currency_code'] ?? 'SGD'),
             ]);
             $byTourId[$tid] = $this->unifyTourRowCurrency($legacy, $viewer, $operatingDmcId);
@@ -307,7 +404,17 @@ class CommissionReportController extends Controller
         }
 
         $row->currency_code = $displayCurrency;
-        $row->charged_amount = $this->convertAmount((float) ($row->charged_amount ?? 0), $chargedCurrency, $displayCurrency);
+        $serviceAmount = (float) ($row->service_amount ?? 0);
+        if ($serviceAmount <= 0) {
+            $serviceAmount = max(
+                0.0,
+                (float) ($row->charged_amount ?? 0) - (float) ($row->conversion_charge ?? 0)
+            );
+        }
+        // Prefer order-currency service total for Travclicks; DMC view converts below.
+        $serviceFrom = $orderCurrency !== '' ? $orderCurrency : $chargedCurrency;
+        $row->service_amount = $this->convertAmount($serviceAmount, $serviceFrom, $displayCurrency);
+        $row->charged_amount = $row->service_amount;
         $row->charged_currency = $displayCurrency;
         $row->dmc_commission = $this->convertAmount($dmcCommissionOrder, $orderCurrency, $displayCurrency);
         $row->travclicks_commission = $this->convertAmount((float) ($row->travclicks_commission ?? 0), $orderCurrency, $displayCurrency);
@@ -339,13 +446,15 @@ class CommissionReportController extends Controller
     }
 
     /**
+    /**
      * Prefer online_approve for commission math (avoids double-count with wallet settlement).
-     * Paid/total amount uses actual wallet debit currency when FX payment happened.
+     * Service total excludes FX — conversion fee is already inside the paid wallet amount.
      *
      * @param  array<int, object>  $lines
      * @return array{
      *   currency_code: string,
      *   charged_amount: float,
+     *   service_amount: float,
      *   charged_currency: string,
      *   dmc_commission: float,
      *   travclicks_commission: float,
@@ -384,11 +493,13 @@ class CommissionReportController extends Controller
         $dmc = 0.0;
         $tc = 0.0;
         $api = 0.0;
+        $serviceAmount = 0.0;
         $orderCurrency = null;
         foreach ($commissionSource as $line) {
             $dmc += (float) ($line->dmc_commission ?? 0);
             $tc += (float) ($line->travclicks_commission ?? 0);
             $api += (float) ($line->api_cost ?? 0);
+            $serviceAmount += (float) ($line->agent_price ?? $line->charged_amount ?? 0);
             $meta = $this->decodeMeta($line->metadata ?? null);
             $orderCurrency = $orderCurrency
                 ?? ($meta['order_currency'] ?? null)
@@ -439,20 +550,21 @@ class CommissionReportController extends Controller
 
         if ($paidAmount === null || $paidAmount <= 0) {
             // Same-currency wallet/stripe: sum charged from commission source only (not fx + approve duplicate)
-            $paidAmount = 0.0;
-            foreach ($commissionSource as $line) {
-                $paidAmount += (float) ($line->charged_amount ?? 0);
-            }
+            $paidAmount = $serviceAmount;
             $paidCurrency = strtoupper((string) ($orderCurrency ?: ($commissionSource[0]->currency_code ?? 'SGD')));
         }
 
         $orderCurrency = strtoupper((string) ($orderCurrency ?: 'SGD'));
         $paidCurrency = strtoupper((string) ($paidCurrency ?: $orderCurrency));
         $hasOnline = $approve !== [] || $tc > 0;
+        if ($serviceAmount <= 0) {
+            $serviceAmount = max(0.0, (float) $paidAmount - (float) $conversion);
+        }
 
         return [
             'currency_code' => $orderCurrency,
             'charged_amount' => round($paidAmount, 4),
+            'service_amount' => round($serviceAmount, 4),
             'charged_currency' => $paidCurrency,
             'dmc_commission' => round($dmc, 4),
             'travclicks_commission' => round($tc, 4),

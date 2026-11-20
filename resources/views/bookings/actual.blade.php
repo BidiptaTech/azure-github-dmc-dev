@@ -3417,8 +3417,15 @@
 
         $discountAmount = $tourDiscountMoney;
         $priceAfterFoc = max(0, $grossTourAmount + $tourMarkupMoney - $tourDiscountMoney);
-        $netPayableBase = (int) ceil($priceAfterFoc);
-        $baseAmount = $lastNegotiatedAmount > 0 ? $lastNegotiatedAmount : $netPayableBase;
+        $tourIsOnlineOnly = strtolower(trim((string) ($tour->order_classification ?? ''))) === 'online'
+            || app(\App\Services\Payment\OrderClassificationService::class)->classifyTour($tour)
+                === \App\Services\Payment\OrderClassificationService::ONLINE;
+        $netPayableBase = $tourIsOnlineOnly
+            ? round($priceAfterFoc, 2)
+            : (float) ((int) ceil($priceAfterFoc));
+        $baseAmount = $lastNegotiatedAmount > 0
+            ? ($tourIsOnlineOnly ? round((float) $lastNegotiatedAmount, 2) : (float) $lastNegotiatedAmount)
+            : $netPayableBase;
         $netTourAmount = $baseAmount;
         $negotiationDiscount = max(0, $netPayableBase - $baseAmount);
 
@@ -6889,7 +6896,12 @@ function loadIndividualHotelContent(tourId, hotelOrderIndex, bookingIndex, modal
                 transferOptions: hotelData.transfer_options || null,
                 // Approval status
                 isApprove: hotelData.is_approve || false,
-                referenceId: hotelData.reference_id || null,
+                // Online: supplier booking ref; offline: orders.reference_id (not our ONLINE-… agency id)
+                referenceId: hotelData.display_reference_id
+                    || hotelData.supplier_booking_reference
+                    || hotelData.mg_booking_id
+                    || hotelData.reference_id
+                    || null,
                 actualDueDate: hotelData.actual_due_date || null,
                 displayDueDate: hotelData.display_due_date || null,
                 approvalFile: hotelData.approval_file || null,
@@ -7916,7 +7928,12 @@ function loadIndividualAttractionContent(modalId, tourId, attractionOrderIndex, 
                 approvalFile: attractionData.approval_file || null,
                 currency: attractionData.currency || window.bookingCurrency || 'SGD',
                 country: attractionData.country || '',
-                vouchers: attractionData.vouchers || []
+                vouchers: attractionData.vouchers || [],
+                voucher_code: attractionData.voucher_code || null,
+                voucher_download_link: attractionData.voucher_download_link || null,
+                is_online_attraction: !!attractionData.is_online_attraction,
+                order_type: attractionData.order_type || null,
+                attractionSourceType: attractionData.attractionSourceType || null
             };
             
             console.log('✅ Attraction booking data prepared for display', attractionBooking);
@@ -7941,6 +7958,21 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
     const isPro = tourRow ? parseInt(tourRow.getAttribute('data-is-pro') || 0) : 0;
     const serviceCurrency = (attractionBooking && attractionBooking.currency) ? attractionBooking.currency : (window.bookingCurrency || 'SGD');
     const actionsHostId = 'attraction_buttons_' + tourId + '_' + attractionOrderIndex + '_' + bookingIndex;
+    const preApproved = attractionBooking.isApprove == 1 || attractionBooking.isApprove === '1' || attractionBooking.isApprove === true || attractionBooking.is_approve == 1 || attractionBooking.is_approve === '1' || attractionBooking.is_approve === true || false;
+
+    let actionsHtml = '';
+    if (preApproved) {
+        actionsHtml = (typeof window.buildApprovedAttractionActionsHtml === 'function')
+            ? window.buildApprovedAttractionActionsHtml(tourId, attractionOrderIndex, bookingIndex, attractionBooking)
+            : ('<span class="svc-status-pill is-approved"><i class="ri-check-line"></i> Approved' +
+                (attractionBooking.referenceId ? (' · Ref: ' + (attractionBooking.referenceId || '')) : '') +
+                (attractionBooking.displayDueDate ? (' · Due: ' + (attractionBooking.displayDueDate || '')) : '') +
+                '</span>' +
+                '<button type="button" class="btn btn-sm svc-btn" style="border:1px solid #0ea5e9;color:#0369a1;" onclick="openAttractionMailPreview(' + tourId + ', ' + attractionOrderIndex + ', ' + bookingIndex + ')"><i class="ri-mail-line me-1"></i>Mail Preview</button>' +
+                '<button type="button" class="btn btn-sm btn-outline-secondary svc-btn" onclick="openAttractionFilesModal(\'' + tourId + '\', \'' + attractionOrderIndex + '\', \'' + bookingIndex + '\')" title="View and manage uploaded files"><i class="ri-file-list-3-line me-1"></i>View Files</button>');
+    } else {
+        actionsHtml = '<div class="d-flex gap-1 flex-wrap" id="' + actionsHostId + '"></div>';
+    }
 
     const content = (typeof window.renderProfessionalAttractionContent === 'function')
         ? window.renderProfessionalAttractionContent(attractionBooking, {
@@ -7949,25 +7981,25 @@ function generateIndividualAttractionContent(attractionBooking, modalId, tourId,
             bookingIndex: bookingIndex,
             currency: serviceCurrency,
             isPro: isPro,
-            actionsHostId: actionsHostId,
+            actionsHtml: actionsHtml,
             subtitle: (attractionBooking.ticketName || 'Standard Ticket') + ' • Individual Booking'
         })
         : '<div class="alert alert-warning">Attraction details renderer unavailable.</div>';
 
-    document.getElementById(modalId + '_content').innerHTML = content;
+    const contentEl = document.getElementById(modalId + '_content');
+    contentEl.innerHTML = content;
+    if (preApproved && typeof window.mountAttractionDetailsVouchers === 'function') {
+        window.mountAttractionDetailsVouchers(contentEl, attractionBooking, {
+            tourId: tourId,
+            attractionOrderIndex: attractionOrderIndex,
+            bookingIndex: bookingIndex
+        });
+    }
 
-    // Show only approval status (no action buttons in actual bookings)
-    const isApproved = attractionBooking.isApprove == 1 || attractionBooking.isApprove === '1' || attractionBooking.isApprove === true || attractionBooking.is_approve == 1 || attractionBooking.is_approve === '1' || attractionBooking.is_approve === true || false;
-    const buttonsContainer = document.getElementById(`attraction_buttons_${tourId}_${attractionOrderIndex}_${bookingIndex}`);
-    if (buttonsContainer) {
-        if (isApproved) {
-            buttonsContainer.innerHTML = `
-                <div class="alert alert-success mb-0 py-1 px-2" style="border-radius: 6px; font-size: 0.75rem;">
-                    <i class="ri-check-circle-fill me-1" style="font-size: 0.7rem;"></i>
-                    <strong>Approved</strong>
-                </div>
-            `;
-        } else {
+    // Actual: no edit/approve/reject — pending stays status-only.
+    if (!preApproved) {
+        const buttonsContainer = document.getElementById(actionsHostId);
+        if (buttonsContainer) {
             buttonsContainer.innerHTML = '<div class="text-muted small" style="font-size: 0.75rem;"><i class="ri-time-line me-1" style="font-size: 0.7rem;"></i>Pending approval</div>';
         }
     }

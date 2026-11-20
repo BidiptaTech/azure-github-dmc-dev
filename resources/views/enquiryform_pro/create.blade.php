@@ -1731,8 +1731,8 @@
             <div class="section-header">
                 <span>Attractions</span>
                 <div class="d-flex align-items-center flex-wrap justify-content-end">
-                   {{-- @if(\App\Helpers\CommonHelper::masterDmcOnlineApiEnabled(auth()->user()))
-                    <div class="ep-online-source-toggle" title="Offline = catalog attractions · Online = live TravClicks attractions (Lite flow, no transfer)">
+                   @if(\App\Helpers\CommonHelper::masterDmcOnlineApiEnabled(auth()->user()))
+                    <div class="ep-online-source-toggle" title="Offline = catalog attractions · Online = live SG Attractions (Lite flow, no transfer)">
                         <div class="form-check form-check-inline">
                             <input class="form-check-input ep-attraction-source-type" type="radio" name="epAttractionSourceType" id="epAttractionSourceOffline" value="offline" checked>
                             <label class="form-check-label" for="epAttractionSourceOffline">Offline</label>
@@ -1742,7 +1742,7 @@
                             <label class="form-check-label" for="epAttractionSourceOnline">Online</label>
                         </div>
                     </div>
-                     @endif --}}
+                     @endif
                     <button class="btn btn-sm btn-light btn-xs" onclick="openTourModal()">+ Add</button>
                     <button class="btn btn-sm btn-light btn-xs ms-1" onclick="removeSelectedTours()">- Remove</button>
                 </div>
@@ -8528,6 +8528,29 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
     function syncTourListPaxQtyFromHeader(forceValue) {
         if (typeof tourList === 'undefined' || !Array.isArray(tourList)) return;
         tourList.forEach(function (tour) {
+            // Online attractions keep modal guest counts (do not force header child/infant min=1).
+            if (tour.isOnlineAttraction || tour.attractionSourceType === 'online') {
+                const snap = tour.onlineAddSnapshot || {};
+                if (snap && (snap.adults != null || snap.children != null || snap.infants != null)) {
+                    tour.adultsQty = Math.max(0, parseInt(snap.adults, 10) || 0);
+                    tour.childQty = Math.max(0, parseInt(snap.children, 10) || 0);
+                    tour.infantQty = Math.max(0, parseInt(snap.infants, 10) || 0);
+                } else {
+                    tour.adultsQty = Math.max(0, parseInt(tour.adultsQty, 10) || 0);
+                    tour.childQty = Math.max(0, parseInt(tour.childQty, 10) || 0);
+                    tour.infantQty = Math.max(0, parseInt(tour.infantQty ?? tour.infant, 10) || 0);
+                }
+                tour.infant = tour.infantQty;
+                if (!(tour.childQty > 0)) {
+                    tour.childCost = 0;
+                    tour.childSell = 0;
+                }
+                if (!(tour.infantQty > 0)) {
+                    tour.infantCost = 0;
+                    tour.infantSell = 0;
+                }
+                return;
+            }
             tour.adultsQty = clampTourSitePaxQty(forceValue === true ? 0 : tour.adultsQty, 'adult');
             tour.childQty = clampTourSitePaxQty(forceValue === true ? 0 : tour.childQty, 'child');
             tour.infantQty = clampTourSitePaxQty(forceValue === true ? 0 : (tour.infantQty ?? tour.infant), 'infant');
@@ -22894,6 +22917,7 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             if (dateTimeValue && !dateTimeValue.includes('T')) {
                 dateTimeValue = dateTimeValue + 'T10:00';
             }
+            const isOnlineTour = !!(tour.isOnlineAttraction || tour.attractionSourceType === 'online');
             // Per-pax sell is ticket base (do not resolve via tour.base_grand_total)
             const adultSellBase = parseFloat(String(tour.adultSell).replace(/[^0-9.-]/g, '') || 0) || 0;
             const childSellBase = parseFloat(String(tour.childSell).replace(/[^0-9.-]/g, '') || 0) || 0;
@@ -22901,6 +22925,19 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             const mkTd = (typeof enquiryProMarkupPriceTdHtml === 'function')
                 ? enquiryProMarkupPriceTdHtml
                 : (v) => `<td><input type="text" value="${Number(v).toFixed(2)}" readonly style="background-color: #f3e8ff;"></td>`;
+            const adultsQtyVal = Math.max(0, parseInt(tour.adultsQty, 10) || 0);
+            const childQtyVal = Math.max(0, parseInt(tour.childQty, 10) || 0);
+            const infantQtyVal = Math.max(0, parseInt(tour.infantQty ?? tour.infant, 10) || 0);
+            // Online: lock guest qty to modal selection (allow 0 child/infant). Offline: header bounds.
+            const adultQtyAttrs = isOnlineTour
+                ? `value="${adultsQtyVal}" min="0" readonly disabled title="Edit guests in Online Attraction modal" style="background-color: #f5f5f5; cursor: not-allowed;"`
+                : `value="${adultsQtyVal}" min="${tourPaxBounds.adultMin}" max="${tourPaxBounds.adultMax}" ${tourPaxBounds.adults <= 0 ? 'disabled' : ''} onchange="updateTourField(${index}, 'adultsQty', this.value); this.value = tourList[${index}].adultsQty;" ${tourPaxBounds.adults <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}`;
+            const childQtyAttrs = isOnlineTour
+                ? `value="${childQtyVal}" min="0" readonly disabled title="Edit guests in Online Attraction modal" style="background-color: #f5f5f5; cursor: not-allowed;"`
+                : `value="${childQtyVal}" min="${tourPaxBounds.childMin}" max="${tourPaxBounds.childMax}" ${tourPaxBounds.children <= 0 ? 'disabled' : ''} onchange="updateTourField(${index}, 'childQty', this.value); this.value = tourList[${index}].childQty;" ${tourPaxBounds.children <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}`;
+            const infantQtyAttrs = isOnlineTour
+                ? `value="${infantQtyVal}" min="0" readonly disabled title="Edit guests in Online Attraction modal" style="background-color: #f5f5f5; cursor: not-allowed;"`
+                : `value="${infantQtyVal}" min="${tourPaxBounds.infantMin || 0}" max="${tourPaxBounds.infantMax || 0}" ${(tourPaxBounds.infants || 0) <= 0 ? 'disabled' : ''} onchange="updateTourField(${index}, 'infantQty', this.value); this.value = tourList[${index}].infantQty;" ${(tourPaxBounds.infants || 0) <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}`;
             
             return `
             <tr>
@@ -22914,15 +22951,15 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     </a>
                     ${typeof enquiryProPriceBreakBtnHtml === 'function' ? enquiryProPriceBreakBtnHtml('tour', index) : ''}
                 </td>
-                <td><input type="number" value="${tour.adultsQty}" min="${tourPaxBounds.adultMin}" max="${tourPaxBounds.adultMax}" ${tourPaxBounds.adults <= 0 ? 'disabled' : ''} onchange="updateTourField(${index}, 'adultsQty', this.value); this.value = tourList[${index}].adultsQty;" ${tourPaxBounds.adults <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}></td>
+                <td><input type="number" ${adultQtyAttrs}></td>
                 <td><input type="text" value="${parseFloat(String(tour.adultCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${Number(adultSellBase).toFixed(2)}" title="Sell before DMC markup" onchange="updateTourField(${index}, 'adultSell', this.value); updateTourTable(); recalculateTotals();" step="1"></td>
                 ${mkTd(adultSellBase, 'other')}
-                <td><input type="number" value="${tour.childQty}" min="${tourPaxBounds.childMin}" max="${tourPaxBounds.childMax}" ${tourPaxBounds.children <= 0 ? 'disabled' : ''} onchange="updateTourField(${index}, 'childQty', this.value); this.value = tourList[${index}].childQty;" ${tourPaxBounds.children <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}></td>
+                <td><input type="number" ${childQtyAttrs}></td>
                 <td><input type="text" value="${parseFloat(String(tour.childCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${Number(childSellBase).toFixed(2)}" title="Sell before DMC markup" onchange="updateTourField(${index}, 'childSell', this.value); updateTourTable(); recalculateTotals();" step="1"></td>
                 ${mkTd(childSellBase, 'other')}
-                <td><input type="number" value="${tour.infantQty || 0}" min="${tourPaxBounds.infantMin || 0}" max="${tourPaxBounds.infantMax || 0}" ${(tourPaxBounds.infants || 0) <= 0 ? 'disabled' : ''} onchange="updateTourField(${index}, 'infantQty', this.value); this.value = tourList[${index}].infantQty;" ${(tourPaxBounds.infants || 0) <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}></td>
+                <td><input type="number" ${infantQtyAttrs}></td>
                 <td><input type="text" value="${parseFloat(String(tour.infantCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${Number(infantSellBase).toFixed(2)}" title="Sell before DMC markup" onchange="updateTourField(${index}, 'infantSell', this.value); updateTourTable(); recalculateTotals();" step="1"></td>
                 ${mkTd(infantSellBase, 'other')}
@@ -23151,14 +23188,19 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
     function updateTourField(index, field, value) {
         if (tourList[index]) {
             const tour = tourList[index];
-            if (field === 'adultsQty' && typeof clampTourSitePaxQty === 'function') {
+            const isOnlineTour = !!(tour.isOnlineAttraction || tour.attractionSourceType === 'online');
+            // Online guest counts come from the booking modal — do not force header min=1.
+            if (!isOnlineTour && field === 'adultsQty' && typeof clampTourSitePaxQty === 'function') {
                 value = clampTourSitePaxQty(value, 'adult');
             }
-            if (field === 'childQty' && typeof clampTourSitePaxQty === 'function') {
+            if (!isOnlineTour && field === 'childQty' && typeof clampTourSitePaxQty === 'function') {
                 value = clampTourSitePaxQty(value, 'child');
             }
-            if (field === 'infantQty' && typeof clampTourSitePaxQty === 'function') {
+            if (!isOnlineTour && field === 'infantQty' && typeof clampTourSitePaxQty === 'function') {
                 value = clampTourSitePaxQty(value, 'infant');
+            }
+            if (isOnlineTour && (field === 'adultsQty' || field === 'childQty' || field === 'infantQty')) {
+                value = Math.max(0, parseInt(value, 10) || 0);
             }
             tour[field] = value;
             if (field === 'infantQty') tour.infant = value;
@@ -33444,6 +33486,14 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                 }
             }
             
+            if (tour.isOnlineAttraction || tour.attractionSourceType === 'online') {
+                tourData.isOnlineAttraction = true;
+                tourData.attractionSourceType = 'online';
+                tourData.mode = 'online';
+                if (typeof enquiryProCopyStoredMarkupMeta === 'function') {
+                    enquiryProCopyStoredMarkupMeta(tourData, tour);
+                }
+            }
             if (typeof enquiryProAttachOtherServiceMarkup === 'function') {
                 enquiryProAttachOtherServiceMarkup(tourData, tourData.totalPrice);
             }

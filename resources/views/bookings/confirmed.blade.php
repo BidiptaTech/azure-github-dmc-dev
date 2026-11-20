@@ -3363,16 +3363,23 @@
 
         $discountAmount = $tourDiscountMoney;
         $priceAfterFoc = max(0, $grossTourAmount + $tourMarkupMoney - $tourDiscountMoney);
-        $netPayableBase = (int) ceil($priceAfterFoc);
+        $tourIsOnlineOnly = strtolower(trim((string) ($tour->order_classification ?? ''))) === 'online'
+            || app(\App\Services\Payment\OrderClassificationService::class)->classifyTour($tour)
+                === \App\Services\Payment\OrderClassificationService::ONLINE;
+        $netPayableBase = $tourIsOnlineOnly
+            ? round($priceAfterFoc, 2)
+            : (float) ((int) ceil($priceAfterFoc));
         // Prefer converted country payable totals (already include markup/discount at negotiation time).
         if ($hasConvertedPricing && $convertedPayableFromDetails > 0) {
-            $netPayableBase = (int) ceil($convertedPayableFromDetails);
+            $netPayableBase = $tourIsOnlineOnly
+                ? round($convertedPayableFromDetails, 2)
+                : (float) ((int) ceil($convertedPayableFromDetails));
             // Derive display markup/discount so Gross + Markup - Discount ≈ converted payable.
             // Keep stored tour markup/discount money when recalculated from converted gross;
             // if payable is lower due to negotiation-time payable, negotiation line absorbs the gap.
         }
         $baseAmount = $lastNegotiatedAmount > 0
-            ? (float) ceil($lastNegotiatedAmount)
+            ? ($tourIsOnlineOnly ? round((float) $lastNegotiatedAmount, 2) : (float) ceil($lastNegotiatedAmount))
             : (float) $netPayableBase;
         $netTourAmount = $baseAmount;
         $negotiationDiscount = max(0, $netPayableBase - $baseAmount);

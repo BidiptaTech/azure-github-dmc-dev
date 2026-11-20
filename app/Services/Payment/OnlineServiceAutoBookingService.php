@@ -151,8 +151,9 @@ class OnlineServiceAutoBookingService
             $supplierRef = \App\Services\SupplierCredit\SupplierCreditService::hotelSupplierReference($details)
                 ?? (($fresh->order_ref_no ?? '') !== '' && ($fresh->order_ref_no ?? '') !== OnlineAttractionOrderService::PLACEHOLDER_ORDER_REF ? $fresh->order_ref_no : null);
 
+            // Prefer supplier-provided booking ref for the result UI (not our ONLINE-… agency id).
             return $out('booked', $result['message'] ?? 'Booked with supplier.') + [
-                'reference_id' => $fresh->reference_id ?? null,
+                'reference_id' => $supplierRef ?: ($fresh->reference_id ?? null),
                 'supplier_reference' => $supplierRef,
                 'actual_due_date' => $fresh->actual_due_date ?? null,
                 'display_due_date' => $fresh->display_due_date ?? null,
@@ -167,7 +168,8 @@ class OnlineServiceAutoBookingService
             'reason' => $result['message'],
         ]);
 
-        return $out('failed', (string) $result['message']);
+        return $out('failed', (string) $result['message'])
+            + array_intersect_key($result, array_flip(['old_price', 'new_price', 'currency']));
     }
 
     /**
@@ -193,11 +195,26 @@ class OnlineServiceAutoBookingService
         }
         $data = (array) ($recheck['data'] ?? []);
         if (! empty($data['price_increased'])) {
-            return ['ok' => false, 'message' => sprintf(
-                'Supplier price increased (quoted %s %.2f) — not booked; amount released.',
-                $data['currency'] ?? '',
-                (float) ($data['stored_price'] ?? 0)
-            )];
+            $cur = (string) ($data['currency'] ?? '');
+            $paid = (float) ($data['stored_price'] ?? 0);
+            $now = ! empty($data['markup_applied'])
+                ? (float) ($data['customer_price'] ?? 0)
+                : (float) (($data['supplier_gross_price'] ?? 0) ?: ($data['supplier_net_price'] ?? 0));
+
+            return [
+                'ok' => false,
+                'old_price' => round($paid, 2),
+                'new_price' => round($now, 2),
+                'currency' => $cur,
+                'message' => sprintf(
+                    'The supplier raised the price while booking: you paid %1$s %2$s, it is now %1$s %3$s (+%1$s %4$s). '
+                    .'Not booked — its amount is released back. Click Pay Now to book it at the new price.',
+                    $cur,
+                    number_format($paid, 2),
+                    number_format($now, 2),
+                    number_format(max(0, $now - $paid), 2)
+                ),
+            ];
         }
 
         $freeCancel = $this->freeCancelFromPolicies((array) ($data['cancellation_policies'] ?? []))

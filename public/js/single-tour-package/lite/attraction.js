@@ -141,8 +141,8 @@
 
     function attractionSourceToggleHtml(stay) {
         // TEMP: hide Offline / Online Attraction Source toggle — always use Offline (DMC inventory).
-        return '';
-        /*
+        // return '';
+        
         if (!onlineApiEnabled()) return '';
         var T = S();
         var key = String(stay.planIndex || '0') + '_' +
@@ -174,7 +174,7 @@
             '    </div>' +
             '  </div>'
         );
-        */
+        
     }
 
     function shellHtml(stay) {
@@ -663,15 +663,21 @@
         var adults = Math.max(0, parseInt(payload.adults, 10) || 0);
         var children = Math.max(0, parseInt(payload.children, 10) || 0);
         var infants = Math.max(0, parseInt(payload.infants, 10) || 0);
-        var adultP = Number(payload.adultPrice) || 0;
-        var childP = Number(payload.childPrice) || 0;
-        var seniorP = Number(payload.seniorPrice) || 0;
+        // Modal/API units already include supplier + DMC other — keep as commercial final.
+        var adultFinal = Number(payload.adultPrice) || 0;
+        var childFinal = Number(payload.childPrice) || 0;
+        var seniorFinal = Number(payload.seniorPrice) || 0;
         var total = Number(payload.totalPrice);
         if (!Number.isFinite(total) || total <= 0) {
-            total = (adultP * adults) + (childP * children);
+            total = (adultFinal * adults) + (childFinal * children);
         }
         var cur = payload.currency || stay.currency || root.getAttribute('data-currency') || 'SGD';
         var supplement = T.autoSupplement ? T.autoSupplement(adults) : false;
+        var mk = null;
+        if (total > 0 && window.StpLiteDmcMarkup && typeof window.StpLiteDmcMarkup.splitFromFinal === 'function') {
+            mk = window.StpLiteDmcMarkup.splitFromFinal(total, 'other');
+            if (mk && typeof mk === 'object') mk.currency = cur;
+        }
 
         return {
             AttractionId: String(payload.attractionId || payload.skuId || ''),
@@ -679,16 +685,16 @@
             ticketId: String(payload.ticketId || ''),
             ticketName: payload.ticketName || 'Ticket',
             ticket_details: {
-                // Online: cost === sell
-                adult_price: adultP,
-                adult_cost: adultP,
-                adult_sell: adultP,
-                child_price: childP,
-                child_cost: childP,
-                child_sell: childP,
-                senior_adult_price: seniorP,
-                senior_price: seniorP,
-                senior_cost: seniorP
+                // Online: cost === sell (Estimated / API marked units). Zero unused pax types.
+                adult_price: adults > 0 ? adultFinal : 0,
+                adult_cost: adults > 0 ? adultFinal : 0,
+                adult_sell: adults > 0 ? adultFinal : 0,
+                child_price: children > 0 ? childFinal : 0,
+                child_cost: children > 0 ? childFinal : 0,
+                child_sell: children > 0 ? childFinal : 0,
+                senior_adult_price: seniorFinal,
+                senior_price: seniorFinal,
+                senior_cost: seniorFinal
             },
             adultCount: adults,
             childCount: children,
@@ -697,10 +703,10 @@
             adults: adults,
             children: children,
             infants: infants,
-            adultCost: adultP,
-            adultSell: adultP,
-            childCost: childP,
-            childSell: childP,
+            adultCost: adults > 0 ? adultFinal : 0,
+            adultSell: adults > 0 ? adultFinal : 0,
+            childCost: children > 0 ? childFinal : 0,
+            childSell: children > 0 ? childFinal : 0,
             visitTime: payload.timeSlot || '',
             bookingDate: payload.visitDate || stay.start || '',
             totalPrice: total,
@@ -709,6 +715,9 @@
             cost: total,
             sell: total,
             cost_price: total,
+            base_grand_total: mk ? Number(mk.base_price) || total : total,
+            dmc_profile_markup: mk,
+            online_price_breakdown: mk,
             supplement: !!supplement,
             is_supplement: !!supplement,
             transfer_options: null,
@@ -1133,6 +1142,7 @@
                 var xfer = r.transfer_options || {};
                 var guide = r.guide_options || {};
                 var cur = r.currency || root.getAttribute('data-currency') || 'SGD';
+                var isOnline = !!(r.isOnlineAttraction || r.attractionSourceType === 'online');
                 var infants = Math.max(0, parseInt(r.infantCount != null ? r.infantCount : r.infants, 10) || 0);
                 if (infants <= 0 && T.tourGuests) {
                     infants = Math.max(0, parseInt((T.tourGuests() || {}).infants, 10) || 0);
@@ -1162,6 +1172,32 @@
                         cur + ' ' + Number(guide.total_price || 0).toFixed(2)
                     );
                 }
+                // Online ticket units already include DMC other (API stack). Peel for Items
+                // only when the unit equals the marked final — never peel an already-base sell.
+                var peelUnit = function (amt) {
+                    amt = Number(amt) || 0;
+                    if (!isOnline || amt <= 0) return amt;
+                    if (!(window.StpLiteDmcMarkup && typeof window.StpLiteDmcMarkup.splitFromFinal === 'function')) {
+                        return amt;
+                    }
+                    var stamped = r.dmc_profile_markup || r.online_price_breakdown || null;
+                    var finalHint = Number((stamped && stamped.price) || r.totalPrice || r.grand_total || 0) || 0;
+                    var baseHint = Number((stamped && stamped.base_price) || r.base_grand_total || 0) || 0;
+                    if (baseHint > 0 && Math.abs(amt - baseHint) < 0.05) return amt;
+                    if (finalHint > 0 && Math.abs(amt - finalHint) < 0.05) {
+                        return window.StpLiteDmcMarkup.splitFromFinal(amt, 'other').base_price;
+                    }
+                    // Per-unit: peel only if applying markup lands on a plausible final unit.
+                    var applied = window.StpLiteDmcMarkup.apply(amt, 'other');
+                    if (finalHint > 0 && Math.abs(applied.price - finalHint) < 0.05) return amt;
+                    return window.StpLiteDmcMarkup.splitFromFinal(amt, 'other').base_price;
+                };
+                var adultN = Number(r.adultCount || r.adults || 0) || 0;
+                var childN = Number(r.childCount || r.children || 0) || 0;
+                var seniorN = Number(r.seniorCount || 0) || 0;
+                var adultUnit = adultN > 0 ? peelUnit(td.adult_price || r.adultSell || 0) : 0;
+                var childUnit = childN > 0 ? peelUnit(td.child_price || r.childSell || 0) : 0;
+                var seniorUnit = seniorN > 0 ? peelUnit(td.senior_adult_price || 0) : 0;
                 var detailHtml = typeof T.paxPriceLinesHtml === 'function'
                     ? T.paxPriceLinesHtml({
                         currency: cur,
@@ -1171,29 +1207,36 @@
                         children: r.childCount || r.children || 0,
                         seniors: r.seniorCount || 0,
                         infants: infants,
-                        adultPrice: Number(td.adult_price || 0),
-                        childPrice: Number(td.child_price || 0),
-                        seniorPrice: Number(td.senior_adult_price || 0),
+                        adultPrice: adultUnit,
+                        childPrice: childUnit,
+                        seniorPrice: seniorUnit,
                         infantPrice: 0,
                         extraHtml: (transferHtml || '') + guideHtml
                     })
                     : '';
-                // Detail lines are pre-markup (ticket/transfer/guide). Build the same
-                // base total as Get Price, then apply DMC markup so the modal's
-                // splitFromFinal matches the panel (before + markup + final).
-                var ticketBase = (typeof T.ticketOrMealBaseFromRow === 'function')
-                    ? T.ticketOrMealBaseFromRow(r)
-                    : ((Number(r.adultCount || r.adults || 0) * Number(td.adult_price || 0))
-                        + (Number(r.childCount || r.children || 0) * Number(td.child_price || 0))
-                        + (Number(r.seniorCount || 0) * Number(td.senior_adult_price || 0)));
+                var ticketBase = (Number(r.adultCount || r.adults || 0) * adultUnit)
+                    + (Number(r.childCount || r.children || 0) * childUnit)
+                    + (Number(r.seniorCount || 0) * seniorUnit);
                 var xferCost = (xfer.transfer_required || xfer.vehicle_id || xfer.cost)
                     ? (Number(xfer.cost) || 0) : 0;
                 var guideCost = (guide.guide_required || guide.guide_id || guide.total_price)
                     ? (Number(guide.total_price) || 0) : 0;
                 var baseBeforeMarkup = ticketBase + xferCost + guideCost;
-                var modalTotal = (window.StpLiteDmcMarkup && typeof window.StpLiteDmcMarkup.apply === 'function')
-                    ? window.StpLiteDmcMarkup.apply(baseBeforeMarkup, 'other').price
-                    : baseBeforeMarkup;
+                var modalTotal;
+                if (isOnline) {
+                    // Estimated / row total already includes DMC — pass final; modal peels once for display.
+                    modalTotal = Number(r.totalPrice != null ? r.totalPrice : (r.grand_total || 0)) || baseBeforeMarkup;
+                    if (window.StpLiteDmcMarkup && typeof window.StpLiteDmcMarkup.apply === 'function'
+                        && Math.abs(modalTotal - baseBeforeMarkup) < 0.05) {
+                        // Row stored base-only; derive final once for Summary.
+                        modalTotal = window.StpLiteDmcMarkup.apply(baseBeforeMarkup, 'other').price;
+                    }
+                } else {
+                    // Offline: detail lines are pre-markup; apply DMC so splitFromFinal matches panel.
+                    modalTotal = (window.StpLiteDmcMarkup && typeof window.StpLiteDmcMarkup.apply === 'function')
+                        ? window.StpLiteDmcMarkup.apply(baseBeforeMarkup, 'other').price
+                        : baseBeforeMarkup;
+                }
                 T.showPriceBreakdownModal(
                     r.AttractionName || 'Attraction',
                     cur,

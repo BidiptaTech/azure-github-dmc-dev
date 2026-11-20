@@ -349,6 +349,8 @@
     let onlineFetchTimerId = null;
     let onlineFetchStartedAt = 0;
     let onlineTicketsRequestId = 0;
+    // While restoring an existing booking, keep preferred ticket/time/price across async ticket loads.
+    let onlineAttractionRestorePrefs = null;
 
     function bindOnlineAttractionSelectEvents() {
         const el = document.getElementById('onlineAttractionSelect');
@@ -514,20 +516,92 @@
         }
     }
 
-    function getMainGuestLimits() {
-        const mainMale = parseInt(document.getElementById('male')?.value, 10) || 0;
-        const mainFemale = parseInt(document.getElementById('female')?.value, 10) || 0;
-        const mainAdultsField = parseInt(document.getElementById('adults')?.value, 10) || 1;
-        const mainChildren = parseInt(document.getElementById('children')?.value, 10) || 0;
-        const mainInfants = parseInt(document.getElementById('infants')?.value, 10) || 0;
+    /**
+     * Read guest counts from Enquiry Pro header fields or LITE/classic hidden fields.
+     * Pro: adultCountInput / adultManInput / adultWomenInput / childCountInput / infantCountInput
+     * LITE: adults / male / female / children / infants
+     */
+    function readMainAttractionFormGuestSnapshot() {
+        if (typeof readMainFormGuestSnapshot === 'function') {
+            return readMainFormGuestSnapshot();
+        }
 
-        const maxAdults = Math.max(1, (mainMale + mainFemale) > 0 ? (mainMale + mainFemale) : mainAdultsField);
+        const hasProGuestFields = !!(
+            document.getElementById('adultCountInput')
+            || document.getElementById('adultManInput')
+            || document.getElementById('childCountInput')
+            || document.getElementById('infantCountInput')
+        );
+
+        let male = 0;
+        let female = 0;
+        let adults = 0;
+        let children = 0;
+        let infants = 0;
+
+        if (hasProGuestFields) {
+            male = parseInt(document.getElementById('adultManInput')?.value, 10) || 0;
+            female = parseInt(document.getElementById('adultWomenInput')?.value, 10) || 0;
+            adults = parseInt(document.getElementById('adultCountInput')?.value, 10) || 0;
+            children = parseInt(document.getElementById('childCountInput')?.value, 10) || 0;
+            infants = parseInt(document.getElementById('infantCountInput')?.value, 10) || 0;
+        } else {
+            male = parseInt(document.getElementById('male')?.value, 10) || 0;
+            female = parseInt(document.getElementById('female')?.value, 10) || 0;
+            adults = parseInt(document.getElementById('adults')?.value, 10) || 0;
+            children = parseInt(document.getElementById('children')?.value, 10) || 0;
+            infants = parseInt(document.getElementById('infants')?.value, 10) || 0;
+        }
+
+        if (male + female === 0 && adults > 0) {
+            male = adults;
+            female = 0;
+        } else if (adults <= 0 && (male + female) > 0) {
+            adults = male + female;
+        }
+
+        const maxAdults = Math.max(1, (male + female) > 0 ? (male + female) : Math.max(1, adults || 1));
+
+        let childAges = [];
+        if (children > 0) {
+            for (let i = 1; i <= children; i++) {
+                const sel = document.getElementById('childAge' + i);
+                if (sel) {
+                    childAges.push(parseInt(sel.value, 10) || 0);
+                }
+            }
+        }
+        if (childAges.length === 0) {
+            try {
+                const raw = document.getElementById('enquiryProChildAges')?.value
+                    || document.getElementById('child_ages')?.value
+                    || '[]';
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) {
+                    childAges = parsed.map(function (a) { return parseInt(a, 10); }).filter(function (a) { return !isNaN(a); });
+                }
+            } catch (e) {
+                childAges = [];
+            }
+        }
 
         return {
+            male: male,
+            female: female,
             adults: maxAdults,
-            children: mainChildren,
-            infants: mainInfants,
-            totalPax: maxAdults + mainChildren + mainInfants,
+            children: Math.max(0, children),
+            infants: Math.max(0, infants),
+            childAges: childAges,
+        };
+    }
+
+    function getMainGuestLimits() {
+        const snap = readMainAttractionFormGuestSnapshot();
+        return {
+            adults: snap.adults,
+            children: snap.children,
+            infants: snap.infants,
+            totalPax: snap.adults + snap.children + snap.infants,
         };
     }
 
@@ -565,28 +639,17 @@
     }
 
     function loadOnlineAttractionGuestStateFromMain() {
-        const mainMale = parseInt(document.getElementById('male')?.value, 10) || 0;
-        const mainFemale = parseInt(document.getElementById('female')?.value, 10) || 0;
-        const mainAdults = parseInt(document.getElementById('adults')?.value, 10) || 1;
-        const mainChildren = parseInt(document.getElementById('children')?.value, 10) || 0;
-        const mainInfants = parseInt(document.getElementById('infants')?.value, 10) || 0;
+        const snap = readMainAttractionFormGuestSnapshot();
 
-        onlineAttractionGuestState.male = mainMale;
-        onlineAttractionGuestState.female = mainFemale;
-        if (mainMale + mainFemale === 0) {
-            onlineAttractionGuestState.male = mainAdults;
+        onlineAttractionGuestState.male = snap.male;
+        onlineAttractionGuestState.female = snap.female;
+        if (snap.male + snap.female === 0) {
+            onlineAttractionGuestState.male = snap.adults;
             onlineAttractionGuestState.female = 0;
         }
-        onlineAttractionGuestState.children = mainChildren;
-        onlineAttractionGuestState.infants = mainInfants;
-
-        try {
-            const raw = document.getElementById('child_ages')?.value || '[]';
-            const parsed = JSON.parse(raw);
-            onlineAttractionGuestState.childAges = Array.isArray(parsed) ? parsed.map(function (a) { return parseInt(a, 10); }).filter(function (a) { return !isNaN(a); }) : [];
-        } catch (e) {
-            onlineAttractionGuestState.childAges = [];
-        }
+        onlineAttractionGuestState.children = snap.children;
+        onlineAttractionGuestState.infants = snap.infants;
+        onlineAttractionGuestState.childAges = Array.isArray(snap.childAges) ? snap.childAges.slice() : [];
 
         clampOnlineAttractionGuestState();
     }
@@ -1298,10 +1361,81 @@
         validateOnlineAttractionAddBtn();
     }
 
-    function populateOnlineAttractionDetails(attraction) {
+    function findTicketOptionMatch(ticketSel, prefs) {
+        prefs = prefs || {};
+        const wantId = String(prefs.ticketId || prefs.providerTicketId || '').trim();
+        const wantSku = String(prefs.ticketSkuId || '').trim();
+        const wantName = String(prefs.ticketName || '').trim().toLowerCase();
+        const opts = Array.from(ticketSel?.options || []);
+        return opts.find(function (o) {
+            if (!o || !o.value) return false;
+            const val = String(o.value || '').trim();
+            const sku = String(o.dataset?.ticketSkuId || '').trim();
+            const provider = String(o.dataset?.providerTicketId || '').trim();
+            const label = String(o.textContent || '').trim().toLowerCase();
+            if (wantId && (val === wantId || provider === wantId)) return true;
+            if (wantSku && (sku === wantSku || val === wantSku)) return true;
+            if (wantName && label && (label === wantName || label.indexOf(wantName) === 0 || wantName.indexOf(label) === 0)) return true;
+            return false;
+        }) || null;
+    }
+
+    function selectOnlineAttractionTicket(prefs, fallbackFirst) {
+        const ticketSel = document.getElementById('onlineAttractionTicketSelect');
+        if (!ticketSel) return false;
+        prefs = prefs || onlineAttractionRestorePrefs || {};
+        let match = findTicketOptionMatch(ticketSel, prefs);
+        if (!match && prefs.ticketName) {
+            // Inject the saved ticket option so edit always shows what the user booked.
+            const extraT = document.createElement('option');
+            extraT.value = prefs.ticketId || prefs.ticketSkuId || prefs.providerTicketId || prefs.ticketName;
+            extraT.textContent = prefs.ticketName;
+            extraT.dataset.adultPrice = String(prefs.adultPrice || 0);
+            extraT.dataset.childPrice = String(prefs.childPrice || 0);
+            extraT.dataset.seniorPrice = String(prefs.seniorPrice || 0);
+            extraT.dataset.ticketSkuId = prefs.ticketSkuId || '';
+            extraT.dataset.providerTicketId = prefs.providerTicketId || prefs.ticketId || '';
+            ticketSel.appendChild(extraT);
+            ticketSel.disabled = false;
+            match = extraT;
+        }
+        if (!match && fallbackFirst && ticketSel.options.length > 1) {
+            match = ticketSel.options[1];
+        }
+        if (!match) return false;
+        ticketSel.disabled = false;
+        ticketSel.value = match.value;
+        if (typeof jQuery !== 'undefined' && jQuery.fn.select2) {
+            jQuery(ticketSel).val(match.value).trigger('change.select2');
+        }
+        return true;
+    }
+
+    function selectOnlineAttractionTimeSlot(timeSlot) {
+        const timeSel = document.getElementById('onlineAttractionTimeSelect');
+        if (!timeSel || !timeSlot) return false;
+        const want = String(timeSlot).trim();
+        const tMatch = Array.from(timeSel.options).find(function (o) {
+            return o.value === want || (o.textContent || '').trim() === want;
+        });
+        if (tMatch) {
+            timeSel.value = tMatch.value;
+            return true;
+        }
+        const extra = document.createElement('option');
+        extra.value = want;
+        extra.textContent = want;
+        timeSel.appendChild(extra);
+        timeSel.disabled = false;
+        timeSel.value = want;
+        return true;
+    }
+
+    function populateOnlineAttractionDetails(attraction, prefs) {
         const timeSel = document.getElementById('onlineAttractionTimeSelect');
         const ticketSel = document.getElementById('onlineAttractionTicketSelect');
         const currencyEl = document.getElementById('onlineAttractionCurrency');
+        prefs = prefs || onlineAttractionRestorePrefs || null;
 
         timeSel.innerHTML = '<option value="">Select Time Slot</option>';
         if (typeof jQuery !== 'undefined' && jQuery.fn.select2 && jQuery(ticketSel).hasClass('select2-hidden-accessible')) {
@@ -1356,6 +1490,9 @@
             timeSel.disabled = false;
             timeSel.selectedIndex = 1;
         }
+        if (prefs && prefs.timeSlot) {
+            selectOnlineAttractionTimeSlot(prefs.timeSlot);
+        }
 
         if (onlineCurrentTickets.length) {
             onlineCurrentTickets.forEach(function (ticket, idx) {
@@ -1371,13 +1508,30 @@
                 ticketSel.appendChild(opt);
             });
             ticketSel.disabled = false;
-            ticketSel.selectedIndex = 1;
-            applySelectedTicketPrice();
+            // Prefer restored booking ticket; otherwise first ticket (new search flow).
+            if (!selectOnlineAttractionTicket(prefs, true)) {
+                ticketSel.selectedIndex = 1;
+            }
+            if (prefs && prefs.totalPrice != null && Number.isFinite(parseFloat(prefs.totalPrice))) {
+                const priceEl = document.getElementById('onlineAttractionPriceDisplay');
+                if (priceEl) priceEl.value = parseFloat(prefs.totalPrice).toFixed(2);
+            } else {
+                applySelectedTicketPrice();
+            }
             initOnlineTicketSelect2(false);
         } else {
             ticketSel.disabled = true;
             initOnlineTicketSelect2(true);
-            document.getElementById('onlineAttractionPriceDisplay').value = '0.00';
+            // Still inject saved ticket while waiting for lazy ticket fetch.
+            if (prefs && (prefs.ticketId || prefs.ticketName)) {
+                selectOnlineAttractionTicket(prefs, false);
+                if (prefs.totalPrice != null && Number.isFinite(parseFloat(prefs.totalPrice))) {
+                    const priceEl = document.getElementById('onlineAttractionPriceDisplay');
+                    if (priceEl) priceEl.value = parseFloat(prefs.totalPrice).toFixed(2);
+                }
+            } else {
+                document.getElementById('onlineAttractionPriceDisplay').value = '0.00';
+            }
         }
 
         if (currencyEl && attraction.currency) {
@@ -1532,6 +1686,30 @@
         clampOnlineAttractionGuestState();
         syncOnlineAttractionGuestDerivedFields();
 
+        const savedTotal = parseFloat(
+            saved.totalPriceFinal != null ? saved.totalPriceFinal
+                : (saved.totalPrice != null ? saved.totalPrice : NaN)
+        );
+        const savedAdultPrice = parseFloat(
+            saved.adultPriceFinal != null ? saved.adultPriceFinal
+                : (saved.adultPrice != null ? saved.adultPrice : 0)
+        );
+        const savedChildPrice = parseFloat(
+            saved.childPriceFinal != null ? saved.childPriceFinal
+                : (saved.childPrice != null ? saved.childPrice : 0)
+        );
+        onlineAttractionRestorePrefs = {
+            ticketId: saved.ticketId || saved.providerTicketId || '',
+            ticketSkuId: saved.ticketSkuId || '',
+            providerTicketId: saved.providerTicketId || saved.ticketId || '',
+            ticketName: saved.ticketName || '',
+            timeSlot: saved.timeSlot || '',
+            adultPrice: Number.isFinite(savedAdultPrice) ? savedAdultPrice : 0,
+            childPrice: Number.isFinite(savedChildPrice) ? savedChildPrice : 0,
+            seniorPrice: parseFloat(saved.seniorPrice) || 0,
+            totalPrice: Number.isFinite(savedTotal) ? savedTotal : null
+        };
+
         const raw = saved.onlineAttractionRaw || {
             sku_id: saved.skuId || saved.attractionId,
             attractionId: saved.attractionId,
@@ -1544,73 +1722,60 @@
             closeTime: saved.closeTime,
             timeSlots: saved.timeSlots || []
         };
+        if (Array.isArray(saved.tickets) && saved.tickets.length) {
+            applyTicketsToAttraction(raw, saved.tickets);
+        }
         populateOnlineAttractions([raw]);
         showOnlineAttractionSelectionPanel();
 
         const wantId = String(saved.attractionId || saved.skuId || attractionId(raw) || '');
         const sel = document.getElementById('onlineAttractionSelect');
+        // Set attraction WITHOUT firing select2 change (change handler auto-picks first ticket).
         if (sel && wantId) {
             sel.value = wantId;
-            if (typeof jQuery !== 'undefined') jQuery(sel).val(wantId).trigger('change.select2');
-        }
-        populateOnlineAttractionDetails(raw);
-        if (Array.isArray(saved.tickets) && saved.tickets.length) {
-            applyTicketsToAttraction(raw, saved.tickets);
-            populateOnlineAttractionDetails(raw);
-        }
-
-        const timeSel = document.getElementById('onlineAttractionTimeSelect');
-        if (timeSel && saved.timeSlot) {
-            const tMatch = Array.from(timeSel.options).find(function (o) {
-                return o.value === saved.timeSlot || (o.textContent || '').trim() === String(saved.timeSlot).trim();
-            });
-            if (tMatch) timeSel.value = tMatch.value;
-            else {
-                const extra = document.createElement('option');
-                extra.value = saved.timeSlot;
-                extra.textContent = saved.timeSlot;
-                timeSel.appendChild(extra);
-                timeSel.value = saved.timeSlot;
-                timeSel.disabled = false;
+            if (typeof jQuery !== 'undefined' && jQuery.fn.select2) {
+                try {
+                    jQuery(sel).val(wantId).trigger('change.select2');
+                } catch (eSel) {
+                    sel.value = wantId;
+                }
             }
         }
 
-        const ticketSel = document.getElementById('onlineAttractionTicketSelect');
-        if (ticketSel && (saved.ticketId || saved.ticketName)) {
-            const kMatch = Array.from(ticketSel.options).find(function (o) {
-                return o.value === String(saved.ticketId || '')
-                    || (o.textContent || '').trim() === String(saved.ticketName || '').trim();
-            });
-            if (kMatch) {
-                ticketSel.value = kMatch.value;
-                if (typeof jQuery !== 'undefined') jQuery(ticketSel).val(kMatch.value).trigger('change.select2');
-            } else if (saved.ticketName) {
-                const extraT = document.createElement('option');
-                extraT.value = saved.ticketId || saved.ticketName;
-                extraT.textContent = saved.ticketName;
-                extraT.dataset.adultPrice = String(saved.adultPrice || 0);
-                extraT.dataset.childPrice = String(saved.childPrice || 0);
-                extraT.dataset.seniorPrice = String(saved.seniorPrice || 0);
-                extraT.dataset.ticketSkuId = saved.ticketSkuId || '';
-                extraT.dataset.providerTicketId = saved.providerTicketId || '';
-                ticketSel.appendChild(extraT);
-                ticketSel.disabled = false;
-                ticketSel.value = extraT.value;
-                initOnlineTicketSelect2(false);
-            }
-        }
+        populateOnlineAttractionDetails(raw, onlineAttractionRestorePrefs);
+        selectOnlineAttractionTimeSlot(onlineAttractionRestorePrefs.timeSlot);
+        selectOnlineAttractionTicket(onlineAttractionRestorePrefs, true);
 
         const remarksEl = document.getElementById('onlineAttractionRemarks');
         if (remarksEl) remarksEl.value = saved.remarks || '';
         const priceEl = document.getElementById('onlineAttractionPriceDisplay');
-        if (priceEl && saved.totalPrice != null) {
-            const p = parseFloat(saved.totalPrice);
-            if (Number.isFinite(p)) priceEl.value = p.toFixed(2);
-        } else {
-            applySelectedTicketPrice();
+        if (priceEl && onlineAttractionRestorePrefs.totalPrice != null) {
+            priceEl.value = Number(onlineAttractionRestorePrefs.totalPrice).toFixed(2);
         }
+
         setOnlineAttractionSelectEnabled(true);
         validateOnlineAttractionAddBtn();
+
+        // Lazy-load full ticket list, then re-select the booked ticket (do not keep first ticket).
+        const restoreToken = onlineAttractionRestorePrefs;
+        const restoreIdx = getOnlineAttractionSelectIndex();
+        const restoreAttraction = restoreIdx >= 0 ? onlineAttractionsCache[restoreIdx] : raw;
+        loadTicketsForSelectedAttraction(restoreAttraction).then(function (enriched) {
+            if (!restoreToken || onlineAttractionRestorePrefs !== restoreToken) return;
+            if (!enriched) {
+                onlineAttractionRestorePrefs = null;
+                return;
+            }
+            populateOnlineAttractionDetails(enriched, restoreToken);
+            selectOnlineAttractionTimeSlot(restoreToken.timeSlot);
+            selectOnlineAttractionTicket(restoreToken, true);
+            const pEl = document.getElementById('onlineAttractionPriceDisplay');
+            if (pEl && restoreToken.totalPrice != null) {
+                pEl.value = Number(restoreToken.totalPrice).toFixed(2);
+            }
+            validateOnlineAttractionAddBtn();
+            onlineAttractionRestorePrefs = null;
+        });
     };
 
     window.openOnlineAttractionModal = function (day, index) {
@@ -1618,6 +1783,10 @@
             day: parseInt(day, 10) || 1,
             index: parseInt(index, 10) || 1
         };
+        // New open: clear prior restore unless Pro edit snapshot is about to re-apply it.
+        if (!window.__enquiryProOnlineAttractionEditSnapshot) {
+            onlineAttractionRestorePrefs = null;
+        }
         syncOnlineAttractionDefaults(onlineAttractionTarget.day);
 
         const modalEl = document.getElementById('onlineAttractionModal');
@@ -1631,8 +1800,11 @@
             const saved = window.__enquiryProOnlineAttractionEditSnapshot;
             if (saved && typeof window.applyOnlineAttractionModalState === 'function') {
                 window.applyOnlineAttractionModalState(saved);
-            } else if (onlineAttractionsCache.length > 0) {
-                setOnlineAttractionSelectEnabled(true);
+            } else {
+                onlineAttractionRestorePrefs = null;
+                if (onlineAttractionsCache.length > 0) {
+                    setOnlineAttractionSelectEnabled(true);
+                }
             }
         });
     };
@@ -1715,19 +1887,23 @@
     });
 
     function onOnlineAttractionSelectChange() {
+        // Ignore select2 value-set during restore — applyOnlineAttractionModalState owns ticket selection.
+        if (onlineAttractionRestorePrefs) {
+            return;
+        }
         const idx = getOnlineAttractionSelectIndex();
         const attraction = idx >= 0 ? onlineAttractionsCache[idx] : null;
         if (!attraction) {
             validateOnlineAttractionAddBtn();
             return;
         }
-        // Show catalog prices immediately, then enrich with real tickets
-        populateOnlineAttractionDetails(attraction);
+        populateOnlineAttractionDetails(attraction, null);
         validateOnlineAttractionAddBtn();
         loadTicketsForSelectedAttraction(attraction).then(function (enriched) {
+            if (onlineAttractionRestorePrefs) return;
             const stillSelected = getOnlineAttractionSelectIndex() === idx;
             if (!stillSelected || !enriched) return;
-            populateOnlineAttractionDetails(enriched);
+            populateOnlineAttractionDetails(enriched, null);
             validateOnlineAttractionAddBtn();
         });
     }
