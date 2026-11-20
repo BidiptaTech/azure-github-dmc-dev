@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import PartnerTourBookings from "@/components/workspace/PartnerTourBookings";
 import { appPath } from "@/utils/appPaths";
@@ -6,8 +6,21 @@ import { appPath } from "@/utils/appPaths";
 export default function Bookings() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [seedTour] = useState(() => location.state?.openTour || null);
+  const [seedTour, setSeedTour] = useState(
+    () => location.state?.openTour || null
+  );
+  const [proposalReview, setProposalReview] = useState(() =>
+    Boolean(location.state?.proposalReview)
+  );
   const [detailOpen, setDetailOpen] = useState(Boolean(seedTour));
+
+  useEffect(() => {
+    if (!location.state?.proposalAccepted) return;
+    setSeedTour(null);
+    setProposalReview(false);
+    setDetailOpen(false);
+    navigate(appPath("bookings"), { replace: true, state: {} });
+  }, [location.state, navigate]);
 
   return (
     <div>
@@ -37,6 +50,7 @@ export default function Bookings() {
       >
         <PartnerTourBookings
           initialTour={seedTour}
+          proposalReview={proposalReview}
           onDetailChange={setDetailOpen}
         />
       </section>

@@ -181,6 +181,7 @@ export default function PartnerTourBookings({
   limit = null,
   showFilters = true,
   initialTour = null,
+  proposalReview = false,
   onDetailChange,
 } = {}) {
   const dispatch = useDispatch();
@@ -292,11 +293,28 @@ export default function PartnerTourBookings({
   };
 
   const handleBackToList = () => {
+    if (proposalReview) {
+      navigate(appPath("quotes"), { replace: true });
+      return;
+    }
     setDetailTour(null);
     setIsPrintModalVisible(false);
     setModifiedPriceData(null);
     setMarkupAmount(0);
     setDiscountAmount(0);
+  };
+
+  const handleProposalAccepted = () => {
+    setDetailTour(null);
+    setIsPrintModalVisible(false);
+    setModifiedPriceData(null);
+    setMarkupAmount(0);
+    setDiscountAmount(0);
+    onDetailChange?.(false);
+    navigate(appPath("bookings"), {
+      replace: true,
+      state: { proposalAccepted: true },
+    });
   };
 
   const handleAddMoreServices = async (tour) => {
@@ -520,7 +538,7 @@ export default function PartnerTourBookings({
           title={
             detailTour.customer_name ||
             detailTour.tour_name ||
-            "Untitled booking"
+            "Unknown Guest"
           }
           meta={meta}
           totalLabel={formatMoney(totalAmount(detailTour))}
@@ -537,8 +555,10 @@ export default function PartnerTourBookings({
           onAddServices={() => handleAddMoreServices(detailTour)}
           onUpdatePlan={() => handleUpdateTourPlan(detailTour)}
           onCancel={() => handleCancelTour(detailTour)}
+          onProposalAccepted={handleProposalAccepted}
           actionBusy={actionBusy}
           loading={viewDetailsStatus === "loading"}
+          proposalReview={proposalReview}
         />
         <PrintModal
           isPrintModalVisible={isPrintModalVisible}
@@ -678,7 +698,7 @@ export default function PartnerTourBookings({
                       <strong>
                         {tour.customer_name ||
                           tour.tour_name ||
-                          "Untitled booking"}
+                          "Unknown Guest"}
                       </strong>
                       <div className="partner-sub">
                         {tour.display_id || (tour.id ? `TC-${tour.id}` : "—")}

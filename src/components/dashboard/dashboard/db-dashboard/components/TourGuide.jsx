@@ -24,6 +24,7 @@ import EmojiPeopleIcon from "@mui/icons-material/EmojiPeople";
 import PaymentsIcon from "@mui/icons-material/Payments";
 import { singleBooking } from "@/slice/common/commonSlice";
 import { fetchViewDetails } from "@/slice/common/ViewDetails";
+import { useBookingDetailMode } from "@/components/workspace/BookingDetailModeContext";
 
 // Function to capitalize first letter
 const capitalizeFirstLetter = (string) => {
@@ -84,6 +85,7 @@ const getStatusStyle = (statusText) => {
 };
 
 const TourGuide = React.memo(({ onCountChange}) => {
+  const { hideCancel } = useBookingDetailMode();
   const dispatch = useDispatch();
   const { bookings, status, error } = useSelector((state) => state.viewDetails);
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -692,7 +694,7 @@ const TourGuide = React.memo(({ onCountChange}) => {
                         >
                           View
                         </Button>
-                        {tourStatus !== "Actual" && (
+                        {!hideCancel && tourStatus !== "Actual" && (
                         <Button
                           variant="contained"
                           size="small"

@@ -1,7 +1,5 @@
-import DateSearch from "../common/DateSearch";
-import React, { useState, useEffect } from "react";
-import { useDispatch } from "react-redux";
-import GuestSearch from "../common/GuestSearch";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import LocationSearch from "./LocationSearch";
 import {
   fetchVehicles,
@@ -10,9 +8,6 @@ import {
   setexitpickup,
   setentrytime,
   setentrytime1,
-  //setexitdropoff,
-  setpickupdate,
-  setexitpickupdate,
   setSelectionType,
   setPickupPlaceid,
   setDropoffPlaceid,
@@ -31,13 +26,24 @@ import DateSearch1 from "./DateSearch1";
 import DateSearch2 from "./DateSearch2";
 import Pickuptime from "@/components/activity-single/filter-box3/Pickuptime";
 import Pickuptime1 from "@/components/activity-single/filter-box4/Pickuptime1";
-import { useSelector } from "react-redux";
 import SearchZone from "./LocationZoneSearch";
 import Pickuptimezone from "./Pickuptimezone";
 import DateSearchZone from "./DateSearchZone";
-import { triggerSearch, clearTriggerSearch } from "@/slice/common/stepsSlice";
+import { clearTriggerSearch } from "@/slice/common/stepsSlice";
 import { selectCart } from "@/slice/cart/carSlice";
 import CityLocation from "./CityLocation";
+import CityServiceChips from "@/components/common/CityServiceChips";
+import {
+  selectCityWiseDates,
+  setSelectedCity as setCommonSelectedCity,
+} from "@/slice/common/commonSlice";
+import { toCityOnly } from "@/utils/locationFormat";
+import {
+  buildCityChipItems,
+  buildLocationFromCityName,
+  findCityDatesEntry,
+  normalizeYmd,
+} from "@/utils/cityWiseDates";
 
 const MainFilterSearchBox = ({ Location }) => {
   const dispatch = useDispatch();
@@ -52,7 +58,7 @@ const MainFilterSearchBox = ({ Location }) => {
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedDate1, setSelectedDate1] = useState("");
   const [selectedDateZone, setSelectedDateZone] = useState("");
-  // Hourly: selected city name (from CityLocation)
+  // Hourly: selected city name (from CityLocation / chips)
   const [hourlyCityName, setHourlyCityName] = useState("");
   const [hourlyCityAddress, setHourlyCityAddress] = useState("");
   const [hourlyCityError, setHourlyCityError] = useState(false);
@@ -78,6 +84,7 @@ const MainFilterSearchBox = ({ Location }) => {
   const currentbooking = useSelector((state) => state.localtour.selectbooking);
   console.log("currentbooking23", currentbooking);
   const picktype = useSelector((state) => state.localtour.picktype);
+  const bookedHourly = useSelector((state) => state.localtour.hourly || []);
   const [droptype, setdroptype] = useState("");
   // Track if time is selected
   const [time, setTime] = useState(false);
@@ -85,6 +92,13 @@ const MainFilterSearchBox = ({ Location }) => {
   const [timezone, setTimezone] = useState(false);
   const viewDetails = useSelector((state) => state.viewDetails.bookings);
   const cart = useSelector(selectCart);
+  const cityWiseDates = useSelector(selectCityWiseDates);
+  const cityList = useSelector((state) => state.city?.city || []);
+  const hasCityWiseDates =
+    Array.isArray(cityWiseDates) && cityWiseDates.length > 0;
+  const useHourlyCityChips =
+    selectedPort === "Hourly" && hasCityWiseDates;
+  const hasAutoSelectedCity = useRef(false);
 
   const hasCartLocalTransferServices = Array.isArray(cart)
     ? cart.some(
@@ -113,6 +127,113 @@ const MainFilterSearchBox = ({ Location }) => {
   const showLocalTransferOption =
     zone_on === 1 &&
     (hasViewDetailsLocalTransferServices || hasCartLocalTransferServices);
+
+  const applyHourlyCity = useCallback(
+    (location) => {
+      if (!location) {
+        setHourlyCityName("");
+        setHourlyCityAddress("");
+        dispatch(setHourlyCity(""));
+        return;
+      }
+
+      const name = location.name || toCityOnly(location.address) || "";
+      const address = location.address || name;
+
+      setHourlyCityName(name);
+      setHourlyCityAddress(address);
+      setHourlyCityError(false);
+      dispatch(setHourlyCity(name));
+      dispatch(
+        setCommonSelectedCity({
+          id: location.id,
+          name,
+          address,
+          city: name,
+          country: String(address || "")
+            .split(",")
+            .slice(-1)[0]
+            .trim(),
+        })
+      );
+    },
+    [dispatch]
+  );
+
+  const handleHourlyCityChipClick = (entry) => {
+    const location = buildLocationFromCityName(entry.city, cityList);
+    if (!location) return;
+
+    const nextName = toCityOnly(location.name);
+    const currentName = toCityOnly(hourlyCityName);
+    if (nextName && currentName && nextName !== currentName) {
+      setexitPickUpLocation("");
+      setExitPickupFromAutocomplete(false);
+      setPickupLatLng("");
+    }
+
+    applyHourlyCity(location);
+  };
+
+  useEffect(() => {
+    hasAutoSelectedCity.current = false;
+  }, [selectedPort]);
+
+  useEffect(() => {
+    if (!useHourlyCityChips) return;
+    if (hasAutoSelectedCity.current) return;
+
+    if (hourlyCityName) {
+      hasAutoSelectedCity.current = true;
+      return;
+    }
+
+    const pending = cityWiseDates[0];
+    const location = buildLocationFromCityName(pending?.city, cityList);
+    if (location) {
+      hasAutoSelectedCity.current = true;
+      applyHourlyCity(location);
+    }
+  }, [
+    useHourlyCityChips,
+    hourlyCityName,
+    cityWiseDates,
+    cityList,
+    applyHourlyCity,
+  ]);
+
+  useEffect(() => {
+    if (!useHourlyCityChips || !hourlyCityName) return;
+    const entry = findCityDatesEntry(cityWiseDates, hourlyCityName);
+    const checkIn = normalizeYmd(entry?.checkIn);
+    if (checkIn) {
+      setSelectedDate1(checkIn);
+    }
+  }, [useHourlyCityChips, hourlyCityName, cityWiseDates]);
+
+  const cityChipItems = useMemo(
+    () =>
+      buildCityChipItems({
+        cityWiseDates,
+        activeCityName: hourlyCityName,
+        bookings: bookedHourly,
+      }),
+    [cityWiseDates, hourlyCityName, bookedHourly]
+  );
+
+  const cityPills =
+    useHourlyCityChips && cityChipItems.length > 0 ? (
+      <div>
+        <CityServiceChips
+          items={cityChipItems}
+          onCitySelect={handleHourlyCityChipClick}
+          variant="workspace"
+        />
+        {validationTriggered && !hourlyCityName ? (
+          <div className="text-12 text-red-1 mt-5 mb-5">Please select a city</div>
+        ) : null}
+      </div>
+    ) : null;
 
   const buttonsearch = () => {
     // Set validation triggered to true when search button is clicked
@@ -215,8 +336,13 @@ const MainFilterSearchBox = ({ Location }) => {
 
   return (
     <>
+      {cityPills}
       <div className="mainSearch -col-2 bg-white px-10 py-10 lg:px-20 lg:pt-5 lg:pb-20 rounded-4 mt-30">
-        <div className="button-grid-v2">
+        <div
+          className={`button-grid-v2${
+            useHourlyCityChips ? " button-grid-v2--chips" : ""
+          }`}
+        >
           {/* First Section - Port Selection */}
           <div className="port-selection-wrapper">
             <label className="text-15 fw-500 ls-2 lh-16">
@@ -232,6 +358,10 @@ const MainFilterSearchBox = ({ Location }) => {
                 setHourlyCityName("");
                 setHourlyCityAddress("");
                 setHourlyCityError(false);
+                dispatch(setHourlyCity(""));
+                setexitPickUpLocation("");
+                setExitPickupFromAutocomplete(false);
+                hasAutoSelectedCity.current = false;
               }}
             >
               {selectedPort === "" && (
@@ -247,8 +377,8 @@ const MainFilterSearchBox = ({ Location }) => {
             </select>
           </div>
 
-          {/* City field — Hourly only, own column before pickup */}
-          {selectedPort === "Hourly" && (
+          {/* City field — Hourly dropdown fallback when no city chips */}
+          {selectedPort === "Hourly" && !hasCityWiseDates && (
             <div className="hourly-city-wrapper">
               <CityLocation
                 label="City"
@@ -259,13 +389,11 @@ const MainFilterSearchBox = ({ Location }) => {
                     .trim();
                   setHourlyCityName(name);
                   setHourlyCityError(false);
+                  dispatch(setHourlyCity(name));
                 }}
                 pickUpLocation={hourlyCityAddress}
                 onCitySelect={(item) => {
-                  const name = item?.name || "";
-                  setHourlyCityName(name);
-                  setHourlyCityAddress(item?.address || name);
-                  setHourlyCityError(false);
+                  applyHourlyCity(item);
                 }}
                 hasError={
                   validationTriggered &&
@@ -407,7 +535,7 @@ const MainFilterSearchBox = ({ Location }) => {
         .button-grid-v2 {
           display: grid;
           grid-template-columns: ${
-            selectedPort === "Hourly"
+            selectedPort === "Hourly" && !hasCityWiseDates
               ? "minmax(140px, 160px) minmax(130px, 170px) minmax(180px, 1.8fr) minmax(140px, 160px) minmax(130px, 150px) minmax(110px, 130px)"
               : "minmax(140px, 160px) minmax(220px, 2.4fr) minmax(140px, 160px) minmax(130px, 150px) minmax(110px, 130px)"
           };
@@ -415,6 +543,15 @@ const MainFilterSearchBox = ({ Location }) => {
           align-items: end;
           width: 100%;
           max-width: 1730px;
+        }
+
+        .button-grid-v2--chips {
+          grid-template-columns:
+            minmax(140px, 160px)
+            minmax(220px, 2.4fr)
+            minmax(140px, 160px)
+            minmax(130px, 150px)
+            minmax(110px, 130px);
         }
 
         .port-selection-wrapper,

@@ -52,13 +52,18 @@ const DropdownContainer = styled(Paper)(({ theme }) => ({
   },
 }));
 
-const HotelOption = styled(ListItem)(({ theme }) => ({
+const HotelOption = styled(ListItem, {
+  shouldForwardProp: (prop) => prop !== "selected",
+})(({ theme, selected }) => ({
   cursor: "pointer",
   padding: theme.spacing(1.5, 2),
   borderBottom: `1px solid ${theme.palette.divider}`,
   minHeight: "auto",
+  backgroundColor: selected ? theme.palette.primary.light + "22" : "transparent",
   "&:hover": {
-    backgroundColor: theme.palette.action.hover,
+    backgroundColor: selected
+      ? theme.palette.primary.light + "33"
+      : theme.palette.action.hover,
   },
   "&:last-child": {
     borderBottom: "none",
@@ -127,11 +132,16 @@ const PreferredHotelsDropdown = ({ onSelect, value = [] }) => {
   const filteredHotels = hotels.filter((hotel) => {
     // Filter by search term
     const matchesSearch = hotel.name.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    // Filter by price - only show hotels with single_base_price > 0
+
+    // Show hotels with a price, OR active hotels even when single_base_price is 0
+    const isActive =
+      hotel.is_active === 1 ||
+      hotel.is_active === "1" ||
+      hotel.is_active === true;
     const hasValidPrice = parseFloat(hotel.single_base_price) > 0;
-    
-    return matchesSearch && hasValidPrice;
+    const shouldShow = hasValidPrice || isActive;
+
+    return matchesSearch && shouldShow;
   });
 
   useEffect(() => {
@@ -149,18 +159,29 @@ const PreferredHotelsDropdown = ({ onSelect, value = [] }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const isHotelSelected = (hotel) =>
+    selectedHotels.some((h) => h.hotel_unique_id === hotel.hotel_unique_id);
+
   const handleHotelSelect = (hotel) => {
     if (hotel === "others") {
       setShowOthersInput(true);
       setIsDropdownOpen(false);
-    } else {
-      // Replace with single hotel (not add to array)
-      const updated = [hotel];
-      setSelectedHotels(updated);
-      onSelect?.(updated);
-      setSearchTerm("");
-      setIsDropdownOpen(false);
+      return;
     }
+
+    // Toggle multi-select: add if not selected, remove if already selected
+    let updated;
+    if (isHotelSelected(hotel)) {
+      updated = selectedHotels.filter(
+        (h) => h.hotel_unique_id !== hotel.hotel_unique_id
+      );
+    } else {
+      updated = [...selectedHotels, hotel];
+    }
+    setSelectedHotels(updated);
+    onSelect?.(updated);
+    setSearchTerm("");
+    // Keep dropdown open so more hotels can be selected
   };
 
   const handleOtherHotelSubmit = () => {
@@ -168,9 +189,16 @@ const PreferredHotelsDropdown = ({ onSelect, value = [] }) => {
       const customHotel = {
         hotel_unique_id: `custom-${Date.now()}`,
         name: otherHotelName.trim(),
-        address: "Custom Address"
+        address: "Custom Address",
       };
-      const updated = [...selectedHotels, customHotel];
+      // Avoid duplicate custom names
+      const alreadyExists = selectedHotels.some(
+        (h) =>
+          h.name?.toLowerCase() === customHotel.name.toLowerCase()
+      );
+      const updated = alreadyExists
+        ? selectedHotels
+        : [...selectedHotels, customHotel];
       setSelectedHotels(updated);
       onSelect?.(updated);
       setOtherHotelName("");
@@ -206,8 +234,17 @@ const PreferredHotelsDropdown = ({ onSelect, value = [] }) => {
     <SearchContainer>
       <Box sx={{ mb: 2 }}>
         <InputLabel sx={{ mb: 1, fontSize: 16, fontWeight: 500, color: 'text.primary' }}>
-          Preferred Hotel (Select One) {hotels.length > 0 && (
-            <CountBadge label={hotels.length} size="small" variant="outlined" />
+          Preferred Hotels (Select Multiple){" "}
+          {selectedHotels.length > 0 && (
+            <CountBadge
+              label={`${selectedHotels.length} selected`}
+              size="small"
+              color="primary"
+              variant="filled"
+            />
+          )}
+          {hotels.length > 0 && (
+            <CountBadge label={`${hotels.length} available`} size="small" variant="outlined" />
           )}
         </InputLabel>
 
@@ -215,7 +252,7 @@ const PreferredHotelsDropdown = ({ onSelect, value = [] }) => {
           inputRef={inputRef}
           fullWidth
           variant="outlined"
-          placeholder="Search for hotels..."
+          placeholder="Search and select multiple hotels..."
           value={searchTerm}
           onChange={(e) => {
             setSearchTerm(e.target.value);
@@ -255,9 +292,12 @@ const PreferredHotelsDropdown = ({ onSelect, value = [] }) => {
                   <Typography>Error: {error}</Typography>
                 </Box>
               ) : filteredHotels.length > 0 ? (
-                filteredHotels.map((hotel) => (
+                filteredHotels.map((hotel) => {
+                  const selected = isHotelSelected(hotel);
+                  return (
                   <HotelOption
                     key={hotel.hotel_unique_id}
+                    selected={selected}
                     onClick={() => handleHotelSelect(hotel)}
                   >
                     <ListItemAvatar>
@@ -268,6 +308,7 @@ const PreferredHotelsDropdown = ({ onSelect, value = [] }) => {
                         <>
                           <Typography variant="subtitle2" fontWeight={500}>
                             {hotel.name}
+                            {selected ? " ✓" : ""}
                           </Typography>
                           {renderStars(hotel.hotel_star_rating)}
                         </>
@@ -281,21 +322,25 @@ const PreferredHotelsDropdown = ({ onSelect, value = [] }) => {
                             {getDescriptionSnippet(hotel.description)}
                           </Typography>
                           {PriceHide === "0" ? (
-                          hotel.single_base_price && (
-                            <PriceChip 
-                              label={`${formatPrice(hotel.single_base_price)}/night`}
+                            <PriceChip
+                              label={
+                                parseFloat(hotel.single_base_price) > 0
+                                  ? `${formatPrice(hotel.single_base_price)}/night`
+                                  : "Price on request"
+                              }
                               size="small"
                             />
-                          )):(
+                          ) : (
                             <div className="text-12 text-dark-1 fw-500">
                               Price available on request
                             </div>
-                            )}
+                          )}
                         </>
                       }
                     />
                   </HotelOption>
-                ))
+                  );
+                })
               ) : (
                 <Box sx={{ p: 2, color: 'text.secondary', textAlign: 'center', fontStyle: 'italic' }}>
                   <Typography>

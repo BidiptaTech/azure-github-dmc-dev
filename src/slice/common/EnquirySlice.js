@@ -1,7 +1,7 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import axios from "axios";
 import Cookies from "js-cookie";
-import { setTourIdd } from "./authSlices";
+import { setTourIdd, logoutUser } from "./authSlices";
 import { setDateService } from "./dateServicesSlice";
 import { setAttractionService } from "../attractions/attractionSlice";
 import { setRestaurantsService } from "../restaurant/RestaurantsSlice";
@@ -10,6 +10,49 @@ import { setHourly, setPointToPoint } from "../localtour/Localslice";
 // import { setbookedGuide } from "../tourguide/guideslice";
 import { BASE_URL } from "@/services/api";
 import { setCity } from "./citySlice";
+import { setAuthenticated } from "@/pages/login/loginSlice";
+
+/** Proposals list — same shape as tour-list / fetchLists. Agent-only for now. */
+export const fetchProposals = createAsyncThunk(
+  "enquiry/fetchProposals",
+  async (params = {}, { getState, rejectWithValue, dispatch }) => {
+    const { agentId = null, start = 0, limit = 10, reset = false } = params;
+    const dmcId = getState().dmc?.dmcId;
+    const agentFromEditing = getState().editing?.agentId;
+
+    try {
+      const authToken = Cookies.get("authToken");
+      const AgentId = Cookies.get("AgentId");
+
+      if (!authToken || !AgentId) {
+        throw new Error("Authorization and AgentId are missing.");
+      }
+
+      const agent = agentFromEditing || agentId || AgentId;
+
+      const response = await axios.get(`${BASE_URL}/proposals`, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+          "agent-id": AgentId,
+        },
+        params: {
+          agent_id: agent,
+          dmc_id: dmcId ?? undefined,
+          start,
+          limit,
+        },
+      });
+
+      return { data: response.data.data, reset, start, limit };
+    } catch (error) {
+      if (error.response?.status === 401) {
+        await dispatch(logoutUser());
+        dispatch(setAuthenticated(false));
+      }
+      return rejectWithValue(error.response?.data || error.message);
+    }
+  }
+);
 
 export const fetchBookingid = createAsyncThunk(
   "fetchBookingid",
@@ -165,6 +208,205 @@ export const fetchBookingid = createAsyncThunk(
   }
 );
 
+/** Build one city's update-enquiry-form service payload from booking options + details */
+export const buildCityServicePayload = (bookingOptions = {}, serviceDetails = {}) => {
+  const selected = Object.keys(bookingOptions).filter((k) => bookingOptions[k]);
+  const cityPayload = {
+    hotel: selected.includes("hotel"),
+    port: selected.includes("entryExitPort"),
+    local_transfer: selected.includes("localTour"),
+    attraction: selected.includes("attraction"),
+    restaurant: selected.includes("restaurant"),
+    guide: selected.includes("tourGuide"),
+  };
+
+  if (cityPayload.hotel) {
+    const hotelDetails = serviceDetails.hotel || {};
+    cityPayload.hotel_ids =
+      hotelDetails.preferredHotels?.map(
+        (hotel) => hotel.hotel_unique_id || hotel.id
+      ) || [];
+    cityPayload.hotel_categories = hotelDetails.starCategory
+      ? [hotelDetails.starCategory]
+      : [];
+    cityPayload.hotel_remarks = hotelDetails.remarks || "";
+    cityPayload.hotel_compare = hotelDetails.compareHotels || "no";
+  }
+
+  if (cityPayload.port) {
+    const entryExitDetails = serviceDetails.entryExitPort || {};
+    cityPayload.entry_port = entryExitDetails.showEntryPort !== false;
+    cityPayload.exit_port = entryExitDetails.showExitPort === true;
+    cityPayload.port_transport_type = entryExitDetails.carType || "sharable";
+    cityPayload.port_remarks = entryExitDetails.remarks || "";
+
+    const portIds = (entryExitDetails.preferredCars || [])
+      .map((port) =>
+        typeof port === "string" ? port : port.id || port.vehicle_id || ""
+      )
+      .filter(Boolean);
+    if (portIds.length > 0) cityPayload.port_ids = portIds;
+
+    if (cityPayload.entry_port) {
+      cityPayload.entry_dropoff_type =
+        entryExitDetails.entryDropoffLocationType || "hotel";
+      if (entryExitDetails.portAddress) {
+        cityPayload.entry_port_address =
+          typeof entryExitDetails.portAddress === "string"
+            ? entryExitDetails.portAddress
+            : entryExitDetails.portAddress.port_name ||
+              entryExitDetails.portAddress.name ||
+              "";
+        cityPayload.entry_port_id =
+          typeof entryExitDetails.portAddress === "object"
+            ? entryExitDetails.portAddress.port_id ||
+              entryExitDetails.portAddress.id ||
+              ""
+            : "";
+      }
+      let entryDropoffId = "";
+      if (
+        entryExitDetails.entryDropoffLocationType === "hotel" &&
+        entryExitDetails.hotelDropOff
+      ) {
+        entryDropoffId =
+          typeof entryExitDetails.hotelDropOff === "object"
+            ? entryExitDetails.hotelDropOff.hotel_unique_id ||
+              entryExitDetails.hotelDropOff.id ||
+              ""
+            : "";
+      } else if (entryExitDetails.entryDropoffLocationType === "attraction") {
+        const attraction =
+          entryExitDetails.attractionDropOff ||
+          entryExitDetails.destination ||
+          {};
+        entryDropoffId =
+          typeof attraction === "object"
+            ? attraction.attraction_id || attraction.id || ""
+            : "";
+      } else if (entryExitDetails.entryDropoffLocationType === "restaurant") {
+        const restaurant =
+          entryExitDetails.restaurantDropOff ||
+          entryExitDetails.destination ||
+          {};
+        entryDropoffId =
+          typeof restaurant === "object"
+            ? restaurant.restaurant_id || restaurant.id || ""
+            : "";
+      }
+      cityPayload.entry_dropoff_location_id = entryDropoffId;
+    }
+
+    if (cityPayload.exit_port) {
+      cityPayload.exit_pickup_type =
+        entryExitDetails.exitPickupLocationType || "hotel";
+      const exitPickupLocation =
+        entryExitDetails.exitPickupLocation ||
+        (Array.isArray(entryExitDetails.destination) &&
+        entryExitDetails.destination.length > 0
+          ? entryExitDetails.destination[0]
+          : entryExitDetails.destination) ||
+        {};
+      let exitPickupId = "";
+      if (entryExitDetails.exitPickupLocationType === "hotel") {
+        exitPickupId =
+          typeof exitPickupLocation === "object"
+            ? exitPickupLocation.hotel_unique_id ||
+              exitPickupLocation.id ||
+              ""
+            : typeof exitPickupLocation === "string"
+              ? exitPickupLocation
+              : "";
+      } else if (entryExitDetails.exitPickupLocationType === "attraction") {
+        const exitAttraction =
+          entryExitDetails.exitAttractionPickup || exitPickupLocation || {};
+        exitPickupId =
+          typeof exitAttraction === "object"
+            ? exitAttraction.attraction_id || exitAttraction.id || ""
+            : "";
+      } else if (entryExitDetails.exitPickupLocationType === "restaurant") {
+        const exitRestaurant =
+          entryExitDetails.exitRestaurantPickup || exitPickupLocation || {};
+        exitPickupId =
+          typeof exitRestaurant === "object"
+            ? exitRestaurant.restaurant_id || exitRestaurant.id || ""
+            : "";
+      }
+      cityPayload.exit_pickup_location_id = exitPickupId;
+      if (entryExitDetails.exitPortAddress) {
+        cityPayload.exit_port_address =
+          typeof entryExitDetails.exitPortAddress === "string"
+            ? entryExitDetails.exitPortAddress
+            : entryExitDetails.exitPortAddress.port_name ||
+              entryExitDetails.exitPortAddress.name ||
+              "";
+        cityPayload.exit_port_id =
+          typeof entryExitDetails.exitPortAddress === "object"
+            ? entryExitDetails.exitPortAddress.port_id ||
+              entryExitDetails.exitPortAddress.id ||
+              ""
+            : "";
+      }
+    }
+  }
+
+  if (cityPayload.local_transfer) {
+    const localTourDetails = serviceDetails.localTour || {};
+    const carIds = (localTourDetails.preferredCars || [])
+      .map((car) =>
+        typeof car === "string" ? car : car.id || car.vehicle_id || ""
+      )
+      .filter(Boolean);
+    if (carIds.length > 0) cityPayload.local_transport_vehicle_ids = carIds;
+    cityPayload.local_transfer_remarks = localTourDetails.remarks || "";
+  }
+
+  if (cityPayload.attraction) {
+    const attractionDetails = serviceDetails.attraction || {};
+    let attractionIds = [];
+    if (Array.isArray(attractionDetails.selectedAttractions)) {
+      attractionIds = attractionDetails.selectedAttractions.map(
+        (a) => a.attraction_id || a.id
+      );
+    } else if (attractionDetails.selectedAttractions) {
+      const a = attractionDetails.selectedAttractions;
+      if (a.attraction_id || a.id) attractionIds = [a.attraction_id || a.id];
+    }
+    cityPayload.attraction_ids = attractionIds;
+    cityPayload.attraction_remarks = attractionDetails.remarks || "";
+    cityPayload.attraction_transport = attractionDetails.needTransport || false;
+    cityPayload.attraction_transport_type =
+      attractionDetails.carType || "sharable";
+  }
+
+  if (cityPayload.restaurant) {
+    const restaurantDetails = serviceDetails.restaurant || {};
+    let restaurantIds = [];
+    if (Array.isArray(restaurantDetails.selectedRestaurants)) {
+      restaurantIds = restaurantDetails.selectedRestaurants.map(
+        (r) => r.id || r.restaurant_id
+      );
+    } else if (restaurantDetails.selectedRestaurants) {
+      const r = restaurantDetails.selectedRestaurants;
+      if (r.id || r.restaurant_id) restaurantIds = [r.id || r.restaurant_id];
+    }
+    cityPayload.restaurant_ids = restaurantIds;
+    cityPayload.restaurant_remarks = restaurantDetails.remarks || "";
+    cityPayload.restaurant_transport = restaurantDetails.needTransport || false;
+    cityPayload.restaurant_transport_type =
+      restaurantDetails.carType || "sharable";
+  }
+
+  if (cityPayload.guide) {
+    const guideDetails = serviceDetails.tourGuide || {};
+    cityPayload.guide_ids =
+      guideDetails.preferredGuides?.map((g) => g.id || g.guide_id) || [];
+    cityPayload.guide_remarks = guideDetails.specialRequirements || "";
+  }
+
+  return cityPayload;
+};
+
 // New thunk for submitting enquiry form
 export const submitEnquiryForm = createAsyncThunk(
   "submitEnquiryForm",
@@ -173,7 +415,7 @@ export const submitEnquiryForm = createAsyncThunk(
     
     const state = getState();
     const enquiryState = state.enquiry;
-    const { selectedServices, serviceDetails } = enquiryState;
+    const { selectedServices, serviceDetails, cityWiseServiceDetails } = enquiryState;
     
     // Get data from enquiry list for real pricing
     const enquiryListState = state.enquiryList || {};
@@ -561,6 +803,74 @@ export const submitEnquiryForm = createAsyncThunk(
         ) || [];
         requestBody.guide_remarks = serviceDetails.tourGuide.specialRequirements || "";
       }
+
+      // Multi-city: attach city-wise service selections for update-enquiry-form
+      const cityWiseMap = cityWiseServiceDetails || {};
+      const cityNames = Object.keys(cityWiseMap);
+      if (cityNames.length > 0) {
+        const city_wise_services = {};
+        cityNames.forEach((cityName) => {
+          const cityDraft = cityWiseMap[cityName] || {};
+          city_wise_services[cityName] = buildCityServicePayload(
+            cityDraft.bookingOptions || {},
+            cityDraft.serviceDetails || {}
+          );
+        });
+        requestBody.city_wise_services = city_wise_services;
+
+        // Recompute top-level service flags as OR across cities
+        requestBody.hotel = cityNames.some(
+          (c) => city_wise_services[c]?.hotel
+        );
+        requestBody.port = cityNames.some((c) => city_wise_services[c]?.port);
+        requestBody.local_transfer = cityNames.some(
+          (c) => city_wise_services[c]?.local_transfer
+        );
+        requestBody.attraction = cityNames.some(
+          (c) => city_wise_services[c]?.attraction
+        );
+        requestBody.restaurant = cityNames.some(
+          (c) => city_wise_services[c]?.restaurant
+        );
+        requestBody.guide = cityNames.some(
+          (c) => city_wise_services[c]?.guide
+        );
+
+        // Flatten IDs across cities for backward-compatible top-level fields
+        const flatHotelIds = [];
+        const flatAttractionIds = [];
+        const flatRestaurantIds = [];
+        const flatGuideIds = [];
+        const flatPortIds = [];
+        const hotelCategories = new Set();
+        cityNames.forEach((c) => {
+          const p = city_wise_services[c];
+          if (p.hotel_ids) flatHotelIds.push(...p.hotel_ids);
+          if (p.attraction_ids) flatAttractionIds.push(...p.attraction_ids);
+          if (p.restaurant_ids) flatRestaurantIds.push(...p.restaurant_ids);
+          if (p.guide_ids) flatGuideIds.push(...p.guide_ids);
+          if (p.port_ids) flatPortIds.push(...p.port_ids);
+          (p.hotel_categories || []).forEach((cat) => hotelCategories.add(cat));
+        });
+        if (requestBody.hotel) {
+          requestBody.hotel_ids = [...new Set(flatHotelIds)];
+          requestBody.hotel_categories = [...hotelCategories];
+        }
+        if (requestBody.attraction) {
+          requestBody.attraction_ids = [...new Set(flatAttractionIds)];
+        }
+        if (requestBody.restaurant) {
+          requestBody.restaurant_ids = [...new Set(flatRestaurantIds)];
+        }
+        if (requestBody.guide) {
+          requestBody.guide_ids = [...new Set(flatGuideIds)];
+        }
+        if (requestBody.port && flatPortIds.length > 0) {
+          requestBody.port_ids = [...new Set(flatPortIds)];
+        }
+
+        console.log("City-wise services payload:", city_wise_services);
+      }
       
       const headers = {
         'Authorization': `Bearer ${authToken}`,
@@ -696,10 +1006,20 @@ const EnquirySlice = createSlice({
       }
     },
     selectedServices: [],
+    // Multi-city drafts: { [cityName]: { bookingOptions, serviceDetails, selectedServices } }
+    cityWiseServiceDetails: {},
     calculatedPrice: 0, // Store the calculated price from ConfirmDetails
     customer_name: "", // Client / group name for Quotes & requests
+    proposals: [],
+    proposalsStatus: "idle",
+    proposalsError: null,
   },
   reducers: {
+    clearProposals: (state) => {
+      state.proposals = [];
+      state.proposalsStatus = "idle";
+      state.proposalsError = null;
+    },
     setCustomerName: (state, action) => {
       state.customer_name =
         typeof action.payload === "string" ? action.payload : "";
@@ -789,7 +1109,26 @@ const EnquirySlice = createSlice({
         delete state.serviceDetails[serviceToClear];
         console.log(`Cleared service details for: ${serviceToClear}`);
       }
-    }
+    },
+    setCityWiseServiceDetails: (state, action) => {
+      // Replace entire city-wise map, or merge one city when { city, data } is passed
+      const payload = action.payload;
+      if (payload && payload.city && payload.data) {
+        state.cityWiseServiceDetails = {
+          ...state.cityWiseServiceDetails,
+          [payload.city]: payload.data,
+        };
+      } else if (payload && typeof payload === "object") {
+        state.cityWiseServiceDetails = payload;
+      }
+      console.log(
+        "Updated cityWiseServiceDetails:",
+        state.cityWiseServiceDetails
+      );
+    },
+    clearCityWiseServiceDetails: (state) => {
+      state.cityWiseServiceDetails = {};
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -847,6 +1186,27 @@ const EnquirySlice = createSlice({
       .addCase(submitEnquiryForm.rejected, (state, action) => {
         state.status = "submission_failed";
         state.error = action.payload || action.error.message;
+      })
+      .addCase(fetchProposals.pending, (state) => {
+        state.proposalsStatus = "loading";
+        state.proposalsError = null;
+      })
+      .addCase(fetchProposals.fulfilled, (state, action) => {
+        state.proposalsStatus = "succeeded";
+        const { data, reset } = action.payload || {};
+        const list = Array.isArray(data) ? data : [];
+        if (reset) {
+          state.proposals = list;
+        } else {
+          const existingIds = new Set(state.proposals.map((p) => p.id));
+          const fresh = list.filter((p) => !existingIds.has(p.id));
+          state.proposals = [...state.proposals, ...fresh];
+        }
+      })
+      .addCase(fetchProposals.rejected, (state, action) => {
+        state.proposalsStatus = "failed";
+        state.proposalsError =
+          action.payload || action.error?.message || "Failed to fetch proposals";
       });
   },
 });
@@ -861,7 +1221,10 @@ export const {
   updateCalculatedPrice,
   setSelectedServices,
   clearServiceDetails,
-  clearSpecificService
+  clearSpecificService,
+  setCityWiseServiceDetails,
+  clearCityWiseServiceDetails,
+  clearProposals,
 } = EnquirySlice.actions;
 
 export default EnquirySlice.reducer;

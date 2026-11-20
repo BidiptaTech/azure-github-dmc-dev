@@ -28,6 +28,7 @@ import ChildCareIcon from "@mui/icons-material/ChildCare";
 import ElderlyIcon from "@mui/icons-material/Elderly";
 import { singleBooking } from "@/slice/common/commonSlice";
 import { fetchViewDetails } from "@/slice/common/ViewDetails";
+import { useBookingDetailMode } from "@/components/workspace/BookingDetailModeContext";
 
 // Function to capitalize first letter
 const capitalizeFirstLetter = (string) => {
@@ -136,6 +137,7 @@ const getSelectionStyle = (selection) => {
 };
 
 const AttractionBookingsTable = React.memo(({ onCountChange }) => {
+  const { hideCancel } = useBookingDetailMode();
   const dispatch = useDispatch();
   const { bookings, status, error } = useSelector((state) => state.viewDetails);
   // Get DMC logo and company name from DMC slice instead of auth slice
@@ -784,7 +786,7 @@ const AttractionBookingsTable = React.memo(({ onCountChange }) => {
                         >
                           View
                         </Button>
-                        {tourStatus !== "Actual" && (
+                        {!hideCancel && tourStatus !== "Actual" && (
                         <Button
                           variant="contained"
                           size="small"

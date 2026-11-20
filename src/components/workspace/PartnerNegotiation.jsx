@@ -25,7 +25,12 @@ function buildCountryEnquiryAmounts(historyData = []) {
   return byCountry;
 }
 
-export default function PartnerNegotiation({ tour, userRole }) {
+export default function PartnerNegotiation({
+  tour,
+  userRole,
+  proposalReview = false,
+  onProposalAccepted,
+}) {
   const dispatch = useDispatch();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -35,6 +40,7 @@ export default function PartnerNegotiation({ tour, userRole }) {
   const [comment, setComment] = useState("");
   const [commentError, setCommentError] = useState(false);
   const [notice, setNotice] = useState(null);
+  const [showAcceptRedirect, setShowAcceptRedirect] = useState(false);
 
   const allowed = canNegotiate(tour, userRole);
   const isEnquiry = tour?.booking_type === "enquiry";
@@ -222,6 +228,19 @@ export default function PartnerNegotiation({ tour, userRole }) {
       );
 
       if (response.data?.success) {
+        close();
+        dispatch(fetchLists({ reset: true }));
+
+        if (type === "accept" && proposalReview) {
+          setShowAcceptRedirect(true);
+          window.setTimeout(() => {
+            if (typeof onProposalAccepted === "function") {
+              onProposalAccepted();
+            }
+          }, 2200);
+          return;
+        }
+
         const success =
           type === "accept"
             ? "Enquiry accepted."
@@ -229,8 +248,6 @@ export default function PartnerNegotiation({ tour, userRole }) {
               ? "Enquiry cancelled."
               : "Enquiry submitted.";
         notify(success, "success");
-        close();
-        dispatch(fetchLists({ reset: true }));
       } else {
         notify(response.data?.message || "Negotiation could not be saved.", "error");
       }
@@ -254,7 +271,7 @@ export default function PartnerNegotiation({ tour, userRole }) {
         <button
           type="button"
           className="partner-btn partner-btn--block"
-          disabled={loading}
+          disabled={loading || showAcceptRedirect}
           onClick={openNegotiation}
         >
           {loading ? "Opening negotiation…" : "Open negotiation"}
@@ -278,6 +295,24 @@ export default function PartnerNegotiation({ tour, userRole }) {
         submitEnquiry={submitEnquiry}
         handleEnquirySubmit={() => submitEnquiry("enquiry")}
       />
+
+      {showAcceptRedirect ? (
+        <div
+          className="partner-accept-redirect"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="partner-accept-redirect__card">
+            <div className="partner-accept-redirect__arrows" aria-hidden="true">
+              <span>←</span>
+              <span>←</span>
+              <span>←</span>
+            </div>
+            <h3>Booking Accepted and Confirmed</h3>
+            <p>Going to your Booking Dashboard</p>
+          </div>
+        </div>
+      ) : null}
 
       <Snackbar
         open={Boolean(notice)}

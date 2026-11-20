@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import {
   Box,
@@ -23,7 +23,9 @@ import {
   Backdrop,
   CircularProgress,
   Snackbar,
-  TextField
+  TextField,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import {
@@ -48,7 +50,8 @@ import {
   LocalTaxi as TaxiIcon,
   DirectionsBus as BusIcon,
   Explore as ExploreIcon,
-  Tour as TourIcon
+  Tour as TourIcon,
+  LocationCity as LocationCityIcon,
 } from "@mui/icons-material";
 import { 
   updateServiceDetails, 
@@ -248,6 +251,9 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
   const bookingDetails = useSelector((state) => state.enquiry);
   const customerName = bookingDetails.customer_name || "";
   const serviceDetails = useSelector((state) => state.enquiry.serviceDetails || {});
+  const cityWiseServiceDetails = useSelector(
+    (state) => state.enquiry.cityWiseServiceDetails || {}
+  );
   const selectedServices = useSelector((state) => state.enquiry.selectedServices || Object.keys(bookingOptions || {}).filter(key => bookingOptions[key]));
   
   // Get selected DMC IDs to watch for changes
@@ -258,6 +264,62 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
   
   // Get total price from Redux (already calculated in BookingEnquiries)
   const totalPrice = bookingDetails.calculatedPrice || 0;
+
+  // City-wise review tabs
+  const enquiryCities = useMemo(() => {
+    const fromDrafts = Object.keys(cityWiseServiceDetails || {});
+    if (fromDrafts.length > 0) return fromDrafts;
+    const structured = bookingDetails?.searchLocation?.cities;
+    if (Array.isArray(structured) && structured.length > 0) {
+      return structured
+        .map((c) => c?.city || c?.cityName)
+        .filter(Boolean)
+        .map((c) => String(c).trim());
+    }
+    const raw = bookingDetails?.searchLocation?.city || "";
+    if (!raw) return [];
+    return [
+      ...new Set(
+        String(raw)
+          .split(",")
+          .map((c) => c.trim())
+          .filter(Boolean)
+      ),
+    ];
+  }, [cityWiseServiceDetails, bookingDetails?.searchLocation]);
+
+  const [activeReviewCity, setActiveReviewCity] = useState(null);
+
+  useEffect(() => {
+    if (!enquiryCities.length) {
+      setActiveReviewCity(null);
+      return;
+    }
+    if (!activeReviewCity || !enquiryCities.includes(activeReviewCity)) {
+      setActiveReviewCity(enquiryCities[0]);
+    }
+  }, [enquiryCities, activeReviewCity]);
+
+  const activeCityDraft =
+    (activeReviewCity && cityWiseServiceDetails?.[activeReviewCity]) || null;
+
+  // Services + details scoped to the active city tab (fallback to flat Redux)
+  const displaySelectedServices = useMemo(() => {
+    if (activeCityDraft?.bookingOptions) {
+      return Object.keys(activeCityDraft.bookingOptions).filter(
+        (key) =>
+          activeCityDraft.bookingOptions[key] &&
+          key !== "localTour" &&
+          key !== "tourGuide"
+      );
+    }
+    return (selectedServices || []).filter(
+      (key) => key !== "localTour" && key !== "tourGuide"
+    );
+  }, [activeCityDraft, selectedServices]);
+
+  const displayServiceDetails =
+    activeCityDraft?.serviceDetails || serviceDetails || {};
   
   // // Debug: Log price on component mount and when it changes
   // useEffect(() => {
@@ -931,22 +993,30 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
   
   // Update the renderServiceDetails function for "hotel" case
   const renderServiceDetails = (service) => {
+    // Prefer city-scoped details when reviewing multi-city selections
+    const detailsSource = displayServiceDetails || serviceDetails || {};
     // Define details variable outside the if statement so it's available for all services
-    let details = serviceDetails[service] || {};
+    let details = detailsSource[service] || {};
     
     // For hotel service, check both the normal key and the undefined key
     if (service === "hotel") {
-      // Check if there's data in the undefined key
-      if (serviceDetails["undefined"] && Object.keys(serviceDetails["undefined"]).length > 0) {
+      // Check if there's data in the undefined key (legacy flat data only)
+      if (
+        !activeCityDraft &&
+        serviceDetails["undefined"] &&
+        Object.keys(serviceDetails["undefined"]).length > 0
+      ) {
         console.log("Using hotel data from 'undefined' key for display");
         details = serviceDetails["undefined"];
       }
       
-      // Use merged data to ensure we have all properties
-      const hotelDetails = {
-        ...details,
-        ...hotelData
-      };
+      // Use city draft details as-is; otherwise merge legacy hotelData
+      const hotelDetails = activeCityDraft
+        ? { ...details }
+        : {
+            ...details,
+            ...hotelData,
+          };
       
       // console.log("Hotel Details Extended Debug:");
       // console.log("- Star Category:", hotelDetails.starCategory);
@@ -2136,17 +2206,111 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
       <section className="partner-card enquiry-review__services">
         <h2 className="partner-card__title">Selected services</h2>
         <p className="partner-card__sub">
-          Expand a service to check inclusions and pricing.
+          Expand a service to review inclusions
+          {enquiryCities.length > 1 ? " for each city." : "."}
         </p>
+
+        {/* City-wise tabs */}
+        {enquiryCities.length > 0 && (
+          <Box sx={{ mb: 2, mt: 1.5 }}>
+            <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
+              <LocationCityIcon sx={{ fontSize: 18, color: "#3554D1", mr: 0.75 }} />
+              <Typography
+                variant="subtitle2"
+                sx={{ fontWeight: 600, color: "#14213d" }}
+              >
+                City
+              </Typography>
+              {activeReviewCity && (
+                <Typography
+                  variant="caption"
+                  sx={{ ml: 1.25, color: "#64748b" }}
+                >
+                  Viewing services for {activeReviewCity}
+                </Typography>
+              )}
+            </Box>
+            <Tabs
+              value={activeReviewCity || enquiryCities[0]}
+              onChange={(_e, city) => {
+                setActiveReviewCity(city);
+                setExpandedService(null);
+              }}
+              variant="scrollable"
+              scrollButtons="auto"
+              allowScrollButtonsMobile
+              sx={{
+                minHeight: 40,
+                borderBottom: "1px solid #e4eaf3",
+                "& .MuiTab-root": {
+                  minHeight: 40,
+                  textTransform: "none",
+                  fontWeight: 600,
+                  fontSize: "0.875rem",
+                  color: "#64748b",
+                },
+                "& .Mui-selected": { color: "#3554D1 !important" },
+                "& .MuiTabs-indicator": {
+                  backgroundColor: "#3554D1",
+                  height: 3,
+                  borderRadius: "3px 3px 0 0",
+                },
+              }}
+            >
+              {enquiryCities.map((city) => {
+                const draft = cityWiseServiceDetails[city];
+                const count = draft?.bookingOptions
+                  ? Object.values(draft.bookingOptions).filter(Boolean).length
+                  : 0;
+                return (
+                  <Tab
+                    key={city}
+                    value={city}
+                    label={
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                        <span>{city}</span>
+                        {count > 0 && (
+                          <Chip
+                            size="small"
+                            label={count}
+                            sx={{
+                              height: 20,
+                              fontSize: "0.7rem",
+                              bgcolor:
+                                city === activeReviewCity ? "#3554D1" : "#e2e8f0",
+                              color:
+                                city === activeReviewCity ? "#fff" : "#475569",
+                            }}
+                          />
+                        )}
+                      </Box>
+                    }
+                  />
+                );
+              })}
+            </Tabs>
+          </Box>
+        )}
         
         {/* Quick Stats Overview */}
-        {selectedServices && selectedServices.length > 0 && (
+        {(displaySelectedServices.length > 0 ||
+          (selectedServices && selectedServices.length > 0) ||
+          totalPrice > 0) && (
           <Box sx={{ mb: 2, mt: 1 }}>
             <div className="partner-summary-grid enquiry-review__stats">
               <div className="partner-stat" style={{ cursor: "default" }}>
                 <span className="partner-stat__label">Services selected</span>
                 <strong className="partner-stat__value">
-                  {selectedServices.length}
+                  {displaySelectedServices.length}
+                  {activeReviewCity ? (
+                    <Typography
+                      component="span"
+                      variant="caption"
+                      sx={{ display: "block", fontWeight: 500, color: "#64748b", fontSize: 11 }}
+                    >
+                      in {activeReviewCity}
+                    </Typography>
+                  ) : null}
                 </strong>
               </div>
               <div className="partner-stat" style={{ cursor: "default" }}>
@@ -2154,6 +2318,19 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
                 <strong className="partner-stat__value" style={{ fontSize: 22 }}>
                   SGD {Math.round(totalPrice).toLocaleString()}
                 </strong>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    display: "block",
+                    mt: 0.5,
+                    color: "#64748b",
+                    fontWeight: 500,
+                    fontSize: "0.7rem",
+                    lineHeight: 1.3,
+                  }}
+                >
+                  Price may vary in proposal
+                </Typography>
               </div>
               <div className="partner-stat" style={{ cursor: "default" }}>
                 <span className="partner-stat__label">Avg. per person</span>
@@ -2195,10 +2372,10 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
         
         <Divider sx={{ mb: 2.5, borderColor: "#e4eaf3" }} />
         
-        {selectedServices && selectedServices.length > 0 ? (
-          <Grid container spacing={2}>
-            {selectedServices.map((service) => (
-              <Grid item xs={12} md={6} key={service}>
+        {displaySelectedServices && displaySelectedServices.length > 0 ? (
+          <Grid container spacing={2} key={activeReviewCity || "all-cities"}>
+            {displaySelectedServices.map((service) => (
+              <Grid item xs={12} md={6} key={`${activeReviewCity || "city"}-${service}`}>
                 <ServiceCard 
                   servicecolor={serviceColors[service]}
                   sx={{
@@ -2208,29 +2385,6 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
                   }}
                   onClick={() => setExpandedService(expandedService === service ? null : service)}
                 >
-                  {/* Price Badge */}
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      top: -10,
-                      right: 14,
-                      bgcolor: serviceColors[service],
-                      color: 'white',
-                      px: 1.5,
-                      py: 0.4,
-                      borderRadius: '999px',
-                      boxShadow: 'none',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 0.5,
-                      zIndex: 1,
-                    }}
-                  >
-                    <Typography variant="body2" fontWeight={700}>
-                      SGD {servicePrices[service]?.toLocaleString() || '0'}
-                    </Typography>
-                  </Box>
-
                   <CardContent sx={{ pt: 2.5, pb: "16px !important" }}>
                     <Box display="flex" alignItems="center" justifyContent="space-between" mb={1.5}>
                       <Box display="flex" alignItems="center">
@@ -2374,7 +2528,6 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
                         }}
                       >
                         {renderServiceDetails(service)}
-                        {renderPriceBreakdown(service)}
                       </AccordionDetails>
                     </Accordion>
                   </CardContent>
@@ -2385,7 +2538,9 @@ const ConfirmDetails = ({ bookingOptions, onBack, onComplete, resetBookingOption
         ) : (
           <Box py={3} textAlign="center" bgcolor="background.paper" borderRadius={1}>
             <Alert severity="warning" icon={<ErrorIcon />}>
-              No services selected. Please go back and select at least one service.
+              {activeReviewCity
+                ? `No services selected for ${activeReviewCity}. Switch city tabs or go back to add services.`
+                : "No services selected. Please go back and select at least one service."}
             </Alert>
           </Box>
         )}

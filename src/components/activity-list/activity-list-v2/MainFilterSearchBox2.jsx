@@ -1,11 +1,19 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { selectCityWiseDates } from "@/slice/common/commonSlice";
-import { findCityDatesEntry, normalizeYmd } from "@/utils/cityWiseDates";
-import LocationSearch from "./PortLocation";
-import { triggerSearch, clearTriggerSearch } from "@/slice/common/stepsSlice";
 import {
-  fetchVehicles,
+  selectCityWiseDates,
+  setSelectedCity as setCommonSelectedCity,
+} from "@/slice/common/commonSlice";
+import {
+  buildCityChipItems,
+  buildLocationFromCityName,
+  findCityDatesEntry,
+  normalizeYmd,
+} from "@/utils/cityWiseDates";
+import { toCityOnly } from "@/utils/locationFormat";
+import LocationSearch from "./PortLocation";
+import { clearTriggerSearch } from "@/slice/common/stepsSlice";
+import {
   setentrypickup,
   setentrydropoff,
   setexitpickup,
@@ -13,7 +21,6 @@ import {
   setpickupdate,
   setentrytime,
   setexittime,
-  //setexitpickupdate,
   setSelectionType,
   setPickupPlaceid,
   setDropoffPlaceid,
@@ -35,6 +42,7 @@ import DateSearch2 from "../common/DateSearch2";
 import Pickuptime from "@/components/activity-single/filter-box1/Pickuptime";
 import Pickuptime1 from "@/components/activity-single/filter-box2/Pickuptime1";
 import PortCity from "./PortCity";
+import CityServiceChips from "@/components/common/CityServiceChips";
 
 const MainFilterSearchBox2 = ({ Location }) => {
   console.log('🔍 Port MainFilterSearchBox2 - Component rendered/mounted');
@@ -58,6 +66,10 @@ const MainFilterSearchBox2 = ({ Location }) => {
   console.log(searchLocation, "searchLocation");
   const userCountry = useSelector((state) => state.auth?.user_country);
   const cityWiseDates = useSelector(selectCityWiseDates);
+  const cityList = useSelector((state) => state.city?.city || []);
+  const hasCityWiseDates =
+    Array.isArray(cityWiseDates) && cityWiseDates.length > 0;
+  const hasAutoSelectedCity = useRef(false);
 
   // Check port city API status
   const portCityStatus = useSelector(
@@ -152,12 +164,54 @@ const MainFilterSearchBox2 = ({ Location }) => {
     setIsCityEnabled(!!selectedPort);
 
     // Reset dependent fields when port type changes
-    if (!isCityEnabled) {
+    if (!selectedPort) {
       setSelectedCity(null);
       setIsPickupLocationEnabled(false);
       setIsDropoffLocationEnabled(false);
     }
   }, [selectedPort]);
+
+  const clearLocationFields = useCallback(() => {
+    setPickUpLocation("");
+    setexitPickUpLocation("");
+    setDropOffLocation("");
+    setexitDropOffLocation("");
+    setPickupFromAutocomplete(false);
+    setDropoffFromAutocomplete(false);
+    setExitPickupFromAutocomplete(false);
+    setExitDropoffFromAutocomplete(false);
+    setIsDropoffLocationEnabled(false);
+    setpickId("");
+    setdropId("");
+    setId("");
+    setType("");
+    setPickdropType("");
+  }, []);
+
+  const applyCitySelection = useCallback(
+    (location) => {
+      if (!location) {
+        setSelectedCity(null);
+        return;
+      }
+
+      setSelectedCity(location);
+      setCityError(false);
+      dispatch(
+        setCommonSelectedCity({
+          id: location.id,
+          name: location.name,
+          address: location.address,
+          city: location.name,
+          country: String(location.address || "")
+            .split(",")
+            .slice(-1)[0]
+            .trim(),
+        })
+      );
+    },
+    [dispatch]
+  );
 
   // Effect to call fetchPortCity when a city is selected
   useEffect(() => {
@@ -433,18 +487,103 @@ const MainFilterSearchBox2 = ({ Location }) => {
     }
   }, [selectedCity, selectedPort, cityPickupDate]);
 
-  // Handle location selection from PortCity
+  // Handle location selection from PortCity / city chips
   const handleCitySelect = (city) => {
-    setSelectedCity(city);
-    if (city) {
-      setCityError(false);
+    if (!city) {
+      setSelectedCity(null);
+      return;
+    }
+
+    const nextName = toCityOnly(city.name || city.city || city);
+    const currentName = toCityOnly(selectedCity?.name || selectedCity?.city);
+    if (nextName && currentName && nextName !== currentName) {
+      clearLocationFields();
+    }
+
+    applyCitySelection(
+      city.name
+        ? city
+        : buildLocationFromCityName(city.city || city, cityList)
+    );
+  };
+
+  const handleCityChipClick = (entry) => {
+    if (!isCityEnabled) return;
+    const location = buildLocationFromCityName(entry.city, cityList);
+    if (location) {
+      handleCitySelect(location);
     }
   };
 
+  useEffect(() => {
+    hasAutoSelectedCity.current = false;
+  }, [selectedPort]);
+
+  useEffect(() => {
+    if (!hasCityWiseDates || !isCityEnabled) return;
+    if (hasAutoSelectedCity.current) return;
+
+    if (selectedCity) {
+      hasAutoSelectedCity.current = true;
+      return;
+    }
+
+    const pending = cityWiseDates[0];
+    const location = buildLocationFromCityName(pending?.city, cityList);
+    if (location) {
+      hasAutoSelectedCity.current = true;
+      applyCitySelection(location);
+    }
+  }, [
+    hasCityWiseDates,
+    isCityEnabled,
+    selectedCity,
+    cityWiseDates,
+    cityList,
+    applyCitySelection,
+  ]);
+
+  const activeCityName = useMemo(
+    () => toCityOnly(selectedCity?.name || selectedCity?.city),
+    [selectedCity]
+  );
+
+  const cityChipItems = useMemo(
+    () =>
+      buildCityChipItems({
+        cityWiseDates,
+        activeCityName,
+        bookings: [],
+      }),
+    [cityWiseDates, activeCityName]
+  );
+
+  const cityPills =
+    cityChipItems.length > 0 ? (
+      <div
+        className={!isCityEnabled ? "pw-city-chips-disabled" : undefined}
+        style={!isCityEnabled ? { opacity: 0.55, pointerEvents: "none" } : undefined}
+      >
+        <CityServiceChips
+          items={cityChipItems}
+          onCitySelect={handleCityChipClick}
+          variant="workspace"
+        />
+        {cityError ? (
+          <div className="text-12 text-red-1 mt-5 mb-5">Please select a city</div>
+        ) : null}
+      </div>
+    ) : null;
+
   return (
     <>
+      {cityPills}
       <div className="mainSearch -col-2 bg-white px-10 py-10 lg:px-20 lg:pt-5 lg:pb-20 rounded-4 mt-10">
-        <div className="single-row-container">
+        <div
+          className={`single-row-container${
+            hasCityWiseDates ? " single-row-container--chips" : ""
+          }`}
+        >
           {/* Port Selection */}
           <div className="search-item port-selection">
             <label className="text-15 fw-500 ls-2 lh-16">
@@ -454,10 +593,7 @@ const MainFilterSearchBox2 = ({ Location }) => {
               className="form-control"
               value={selectedPort}
               onChange={(e) => {
-                setPickUpLocation("");
-                setexitPickUpLocation("");
-                setDropOffLocation("");
-                setexitDropOffLocation("");
+                clearLocationFields();
                 dispatch(setSelectedPort(e.target.value));
                 dispatch(resetVehicles()); // Reset vehicles when port type changes
                 setValidationTriggered(false); // Reset validation when port type changes
@@ -465,13 +601,9 @@ const MainFilterSearchBox2 = ({ Location }) => {
                 setSelectedCity(null); // Reset selected city when port type changes
                 setSelectedDate("");
                 setSelectedDate1("");
-                // Reset other state affecting location validation
-                setPickupFromAutocomplete(false);
-                setDropoffFromAutocomplete(false);
-                setExitPickupFromAutocomplete(false);
-                setExitDropoffFromAutocomplete(false);
                 setTime(false);
                 setTime1(false);
+                hasAutoSelectedCity.current = false;
               }}
             >
               {selectedPort === "" && (
@@ -484,23 +616,25 @@ const MainFilterSearchBox2 = ({ Location }) => {
             </select>
           </div>
 
-          {/* City Selection Section */}
-          <div className="search-item city-selection">
-            <h4
-              className={`text-15 fw-500 ls-2 lh-16 ${
-                !isCityEnabled ? "text-gray-400" : ""
-              }`}
-            >
-              City
-            </h4>
-            <PortCity
-              key={`city-select-${selectedPort}`}
-              onLocationSelect={handleCitySelect}
-              hasError={cityError}
-              setError={setCityError}
-              disabled={!isCityEnabled}
-            />
-          </div>
+          {/* City Selection Section — chips when cityWiseDates exist, else PortCity */}
+          {!hasCityWiseDates && (
+            <div className="search-item city-selection">
+              <h4
+                className={`text-15 fw-500 ls-2 lh-16 ${
+                  !isCityEnabled ? "text-gray-400" : ""
+                }`}
+              >
+                City
+              </h4>
+              <PortCity
+                key={`city-select-${selectedPort}`}
+                onLocationSelect={handleCitySelect}
+                hasError={cityError}
+                setError={setCityError}
+                disabled={!isCityEnabled}
+              />
+            </div>
+          )}
 
           {/* Pick Up Location */}
           <div className="search-item location-search pickup-location">
@@ -702,6 +836,16 @@ const MainFilterSearchBox2 = ({ Location }) => {
           align-items: end;
         }
 
+        .single-row-container--chips {
+          grid-template-columns:
+            minmax(120px, 140px)
+            minmax(150px, 1.4fr)
+            minmax(150px, 1.4fr)
+            minmax(130px, 160px)
+            minmax(130px, 150px)
+            minmax(110px, 130px);
+        }
+
         .search-item {
           min-width: 0;
           width: 100%;
@@ -767,6 +911,16 @@ const MainFilterSearchBox2 = ({ Location }) => {
               minmax(120px, 140px)
               minmax(100px, 120px);
             gap: 10px;
+          }
+
+          .single-row-container--chips {
+            grid-template-columns:
+              minmax(110px, 120px)
+              minmax(130px, 1.2fr)
+              minmax(130px, 1.2fr)
+              minmax(120px, 140px)
+              minmax(120px, 140px)
+              minmax(100px, 120px);
           }
         }
 

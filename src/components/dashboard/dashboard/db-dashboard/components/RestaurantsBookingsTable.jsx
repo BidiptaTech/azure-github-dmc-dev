@@ -25,6 +25,7 @@ import PriceCheckIcon from "@mui/icons-material/PriceCheck";
 import DirectionsCarIcon from "@mui/icons-material/DirectionsCar";
 import { singleBooking } from "@/slice/common/commonSlice";
 import { fetchViewDetails } from "@/slice/common/ViewDetails";
+import { useBookingDetailMode } from "@/components/workspace/BookingDetailModeContext";
 
 // Function to capitalize first letter
 const capitalizeFirstLetter = (string) => {
@@ -118,6 +119,7 @@ const getMealTypeStyle = (mealType) => {
 };
 
 const RestaurantsBookingsTable = React.memo(({ onCountChange }) => {
+  const { hideCancel } = useBookingDetailMode();
   const dispatch = useDispatch();
   const { bookings, status, error } = useSelector((state) => state.viewDetails);
   // Get DMC logo and company name from DMC slice instead of auth slice
@@ -747,7 +749,7 @@ const RestaurantsBookingsTable = React.memo(({ onCountChange }) => {
                         >
                           View
                         </Button>
-                        {tourStatus !== "Actual" && (
+                        {!hideCancel && tourStatus !== "Actual" && (
                         <Button
                           variant="contained"
                           size="small"
