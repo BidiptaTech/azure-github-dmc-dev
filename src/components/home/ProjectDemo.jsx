@@ -1235,37 +1235,13 @@ const ProjectDemo = ({ embedded = false }) => {
                       sx={{
                         fontStyle: "italic",
                         color: "text.secondary",
-                        mb: 2,
+                        mb: 0,
                         fontSize: "1.0625rem",
                         lineHeight: 1.55,
                       }}
                     >
                       &ldquo;Employees can quickly search and book travel options that are both affordable and convenient. The platform brings different travel services together in one simple and user-friendly system, making it much easier for our team to plan and manage their trips..&rdquo;
                     </Typography>
-                    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, mt: 1 }}>
-                      <Box
-                        component="img"
-                        src="/Images/dilip%20das.jpeg"
-                        alt="Dilip Das"
-                        sx={{
-                          width: 110,
-                          height: 130,
-                          borderRadius: 4,
-                          objectFit: "cover",
-                          display: "block",
-                          boxShadow: "0 4px 20px rgba(0,0,0,0.12)",
-                        }}
-                      />
-                      <Typography
-                        sx={{
-                          fontSize: "0.8125rem",
-                          color: "text.secondary",
-                          fontStyle: "normal",
-                        }}
-                      >
-                        — Dilip Das, CEO
-                      </Typography>
-                    </Box>
                   </Box>
                 </Stack>
               </Box>

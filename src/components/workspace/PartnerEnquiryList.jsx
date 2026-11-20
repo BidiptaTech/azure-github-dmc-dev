@@ -120,12 +120,6 @@ function guestLine(enquiry) {
   return `${total} travellers · ${parts.join(", ")}`;
 }
 
-function serviceSummary(enquiry) {
-  return SERVICE_META.filter((s) => enquiry[s.key])
-    .map((s) => s.label)
-    .join(" · ");
-}
-
 export default function PartnerEnquiryList() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -348,6 +342,14 @@ export default function PartnerEnquiryList() {
     ? proposalsStatus === "failed" && (!proposals || proposals.length === 0)
     : status === "failed";
 
+  const enquiryCount = Array.isArray(enquiries) ? enquiries.length : 0;
+  const proposalCount = Array.isArray(proposals) ? proposals.length : 0;
+  const transferCount = (stats?.withPickup || 0) + (stats?.withPort || 0);
+  const experienceCount =
+    (stats?.withAttractions || 0) +
+    (stats?.withRestaurants || 0) +
+    (stats?.withGuides || 0);
+
   return (
     <div className="partner-enquiry">
       {!isProposals ? (
@@ -355,110 +357,134 @@ export default function PartnerEnquiryList() {
           <div className="partner-stat" style={{ cursor: "default" }}>
             <span className="partner-stat__label">Total enquiries</span>
             <strong className="partner-stat__value">{stats?.total || 0}</strong>
+            <span className="partner-stat__hint">Across your desk</span>
           </div>
           <div className="partner-stat" style={{ cursor: "default" }}>
             <span className="partner-stat__label">With hotel</span>
             <strong className="partner-stat__value">
               {stats?.withHotel || 0}
             </strong>
+            <span className="partner-stat__hint">Stay included</span>
           </div>
           <div className="partner-stat" style={{ cursor: "default" }}>
             <span className="partner-stat__label">With transfers</span>
-            <strong className="partner-stat__value">
-              {(stats?.withPickup || 0) + (stats?.withPort || 0)}
-            </strong>
+            <strong className="partner-stat__value">{transferCount}</strong>
+            <span className="partner-stat__hint">Pickup or port</span>
           </div>
           <div className="partner-stat" style={{ cursor: "default" }}>
             <span className="partner-stat__label">With experiences</span>
-            <strong className="partner-stat__value">
-              {(stats?.withAttractions || 0) +
-                (stats?.withRestaurants || 0) +
-                (stats?.withGuides || 0)}
-            </strong>
+            <strong className="partner-stat__value">{experienceCount}</strong>
+            <span className="partner-stat__hint">Attractions · dining · guides</span>
           </div>
         </div>
       ) : null}
 
-      <div className="partner-seg partner-enquiry__tabs">
-        {LIST_TABS.map((tab) => (
+      <div className="partner-enquiry__controls">
+        <div className="partner-seg partner-enquiry__tabs">
+          {LIST_TABS.map((tab) => {
+            const count = tab.id === "proposals" ? proposalCount : enquiryCount;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                className={`partner-seg__btn${
+                  listTab === tab.id ? " is-active" : ""
+                }`}
+                onClick={() => switchTab(tab.id)}
+              >
+                {tab.label}
+                <span className="partner-enquiry__tab-count">{count}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="partner-toolbar partner-enquiry__toolbar">
+          <div className="partner-enquiry__filters">
+            <div className="partner-field">
+              <label htmlFor="pq-search">
+                {isProposals ? "Proposal ID" : "Enquiry ID"}
+              </label>
+              <input
+                id="pq-search"
+                type="search"
+                placeholder="Search ID…"
+                value={searchId}
+                onChange={(e) => {
+                  setSearchId(e.target.value);
+                  setPage(0);
+                }}
+              />
+            </div>
+            <div className="partner-field">
+              <label htmlFor="pq-city">City</label>
+              <input
+                id="pq-city"
+                type="search"
+                placeholder="Filter city…"
+                value={city}
+                onChange={(e) => {
+                  setCity(e.target.value);
+                  setPage(0);
+                }}
+              />
+            </div>
+            <div className="partner-field">
+              <label htmlFor="pq-dates">Tour dates</label>
+              <select
+                id="pq-dates"
+                value={dateRange}
+                onChange={(e) => {
+                  setDateRange(e.target.value);
+                  setPage(0);
+                }}
+              >
+                <option value="all">All</option>
+                <option value="upcoming">Upcoming</option>
+                <option value="past">Past</option>
+              </select>
+            </div>
+          </div>
           <button
-            key={tab.id}
             type="button"
-            className={`partner-seg__btn${
-              listTab === tab.id ? " is-active" : ""
-            }`}
-            onClick={() => switchTab(tab.id)}
+            className="partner-btn partner-btn--secondary partner-enquiry__refresh"
+            onClick={refresh}
+            disabled={refreshing}
           >
-            {tab.label}
+            {refreshing ? "Refreshing…" : "Refresh"}
           </button>
-        ))}
+        </div>
       </div>
 
-      <div className="partner-toolbar partner-enquiry__toolbar">
-        <div className="partner-enquiry__filters">
-          <div className="partner-field">
-            <label htmlFor="pq-search">
-              {isProposals ? "Proposal ID" : "Enquiry ID"}
-            </label>
-            <input
-              id="pq-search"
-              type="search"
-              placeholder="Search ID…"
-              value={searchId}
-              onChange={(e) => {
-                setSearchId(e.target.value);
-                setPage(0);
-              }}
-            />
-          </div>
-          <div className="partner-field">
-            <label htmlFor="pq-city">City</label>
-            <input
-              id="pq-city"
-              type="search"
-              placeholder="Filter city…"
-              value={city}
-              onChange={(e) => {
-                setCity(e.target.value);
-                setPage(0);
-              }}
-            />
-          </div>
-          <div className="partner-field">
-            <label htmlFor="pq-dates">Tour dates</label>
-            <select
-              id="pq-dates"
-              value={dateRange}
-              onChange={(e) => {
-                setDateRange(e.target.value);
-                setPage(0);
-              }}
-            >
-              <option value="all">All</option>
-              <option value="upcoming">Upcoming</option>
-              <option value="past">Past</option>
-            </select>
-          </div>
+      {!listLoading && !listFailed ? (
+        <div className="partner-enquiry__resultbar">
+          <span>
+            Showing{" "}
+            <strong>
+              {pageItems.length ? pageSafe * rowsPerPage + 1 : 0}
+              {pageItems.length
+                ? `–${Math.min(filtered.length, (pageSafe + 1) * rowsPerPage)}`
+                : ""}
+            </strong>{" "}
+            of <strong>{filtered.length}</strong>{" "}
+            {isProposals ? "proposals" : "enquiries"}
+          </span>
         </div>
-        <button
-          type="button"
-          className="partner-btn partner-btn--secondary"
-          onClick={refresh}
-          disabled={refreshing}
-        >
-          {refreshing ? "Refreshing…" : "Refresh"}
-        </button>
-      </div>
+      ) : null}
 
       {listLoading ? (
         <div className="partner-quotes-empty">
           <CircularProgress size={22} />
-          <span>
-            {isProposals ? "Loading proposals…" : "Loading quick enquiries…"}
-          </span>
+          <strong className="partner-quotes-empty__title">
+            {isProposals ? "Loading proposals…" : "Loading enquiries…"}
+          </strong>
+          <span>Fetching the latest quotes for your desk.</span>
         </div>
       ) : listFailed ? (
         <div className="partner-quotes-empty partner-quotes-empty--error">
+          <strong className="partner-quotes-empty__title">
+            Something went wrong
+          </strong>
           <span>
             {isProposals
               ? proposalsError || "Could not load proposals."
@@ -470,14 +496,17 @@ export default function PartnerEnquiryList() {
         </div>
       ) : pageItems.length === 0 ? (
         <div className="partner-quotes-empty">
+          <strong className="partner-quotes-empty__title">
+            {isProposals ? "No proposals yet" : "No enquiries yet"}
+          </strong>
           <span>
             {isProposals
-              ? "No proposals match your filters."
-              : "No quick enquiries match your filters."}
+              ? "No proposals match your filters. Try clearing search or date filters."
+              : "No quick enquiries match your filters — or start a new request above."}
           </span>
         </div>
       ) : isProposals ? (
-        <div className="partner-list">
+        <div className="partner-list partner-enquiry__list">
           {pageItems.map((proposal) => {
             const label = statusLabel(proposal);
             const tone = statusTone(label);
@@ -509,6 +538,9 @@ export default function PartnerEnquiryList() {
             const guests = guestLine(proposal);
             const dmcName = proposal.dmc_company_name || null;
             const multiEnqId = proposal.multi_enq_id || null;
+            const refId =
+              proposal.display_id ||
+              (proposal.id ? `TC-${proposal.id}` : null);
             const finalAmount = Number(proposal.finalAmountWithTax);
             const ceilingAmount = Number.isFinite(finalAmount)
               ? Math.ceil(finalAmount)
@@ -544,17 +576,36 @@ export default function PartnerEnquiryList() {
                     ) : null}
                   </div>
                   <h3>{title}</h3>
-                  <p>
-                    {[
-                      proposal.display_id ||
-                        (proposal.id ? `TC-${proposal.id}` : null),
-                      place,
-                      dates,
-                      guests,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </p>
+                  <div className="partner-enquiry__meta">
+                    {refId ? (
+                      <span className="partner-enquiry__meta-item">
+                        <span className="partner-enquiry__meta-label">ID</span>
+                        {refId}
+                      </span>
+                    ) : null}
+                    {place ? (
+                      <span className="partner-enquiry__meta-item">
+                        <span className="partner-enquiry__meta-label">
+                          Destination
+                        </span>
+                        {place}
+                      </span>
+                    ) : null}
+                    {dates ? (
+                      <span className="partner-enquiry__meta-item">
+                        <span className="partner-enquiry__meta-label">Dates</span>
+                        {dates}
+                      </span>
+                    ) : null}
+                    {guests ? (
+                      <span className="partner-enquiry__meta-item">
+                        <span className="partner-enquiry__meta-label">
+                          Travellers
+                        </span>
+                        {guests}
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
                 <div className="partner-enquiry__actions">
                   <div
@@ -584,11 +635,10 @@ export default function PartnerEnquiryList() {
           })}
         </div>
       ) : (
-        <div className="partner-list">
+        <div className="partner-list partner-enquiry__list">
           {pageItems.map((enquiry) => {
             const label = statusLabel(enquiry);
             const tone = statusTone(label);
-            const services = serviceSummary(enquiry);
             const price = enquiry.approx_price
               ? `SGD ${parseFloat(enquiry.approx_price).toLocaleString()}`
               : null;
@@ -605,7 +655,14 @@ export default function PartnerEnquiryList() {
                     enquiry.check_out_time
                   ).format("DD MMM YYYY")}`
                 : null;
+            const guests = guestLine(enquiry);
             const dmcName = enquiry.dmc_name || null;
+            const refId =
+              enquiry.display_id ||
+              (enquiry.enquiry_id || enquiry.id
+                ? `ENQ-${enquiry.enquiry_id || enquiry.id}`
+                : null);
+            const activeServices = SERVICE_META.filter((s) => enquiry[s.key]);
 
             return (
               <div
@@ -625,19 +682,46 @@ export default function PartnerEnquiryList() {
                         {dmcName}
                       </span>
                     ) : null}
+                    {price ? (
+                      <span
+                        className="partner-chip partner-chip--amber"
+                        title="Approx. price"
+                      >
+                        {price}
+                      </span>
+                    ) : null}
                   </div>
                   <h3>{title}</h3>
-                  <p>
-                    {[
-                      place,
-                      dates,
-                      guestLine(enquiry),
-                      price,
-                      services || "No services selected yet",
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </p>
+                  <div className="partner-enquiry__meta">
+                    {refId ? (
+                      <span className="partner-enquiry__meta-item">
+                        <span className="partner-enquiry__meta-label">ID</span>
+                        {refId}
+                      </span>
+                    ) : null}
+                    {place ? (
+                      <span className="partner-enquiry__meta-item">
+                        <span className="partner-enquiry__meta-label">
+                          Destination
+                        </span>
+                        {place}
+                      </span>
+                    ) : null}
+                    {dates ? (
+                      <span className="partner-enquiry__meta-item">
+                        <span className="partner-enquiry__meta-label">Dates</span>
+                        {dates}
+                      </span>
+                    ) : null}
+                    {guests ? (
+                      <span className="partner-enquiry__meta-item">
+                        <span className="partner-enquiry__meta-label">
+                          Travellers
+                        </span>
+                        {guests}
+                      </span>
+                    ) : null}
+                  </div>
                   <div className="partner-enquiry__services">
                     {SERVICE_META.map((svc) => {
                       const active = Boolean(enquiry[svc.key]);
@@ -655,10 +739,15 @@ export default function PartnerEnquiryList() {
                         </button>
                       );
                     })}
+                    {!activeServices.length ? (
+                      <span className="partner-enquiry__services-empty">
+                        No services selected yet
+                      </span>
+                    ) : null}
                   </div>
                 </div>
                 <div className="partner-enquiry__actions">
-                  {canConvert && (
+                  {canConvert ? (
                     <button
                       type="button"
                       className="partner-btn partner-btn--primary"
@@ -671,18 +760,14 @@ export default function PartnerEnquiryList() {
                         ? "Creating…"
                         : "Create tour →"}
                     </button>
+                  ) : (
+                    <div className="partner-enquiry__aside">
+                      <span className="partner-enquiry__aside-label">
+                        Status
+                      </span>
+                      <strong>{label}</strong>
+                    </div>
                   )}
-                  {/* <button
-                    type="button"
-                    className="partner-btn"
-                    onClick={() => {
-                      const first =
-                        SERVICE_META.find((s) => enquiry[s.key])?.key || null;
-                      if (first) openService(enquiry, first);
-                    }}
-                  >
-                    Review proposal →
-                  </button> */}
                 </div>
               </div>
             );
@@ -701,8 +786,7 @@ export default function PartnerEnquiryList() {
             ← Previous
           </button>
           <span>
-            Page {pageSafe + 1} of {totalPages} · {filtered.length}{" "}
-            {isProposals ? "proposals" : "enquiries"}
+            Page {pageSafe + 1} of {totalPages}
           </span>
           <button
             type="button"
