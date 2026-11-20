@@ -154,10 +154,104 @@ class OrderClassificationService
         return 'SGD';
     }
 
+    /**
+     * Online services that still have to be paid for.
+     *
+     * Paid = booked (is_approve), on an open payment hold, or covered by an online payment
+     * taken before the hold flow existed (order created before that payment). A service whose
+     * hold share was released (could not be booked) is unpaid again. Services added to a tour
+     * that was already paid are unpaid → only they are charged on the next Pay Now.
+     *
+     * @return Collection<int, Order>
+     */
+    public function unpaidOnlineOrders(Tour|int $tour): Collection
+    {
+        $tourId = $tour instanceof Tour ? (int) ($tour->tour_id ?? $tour->getKey()) : (int) $tour;
+        if ($tourId <= 0) {
+            return collect();
+        }
+
+        $orders = Order::query()
+            ->where('tour_id', $tourId)
+            ->whereRaw("LOWER(TRIM(COALESCE(order_type, ''))) = 'online'")
+            ->where(fn ($q) => $q->whereNull('is_approve')->orWhere('is_approve', false))
+            ->orderBy('id')
+            ->get();
+        if ($orders->isEmpty() || ! Schema::hasTable('payment_attempts')) {
+            return $orders;
+        }
+
+        $onHold = [];
+        $legacyPaidAt = null;
+        $holdUuids = [];
+        $attempts = DB::table('payment_attempts')
+            ->where('tour_id', $tourId)
+            ->where('payment_stage', 'supplier_initial')
+            ->whereIn('status', ['authorized', 'completed'])
+            ->get(['attempt_uuid', 'status', 'metadata', 'created_at']);
+        foreach ($attempts as $attempt) {
+            $meta = json_decode((string) $attempt->metadata, true) ?: [];
+            $isHold = ! empty($meta['hold_opened_at']) || ! empty($meta['hold_mode']);
+            if ($isHold) {
+                $holdUuids[(string) $attempt->attempt_uuid] = true;
+                if ($attempt->status === 'authorized' && empty($meta['hold_settled_at'])) {
+                    foreach (array_keys((array) ($meta['hold_shares'] ?? [])) as $orderId) {
+                        $onHold[(int) $orderId] = true;
+                    }
+                }
+
+                continue;
+            }
+            if ($attempt->status === 'completed') {
+                $legacyPaidAt = max($legacyPaidAt ?? '', (string) $attempt->created_at);
+            }
+        }
+
+        // Verified online payments recorded outside the hold flow (older tours).
+        $tourRow = $tour instanceof Tour ? $tour : Tour::query()->where('tour_id', $tourId)->first(['payment_details']);
+        $details = json_decode((string) ($tourRow->payment_details ?? '[]'), true) ?: [];
+        foreach (is_array($details) ? $details : [] as $row) {
+            if (! is_array($row) || (int) ($row['status'] ?? 0) !== 1
+                || strtolower(trim((string) ($row['payment_for'] ?? ''))) !== self::ONLINE) {
+                continue;
+            }
+            if (isset($holdUuids[(string) ($row['payment_attempt_uuid'] ?? '')])) {
+                continue;
+            }
+            $raw = (string) ($row['date'] ?? $row['payment_date'] ?? '');
+            $at = $raw !== '' ? rescue(fn () => \Carbon\Carbon::parse($raw), null, false) : null;
+            if ($at) {
+                // Date-only rows cover the whole day.
+                $date = strlen(trim($raw)) <= 10 ? $at->endOfDay() : $at;
+                $legacyPaidAt = max($legacyPaidAt ?? '', $date->format('Y-m-d H:i:s'));
+            }
+        }
+
+        return $orders->reject(function (Order $order) use ($onHold, $legacyPaidAt) {
+            if (isset($onHold[(int) $order->getKey()])) {
+                return true;
+            }
+
+            return $legacyPaidAt !== null && $order->created_at !== null
+                && $order->created_at->format('Y-m-d H:i:s') <= substr($legacyPaidAt, 0, 19);
+        })->values();
+    }
+
+    public function unpaidOnlineAmount(Tour|int $tour): float
+    {
+        return round((float) $this->unpaidOnlineOrders($tour)->sum(fn (Order $o) => $this->resolveOrderAmount($o)), 2);
+    }
+
     public function resolvePaymentStage(Tour $tour, ?string $classification = null): string
     {
         $classification ??= (string) ($tour->order_classification ?: $this->classifyTour($tour));
         $status = (string) ($tour->tour_status ?? '');
+
+        // Online services added after an earlier payment (or released when they could not be
+        // booked) are paid on their own before anything else — even on a confirmed tour.
+        if (in_array($classification, [self::ONLINE, self::MIX], true) && $this->unpaidOnlineAmount($tour) > 0.009) {
+            return 'supplier_initial';
+        }
 
         $confirmedLike = in_array($status, ['Confirmed', 'Definite', 'Actual'], true);
 

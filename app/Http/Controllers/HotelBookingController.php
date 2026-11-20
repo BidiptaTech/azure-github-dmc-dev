@@ -2761,7 +2761,11 @@ class HotelBookingController extends Controller
 
             // Price now vs quoted (auto-booking never books above the paid price; the confirm
             // dialog is skipped when already paid and the price did not go up).
-            $onlinePaid = $this->tourOnlinePaymentReceived((int) $hotelOrder->tour_id);
+            // A hotel added after the tour was paid is not covered by that earlier payment.
+            $onlinePaid = $this->tourOnlinePaymentReceived((int) $hotelOrder->tour_id)
+                && ! app(\App\Services\Payment\OrderClassificationService::class)
+                    ->unpaidOnlineOrders((int) $hotelOrder->tour_id)
+                    ->contains(fn ($o) => (int) $o->getKey() === (int) $hotelOrder->id);
             $quoted = (float) ($recheckResult['stored_price'] ?? 0);
             $nowPrice = ! empty($recheckResult['markup_applied'])
                 ? (float) ($recheckResult['customer_price'] ?? 0)
