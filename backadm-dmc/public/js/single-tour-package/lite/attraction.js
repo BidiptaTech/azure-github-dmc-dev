@@ -19,62 +19,59 @@
     }
 
     /**
-     * Confirmed/Definite edit: cancel supplier voucher (credits refund) then soft-delete order.
+     * Confirmed/Definite edit: hotel-style Cancel with/without refund.
+     * Voucher code + cancel-voucher API are handled internally (no reason/code modal).
      * @returns {Promise<boolean>}
      */
     function cancelOnlineAttractionFromLiteEdit(row) {
-        var code = String(row.voucher_code || '').trim();
         var name = row.AttractionName || row.attraction_name || 'Online attraction';
         var bookingKey = row._booking_id || row.booking_id || row._order_id || row.orderId;
         if (!bookingKey) {
-            alert('Cannot cancel voucher: booking id is missing. Save the tour once, then try again.');
+            alert('Cannot cancel: booking id is missing. Save the tour once, then try again.');
             return Promise.resolve(false);
         }
 
-        function askReason() {
+        var refundsUrl = (cfg().routes && cfg().routes.refunds) || '/bookings/refunds';
+
+        function askWithWithoutRefund() {
             if (typeof Swal !== 'undefined' && typeof Swal.fire === 'function') {
                 return Swal.fire({
-                    title: 'Cancel Online Voucher?',
-                    html: '<p class="mb-2 text-start">Removing <strong>' + String(name).replace(/</g, '&lt;') +
-                        '</strong> will cancel the supplier voucher and refund credits.</p>' +
-                        '<div class="text-start mb-2"><label class="form-label fw-semibold mb-1">Voucher Code</label>' +
-                        '<input type="text" class="form-control" value="' + code.replace(/"/g, '&quot;') + '" readonly></div>' +
-                        '<div class="text-start"><label class="form-label fw-semibold mb-1">Cancel Reason <span class="text-danger">*</span></label>' +
-                        '<textarea id="liteCancelVoucherReason" class="form-control" rows="3" minlength="10" maxlength="1000" ' +
-                        'placeholder="Reason for cancelling this voucher..."></textarea></div>',
-                    icon: 'warning',
+                    title: '',
+                    html: '<div style="text-align:center">'
+                        + '<div style="width:56px;height:56px;margin:0 auto 1rem;border-radius:14px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#fff7ed,#fed7aa);color:#ea580c;font-size:1.75rem"><i class="ri-error-warning-line"></i></div>'
+                        + '<h2 style="font-size:1.25rem;font-weight:700;color:#1e293b;margin:0 0 .5rem">Partial cancellation &amp; Refund?</h2>'
+                        + '<p style="font-size:.9375rem;color:#64748b;margin:0">Cancel <strong>' + String(name).replace(/</g, '&lt;')
+                        + '</strong>? Supplier voucher is cancelled automatically and credits return to SG Attractions balance.</p></div>',
+                    showDenyButton: true,
                     showCancelButton: true,
-                    confirmButtonColor: '#dc2626',
-                    cancelButtonColor: '#64748b',
-                    confirmButtonText: 'Confirm Cancel Voucher',
+                    confirmButtonText: 'Cancel with refund',
+                    denyButtonText: 'Cancel without refund',
                     cancelButtonText: 'Keep Booking',
-                    width: '440px',
-                    preConfirm: function () {
-                        var reason = String((document.getElementById('liteCancelVoucherReason') || {}).value || '').trim();
-                        if (reason.length < 10) {
-                            Swal.showValidationMessage('Please enter a cancel reason (at least 10 characters).');
-                            return false;
-                        }
-                        return reason;
-                    }
+                    confirmButtonColor: '#dc2626',
+                    denyButtonColor: '#64748b',
+                    cancelButtonColor: '#94a3b8',
+                    width: '460px'
                 }).then(function (result) {
-                    return result.isConfirmed ? result.value : null;
+                    if (result.isConfirmed) return { withoutRefund: false };
+                    if (result.isDenied) return { withoutRefund: true };
+                    return null;
                 });
             }
-            var reason = window.prompt('Cancel voucher ' + code + '. Enter cancel reason (min 10 chars):', '');
-            if (reason == null) return Promise.resolve(null);
-            if (String(reason).trim().length < 10) {
-                alert('Cancel reason must be at least 10 characters.');
-                return Promise.resolve(null);
-            }
-            return Promise.resolve(String(reason).trim());
+            if (!window.confirm('Cancel "' + name + '" with refund?')) return Promise.resolve(null);
+            return Promise.resolve({ withoutRefund: false });
         }
 
-        return askReason().then(function (reason) {
-            if (!reason) return false;
+        return askWithWithoutRefund().then(function (choice) {
+            if (!choice) return false;
+            var withoutRefund = !!choice.withoutRefund;
             var urlTemplate = (cfg().routes && cfg().routes.cancelOrder) || '/api/orders/__ID__/cancel';
             var url = String(urlTemplate).replace('__ID__', encodeURIComponent(bookingKey));
             var tourId = (window.STP_LITE_EDIT && window.STP_LITE_EDIT.tourId) || cfg().tourId || 0;
+            var payload = {
+                tour_id: tourId || undefined,
+                cancel_reason: withoutRefund ? 'Cancelled without refund' : 'Rejected for refund processing'
+            };
+            if (withoutRefund) payload.without_refund = 1;
             return fetch(url, {
                 method: 'POST',
                 headers: {
@@ -82,17 +79,14 @@
                     'Accept': 'application/json',
                     'X-CSRF-TOKEN': csrfToken()
                 },
-                body: JSON.stringify({
-                    tour_id: tourId || undefined,
-                    cancel_reason: reason
-                })
+                body: JSON.stringify(payload)
             }).then(function (resp) {
                 return resp.json().then(function (data) {
                     return { ok: resp.ok, data: data || {} };
                 });
             }).then(function (result) {
                 if (!result.ok || !result.data.success) {
-                    var errMsg = (result.data && result.data.message) || 'Failed to cancel online attraction voucher.';
+                    var errMsg = (result.data && result.data.message) || 'Failed to cancel online attraction.';
                     if (typeof Swal !== 'undefined' && Swal.fire) {
                         Swal.fire({ icon: 'error', title: 'Cancel failed', text: errMsg });
                     } else {
@@ -102,22 +96,28 @@
                 }
                 var providerMsg = (result.data.data && result.data.data.voucher_cancel && result.data.data.voucher_cancel.message)
                     || result.data.message
-                    || 'Voucher cancelled.';
+                    || (withoutRefund ? 'Cancelled without refund.' : 'Cancelled — sent to Refunds.');
+                var title = withoutRefund ? 'Cancelled without refund' : 'Sent to Refunds';
+                var afterOk = function () {
+                    if (!withoutRefund) {
+                        window.location.href = refundsUrl;
+                        return false; // page navigating; skip local drop if redirecting
+                    }
+                    return true;
+                };
                 if (typeof Swal !== 'undefined' && Swal.fire) {
                     return Swal.fire({
                         icon: 'success',
-                        title: 'Voucher cancelled',
-                        html: '<div class="text-start"><div class="mb-2">' + String(providerMsg).replace(/</g, '&lt;') + '</div>' +
-                            (code ? ('<div class="small text-muted">Code: <strong>' + code.replace(/</g, '&lt;') + '</strong></div>') : '') +
-                            '</div>',
+                        title: title,
+                        html: '<div class="text-start"><div class="mb-2">' + String(providerMsg).replace(/</g, '&lt;') + '</div></div>',
                         confirmButtonText: 'OK'
-                    }).then(function () { return true; });
+                    }).then(function () { return afterOk(); });
                 }
                 alert(providerMsg);
-                return true;
+                return afterOk();
             }).catch(function (err) {
-                console.error('Lite attraction voucher cancel failed', err);
-                alert((err && err.message) || 'Failed to cancel voucher.');
+                console.error('Lite attraction cancel failed', err);
+                alert((err && err.message) || 'Failed to cancel attraction.');
                 return false;
             });
         });
@@ -1100,19 +1100,12 @@
                 };
 
                 if (needsVoucherCancel) {
-                    var cancelThenDrop = function () {
-                        cancelOnlineAttractionFromLiteEdit(row).then(function (ok) {
-                            if (!ok) return;
-                            dropAttractionRow();
-                        });
-                    };
-                    if (tourStatus === 'definite'
-                        && window.StpLiteTransportShared
-                        && window.StpLiteTransportShared.requestServiceRemoval) {
-                        window.StpLiteTransportShared.requestServiceRemoval(row, cancelThenDrop, 'Attraction');
-                    } else {
-                        cancelThenDrop();
-                    }
+                    // Hotel-style with/without refund lives inside cancelOnlineAttractionFromLiteEdit
+                    // (do not also open requestServiceRemoval — that would double the dialog).
+                    cancelOnlineAttractionFromLiteEdit(row).then(function (ok) {
+                        if (!ok) return;
+                        dropAttractionRow();
+                    });
                     return;
                 }
 

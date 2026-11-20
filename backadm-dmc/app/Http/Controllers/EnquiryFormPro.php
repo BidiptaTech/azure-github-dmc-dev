@@ -500,6 +500,7 @@ class EnquiryFormPro extends Controller
     private function createOnlineAttractionExternalOrders(array $attractions, int $tourId): array
     {
         $refs = [];
+        $claimedRefs = [];
         $service = app(OnlineAttractionOrderService::class);
 
         foreach ($attractions as $index => $attraction) {
@@ -508,22 +509,47 @@ class EnquiryFormPro extends Controller
                 continue;
             }
 
+            $fingerprint = OnlineAttractionOrderService::ticketFingerprint($attraction);
             $existing = OnlineAttractionOrderService::extractSavedRef((object) [
                 'order_ref_no' => $attraction['order_ref_no'] ?? null,
             ], $attraction);
+
+            // Same catalog attraction can have 2+ tickets — never reuse another row's supplier ref.
+            $forceNew = false;
+            if ($existing !== null && isset($claimedRefs[$existing]) && $claimedRefs[$existing] !== $fingerprint) {
+                \Illuminate\Support\Facades\Log::warning('Attraction create-order: clearing shared supplier ref for distinct ticket', [
+                    'tour_id' => $tourId,
+                    'order_ref_id' => $existing,
+                    'previous_ticket' => $claimedRefs[$existing],
+                    'ticket' => $fingerprint,
+                ]);
+                $forceNew = true;
+                $existing = null;
+            }
+
             if ($existing !== null) {
                 $refs[$index] = $existing;
+                $claimedRefs[$existing] = $fingerprint;
                 continue;
             }
 
-            $result = $service->createOrder($attraction, $tourId);
+            $result = $service->createOrder($attraction, $tourId, false, $forceNew);
             $ref = $result['order_ref_id'] ?? null;
             $ref = (is_string($ref) && $ref !== '' && ! OnlineAttractionOrderService::isPlaceholderRef($ref))
                 ? $ref
                 : null;
 
+            if ($ref !== null && isset($claimedRefs[$ref]) && $claimedRefs[$ref] !== $fingerprint) {
+                $result = $service->createOrder($attraction, $tourId, false, true);
+                $ref = $result['order_ref_id'] ?? null;
+                $ref = (is_string($ref) && $ref !== '' && ! OnlineAttractionOrderService::isPlaceholderRef($ref))
+                    ? $ref
+                    : null;
+            }
+
             if ($ref !== null) {
                 $refs[$index] = $ref;
+                $claimedRefs[$ref] = $fingerprint;
                 continue;
             }
 
@@ -4600,9 +4626,12 @@ class EnquiryFormPro extends Controller
                 }
                 $uniqueKey = md5(json_encode([
                     'id' => $tourItem['id'] ?? '',
-                    'attraction_id' => $tourItem['attraction_id'] ?? '',
-                    'AttractionName' => $tourItem['AttractionName'] ?? '',
-                    'bookingDate' => $tourItem['bookingDate'] ?? '',
+                    'attraction_id' => $tourItem['attraction_id'] ?? $tourItem['attractionId'] ?? '',
+                    'AttractionName' => $tourItem['AttractionName'] ?? $tourItem['attractionName'] ?? '',
+                    'bookingDate' => $tourItem['bookingDate'] ?? $tourItem['date'] ?? '',
+                    // Two tickets of same attraction must not collapse into one order row
+                    'ticket_sku_id' => $tourItem['ticket_sku_id'] ?? $tourItem['ticketId'] ?? '',
+                    'ticketName' => $tourItem['ticketName'] ?? '',
                 ]));
                 if (in_array($uniqueKey, $seenTours, true)) {
                     continue;

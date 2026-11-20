@@ -3692,13 +3692,37 @@ class HotelBookingController extends Controller
                 $orderService = app(OnlineAttractionOrderService::class);
                 $alreadyPaid = OnlineAttractionOrderService::isProviderPaymentComplete($attractionOrder, $booking);
 
+                // Legacy bug: two tickets of the same attraction shared one supplier order_ref.
+                // If a sibling order already owns this ref, create a fresh vendor order for this ticket.
+                if ($savedExternalRef !== null && ! $alreadyPaid
+                    && OnlineAttractionOrderService::isSupplierRefOwnedBySibling(
+                        (int) $tourId,
+                        (int) $attractionOrder->id,
+                        $savedExternalRef
+                    )) {
+                    Log::warning('Attraction online approval: shared supplier ref with sibling — creating new order', [
+                        'tour_id' => $tourId,
+                        'local_order_id' => $attractionOrder->id,
+                        'shared_order_ref_id' => $savedExternalRef,
+                        'ticket' => OnlineAttractionOrderService::ticketFingerprint($booking),
+                    ]);
+                    $booking = $orderService->clearAttractionOrderRef($booking);
+                    $writeBookingIntoData();
+                    DB::table('orders')->where('id', $attractionOrder->id)->update([
+                        'order_ref_no' => null,
+                        'data' => json_encode($attractionData),
+                        'updated_at' => now(),
+                    ]);
+                    $savedExternalRef = null;
+                }
+
                 if ($savedExternalRef === null) {
                     Log::info('Attraction online approval: creating provider order (pay happens after credit check)', [
                         'tour_id' => $tourId,
                         'local_order_id' => $attractionOrder->id,
                     ]);
 
-                    $createResult = $orderService->createOrder($booking, (int) $tourId, false);
+                    $createResult = $orderService->createOrder($booking, (int) $tourId, false, true);
                     if (! empty($createResult['credits_insufficient'])) {
                         return response()->json([
                             'success' => false,
@@ -3784,6 +3808,32 @@ class HotelBookingController extends Controller
                     ]);
 
                     $payResult = $orderService->payOrder($savedExternalRef, $booking);
+                    // Shared/already-paid ref often returns "Invalid parameter(s)" — create a new vendor order once.
+                    if (empty($payResult['success']) && empty($payResult['credits_insufficient'])) {
+                        $payMsg = strtolower((string) ($payResult['message'] ?? ''));
+                        if (str_contains($payMsg, 'invalid parameter') || str_contains($payMsg, 'already')) {
+                            Log::warning('Attraction online approval: pay failed on saved ref — recreating order', [
+                                'tour_id' => $tourId,
+                                'local_order_id' => $attractionOrder->id,
+                                'order_ref_id' => $savedExternalRef,
+                                'message' => $payResult['message'] ?? null,
+                            ]);
+                            $booking = $orderService->clearAttractionOrderRef($booking);
+                            $createRetry = $orderService->createOrder($booking, (int) $tourId, false, true);
+                            if (! empty($createRetry['success']) && ! empty($createRetry['order_ref_id'])) {
+                                $savedExternalRef = $createRetry['order_ref_id'];
+                                $booking = $orderService->applyRefToAttraction($booking, $savedExternalRef, 'pending');
+                                $writeBookingIntoData();
+                                DB::table('orders')->where('id', $attractionOrder->id)->update([
+                                    'order_ref_no' => $savedExternalRef,
+                                    'data' => json_encode($attractionData),
+                                    'updated_at' => now(),
+                                ]);
+                                $referenceId = $savedExternalRef;
+                                $payResult = $orderService->payOrder($savedExternalRef, $booking);
+                            }
+                        }
+                    }
                     if (! empty($payResult['credits_insufficient'])) {
                         return response()->json([
                             'success' => false,
@@ -4417,9 +4467,10 @@ class HotelBookingController extends Controller
                 'tour_id' => 'required|integer',
                 'attraction_order_index' => 'required|integer|min:0',
                 'booking_index' => 'required|integer|min:0',
-                'cancel_reason' => 'required|string',
+                'cancel_reason' => 'nullable|string|max:1000',
                 'voucher_code' => 'nullable|string|max:255',
                 'attraction_order_id' => 'nullable|integer|min:1',
+                'without_refund' => 'nullable|boolean',
             ]);
 
             if ($validator->fails()) {
@@ -4434,6 +4485,11 @@ class HotelBookingController extends Controller
             $attractionOrderIndex = $request->attraction_order_index;
             $bookingIndex = $request->booking_index;
             $cancelReason = trim((string) $request->cancel_reason);
+            if ($cancelReason === '') {
+                $cancelReason = $request->boolean('without_refund')
+                    ? 'Cancelled without refund'
+                    : 'Rejected for refund processing';
+            }
             $requestedVoucherCode = trim((string) ($request->voucher_code ?? ''));
 
             // Find the attraction order in the orders table
@@ -4472,34 +4528,57 @@ class HotelBookingController extends Controller
             $isOnline = ((string) ($attractionOrder->order_type ?? '') === 'online')
                 || OnlineAttractionOrderService::isOnlineAttraction($booking);
             $storedVoucherCode = OnlineAttractionOrderService::extractPrimaryVoucherCode($booking);
+            // Hotel-style cancel: voucher code is managed internally from stored booking JSON.
             $voucherCode = $requestedVoucherCode !== '' ? $requestedVoucherCode : (string) ($storedVoucherCode ?? '');
             $hasVoucher = $voucherCode !== '';
 
-            // Allow cancel after approve (Definite/Actual refund flow).
-            // Online with voucher still goes through Attractions cancel-voucher API first.
-            if ($isOnline && $hasVoucher && $requestedVoucherCode === '') {
+            if ($isOnline && (int) ($attractionOrder->is_approve ?? 0) === 1 && ! $hasVoucher) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Voucher code is required to cancel this online attraction booking.',
-                    'errors' => ['voucher_code' => ['Voucher code is required.']]
+                    'message' => 'No voucher code found on this online attraction booking. Cannot cancel with the supplier.',
                 ], 422);
             }
 
             $voucherCancelResult = null;
             if ($isOnline && $hasVoucher) {
-                $voucherCancelResult = app(OnlineAttractionOrderService::class)
-                    ->cancelVoucher($voucherCode, $cancelReason, $booking);
+                // Already cancelled locally (e.g. prior attempt succeeded at supplier but failed mid-request)
+                $alreadyCancelledLocally = ! empty($booking['voucher_cancelled']);
 
+                if ($alreadyCancelledLocally) {
+                    $voucherCancelResult = [
+                        'success' => true,
+                        'message' => 'Voucher was already cancelled.',
+                        'provider_status' => null,
+                        'provider' => null,
+                    ];
+                } else {
+                    $voucherCancelResult = app(OnlineAttractionOrderService::class)
+                        ->cancelVoucher($voucherCode, $cancelReason, $booking);
+                }
+
+                // Supplier already cancelled (credits returned) — treat as success so local reject can finish.
                 if (empty($voucherCancelResult['success'])) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => $voucherCancelResult['message']
-                            ?: 'Provider voucher cancellation failed. Booking was not rejected.',
-                        'data' => [
-                            'voucher_cancel' => $voucherCancelResult,
-                            'voucher_code' => $voucherCode,
-                        ],
-                    ], 422);
+                    $failMsg = strtolower(trim((string) ($voucherCancelResult['message'] ?? '')));
+                    $alreadyCancelledAtSupplier = $failMsg !== '' && (
+                        str_contains($failMsg, 'not cancellable')
+                        || str_contains($failMsg, 'already cancel')
+                        || str_contains($failMsg, 'already cancelled')
+                    );
+                    if ($alreadyCancelledAtSupplier) {
+                        $voucherCancelResult['success'] = true;
+                        $voucherCancelResult['message'] = $voucherCancelResult['message']
+                            ?: 'Voucher was already cancelled with the supplier.';
+                    } else {
+                        return response()->json([
+                            'success' => false,
+                            'message' => $voucherCancelResult['message']
+                                ?: 'Provider voucher cancellation failed. Booking was not rejected.',
+                            'data' => [
+                                'voucher_cancel' => $voucherCancelResult,
+                                'voucher_code' => $voucherCode,
+                            ],
+                        ], 422);
+                    }
                 }
 
                 $booking['voucher_cancelled'] = true;
@@ -4520,10 +4599,16 @@ class HotelBookingController extends Controller
                     'metadata' => ['voucher_code' => $voucherCode, 'trigger' => 'reject_voucher'],
                 ]);
 
-                app(\App\Services\Payment\SupplierCancellationStatusService::class)->markConfirmed(
-                    $attractionOrder,
-                    (string) ($voucherCancelResult['message'] ?? 'Supplier voucher cancellation confirmed.')
-                );
+                // findTourAttractionOrder returns stdClass from query builder — markConfirmed needs Order model.
+                $orderModel = $attractionOrder instanceof \App\Models\Order
+                    ? $attractionOrder
+                    : \App\Models\Order::query()->find((int) $attractionOrder->id);
+                if ($orderModel) {
+                    app(\App\Services\Payment\SupplierCancellationStatusService::class)->markConfirmed(
+                        $orderModel,
+                        (string) ($voucherCancelResult['message'] ?? 'Supplier voucher cancellation confirmed.')
+                    );
+                }
 
                 if (isset($attractionData[$bookingIndex]) && is_array($attractionData[$bookingIndex])) {
                     $attractionData[$bookingIndex] = $booking;
