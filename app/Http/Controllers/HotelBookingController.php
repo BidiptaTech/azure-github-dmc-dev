@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Helpers\CommonHelper;
+use App\Models\Order;
 use App\Models\Tour;
 use App\Models\Hotel;
 use App\Services\ApiEnvironmentResolver;
 use App\Services\HotelSuppliers\OnlineHotelBookingServiceFactory;
+use App\Services\HotelSuppliers\OnlineHotelCancellationService;
 use App\Services\OnlinePricing\OnlinePricingService;
 use App\Services\SupplierConfigResolver;
 use App\Services\AttractionSuppliers\OnlineAttractionOrderService;
@@ -3487,12 +3489,27 @@ class HotelBookingController extends Controller
                 ], 404);
             }
 
-            // Check if the booking is already approved
-            if ($hotelOrder->is_approve == 1) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cannot reject an already approved booking'
-                ], 400);
+            // Allow cancel after approve (Definite/Actual refund flow). Soft-fail supplier cancel
+            // so local reject + refund queue still proceed when the API fails.
+            $orderModel = Order::find($hotelOrder->id);
+            if ($orderModel) {
+                try {
+                    $hotelCancelResult = app(OnlineHotelCancellationService::class)
+                        ->cancelIfApplicable($orderModel, true);
+                    if (is_array($hotelCancelResult) && ! empty($hotelCancelResult['soft_failed'])) {
+                        Log::warning('Online hotel supplier cancellation soft-failed during reject', [
+                            'tour_id' => $tourId,
+                            'hotel_order_id' => $hotelOrder->id,
+                            'message' => $hotelCancelResult['message'] ?? null,
+                        ]);
+                    }
+                } catch (\Throwable $cancelError) {
+                    Log::error('Online hotel supplier cancellation unexpected error during reject', [
+                        'tour_id' => $tourId,
+                        'hotel_order_id' => $hotelOrder->id,
+                        'error' => $cancelError->getMessage(),
+                    ]);
+                }
             }
 
             // Update the orders table with rejection data and soft delete
@@ -4450,9 +4467,10 @@ class HotelBookingController extends Controller
                 'tour_id' => 'required|integer',
                 'attraction_order_index' => 'required|integer|min:0',
                 'booking_index' => 'required|integer|min:0',
-                'cancel_reason' => 'required|string',
+                'cancel_reason' => 'nullable|string|max:1000',
                 'voucher_code' => 'nullable|string|max:255',
                 'attraction_order_id' => 'nullable|integer|min:1',
+                'without_refund' => 'nullable|boolean',
             ]);
 
             if ($validator->fails()) {
@@ -4467,6 +4485,11 @@ class HotelBookingController extends Controller
             $attractionOrderIndex = $request->attraction_order_index;
             $bookingIndex = $request->booking_index;
             $cancelReason = trim((string) $request->cancel_reason);
+            if ($cancelReason === '') {
+                $cancelReason = $request->boolean('without_refund')
+                    ? 'Cancelled without refund'
+                    : 'Rejected for refund processing';
+            }
             $requestedVoucherCode = trim((string) ($request->voucher_code ?? ''));
 
             // Find the attraction order in the orders table
@@ -4505,42 +4528,57 @@ class HotelBookingController extends Controller
             $isOnline = ((string) ($attractionOrder->order_type ?? '') === 'online')
                 || OnlineAttractionOrderService::isOnlineAttraction($booking);
             $storedVoucherCode = OnlineAttractionOrderService::extractPrimaryVoucherCode($booking);
+            // Hotel-style cancel: voucher code is managed internally from stored booking JSON.
             $voucherCode = $requestedVoucherCode !== '' ? $requestedVoucherCode : (string) ($storedVoucherCode ?? '');
             $hasVoucher = $voucherCode !== '';
-            $isApproved = (int) ($attractionOrder->is_approve ?? 0) === 1;
 
-            // Offline / unpaid: keep previous rule (cannot reject after approve).
-            // Online with voucher: allow cancel-after-approve via Attractions cancel-voucher API.
-            if ($isApproved && ! ($isOnline && $hasVoucher)) {
+            if ($isOnline && (int) ($attractionOrder->is_approve ?? 0) === 1 && ! $hasVoucher) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Cannot reject an already approved booking'
-                ], 400);
-            }
-
-            if ($isOnline && $hasVoucher && $requestedVoucherCode === '') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Voucher code is required to cancel this online attraction booking.',
-                    'errors' => ['voucher_code' => ['Voucher code is required.']]
+                    'message' => 'No voucher code found on this online attraction booking. Cannot cancel with the supplier.',
                 ], 422);
             }
 
             $voucherCancelResult = null;
             if ($isOnline && $hasVoucher) {
-                $voucherCancelResult = app(OnlineAttractionOrderService::class)
-                    ->cancelVoucher($voucherCode, $cancelReason, $booking);
+                // Already cancelled locally (e.g. prior attempt succeeded at supplier but failed mid-request)
+                $alreadyCancelledLocally = ! empty($booking['voucher_cancelled']);
 
+                if ($alreadyCancelledLocally) {
+                    $voucherCancelResult = [
+                        'success' => true,
+                        'message' => 'Voucher was already cancelled.',
+                        'provider_status' => null,
+                        'provider' => null,
+                    ];
+                } else {
+                    $voucherCancelResult = app(OnlineAttractionOrderService::class)
+                        ->cancelVoucher($voucherCode, $cancelReason, $booking);
+                }
+
+                // Supplier already cancelled (credits returned) — treat as success so local reject can finish.
                 if (empty($voucherCancelResult['success'])) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => $voucherCancelResult['message']
-                            ?: 'Provider voucher cancellation failed. Booking was not rejected.',
-                        'data' => [
-                            'voucher_cancel' => $voucherCancelResult,
-                            'voucher_code' => $voucherCode,
-                        ],
-                    ], 422);
+                    $failMsg = strtolower(trim((string) ($voucherCancelResult['message'] ?? '')));
+                    $alreadyCancelledAtSupplier = $failMsg !== '' && (
+                        str_contains($failMsg, 'not cancellable')
+                        || str_contains($failMsg, 'already cancel')
+                        || str_contains($failMsg, 'already cancelled')
+                    );
+                    if ($alreadyCancelledAtSupplier) {
+                        $voucherCancelResult['success'] = true;
+                        $voucherCancelResult['message'] = $voucherCancelResult['message']
+                            ?: 'Voucher was already cancelled with the supplier.';
+                    } else {
+                        return response()->json([
+                            'success' => false,
+                            'message' => $voucherCancelResult['message']
+                                ?: 'Provider voucher cancellation failed. Booking was not rejected.',
+                            'data' => [
+                                'voucher_cancel' => $voucherCancelResult,
+                                'voucher_code' => $voucherCode,
+                            ],
+                        ], 422);
+                    }
                 }
 
                 $booking['voucher_cancelled'] = true;
@@ -4561,10 +4599,16 @@ class HotelBookingController extends Controller
                     'metadata' => ['voucher_code' => $voucherCode, 'trigger' => 'reject_voucher'],
                 ]);
 
-                app(\App\Services\Payment\SupplierCancellationStatusService::class)->markConfirmed(
-                    $attractionOrder,
-                    (string) ($voucherCancelResult['message'] ?? 'Supplier voucher cancellation confirmed.')
-                );
+                // findTourAttractionOrder returns stdClass from query builder — markConfirmed needs Order model.
+                $orderModel = $attractionOrder instanceof \App\Models\Order
+                    ? $attractionOrder
+                    : \App\Models\Order::query()->find((int) $attractionOrder->id);
+                if ($orderModel) {
+                    app(\App\Services\Payment\SupplierCancellationStatusService::class)->markConfirmed(
+                        $orderModel,
+                        (string) ($voucherCancelResult['message'] ?? 'Supplier voucher cancellation confirmed.')
+                    );
+                }
 
                 if (isset($attractionData[$bookingIndex]) && is_array($attractionData[$bookingIndex])) {
                     $attractionData[$bookingIndex] = $booking;
@@ -4859,15 +4903,7 @@ class HotelBookingController extends Controller
                 ], 404);
             }
 
-            // Check if the booking is already approved
-            if ($guideOrder->is_approve == 1) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cannot reject an already approved booking'
-                ], 400);
-            }
-
-            // Update the orders table with rejection data and soft delete
+            // Allow cancel after approve (Definite/Actual refund flow).
             $updateData = CommonHelper::withDefiniteOrActualTourIsRefundFlag((int) $tourId, [
                 'cancel_reason' => $cancelReason,
                 'deleted_at' => now(), // Soft delete
@@ -5125,17 +5161,7 @@ class HotelBookingController extends Controller
                 'current_is_approve' => $arrivalOrder->is_approve
             ]);
 
-            // Check if already approved
-            if ($arrivalOrder->is_approve) {
-                Log::warning('?? ARRIVAL REJECT: Attempting to reject already approved arrival', [
-                    'order_id' => $arrivalOrder->id
-                ]);
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cannot reject an already approved arrival booking'
-                ], 400);
-            }
-
+            // Allow cancel after approve (Definite/Actual refund flow).
             // Soft delete the arrival booking
             $updated = DB::table('orders')
                 ->where('id', $arrivalOrder->id)
@@ -5388,17 +5414,7 @@ class HotelBookingController extends Controller
                 'current_is_approve' => $departureOrder->is_approve
             ]);
 
-            // Check if already approved
-            if ($departureOrder->is_approve) {
-                Log::warning('?? DEPARTURE REJECT: Attempting to reject already approved departure', [
-                    'order_id' => $departureOrder->id
-                ]);
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cannot reject an already approved departure booking'
-                ], 400);
-            }
-
+            // Allow cancel after approve (Definite/Actual refund flow).
             // Soft delete the departure booking
             $updated = DB::table('orders')
                 ->where('id', $departureOrder->id)
@@ -5650,17 +5666,7 @@ class HotelBookingController extends Controller
                 'current_is_approve' => $hourlyOrder->is_approve
             ]);
 
-            // Check if already approved
-            if ($hourlyOrder->is_approve) {
-                Log::warning('? HOURLY REJECT: Attempting to reject already approved hourly booking', [
-                    'order_id' => $hourlyOrder->id
-                ]);
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cannot reject an already approved hourly booking'
-                ], 400);
-            }
-
+            // Allow cancel after approve (Definite/Actual refund flow).
             // Soft delete the hourly booking
             $updated = DB::table('orders')
                 ->where('id', $hourlyOrder->id)
@@ -5912,17 +5918,7 @@ class HotelBookingController extends Controller
                 'current_is_approve' => $pointToPointOrder->is_approve
             ]);
 
-            // Check if already approved
-                if ($pointToPointOrder->is_approve) {
-                Log::warning('? POINT TO POINT REJECT: Attempting to reject already approved point to point booking', [
-                    'order_id' => $pointToPointOrder->id
-                ]);
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cannot reject an already approved point to point booking'
-                ], 400);
-            }
-
+            // Allow cancel after approve (Definite/Actual refund flow).
             // Soft delete the point-to-point booking
             $updated = DB::table('orders')
                 ->where('id', $pointToPointOrder->id)
@@ -6166,17 +6162,7 @@ class HotelBookingController extends Controller
                 'current_is_approve' => $localTransportOrder->is_approve
             ]);
 
-            // Check if already approved
-            if ($localTransportOrder->is_approve) {
-                Log::warning('?? LOCAL TRANSPORT REJECT: Attempting to reject already approved local transport booking', [
-                    'order_id' => $localTransportOrder->id
-                ]);
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cannot reject an already approved local transport booking'
-                ], 400);
-            }
-
+            // Allow cancel after approve (Definite/Actual refund flow).
             // Soft delete the local transport booking
             $updated = DB::table('orders')
                 ->where('id', $localTransportOrder->id)

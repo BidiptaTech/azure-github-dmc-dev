@@ -29,11 +29,32 @@ class QuotationPresentationAssembler
         $baseCurrency = $payload['baseCurrency'] ?? ($tour->currency ?? 'SGD');
         $selectedCurrency = $payload['selectedCurrency'] ?? $baseCurrency;
         $exchangeRate = $payload['exchangeRate'] ?? 1.0;
+        $applyPaymentFx = ! empty($payload['applyPaymentFx']);
         $logoType = $payload['logoType'] ?? 'dmc';
         $user_agency = $payload['user_agency'] ?? null;
         $quotationInformationHtml = $payload['quotationInformationHtml'] ?? null;
         $cities = $payload['cities'] ?? [];
         $dmcUserFromPayload = $payload['dmcUser'] ?? null;
+
+        // Online / mix: convert with wallet Pay Now FX (countries rate + conversion %).
+        $convertCurrencyAmount = function ($amount, string $fromCurrency, string $toCurrency) use ($applyPaymentFx): ?float {
+            $amount = (float) $amount;
+            $from = strtoupper(trim($fromCurrency));
+            $to = strtoupper(trim($toCurrency));
+            if ($from === '' || $to === '' || $from === $to) {
+                return $amount;
+            }
+            if ($applyPaymentFx) {
+                $fxAmount = app(\App\Services\Payment\FxConversionCharge::class)
+                    ->convertAmount($amount, $from, $to);
+                if ($fxAmount !== null) {
+                    return (float) $fxAmount;
+                }
+            }
+            $converted = \App\Helpers\CurrencyHelper::convertAmount($amount, $from, $to);
+
+            return $converted !== null ? (float) $converted : null;
+        };
 
         if ($tour === null) {
             return [
@@ -166,7 +187,7 @@ $adults = (int)($bookingDetails['no_of_adults'] ?? 0);
                 if ($dCurrency === '') {
                     $dCurrency = strtoupper((string) $baseCurrency);
                 }
-                $converted = \App\Helpers\CurrencyHelper::convertAmount($dAmount, $dCurrency, $selectedCurrency);
+                $converted = $convertCurrencyAmount($dAmount, $dCurrency, $selectedCurrency);
                 if ($converted === null) {
                     if ($dCurrency === $selectedCurrency) {
                         $converted = $dAmount;
@@ -310,7 +331,7 @@ $adults = (int)($bookingDetails['no_of_adults'] ?? 0);
                 $orderCurrency = strtoupper((string) $baseCurrency);
             }
 
-            $convertedAmount = \App\Helpers\CurrencyHelper::convertAmount($amount, $orderCurrency, $selectedCurrency);
+            $convertedAmount = $convertCurrencyAmount($amount, $orderCurrency, $selectedCurrency);
             if ($convertedAmount === null) {
                 if ($orderCurrency === $selectedCurrency) {
                     $convertedAmount = $amount;
@@ -359,7 +380,7 @@ $adults = (int)($bookingDetails['no_of_adults'] ?? 0);
                 $groupCurrency = strtoupper((string) $baseCurrency);
             }
 
-            $convertedOther = \App\Helpers\CurrencyHelper::convertAmount($otherAmt, $groupCurrency, $selectedCurrency);
+            $convertedOther = $convertCurrencyAmount($otherAmt, $groupCurrency, $selectedCurrency);
             if ($convertedOther === null) {
                 if ($groupCurrency === $selectedCurrency) {
                     $overallOtherServicesOrderTotal += $otherAmt;
@@ -1620,12 +1641,14 @@ $adults = (int)($bookingDetails['no_of_adults'] ?? 0);
             $countryMeta
         );
 
-        $formatNativeMoney = function ($amount, $currency) {
+        $formatNativeMoney = function ($amount, $currency) use ($applyPaymentFx) {
             $currency = strtoupper(trim((string)$currency));
             if ($currency === '') $currency = 'SGD';
             $label = $currency === 'INR' ? 'INR' : $currency;
             $num = is_numeric($amount) ? (float)$amount : 0.0;
-            if (abs($num) >= 1) {
+            // Online keep cents (34.90); offline whole numbers for package PDFs.
+            // IDR still displays as whole rupiah.
+            if ($currency === 'IDR' || (! $applyPaymentFx && abs($num) >= 1)) {
                 $formatted = number_format($num, 0, '.', ',');
             } else {
                 $formatted = number_format($num, 2, '.', ',');
@@ -1993,10 +2016,10 @@ $formatSelectedPersonsCells = function ($single, $double, $triple, $selectedPers
                     if ($isProTour) {
                         $hSingle = $hDouble > 0 ? $hDouble : $hSingle;
                     }
-                    $cSingle = \App\Helpers\CurrencyHelper::convertAmount($hSingle, $fromCurrency, $selectedCurrency);
-                    $cDouble = \App\Helpers\CurrencyHelper::convertAmount($hDouble, $fromCurrency, $selectedCurrency);
-                    $cTriple = \App\Helpers\CurrencyHelper::convertAmount($hTriple, $fromCurrency, $selectedCurrency);
-                    $cOther  = \App\Helpers\CurrencyHelper::convertAmount($oOther, $fromCurrency, $selectedCurrency);
+                    $cSingle = $convertCurrencyAmount($hSingle, $fromCurrency, $selectedCurrency);
+                    $cDouble = $convertCurrencyAmount($hDouble, $fromCurrency, $selectedCurrency);
+                    $cTriple = $convertCurrencyAmount($hTriple, $fromCurrency, $selectedCurrency);
+                    $cOther  = $convertCurrencyAmount($oOther, $fromCurrency, $selectedCurrency);
                     if ($cSingle === null || $cDouble === null || $cOther === null) {
                         $overallConvertedOk = false;
                         break;
@@ -2109,7 +2132,7 @@ $formatSelectedPersonsCells = function ($single, $double, $triple, $selectedPers
             if ($overallTargetCurrency === '') {
                 $overallTargetCurrency = strtoupper((string) $baseCurrency);
             }
-            $convertToOverall = function ($amount, $fromCurrency) use ($overallTargetCurrency, $baseCurrency): float {
+            $convertToOverall = function ($amount, $fromCurrency) use ($overallTargetCurrency, $baseCurrency, $convertCurrencyAmount): float {
                 $amount = (float) $amount;
                 if ($amount <= 0) {
                     return 0.0;
@@ -2121,26 +2144,31 @@ $formatSelectedPersonsCells = function ($single, $double, $triple, $selectedPers
                 if ($from === $overallTargetCurrency) {
                     return $amount;
                 }
-                $converted = \App\Helpers\CurrencyHelper::convertAmount($amount, $from, $overallTargetCurrency);
+                $converted = $convertCurrencyAmount($amount, $from, $overallTargetCurrency);
                 return $converted !== null ? (float) $converted : $amount;
             };
-            $fmtOverallAmt = function ($amount) use ($overallTargetCurrency, $formatNativeMoney) {
+            $fmtOverallAmt = function ($amount) use ($overallTargetCurrency, $formatNativeMoney, $applyPaymentFx) {
                 $amount = (float) $amount;
                 if ($amount <= 0) {
                     return '0.00';
                 }
-                return $formatNativeMoney(ceil($amount), $overallTargetCurrency);
+                // Online: keep exact money; offline package PDFs keep whole-number ceil.
+                $display = $applyPaymentFx ? round($amount, $overallTargetCurrency === 'IDR' ? 0 : 2) : ceil($amount);
+                return $formatNativeMoney($display, $overallTargetCurrency);
             };
-            // Keep Price × multiplier = Total Price (ceil unit first, then multiply).
-            $overallLine = function (string $name, float $unit, int $multiplier, ?string $priceDisplay = null) use ($fmtOverallAmt): array {
-                $unitCeil = (float) ceil(max(0.0, $unit));
+            // Keep Price × multiplier = Total Price.
+            // Online: exact unit (matches Pay Now). Offline: ceil unit first, then multiply.
+            $overallLine = function (string $name, float $unit, int $multiplier, ?string $priceDisplay = null) use ($fmtOverallAmt, $applyPaymentFx): array {
+                $unitRounded = $applyPaymentFx
+                    ? round(max(0.0, $unit), 2)
+                    : (float) ceil(max(0.0, $unit));
                 $mult = max(1, $multiplier);
                 return [
                     'name' => $name,
-                    'price' => $unitCeil,
+                    'price' => $unitRounded,
                     'multiplier' => $mult,
                     'price_display' => $priceDisplay,
-                    'total' => $unitCeil * $mult,
+                    'total' => round($unitRounded * $mult, $applyPaymentFx ? 2 : 0),
                     'row_kind' => 'normal',
                 ];
             };
@@ -2311,12 +2339,20 @@ $formatSelectedPersonsCells = function ($single, $double, $triple, $selectedPers
                 }
 
                 $otherAdultUnitNative = (float) ($share['other_services_single'] ?? ($share['other_services_double'] ?? 0));
-                $hotelAdultUnit = $hotelAdultUnitNative > 0
-                    ? (float) ceil($convertToOverall($hotelAdultUnitNative, $shareCurrency))
-                    : 0.0;
-                $otherAdultUnit = $otherAdultUnitNative > 0
-                    ? (float) ceil($convertToOverall($otherAdultUnitNative, $shareCurrency))
-                    : 0.0;
+                // Convert first, then round — never ceil SGD before FX (34.90 must not become 35).
+                $roundOverallUnit = function (float $native, string $currency) use ($convertToOverall, $applyPaymentFx, $overallTargetCurrency): float {
+                    if ($native <= 0) {
+                        return 0.0;
+                    }
+                    $converted = (float) $convertToOverall($native, $currency);
+                    if ($applyPaymentFx) {
+                        return round($converted, $overallTargetCurrency === 'IDR' ? 0 : 2);
+                    }
+
+                    return (float) ceil($converted);
+                };
+                $hotelAdultUnit = $roundOverallUnit($hotelAdultUnitNative, $shareCurrency);
+                $otherAdultUnit = $roundOverallUnit($otherAdultUnitNative, $shareCurrency);
 
                 $hasStayChild = array_key_exists('child_bed_total', $share);
                 $childBedNative = $hasStayChild

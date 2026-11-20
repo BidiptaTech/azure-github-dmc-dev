@@ -182,4 +182,48 @@ class FxConversionCharge
             'exchange_rate' => $rate,
         ];
     }
+
+    /**
+     * Same FX stack as wallet Pay Now: countries.current_rate (SGD pivot) + conversion %.
+     * Use for online quotation / invoice display so converted totals match payment.
+     */
+    public function exchangeRate(string $fromCurrency, string $toCurrency, ?float $percent = null): ?float
+    {
+        $from = strtoupper(trim($fromCurrency));
+        $to = strtoupper(trim($toCurrency));
+        if ($from === '' || $to === '') {
+            return null;
+        }
+        if ($from === $to) {
+            return 1.0;
+        }
+
+        $base = Country::exchangeRateBetween($from, $to);
+        if ($base === null || $base <= 0) {
+            return null;
+        }
+
+        return $this->effectiveRate((float) $base, $percent);
+    }
+
+    /**
+     * Convert an amount with the payment FX fee folded into the rate.
+     */
+    public function convertAmount(float $amount, string $fromCurrency, string $toCurrency, ?float $percent = null): ?float
+    {
+        $from = strtoupper(trim($fromCurrency));
+        $to = strtoupper(trim($toCurrency));
+        if ($from === $to) {
+            return round($amount, 2);
+        }
+
+        $base = Country::exchangeRateBetween($from, $to);
+        if ($base === null || $base <= 0) {
+            return null;
+        }
+
+        $percent = $percent === null ? $this->percent() : max(0.0, (float) $percent);
+
+        return $this->apply($amount, (float) $base, $percent, true)['destination_amount'];
+    }
 }

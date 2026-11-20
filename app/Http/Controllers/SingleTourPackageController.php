@@ -850,9 +850,25 @@ class SingleTourPackageController extends Controller
                 }
 
                 // Definite/Actual: flag order for refund workflow before soft delete (same as booking reject).
+                // without_refund=1 completes refund at 0 (same as hotel Cancel without refund).
                 $refundPayload = CommonHelper::withDefiniteOrActualTourIsRefundFlag($tourId, []);
                 if (isset($refundPayload['is_refund'])) {
                     $order->is_refund = $refundPayload['is_refund'];
+                }
+                if (array_key_exists('refund_amount', $refundPayload)) {
+                    $order->refund_amount = $refundPayload['refund_amount'];
+                }
+                if (array_key_exists('is_verify', $refundPayload)) {
+                    $order->is_verify = $refundPayload['is_verify'];
+                }
+                if (array_key_exists('refunded', $refundPayload)) {
+                    $order->refunded = $refundPayload['refunded'];
+                }
+                if (isset($refundPayload['is_refund'])
+                    || array_key_exists('refund_amount', $refundPayload)
+                    || array_key_exists('is_verify', $refundPayload)
+                    || array_key_exists('refunded', $refundPayload)
+                ) {
                     $order->save();
                 }
 
