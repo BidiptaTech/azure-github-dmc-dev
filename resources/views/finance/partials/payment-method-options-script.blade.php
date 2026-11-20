@@ -1,4 +1,4 @@
-{{--
+﻿{{--
   Extends existing Add Payment modals with server-driven Wallet / Stripe options.
   Laravel-only payment service (no Python / no Razorpay).
   Use url() so APP_URL subpath (e.g. /backadm-dmc) is included — root /payment-service returns HTML.
@@ -936,9 +936,24 @@
     })();
     window.TcPayUi = PayUi;
 
-    /** Show the outcome of a Pay Now (hold → auto-booking) and refresh the page on OK. */
+    function afterAcceptancePayNavigate(done) {
+        const redirect = (done && (done.redirect_url || done.redirectUrl)) || window.__acceptancePayRedirectUrl || '';
+        if (redirect) {
+            window.location.href = redirect;
+            return;
+        }
+        if (/new-enquir|enquiry/i.test(window.location.pathname || '')) {
+            window.location.href = @json(url('/bookings/definite'));
+            return;
+        }
+        window.location.reload();
+    }
+
+    /** Show the outcome of a Pay Now (hold → auto-booking). Optional onClose for edit-tour pay flow. */
     function showPayOutcome(done, fallbackMessage, onClose) {
-        const close = typeof onClose === 'function' ? onClose : function () { window.location.reload(); };
+        const close = typeof onClose === 'function'
+            ? onClose
+            : function () { afterAcceptancePayNavigate(done); };
         if (done && done.hold) {
             PayUi.result(done, close);
             return;
@@ -1190,6 +1205,7 @@
                     </div>
                     <div class="modal-body">
                         <p id="acceptancePayHint" class="small mb-3"></p>
+                        <div id="acceptancePayServices" class="mb-3 d-none"></div>
                         <label class="form-label" for="acceptancePayAmount">Amount due</label>
                         <input id="acceptancePayAmount" class="form-control mb-3" readonly>
                         <label class="form-label" for="acceptancePayMethod">Payment method</label>
@@ -1220,14 +1236,65 @@
         return modal;
     }
 
+    function escPayHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function renderAcceptancePayServices(services) {
+        const host = document.getElementById('acceptancePayServices');
+        if (!host) {
+            return;
+        }
+        const list = Array.isArray(services) ? services : [];
+        if (!list.length) {
+            host.classList.add('d-none');
+            host.innerHTML = '';
+            return;
+        }
+        host.classList.remove('d-none');
+        host.innerHTML = list.map(function (svc) {
+            const type = String(svc.type || 'service').toLowerCase();
+            const icon = type === 'attraction' ? 'ri-camera-line'
+                : (type === 'hotel' ? 'ri-hotel-line' : 'ri-checkbox-blank-circle-line');
+            const name = escPayHtml(svc.name || 'Online service');
+            const ticket = escPayHtml(svc.ticket_name || '');
+            const visit = escPayHtml(svc.visit_date || '');
+            const ref = String(svc.order_ref || '').trim();
+            const amount = Number(svc.amount || 0);
+            const currency = escPayHtml(svc.currency || 'SGD');
+            return ''
+                + '<div class="border rounded-3 p-3 mb-2 bg-light">'
+                +   '<div class="d-flex align-items-start gap-2">'
+                +     '<div class="rounded-circle bg-white border d-flex align-items-center justify-content-center flex-shrink-0" style="width:36px;height:36px;">'
+                +       '<i class="' + icon + ' text-muted"></i>'
+                +     '</div>'
+                +     '<div class="flex-grow-1">'
+                +       '<label class="form-label small text-muted mb-1">' + escPayHtml(type === 'attraction' ? 'Attraction' : (type === 'hotel' ? 'Hotel' : 'Service')) + '</label>'
+                +       '<input type="text" class="form-control form-control-sm mb-2" value="' + name + '" disabled readonly>'
+                +       (ticket ? '<div class="small text-muted mb-2">' + ticket + (visit ? ' · ' + visit : '') + '</div>' : (visit ? '<div class="small text-muted mb-2">' + visit + '</div>' : ''))
+                +       '<label class="form-label small text-muted mb-1">Reference number</label>'
+                +       '<input type="text" class="form-control form-control-sm" value="' + escPayHtml(ref || 'Pending supplier reference') + '" disabled readonly>'
+                +       (amount > 0 ? '<div class="small text-muted mt-2">Due: <strong>' + currency + ' ' + amount.toFixed(2) + '</strong></div>' : '')
+                +     '</div>'
+                +   '</div>'
+                + '</div>';
+        }).join('');
+    }
+
     /**
      * @param opts  optional { title, hint, onDone(done), onCancel() } — used by the edit-tour page
-     *              (pay for newly added online services right after saving). Default: reload.
+     *              (pay for newly added online services right after saving). Default: reload/redirect.
      */
     async function openAcceptancePay(tourId, opts = {}) {
         try {
             const payload = await fetchEligibility(tourId);
             const eligibility = payload.data || {};
+            window.__acceptancePayRedirectUrl = eligibility.redirect_url || '';
             const modalEl = ensureAcceptanceModal();
             const onDone = typeof opts.onDone === 'function' ? opts.onDone : null;
             let paid = false;
@@ -1236,8 +1303,19 @@
                     if (!paid) opts.onCancel();
                 }, { once: true });
             }
+            // Older cached pages may lack the services host — inject above Amount due.
+            if (!document.getElementById('acceptancePayServices')) {
+                const amountLabel = document.querySelector('label[for="acceptancePayAmount"]');
+                const servicesHost = document.createElement('div');
+                servicesHost.id = 'acceptancePayServices';
+                servicesHost.className = 'mb-3 d-none';
+                if (amountLabel && amountLabel.parentNode) {
+                    amountLabel.parentNode.insertBefore(servicesHost, amountLabel);
+                }
+            }
             document.getElementById('acceptancePayTitle').textContent = opts.title || eligibility.acceptance?.button_label || 'Payment';
             document.getElementById('acceptancePayHint').textContent = opts.hint || eligibility.acceptance?.hint || '';
+            renderAcceptancePayServices(eligibility.online_services || []);
             const amountEl = document.getElementById('acceptancePayAmount');
             const fx = eligibility.fx || {};
             const payable = Number(eligibility.payable_amount || 0);
@@ -1266,6 +1344,13 @@
                 opt.dataset.reason = method.reason || '';
                 select.appendChild(opt);
             });
+            // Prefer Wallet for online attraction / hotel Pay Now (same as hotel flow).
+            if (walletMethod && walletMethod.available) {
+                const walletOpt = Array.from(select.options).find((o) => o.value === 'wallet' && !o.disabled);
+                if (walletOpt) {
+                    select.value = 'wallet';
+                }
+            }
             const txnEl = document.getElementById('acceptancePayTransactionId');
             if (txnEl) txnEl.value = '';
             const remarksEl = document.getElementById('acceptancePayRemarks');
@@ -1284,7 +1369,10 @@
                 && orderCur && orderCur !== walletCurrency)
                 ? ` Rate: 1 SGD = ${sgdEffective.toFixed(2)} ${walletCurrency}.`
                 : '';
-            help.textContent = `${walletLine}${rateLine}`;
+            const creditNote = (eligibility.online_services || []).some((s) => String(s.type || '') === 'attraction')
+                ? ' Supplier attraction credit is deducted in SGD via update-order after payment.'
+                : '';
+            help.textContent = `${walletLine}${rateLine}${creditNote}`;
             const submit = document.getElementById('acceptancePaySubmit');
             submit.disabled = payable <= 0;
                 submit.onclick = async () => {
@@ -1378,7 +1466,7 @@
                         return;
                     }
 
-                    window.location.reload();
+                    afterAcceptancePayNavigate(done);
                 } catch (e) {
                     PayUi.fail(e.message || 'Payment failed');
                 } finally {
