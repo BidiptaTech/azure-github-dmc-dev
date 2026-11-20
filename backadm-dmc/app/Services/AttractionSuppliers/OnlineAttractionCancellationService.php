@@ -113,23 +113,17 @@ class OnlineAttractionCancellationService
             'metadata' => ['voucher_code' => $voucherCode, 'trigger' => 'service_cancel'],
         ]);
 
-        // After all cancel scenario checks: auto-verify TravClicks refund → DMC wallet.
-        $order->refresh();
-        $walletAuto = app(\App\Services\Payment\TravclicksOnlineWalletRefundService::class)
-            ->afterOnlineCancelConfirmed($order);
-
-        Log::info('Online attraction voucher cancelled with supplier (edit remove)', [
+        // Wallet credit is TravClicks-only via TravclicksOnlineWalletRefundService::tryAutoRefund.
+        Log::info('Online attraction voucher cancelled with supplier', [
             'order_id' => $order->id,
             'booking_id' => $order->booking_id,
             'voucher_code' => $voucherCode,
             'message' => $result['message'] ?? null,
-            'wallet_auto_refund' => $walletAuto,
         ]);
 
         return array_merge($result, [
             'voucher_code' => $voucherCode,
             'status' => 'confirmed',
-            'wallet_auto_refund' => $walletAuto,
         ]);
     }
 

@@ -4494,15 +4494,14 @@ class BookingsController extends Controller
     }
 
     /**
-     * Auto-run TravClicks → DMC wallet credit for online refunds that already
-     * passed supplier-cancel checks (no manual Credit DMC Wallet / verify).
+     * TravClicks Refunds page: one auto step per online cancel —
+     * supplier cancel API (if still pending) then DMC wallet credit.
      *
      * @param  \Illuminate\Support\Collection|array<int, mixed>  $tours
      */
     private function autoCreditPendingTravclicksOnlineRefunds($tours): void
     {
         $wallet = app(\App\Services\Payment\TravclicksOnlineWalletRefundService::class);
-        $cancelStatus = app(SupplierCancellationStatusService::class);
 
         foreach ($tours as $tour) {
             $tourId = (int) ($tour->tour_id ?? 0);
@@ -4523,9 +4522,7 @@ class BookingsController extends Controller
             $orders = $ordersQuery->get();
 
             foreach ($orders as $order) {
-                if ($cancelStatus->isBlockingWalletCredit($order)) {
-                    continue;
-                }
+                // tryAutoRefund cancels supplier first (if needed), then credits wallet.
                 $wallet->tryAutoRefund($order, $tour instanceof Tour ? $tour : Tour::where('tour_id', $tourId)->first());
             }
         }

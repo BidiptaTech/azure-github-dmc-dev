@@ -68,6 +68,20 @@ class TravclicksOnlineWalletRefundService
                 }
             }
 
+            // Single TravClicks step: cancel online supplier API first, then credit DMC wallet.
+            $supplierCancel = $this->ensureOnlineSupplierCancelled($order);
+            if (is_array($supplierCancel) && ! empty($supplierCancel['soft_failed'])) {
+                return [
+                    'credited' => false,
+                    'skipped' => true,
+                    'reason' => 'supplier_cancel_blocking',
+                    'message' => (string) ($supplierCancel['message'] ?? 'Supplier cancellation failed — wallet credit blocked.'),
+                    'supplier_cancel' => $supplierCancel,
+                ];
+            }
+
+            $order->refresh();
+
             return $this->refund($order, $tour, null, false, '', true);
         } catch (Throwable $e) {
             Log::error('travclicks_online_auto_refund_failed', [
@@ -83,6 +97,41 @@ class TravclicksOnlineWalletRefundService
                 'message' => $e->getMessage(),
             ];
         }
+    }
+
+    /**
+     * TravClicks-only: call supplier cancel (SG voucher / hotel cancel) when still pending.
+     * Wallet credit stays in refund() after this succeeds.
+     *
+     * @return array<string, mixed>|null
+     */
+    protected function ensureOnlineSupplierCancelled(Order $order, ?string $cancelReason = null): ?array
+    {
+        if (strtolower(trim((string) ($order->order_type ?? ''))) !== 'online') {
+            return null;
+        }
+
+        if ($this->cancelStatus->allowsWalletCredit($order)) {
+            return null;
+        }
+
+        $type = strtolower(trim((string) ($order->type ?? '')));
+        $reason = trim((string) ($cancelReason ?? ''));
+        if ($reason === '') {
+            $reason = 'TravClicks auto-refund supplier cancellation';
+        }
+
+        if ($type === 'attraction') {
+            return app(\App\Services\AttractionSuppliers\OnlineAttractionCancellationService::class)
+                ->cancelIfApplicable($order, $reason, true);
+        }
+
+        if ($type === 'hotel') {
+            return app(\App\Services\HotelSuppliers\OnlineHotelCancellationService::class)
+                ->cancelIfApplicable($order, true);
+        }
+
+        return null;
     }
 
     /**
