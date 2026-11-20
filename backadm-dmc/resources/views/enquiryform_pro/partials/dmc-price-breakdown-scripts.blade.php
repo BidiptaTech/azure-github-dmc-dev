@@ -236,6 +236,16 @@
                 ? data.dmc_profile_markup.price
                 : NaN
         );
+        const isOnlineAttraction = !!(data.isOnlineAttraction || data.attractionSourceType === 'online');
+        // Online Estimated already includes DMC other — keep stamped final, do not mark again.
+        if (isOnlineAttraction && Number.isFinite(storedMarked) && storedMarked > 0
+            && Number.isFinite(storedBase) && storedBase > 0) {
+            data.totalPrice = Math.round(storedMarked * 100) / 100;
+            if (data.price != null && data.price !== '') data.price = data.totalPrice;
+            data.grand_total = data.totalPrice;
+            data.base_grand_total = Math.round(storedBase * 100) / 100;
+            return data.dmc_profile_markup;
+        }
         if (Number.isFinite(storedBase) && storedBase > 0
             && Number.isFinite(storedMarked) && storedMarked > 0
             && Math.abs(base - storedMarked) < 0.05) {
@@ -1025,12 +1035,31 @@
 
     function buildTourBreakdown(tour) {
         const cur = resolveCurrency(tour);
+        const isOnline = !!(tour.isOnlineAttraction || tour.attractionSourceType === 'online');
         const adults = Math.max(0, parseInt(tour.adultsQty, 10) || 0);
         const children = Math.max(0, parseInt(tour.childQty, 10) || 0);
         const infants = Math.max(0, parseInt(tour.infantQty, 10) || 0);
-        const adultP = num(tour.adultSell);
-        const childP = num(tour.childSell);
-        const infantP = num(tour.infantSell);
+        // Prefer base sell (before DMC). Online modal units already include DMC — peel when needed.
+        let adultP = num(tour.adultSell);
+        let childP = num(tour.childSell);
+        let infantP = num(tour.infantSell);
+        const storedMk = tour.dmc_profile_markup || tour.online_price_breakdown || null;
+        const storedBase = num(
+            tour.base_grand_total != null ? tour.base_grand_total
+                : (storedMk && storedMk.base_price)
+        );
+        const storedFinal = num(storedMk && storedMk.price != null ? storedMk.price : tour.totalPrice);
+        if (isOnline && typeof window.enquiryProSplitDmcMarkupFromFinal === 'function') {
+            const ticketGuess = (adultP * adults) + (childP * children) + (infantP * infants);
+            // Sell already matches stored base (33.50) — keep units. Only peel when units are the final (34.17).
+            const sellMatchesBase = storedBase > 0 && Math.abs(ticketGuess - storedBase) < 0.05;
+            const sellMatchesFinal = storedFinal > 0 && Math.abs(ticketGuess - storedFinal) < 0.05;
+            if (!sellMatchesBase && sellMatchesFinal) {
+                if (adultP > 0) adultP = window.enquiryProSplitDmcMarkupFromFinal(adultP, 'other').base_price;
+                if (childP > 0) childP = window.enquiryProSplitDmcMarkupFromFinal(childP, 'other').base_price;
+                if (infantP > 0) infantP = window.enquiryProSplitDmcMarkupFromFinal(infantP, 'other').base_price;
+            }
+        }
         let ticketTotal = (adultP * adults) + (childP * children) + (infantP * infants);
         let lines = '';
         if (adults > 0) lines += lineHtml('<strong>Adult</strong> × ' + adults + ' (' + money(cur, adultP) + ')', adultP * adults, cur);
@@ -1077,26 +1106,50 @@
             );
         }
 
-        // Markup each service separately (same as store: ticket / transfer / guide)
-        const ticketMk = window.enquiryProApplyDmcMarkup(ticketTotal, 'other');
-        const transferMk = transferTotal > 0 ? window.enquiryProApplyDmcMarkup(transferTotal, 'other') : null;
-        const guideMk = guideTotal > 0 ? window.enquiryProApplyDmcMarkup(guideTotal, 'other') : null;
-        const combinedBase = ticketTotal + transferTotal + guideTotal;
-        const combinedFinal = ticketMk.price
-            + (transferMk ? transferMk.price : 0)
-            + (guideMk ? guideMk.price : 0);
-        const combinedMkAmt = ticketMk.markup_amount
-            + (transferMk ? transferMk.markup_amount : 0)
-            + (guideMk ? guideMk.markup_amount : 0);
-        const applied = {
-            base_price: Math.round(combinedBase * 100) / 100,
-            markup_amount: Math.round(combinedMkAmt * 100) / 100,
-            price: Math.round(combinedFinal * 100) / 100,
-            markup_type: ticketMk.markup_type,
-            markup_value: ticketMk.markup_value,
-            markup_kind: 'other',
-            dmc_id: ticketMk.dmc_id
-        };
+        let applied;
+        if (isOnline) {
+            // Online Estimated already includes DMC other — show peel once, never apply again.
+            const finalTotal = storedFinal > 0
+                ? storedFinal
+                : (num(tour.totalPrice || tour.grand_total) || (ticketTotal + transferTotal + guideTotal));
+            if (storedMk && num(storedMk.base_price) > 0 && num(storedMk.price) > 0
+                && Math.abs(num(storedMk.price) - finalTotal) < 0.05) {
+                applied = {
+                    base_price: Math.round(num(storedMk.base_price) * 100) / 100,
+                    markup_amount: Math.round(num(storedMk.markup_amount) * 100) / 100,
+                    price: Math.round(num(storedMk.price) * 100) / 100,
+                    markup_type: storedMk.markup_type || 'percentage',
+                    markup_value: num(storedMk.markup_value),
+                    markup_kind: 'other',
+                    dmc_id: storedMk.dmc_id || null
+                };
+            } else if (typeof window.enquiryProSplitDmcMarkupFromFinal === 'function') {
+                applied = window.enquiryProSplitDmcMarkupFromFinal(finalTotal, 'other');
+            } else {
+                applied = window.enquiryProApplyDmcMarkup(ticketTotal + transferTotal + guideTotal, 'other');
+            }
+        } else {
+            // Offline: markup each service separately (same as store: ticket / transfer / guide)
+            const ticketMk = window.enquiryProApplyDmcMarkup(ticketTotal, 'other');
+            const transferMk = transferTotal > 0 ? window.enquiryProApplyDmcMarkup(transferTotal, 'other') : null;
+            const guideMk = guideTotal > 0 ? window.enquiryProApplyDmcMarkup(guideTotal, 'other') : null;
+            const combinedBase = ticketTotal + transferTotal + guideTotal;
+            const combinedFinal = ticketMk.price
+                + (transferMk ? transferMk.price : 0)
+                + (guideMk ? guideMk.price : 0);
+            const combinedMkAmt = ticketMk.markup_amount
+                + (transferMk ? transferMk.markup_amount : 0)
+                + (guideMk ? guideMk.markup_amount : 0);
+            applied = {
+                base_price: Math.round(combinedBase * 100) / 100,
+                markup_amount: Math.round(combinedMkAmt * 100) / 100,
+                price: Math.round(combinedFinal * 100) / 100,
+                markup_type: ticketMk.markup_type,
+                markup_value: ticketMk.markup_value,
+                markup_kind: 'other',
+                dmc_id: ticketMk.dmc_id
+            };
+        }
         return {
             title: (tour.attractionName || 'Attraction') + ' — Price breakdown',
             html: '<div class="ep-pd-section-label">Items</div>'

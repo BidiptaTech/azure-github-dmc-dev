@@ -32,6 +32,11 @@
                     onclick="openAttractionMailPreview({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }})">
                 <i class="ri-mail-line me-1"></i>Mail Preview
             </button>
+            <button type="button" class="btn btn-sm btn-outline-secondary svc-btn"
+                    onclick="openAttractionFilesModal('{{ $tour->tour_id }}', '{{ $index }}', '{{ $bookingIndex }}')"
+                    title="View and manage uploaded files">
+                <i class="ri-file-list-3-line me-1"></i>View Files
+            </button>
         @elseif($canEditApprove || $canReject)
             @if($canEditApprove)
             <button type="button" class="btn btn-sm svc-btn svc-btn-edit"

@@ -457,6 +457,15 @@ class PaymentOrchestrator
             $result['message'] = $this->autoBookingMessage($result['attempt'] ?? [], $summary);
         }
 
+        $tour->refresh();
+        $freshAttempt = (array) ($result['attempt'] ?? []);
+        $result['tour_status'] = (string) ($tour->tour_status ?? '');
+        $classification = (string) ($freshAttempt['order_classification'] ?? $tour->order_classification ?? '');
+        if (in_array($result['tour_status'], ['Confirmed', 'Definite'], true)
+            || $classification === OrderClassificationService::ONLINE) {
+            $result['redirect_url'] = url('/bookings/definite');
+        }
+
         return $result;
     }
 
