@@ -40,9 +40,16 @@
         <div class="card mb-6">
             <h5 class="card-header d-flex justify-content-between align-items-center">
                 Add New Attraction & Experience
-                <a href="{{ route('attraction.index') }}" class="btn btn-sm btn-outline-danger">
-                    <i class="mdi mdi-arrow-left"></i> Back
-                </a>
+                <div class="d-flex gap-2 align-items-center">
+                    @if(in_array((int) auth()->user()->role_id, [11, 20]))
+                        <a href="{{ route('bulk-upload.attractions') }}" class="btn btn-warning btn-sm">
+                            <i class="ri-upload-cloud-2-line me-1"></i>Bulk Upload Attractions
+                        </a>
+                    @endif
+                    <a href="{{ route('attraction.index') }}" class="btn btn-sm btn-outline-danger">
+                        <i class="mdi mdi-arrow-left"></i> Back
+                    </a>
+                </div>
             </h5>
             <form id="attractionForm" method="POST" action="{{ route('attraction.store') }}"
                 enctype="multipart/form-data" class="card-body js-submit-loader-form" data-loader-message="Saving...">

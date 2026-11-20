@@ -84,15 +84,15 @@
                                                 </h6>
                                                 <div class="instruction-item">
                                                     <i class="ri-checkbox-circle-line text-danger"></i>
-                                                    <span><strong>Required Fields:</strong> Ticket Name, All Price Fields, Important Notes, Terms & Conditions, Status</span>
+                                                    <span><strong>Same as Add Ticket:</strong> Ticket Name, Child/Adult/Senior Cost+Sell (Local & Foreigner), Important Notes, Terms & Conditions, Status. Remarks optional.</span>
                                                 </div>
                                                 <div class="instruction-item">
                                                     <i class="ri-money-dollar-circle-line text-success"></i>
-                                                    <span><strong>Price Fields:</strong> All must be numeric and greater than 0</span>
+                                                    <span><strong>Pricing:</strong> Cost = attraction fee · Sell = customer pays. All 12 pricing columns required, numeric, ≥ 0</span>
                                                 </div>
                                                 <div class="instruction-item">
                                                     <i class="ri-toggle-line text-info"></i>
-                                                    <span><strong>Status:</strong> 1 = Active, 0 = Inactive</span>
+                                                    <span><strong>Status:</strong> 1 = Active, 0 = Inactive. Profit Type / Profit On Cost are UI helpers only (not in CSV).</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -103,32 +103,32 @@
                                         <div class="col-12">
                                             <div class="instruction-section">
                                                 <h6 class="instruction-section-title">
-                                                    <i class="ri-money-dollar-box-line me-2"></i>Price Structure Overview
+                                                    <i class="ri-money-dollar-box-line me-2"></i>Price Structure Overview (matches Add Ticket)
                                                 </h6>
                                                 <div class="alert alert-info mb-3">
-                                                    <strong>CSV Format:</strong> Your CSV must include all 6 price columns as shown below.
+                                                    <strong>CSV Format:</strong> Include Cost + Sell for Child, Adult, and Senior — both Local and Foreigner (12 pricing columns).
                                                 </div>
                                                 <div class="row">
                                                     <div class="col-md-6 mb-3">
                                                         <div class="price-category-card local-prices">
                                                             <div class="price-category-header">
                                                                 <i class="ri-home-4-line me-2"></i>
-                                                                <strong>Local Prices</strong>
+                                                                <strong>Local (Cost + Sell)</strong>
                                                             </div>
                                                             <div class="price-items">
                                                                 <div class="price-item">
                                                                     <i class="ri-user-smile-line text-primary"></i>
-                                                                    <span>Child Price (local)</span>
+                                                                    <span>Child Cost / Sell (Local)</span>
                                                                     <small class="text-muted">Required</small>
                                                                 </div>
                                                                 <div class="price-item">
                                                                     <i class="ri-user-line text-success"></i>
-                                                                    <span>Adult Price (local)</span>
+                                                                    <span>Adult Cost / Sell (Local)</span>
                                                                     <small class="text-muted">Required</small>
                                                                 </div>
                                                                 <div class="price-item">
                                                                     <i class="ri-user-star-line text-warning"></i>
-                                                                    <span>Senior Citizen Price (local)</span>
+                                                                    <span>Senior Cost / Sell (Local)</span>
                                                                     <small class="text-muted">Required</small>
                                                                 </div>
                                                             </div>
@@ -138,22 +138,22 @@
                                                         <div class="price-category-card foreigner-prices">
                                                             <div class="price-category-header">
                                                                 <i class="ri-earth-line me-2"></i>
-                                                                <strong>Foreigner Prices</strong>
+                                                                <strong>Foreigner (Cost + Sell)</strong>
                                                             </div>
                                                             <div class="price-items">
                                                                 <div class="price-item">
                                                                     <i class="ri-user-smile-line text-primary"></i>
-                                                                    <span>Child Price (foreigner)</span>
+                                                                    <span>Child Cost / Sell (Foreigner)</span>
                                                                     <small class="text-muted">Required</small>
                                                                 </div>
                                                                 <div class="price-item">
                                                                     <i class="ri-user-line text-success"></i>
-                                                                    <span>Adult Price (foreigner)</span>
+                                                                    <span>Adult Cost / Sell (Foreigner)</span>
                                                                     <small class="text-muted">Required</small>
                                                                 </div>
                                                                 <div class="price-item">
                                                                     <i class="ri-user-star-line text-warning"></i>
-                                                                    <span>Senior Citizen Price (foreigner)</span>
+                                                                    <span>Senior Cost / Sell (Foreigner)</span>
                                                                     <small class="text-muted">Required</small>
                                                                 </div>
                                                             </div>
@@ -270,8 +270,8 @@
                                 </form>
                             </div>
 
-                                        <!-- Display Errors -->
-            @if($errors->any())
+                                        <!-- Display row-level upload errors (do not overwrite Laravel $errors ViewErrorBag) -->
+            @if(session('upload_errors') && count(session('upload_errors')) > 0)
                 <div class="error-section mt-4">
                     <div class="alert alert-warning modern-alert">
                         <div class="alert-header">
@@ -279,7 +279,7 @@
                             <strong>Upload Errors Detected</strong>
                         </div>
                         <div class="error-list">
-                            @foreach($errors->all() as $error)
+                            @foreach(session('upload_errors') as $error)
                                 <div class="error-item">
                                     <i class="ri-close-circle-line text-danger me-2"></i>
                                     {{ $error }}

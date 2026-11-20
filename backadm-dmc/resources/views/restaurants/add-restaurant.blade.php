@@ -119,6 +119,11 @@
                 <a href="{{ route('restaurant.index') }}" class="btn btn-sm btn-outline-danger">
                     <i class="mdi mdi-arrow-left"></i> Back
                 </a>
+                {{-- @if(auth()->user()->role_id == 20 || auth()->user()->role_id == '20')
+                    <a href="{{ route('bulk-upload.restaurants') }}" class="btn btn-warning btn-sm">
+                        <i class="ri-upload-cloud-2-line me-1"></i>Bulk Upload Restaurants
+                    </a>
+                @endif --}}
             </h5>
             <form id="restaurantForm" method="POST" action="{{ route('restaurant.store') }}"
                 enctype="multipart/form-data" class="card-body js-submit-loader-form" data-loader-message="Saving...">

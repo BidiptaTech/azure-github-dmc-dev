@@ -234,6 +234,14 @@
                             <i class="ri-add-line me-1"></i>Add Single Bed
                         </button>
                     </li>
+                    @if($auth_user->role_id == 11)
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="bulk-upload-tab" data-bs-toggle="tab" data-bs-target="#bulk-upload" 
+                                type="button" role="tab" aria-controls="bulk-upload" aria-selected="false">
+                            <i class="ri-upload-cloud-2-line me-1"></i>Bulk Upload
+                        </button>
+                    </li>
+                    @endif
                 </ul>
                 
                 <div class="tab-content" id="bedsTabContent">
@@ -467,6 +475,90 @@
                         </form>
                         </div>
                     </div>
+                    <!-- End Add Single Bed Tab -->
+
+                    @if($auth_user->role_id == 11)
+                    <!-- Bulk Upload Tab -->
+                    <div class="tab-pane fade" id="bulk-upload" role="tabpanel" aria-labelledby="bulk-upload-tab">
+                        <div class="p-4">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <div>
+                                    <h4 class="mb-1">Bulk Upload Beds</h4>
+                                    <p class="text-muted mb-0">Upload multiple beds at once using a CSV file</p>
+                                </div>
+                                <a href="{{ route('beds.bulk_upload_for_hotel', $hotel->hotel_unique_id) }}"
+                                   class="btn btn-primary">
+                                    <i class="ri-upload-cloud-2-line me-1"></i>
+                                    Go to Bulk Upload
+                                </a>
+                            </div>
+
+                            <div class="row g-4">
+                                <div class="col-md-6">
+                                    <div class="card border-success shadow-sm">
+                                        <div class="card-body">
+                                            <div class="d-flex align-items-center">
+                                                <div class="d-flex align-items-center justify-content-center me-3"
+                                                     style="width: 70px; height: 70px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 50%; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
+                                                    <i class="ri-download-2-line text-white" style="font-size: 1.75rem;"></i>
+                                                </div>
+                                                <div>
+                                                    <h5 class="mb-1">Download Template</h5>
+                                                    <p class="text-muted mb-2">Get the CSV template with sample data and proper formatting</p>
+                                                    <a href="{{ route('beds.template_for_hotel', $hotel->hotel_unique_id) }}"
+                                                       class="btn btn-success btn-sm">
+                                                        <i class="ri-download-line me-1"></i>
+                                                        Download CSV Template
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="card border-primary shadow-sm">
+                                        <div class="card-body">
+                                            <div class="d-flex align-items-center">
+                                                <div class="d-flex align-items-center justify-content-center me-3"
+                                                     style="width: 70px; height: 70px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);">
+                                                    <i class="ri-upload-2-line text-white" style="font-size: 1.75rem;"></i>
+                                                </div>
+                                                <div>
+                                                    <h5 class="mb-1">Upload Beds</h5>
+                                                    <p class="text-muted mb-2">Upload your filled CSV file with bed data and pricing</p>
+                                                    <a href="{{ route('beds.bulk_upload_for_hotel', $hotel->hotel_unique_id) }}"
+                                                       class="btn btn-primary btn-sm">
+                                                        <i class="ri-upload-cloud-2-line me-1"></i>
+                                                        Start Bulk Upload
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row mt-4">
+                                <div class="col-12">
+                                    <div class="alert alert-info bulk-upload-info mb-0">
+                                        <h6 class="alert-heading mb-2">
+                                            <i class="ri-information-line me-2"></i>
+                                            Bulk Upload Benefits
+                                        </h6>
+                                        <ul class="mb-0">
+                                            <li><strong>Time Saving:</strong> Upload multiple beds at once</li>
+                                            <li><strong>Validation:</strong> Automatic data validation against room categories</li>
+                                            <li><strong>Error Reporting:</strong> Detailed error messages for quick fixes</li>
+                                            <li><strong>Inline with single form:</strong> Same bed fields as Add Single Bed</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- End Bulk Upload Tab -->
+                    @endif
                 </div>
             </div>
             @else

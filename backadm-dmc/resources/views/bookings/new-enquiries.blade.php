@@ -1379,6 +1379,23 @@
                                 } elseif ($latestAgentComment && is_array($latestAgentComment->negotiation_details ?? null)) {
                                     $agentNegotiationDetails = $latestAgentComment->negotiation_details;
                                 }
+                                // If JSON details are missing, synthesize from enquiry_comments amount/actual_amount.
+                                if (empty($agentNegotiationDetails)) {
+                                    $seedComment = $latestComment ?: $latestAgentComment;
+                                    $seedAmount = (float) ($seedComment->amount ?? 0);
+                                    $seedActual = (float) ($seedComment->actual_amount ?? 0);
+                                    if ($seedAmount > 0 || $seedActual > 0) {
+                                        $agentNegotiationDetails = [[
+                                            'country' => '',
+                                            'currency' => '',
+                                            'amount' => $seedAmount > 0 ? $seedAmount : $seedActual,
+                                            'actual_amount' => $seedActual > 0 ? $seedActual : $seedAmount,
+                                            'gross' => (float) ($seedComment->gross_amount ?? $grossTourAmount ?? 0),
+                                            'discount_type' => $tourDiscountType ?: 'percentage',
+                                            'discount_value' => null,
+                                        ]];
+                                    }
+                                }
                             @endphp
                             @php
                                 $role = [11, 33, 37, 38, 128, 129, 130, 134, 135, 136, 138];
@@ -1415,6 +1432,7 @@
                                         data-tour-status="{{ e($tour->tour_status) }}"
                                         data-negotiation-locked="{{ $canCheckNegotiation ? '1' : '0' }}"
                                         data-country-groups='@json($tour->negotiation_country_groups ?? [])'
+                                        data-last-offers='@json($agentNegotiationDetails ?? [])'
                                         data-online-paid="{{ !empty($tour->acceptance_flow['online_paid']) ? '1' : '0' }}"
                                         data-online-amount="{{ (float) ($tour->acceptance_flow['online_amount'] ?? 0) }}"
                                         data-online-paid-amount="{{ (float) ($tour->acceptance_flow['online_paid_amount'] ?? 0) }}"
@@ -3209,6 +3227,15 @@ function testServices() {
                     return String(offer.currency || '').trim().toUpperCase() === currency;
                 });
             }
+            // Row-level enquiry_comments seed (no country/currency) or single prior offer.
+            if (!match && agentOffers.length === 1) {
+                match = agentOffers[0];
+            }
+            if (!match) {
+                match = agentOffers.find(function (offer) {
+                    return !String(offer.country || '').trim() && !String(offer.currency || '').trim();
+                }) || null;
+            }
             return match || null;
         }
 
@@ -3391,6 +3418,9 @@ function testServices() {
                     '<input type="hidden" name="offers[' + index + '][amount]" class="dmc-nego-offer-hidden" value="' + defaultCounter + '">';
                 blocksEl.appendChild(card);
                 syncNewEnquiryDmcMarkupHidden(card);
+                if (Number.isFinite(agentAmount) && agentAmount > 0 && typeof pinNegotiatedOfferAmount === 'function') {
+                    pinNegotiatedOfferAmount(card, agentAmount);
+                }
             });
 
             blocksEl.querySelectorAll('.dmc-nego-offer-input').forEach(function (input) {
@@ -3446,6 +3476,21 @@ function testServices() {
             try { agentOffers = JSON.parse(button.getAttribute('data-agent-offers') || '[]'); } catch (e) { agentOffers = []; }
             if (!Array.isArray(countryGroups)) countryGroups = [];
             if (!Array.isArray(agentOffers)) agentOffers = [];
+            // Fallback to enquiry_comments row amount / actual_amount when details JSON is empty.
+            if (agentOffers.length === 0) {
+                const rowAmount = parseFloat(button.getAttribute('data-price') || '0');
+                const rowActual = parseFloat(button.getAttribute('data-actual') || '0');
+                const rowGross = parseFloat(button.getAttribute('data-gross') || '0');
+                if ((Number.isFinite(rowAmount) && rowAmount > 0) || (Number.isFinite(rowActual) && rowActual > 0)) {
+                    agentOffers = [{
+                        amount: Number.isFinite(rowAmount) && rowAmount > 0 ? rowAmount : rowActual,
+                        actual_amount: Number.isFinite(rowActual) && rowActual > 0 ? rowActual : rowAmount,
+                        gross: Number.isFinite(rowGross) ? rowGross : 0,
+                        discount_type: button.getAttribute('data-discount-type') || 'percentage',
+                        discount_value: null
+                    }];
+                }
+            }
 
             renderDmcNegotiationCountryBlocks(countryGroups, agentOffers, prevPrice);
 
@@ -3636,11 +3681,29 @@ function testServices() {
             }
 
             let countryGroups = [];
+            let lastOffers = [];
             try { countryGroups = JSON.parse(button.getAttribute('data-country-groups') || '[]'); } catch (e) { countryGroups = []; }
+            try { lastOffers = JSON.parse(button.getAttribute('data-last-offers') || '[]'); } catch (e) { lastOffers = []; }
             if (!Array.isArray(countryGroups)) countryGroups = [];
+            if (!Array.isArray(lastOffers)) lastOffers = [];
+            if (lastOffers.length === 0) {
+                const rowAmount = parseFloat(button.getAttribute('data-last-agent-offer') || button.getAttribute('data-last-amount') || '0');
+                const rowActual = parseFloat(button.getAttribute('data-actual') || '0');
+                const rowGross = parseFloat(button.getAttribute('data-gross') || '0');
+                if ((Number.isFinite(rowAmount) && rowAmount > 0) || (Number.isFinite(rowActual) && rowActual > 0)) {
+                    lastOffers = [{
+                        amount: Number.isFinite(rowAmount) && rowAmount > 0 ? rowAmount : rowActual,
+                        actual_amount: Number.isFinite(rowActual) && rowActual > 0 ? rowActual : rowAmount,
+                        gross: Number.isFinite(rowGross) ? rowGross : 0,
+                        discount_type: button.getAttribute('data-discount-type') || 'percentage',
+                        discount_value: null
+                    }];
+                }
+            }
 
             agentNegotiationContext = {
                 groups: countryGroups,
+                lastOffers: lastOffers,
                 lastAgentOffer: lastAgentOffer,
                 isLocked: isLocked
             };
@@ -3660,7 +3723,7 @@ function testServices() {
                     blocksEl.innerHTML = '<div class="alert alert-warning mb-0">No country-wise order totals found for this tour.</div>';
                 } else {
                     if (typeof renderNegotiationProfileMarkupOnce === 'function') {
-                        renderNegotiationProfileMarkupOnce(profileHost, countryGroups);
+                        renderNegotiationProfileMarkupOnce(profileHost, countryGroups, lastOffers);
                     }
                     const onceDisc = (typeof readNegotiationProfileDiscountOnce === 'function')
                         ? readNegotiationProfileDiscountOnce(profileHost)
@@ -3670,8 +3733,15 @@ function testServices() {
                         const country = group.country || currency || ('Country ' + (index + 1));
                         const payable = Number(group.payable || 0);
                         const gross = Number(group.gross || 0);
+                        const lastOfferMatch = (typeof findAgentOfferForGroup === 'function')
+                            ? findAgentOfferForGroup(lastOffers, group)
+                            : (lastOffers[0] || null);
+                        const lastOfferAmount = lastOfferMatch ? parseFloat(lastOfferMatch.amount) : NaN;
+                        const priorActual = lastOfferMatch ? parseFloat(lastOfferMatch.actual_amount) : NaN;
                         const rowListActual = parseFloat(button.getAttribute('data-actual') || '0') || 0;
-                        const frozenActual = (countryGroups.length === 1 && rowListActual > 0) ? rowListActual : payable;
+                        const frozenActual = (Number.isFinite(priorActual) && priorActual > 0)
+                            ? priorActual
+                            : ((countryGroups.length === 1 && rowListActual > 0) ? rowListActual : payable);
                         const profileMk = (typeof resolveNegotiationMarkupForGroup === 'function')
                             ? resolveNegotiationMarkupForGroup(group, currency)
                             : { hotelType: 'percentage', otherType: 'percentage', hotelRaw: 0, otherRaw: 0, hotelSuffix: '%', otherSuffix: '%', markupType: 'percentage' };
@@ -3707,13 +3777,19 @@ function testServices() {
                             ((typeof negotiationCalcSummaryHtml === 'function')
                                 ? negotiationCalcSummaryHtml('agent-nego', currency)
                                 : '') +
+                            '<div class="mb-2"><span class="negotiation-label">Last Negotiated Amount</span>' +
+                                '<div class="negotiation-value text-warning">' +
+                                    (Number.isFinite(lastOfferAmount) && lastOfferAmount > 0
+                                        ? (currency + ' ' + formatNegotiationAmount(lastOfferAmount))
+                                        : '—') +
+                                '</div></div>' +
                             '<label class="form-label fw-semibold">Offer Amount (' + escAttr(currency) + ')</label>' +
                             '<input type="number" class="form-control agent-nego-offer-input bg-light" min="0" step="0.01" readonly tabindex="-1" ' +
                                 'data-index="' + index + '" data-max="' + payable + '" data-country="' + escAttr(country) + '" data-currency="' + escAttr(currency) + '" ' +
                                 'data-gross="' + gross + '" data-hotel-gross="' + split.hotelGross + '" data-other-gross="' + split.otherGross + '" data-other-markup-gross="' + (split.otherMarkupGross != null ? split.otherMarkupGross : split.otherGross) + '" data-other-count="' + (split.otherCount || 0) + '" data-payable="' + payable + '" data-list-actual="' + frozenActual + '" ' +
                                 'data-hotel-markup-raw="' + hotelRaw + '" data-other-markup-raw="' + otherRaw + '" ' +
                                 'data-markup-type="' + escAttr(markupType) + '" data-hotel-markup-type="' + escAttr(hotelMarkupType) + '" data-other-markup-type="' + escAttr(otherMarkupType) + '" data-discount-type="' + escAttr(discountType) + '" ' +
-                                'value="' + (payable > 0 ? payable : '0') + '" placeholder="Auto-calculated offer">' +
+                                'value="' + ((Number.isFinite(lastOfferAmount) && lastOfferAmount > 0) ? lastOfferAmount : (payable > 0 ? payable : '0')) + '" placeholder="Auto-calculated offer">' +
                             '<div class="agent-nego-offer-error text-danger small mt-1 d-none" role="alert"></div>' +
                             '<div class="form-text text-muted mt-1">Tour prices already include markup · Offer = gross − discount</div>' +
                             '<input type="hidden" name="offers[' + index + '][country]" value="' + escAttr(country) + '">' +
@@ -3725,9 +3801,12 @@ function testServices() {
                             '<input type="hidden" name="offers[' + index + '][hotel_markup]" class="agent-nego-hotel-hidden" value="' + hotelRaw + '">' +
                             '<input type="hidden" name="offers[' + index + '][other_markup]" class="agent-nego-other-hidden" value="' + otherRaw + '">' +
                             '<input type="hidden" name="offers[' + index + '][discount_value]" class="agent-nego-discount-hidden" value="' + discountRaw + '">' +
-                            '<input type="hidden" name="offers[' + index + '][amount]" class="agent-nego-offer-hidden" value="' + (payable > 0 ? payable : '0') + '">';
+                            '<input type="hidden" name="offers[' + index + '][amount]" class="agent-nego-offer-hidden" value="' + ((Number.isFinite(lastOfferAmount) && lastOfferAmount > 0) ? lastOfferAmount : (payable > 0 ? payable : '0')) + '">';
                         blocksEl.appendChild(card);
                         recalculateAgentNegotiationCard(card);
+                        if (Number.isFinite(lastOfferAmount) && lastOfferAmount > 0 && typeof pinNegotiatedOfferAmount === 'function') {
+                            pinNegotiatedOfferAmount(card, lastOfferAmount);
+                        }
                     });
 
                     const onceDiscountInput = profileHost && profileHost.querySelector('.nego-profile-discount-input');
@@ -3761,7 +3840,16 @@ function testServices() {
             remarkInput.value = '';
             lastRemarkEl.textContent = lastRemark || '—';
 
-            if (Number.isFinite(lastAgentOffer) && lastAgentOffer > 0) {
+            if (Array.isArray(lastOffers) && lastOffers.length > 0) {
+                const parts = [];
+                lastOffers.forEach(function (offer) {
+                    const amt = parseFloat(offer.amount);
+                    if (!Number.isFinite(amt) || amt <= 0) return;
+                    const cur = String(offer.currency || '').trim().toUpperCase();
+                    parts.push((cur ? cur + ' ' : '') + formatNegotiationAmount(amt));
+                });
+                lastAmountEl.textContent = parts.length ? parts.join(' · ') : '—';
+            } else if (Number.isFinite(lastAgentOffer) && lastAgentOffer > 0) {
                 lastAmountEl.textContent = formatNegotiationAmount(lastAgentOffer);
             } else {
                 lastAmountEl.textContent = '—';

@@ -187,6 +187,11 @@
                     <a href="{{ route('hotels.index') }}" class="btn btn-sm btn-outline-danger">
                         <i class="mdi mdi-arrow-left"></i> Back
                     </a>
+                    {{-- @if(in_array((int) auth()->user()->role_id, [11, 20]))
+                        <a href="{{ route('bulk-upload.hotels') }}" class="btn btn-warning btn-sm">
+                            <i class="ri-upload-cloud-2-line me-1"></i>Bulk Upload Hotels
+                        </a>
+                    @endif --}}
                 </h5>
                 <form id="hotelForm" method="POST" action="{{ route('hotels.store') }}" enctype="multipart/form-data"
                     class="card-body">

@@ -429,7 +429,12 @@
                             <i class="fas fa-plus"></i> Add New Vehicle
                         </a>
                         @endif
-                        
+                        @if(in_array((int) auth()->user()->role_id, [11, 20]))
+                        <a href="{{ route('bulk-upload.vehicles') }}" class="btn btn-success btn-premium">
+                            <i class="ri-upload-cloud-2-line"></i> Bulk Upload
+                        </a>
+                        @endif
+
                         @if(hasPermission('edit vehicle') || hasPermission('view vehicle'))
                         <a href="{{ route('vehicle.hourly_prices.export') }}" class="btn btn-success btn-premium">
                             <i class="fas fa-file-excel"></i> Excel Format

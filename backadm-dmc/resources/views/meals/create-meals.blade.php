@@ -64,15 +64,12 @@
                     <x-currency-price-note :country="$current_restaurant->country ?? null" :watch-dmc="in_array($auth_user->role_id, [1, 20])" />
                 </span>
                 <div class="d-flex gap-2">
-                    {{-- @if(auth()->user()->role_id == '11')
+                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == '11')
                         <a href="{{ route('meals.bulk_upload_for_restaurant', $current_restaurant->restaurant_id) }}" 
                            class="btn btn-warning btn-sm">
                             <i class="ri-upload-cloud-2-line me-1"></i>Bulk Upload Meals
                         </a>
-                    @endif --}}
-                    {{-- <a href="{{ route('meals.restaurant_create', $current_restaurant->restaurant_id) }}" class="btn btn-sm btn-outline-danger">
-                        <i class="mdi mdi-arrow-left"></i> Back
-                    </a> --}}
+                    @endif
                 </div>
             </h5>
             <form id="restaurantForm" method="POST" action="{{ route('meals.store') }}" enctype="multipart/form-data" class="card-body js-submit-loader-form" data-loader-message="Saving meal...">

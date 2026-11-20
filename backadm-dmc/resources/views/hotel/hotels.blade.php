@@ -426,6 +426,11 @@
                             <i class="fas fa-plus"></i> Add New Hotel
                         </a>
                         @endif
+                        {{-- @if(in_array((int) auth()->user()->role_id, [11, 20]))
+                        <a href="{{ route('bulk-upload.hotels') }}" class="btn btn-success btn-premium">
+                            <i class="ri-upload-cloud-2-line"></i> Bulk Upload
+                        </a>
+                        @endif --}}
 
                         <div class="dropdown">
                             <button class="btn btn-warning btn-premium dropdown-toggle" type="button" id="exportDropdown"
