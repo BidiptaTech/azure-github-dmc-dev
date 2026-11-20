@@ -35,12 +35,55 @@ class EnquiryController extends Controller
         $country = $request->input('country');
         $city = $request->input('city');
         $dmc_ids = $request->input('dmc_ids');
-        
+        $cities = $request->input('cities', []);
+        $cityWiseDates = $request->input('city_wise_dates', []);
+
         // Convert to array if string
         if (is_string($dmc_ids)) {
             $dmc_ids = json_decode($dmc_ids, true) ?? [];
         } elseif (!is_array($dmc_ids)) {
             $dmc_ids = [];
+        }
+
+        if (is_string($cities)) {
+            $cities = json_decode($cities, true) ?? [];
+        } elseif (!is_array($cities)) {
+            $cities = [];
+        }
+
+        if (is_string($cityWiseDates)) {
+            $cityWiseDates = json_decode($cityWiseDates, true) ?? [];
+        } elseif (!is_array($cityWiseDates)) {
+            $cityWiseDates = [];
+        }
+
+        // Build city column from city_wise_dates:
+        // e.g. "Batam (Indonesia) [2026-12-08→2026-12-16], Singapore (Singapore) [2026-12-16→2026-12-20]"
+        if (!empty($cityWiseDates)) {
+            $countryByCity = [];
+            foreach ($cities as $cityItem) {
+                if (!empty($cityItem['city'])) {
+                    $countryByCity[strtolower(trim($cityItem['city']))] = $cityItem['country'] ?? '';
+                }
+            }
+
+            $formattedCities = [];
+            foreach ($cityWiseDates as $cityDate) {
+                $cityName = $cityDate['city'] ?? '';
+                if ($cityName === '') {
+                    continue;
+                }
+
+                $cityCountry = $countryByCity[strtolower(trim($cityName))] ?? '';
+                $checkInFormatted = Carbon::createFromFormat('d/m/Y', $cityDate['checkIn'])->format('Y-m-d');
+                $checkOutFormatted = Carbon::createFromFormat('d/m/Y', $cityDate['checkOut'])->format('Y-m-d');
+
+                $formattedCities[] = "{$cityName} ({$cityCountry}) [{$checkInFormatted}→{$checkOutFormatted}]";
+            }
+
+            if (!empty($formattedCities)) {
+                $city = implode(', ', $formattedCities);
+            }
         }
 
         $random_dmc_id = null;
