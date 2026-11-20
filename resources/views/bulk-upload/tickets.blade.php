@@ -71,7 +71,7 @@
         </div>
         @enderror
 
-        @if(session('errors') && count(session('errors')) > 0)
+        @if(session('upload_errors') && count(session('upload_errors')) > 0)
         <div class="alert alert-warning alert-dismissible fade show enhanced-alert" role="alert">
             <div class="d-flex align-items-start">
                 <div class="alert-icon me-3">
@@ -81,7 +81,7 @@
                     <div class="alert-content">
                         <strong>Upload Errors Found:</strong><br>
                         <div class="error-list mt-2" style="max-height: 200px; overflow-y: auto;">
-                            @foreach(session('errors') as $index => $error)
+                            @foreach(session('upload_errors') as $index => $error)
                                 <div class="error-item mb-1">
                                     <small class="text-muted">{{ $index + 1 }}.</small> {{ $error }}
                                 </div>
@@ -187,12 +187,12 @@
                                                                                         <div class="alert alert-info">
                                         <h6><i class="ri-information-line me-1"></i>Upload Guidelines:</h6>
                                         <ul class="mb-0 small">
-                                            <li>Download the template first to see the required format</li>
+                                            <li>Download the template first to see the required format (matches Add Ticket)</li>
                                             <li>Each row represents one ticket for this attraction</li>
-                                            <li><strong>All price fields are required:</strong> Child Price, Adult Price, Senior Citizen Price, Child Price NRI, Adult Price NRI, Senior Citizen Price NRI</li>
-                                            <li><strong>All prices must be greater than 0</strong></li>
-                                            <li>Important Notes and Terms & Conditions are required</li>
-                                            <li>Status: 1 = Active, 0 = Inactive</li>
+                                            <li><strong>Required pricing (Cost + Sell):</strong> Child/Adult/Senior for Local and Foreigner (12 columns)</li>
+                                            <li><strong>All pricing values must be numeric and ≥ 0</strong></li>
+                                            <li>Important Notes and Terms & Conditions are required; Remarks optional</li>
+                                            <li>Status: 1 = Active, 0 = Inactive. Profit Type / Profit On Cost are UI-only (not in CSV)</li>
                                         </ul>
                                     </div>
                                                 </div>

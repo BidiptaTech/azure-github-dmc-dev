@@ -61,12 +61,12 @@
                                     <h4 class="card-title mb-0">Create New Ticket</h4>
                                     <x-currency-price-note :country="$attraction->country ?? null" :watch-dmc="in_array($auth_user->role_id, [1, 20])" />
                                 </div>
-                                {{-- @if(auth()->user()->role_id == '11')
+                                @if(auth()->user()->role_id == 11 || auth()->user()->role_id == '11')
                                     <a href="{{ route('tickets.bulk_upload_for_attraction', $attraction->attraction_id) }}" 
                                        class="btn btn-warning btn-sm">
                                         <i class="ri-upload-cloud-2-line me-1"></i>Bulk Upload Tickets
                                     </a>
-                                @endif --}}
+                                @endif
                             </div>
                         </div>
                         <div class="card-body ticket-form-compact">

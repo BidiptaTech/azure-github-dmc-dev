@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Hash;
 use App\Models\Hotel;
 use App\Models\Driver;
 use App\Models\Guide;
@@ -41,6 +42,24 @@ class BulkUploadController extends Controller
     private array $allowedBaseRoom = ['0', '1'];
     private array $allowedExtraBedType = ['Sofa Bed', 'Wall Bed', 'Futon', 'Rollaway Bed', 'Bunk Bed'];
     private array $allowedEventType = ['Fair Date', 'Blackout Date'];
+
+    /**
+     * Resolve profile/main image for bulk upload.
+     * Uses CSV value when provided; otherwise Master Setting default pic.
+     * Returns null when neither is available.
+     */
+    private function resolveBulkImageOrDefault(string $csvImage, string $defaultSettingName): ?string
+    {
+        $image = trim($csvImage);
+        if ($image !== '') {
+            return $image;
+        }
+
+        $default = CommonHelper::masterSettingsName($defaultSettingName)['master_value'] ?? null;
+        $default = is_string($default) ? trim($default) : '';
+
+        return $default !== '' ? $default : null;
+    }
 
     private function validateOption(string $value, array $allowed, string $fieldName): void
     {
@@ -145,7 +164,7 @@ class BulkUploadController extends Controller
         $auth_user = Auth::user();
         
         // Check for DMC role - role_id is stored as string "11"
-        if (!$auth_user || $auth_user->role_id !== '11') {
+        if (!$auth_user || (int) $auth_user->role_id !== 11) {
             abort(403, 'Access denied. Only DMC users can access ticket bulk upload.');
         }
         
@@ -690,7 +709,7 @@ class BulkUploadController extends Controller
             'License No*',
             'License Expiry Date* (YYYY-MM-DD or DD-MM-YYYY)',
             'Driver Age*',
-            'Profile Image*',
+            'Profile Image (optional; uses Master Setting default if blank)',
             'Status*'
         ];
 
@@ -725,7 +744,7 @@ class BulkUploadController extends Controller
             'DL987654321',
             '2026-06-30',
             '28',
-            'https://stgdmcappdev.blob.core.windows.net/uploads/jane_profile.jpg',
+            '', // blank → driver_default_pic from Master Settings
             '1'
         ];
 
@@ -758,208 +777,126 @@ class BulkUploadController extends Controller
 
     private function downloadDummyGuideTemplate($auth_user)
     {
+        // Columns match create-guide.blade.php (Profit Type/Amount are UI-only helpers)
         $headers = [
-            'Salutation',
+            'Salutation*',
             'Gender*',
             'Guide Name*',
-            'Email*',
             'Contact No*',
-            'Service Type*',
-            'Age*',
-            'Master Image*',
-            'License Number*',
-            'License Image*',
-            'License Expiry Date* (YYYY-MM-DD or DD-MM-YYYY)',
-            'City*',
+            'Email*',
+            'App Password',
             'Country*',
-            'Experience Years*',
+            'City*',
+            'Service Type* (1=Private, 2=Shared, 3=Both)',
+            'Age*',
+            'WhatsApp Number*',
             'Languages*',
             'Proficiency*',
-            'Minimum Sell Price*',
-            'Minimum Cost Price*',
+            'Gov. License No*',
+            'License Expiry* (YYYY-MM-DD or DD-MM-YYYY)',
+            'Experience (Yrs)*',
+            'License Image*',
             'Night Surcharge*',
-            'Night Start Time*',
-            'Night End Time*',
-            'Hourly Sell Price*',
-            'Hourly Cost Price*',
-            'Two Hour Sell Price*',
-            'Two Hour Cost Price*',
-            'Four Hour Sell Price*',
-            'Four Hour Cost Price*',
-            'Six Hour Sell Price*',
-            'Six Hour Cost Price*',
-            'Eight Hour Sell Price*',
-            'Eight Hour Cost Price*',
-            'Ten Hour Sell Price*',
-            'Ten Hour Cost Price*',
-            'Twelve Hour Sell Price*',
-            'Twelve Hour Cost Price*',
+            'Night Start*',
+            'Night End*',
+            'Day Cost*',
+            'Day Sell*',
+            'Hourly Cost*',
+            'Hourly Sell*',
+            'Two Hour Cost*',
+            'Two Hour Sell*',
+            'Four Hour Cost*',
+            'Four Hour Sell*',
+            'Six Hour Cost*',
+            'Six Hour Sell*',
+            'Eight Hour Cost*',
+            'Eight Hour Sell*',
+            'Ten Hour Cost*',
+            'Ten Hour Sell*',
+            'Twelve Hour Cost*',
+            'Twelve Hour Sell*',
+            'Profile Image (optional; uses Master Setting default if blank)',
             'About*',
             'Status (1=Active, 0=Inactive)'
         ];
 
         $data = [$headers];
 
-        // Add sample data with multiple language rows to show the format
+        $emptyLangRow = array_fill(0, count($headers), '');
+
+        // Sample guide with multiple language rows
         $sampleData1 = [
             'Mr',
             'Male',
             'John Smith',
-            'john@example.com',
             '53524567',
+            'john@example.com',
+            'Guide@123',
+            'Singapore',
+            'Singapore',
             '1',
             '35',
-            'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1748927736_7cgKuE.jpeg',
-            'GL123456',
-            'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1748927736_7cgKuE.jpeg',
-            '2025-12-31',
-            'Singapore',
-            'Singapore',
-            '5',
+            '53524567',
             'English',
             'Fluent',
-            '180',
-            '150',
+            'GL123456',
+            '2025-12-31',
+            '5',
+            'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1748927736_7cgKuE.jpeg',
             '10',
             '18:00',
             '06:00',
-            '30',
-            '25',
-            '55',
-            '46',
-            '100',
-            '83',
-            '140',
-            '117',
-            '180',
-            '150',
-            '220',
-            '183',
-            '250',
-            '208',
+            '150', '180',
+            '25', '30',
+            '46', '55',
+            '83', '100',
+            '117', '140',
+            '150', '180',
+            '183', '220',
+            '208', '250',
+            'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1748927736_7cgKuE.jpeg',
             'Professional tour guide with 5 years experience',
             '1'
         ];
 
-        // Second row for the same guide with different language
-        $sampleData2 = [
-            '', // Empty guide info for additional language
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            'Hindi',
-            'Intermediate',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            ''
-        ];
+        $sampleData2 = $emptyLangRow;
+        $sampleData2[11] = 'Hindi';
+        $sampleData2[12] = 'Intermediate';
 
-        // Third row for the same guide with another language
-        $sampleData3 = [
-            '', // Empty guide info for additional language
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            'French',
-            'Beginner',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            '',
-            ''
-        ];
+        $sampleData3 = $emptyLangRow;
+        $sampleData3[11] = 'French';
+        $sampleData3[12] = 'Beginner';
 
-        // Add a second guide example
         $sampleData4 = [
             'Miss',
             'Female',
             'Jane Doe',
-            'jane@example.com',
             '69456789',
+            'jane@example.com',
+            '',
+            'Singapore',
+            'Singapore',
             '1',
             '28',
-            'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1748927736_7cgKuE.jpeg',
-            'GL789012',
-            'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1748927736_7cgKuE.jpeg',
-            '2026-06-30',
-            'Singapore',
-            'Singapore',
-            '3',
+            '69456789',
             'Spanish',
             'Fluent',
-            '200',
-            '170',
+            'GL789012',
+            '2026-06-30',
+            '3',
+            'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1748927736_7cgKuE.jpeg',
             '15',
             '19:00',
             '07:00',
-            '35',
-            '29',
-            '65',
-            '54',
-            '120',
-            '100',
-            '160',
-            '133',
-            '200',
-            '167',
-            '240',
-            '200',
-            '280',
-            '233',
+            '170', '200',
+            '29', '35',
+            '54', '65',
+            '100', '120',
+            '133', '160',
+            '167', '200',
+            '200', '240',
+            '233', '280',
+            '', // blank → guide_default_pic from Master Settings
             'Experienced cultural guide specializing in heritage tours',
             '1'
         ];
@@ -994,8 +931,9 @@ class BulkUploadController extends Controller
     private function downloadVirtualDmcRestaurantTemplate($auth_user)
     {
         $headers = [
-            // Restaurant Basic Info matching actual table structure
+            // Restaurant Basic Info — aligned with add-restaurant (dmc_id from auth/selection, not CSV)
             'Restaurant Name*',
+            'Phone*',
             'Cuisine*',
             'Country*',
             'City*',
@@ -1003,11 +941,13 @@ class BulkUploadController extends Controller
             'Longitude*',
             'Owned By*',
             'Property*',
+            'Email*',
+            'Password*',
             'Breakfast Available (1=Yes, 0=No)',
             'Breakfast Open Time',
             'Breakfast Close Time',
             'Lunch Available (1=Yes, 0=No)',
-            'Lunch Open Time', 
+            'Lunch Open Time',
             'Lunch Close Time',
             'Dinner Available (1=Yes, 0=No)',
             'Dinner Open Time',
@@ -1015,133 +955,61 @@ class BulkUploadController extends Controller
             'Master Image',
             'Additional Images (comma-separated)',
             'Description',
+            'Remarks',
             'Terms and Condition',
             'Restaurant Status (1=Active, 0=Inactive)'
         ];
 
         $data = [$headers];
 
-        // Get restaurants created by Virtual DMC
+        // Restaurant master only (meals use restaurant-scoped meal bulk upload)
         $restaurants = Restaurant::where('created_by', $auth_user->userId)
                                 ->where('status', 1)
                                 ->get();
 
         if ($restaurants->count() > 0) {
             foreach ($restaurants as $restaurant) {
-                // Get meals for this restaurant
-                $meals = Meal::where('restaurant_id', $restaurant->restaurant_id)->get();
-                
-                if ($meals->count() > 0) {
-                    foreach ($meals as $mealIndex => $meal) {
-                        $row = [
-                            // Restaurant info only on first meal row
-                            $mealIndex === 0 ? ($restaurant->name ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->cuisine ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->country ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->city ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->latitude ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->longitude ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->owned_by ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->property ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->breakfast_available ? '1' : '0') : '',
-                            $mealIndex === 0 ? ($restaurant->opening_time_bf ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->closing_time_bf ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->lunch_available ? '1' : '0') : '',
-                            $mealIndex === 0 ? ($restaurant->opening_time_lunch ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->closing_time_lunch ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->dinner_available ? '1' : '0') : '',
-                            $mealIndex === 0 ? ($restaurant->opening_time_dinner ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->closing_time_dinner ?? '') : '', 
-                            $mealIndex === 0 ? ($restaurant->master_image ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->images ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->description ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->terms_conditions ?? '') : '',
-                            $mealIndex === 0 ? ($restaurant->is_active ? '1' : '0') : '',
-                            // Meal Type
-                            match($meal->meal_period ?? 1) {
-                                1 => 'Breakfast',
-                                2 => 'Lunch', 
-                                3 => 'Dinner',
-                                default => 'Breakfast'
-                            },
-                            
-                            // Beverage
-                            match($meal->category ?? 1) {
-                                1 => 'Alcoholic',
-                                2 => 'Non Alcoholic',
-                                3 => 'No Beverage',
-                                default => 'Non Alcoholic'
-                            },
-                            
-                            // Meals Type
-                            match($meal->type ?? '2') {
-                                '1' => 'Buffet',
-                                '2' => 'Set Menu',
-                                1 => 'Buffet',
-                                2 => 'Set Menu',
-                                default => 'Set Menu'
-                            },
-                            
-                            // Item Name (for Set Menu)
-                            // $meal->meals == 2 ? ($meal->item_name ?? '') : '',
-                            
-                            // Item Price (for Set Menu)
-                            ($meal->type == '2' || $meal->type == 2) ? ($meal->price ?? '') : '',
-                            
-                            // Item Type
-                            match($meal->item_type ?? 1) {
-                                1 => 'Vegetarian',
-                                2 => 'Non Vegetarian',
-                                default => 'Vegetarian'
-                            },
-                            
-                            // Adult Price (for Buffet)
-                            ($meal->type == '1' || $meal->type == 1) ? ($meal->adult_price ?? '') : '',
-                            
-                            // Child Price (for Buffet)
-                            ($meal->type == '1' || $meal->type == 1) ? ($meal->child_price ?? '') : '',
-                            
-                            // Item Description
-                            $meal->item_description ?? '',
-                            $meal->is_active ? '1' : '0'
-                        ];
-                        
-                        $data[] = $row;
-                    }
-                } else {
-                    // Restaurant without meals - add restaurant row with sample meal
-                    $row = [
-                        $restaurant->name ?? '',
-                        $restaurant->cuisine ?? '',
-                        $restaurant->country ?? '',
-                        $restaurant->city ?? '',
-                        $restaurant->latitude ?? '',
-                        $restaurant->longitude ?? '',
-                        $restaurant->owned_by ?? '',
-                        $restaurant->property ?? 'third_party',
-                        $restaurant->breakfast_available ? '1' : '0',
-                        $restaurant->opening_time_bf ?? '',
-                        $restaurant->closing_time_bf ?? '',
-                        $restaurant->lunch_available ? '1' : '0',
-                        $restaurant->opening_time_lunch ?? '',
-                        $restaurant->closing_time_lunch ?? '',
-                        $restaurant->dinner_available ? '1' : '0',
-                        $restaurant->opening_time_dinner ?? '',
-                        $restaurant->closing_time_dinner ?? '',
-                        $restaurant->master_image ?? '',
-                        $restaurant->images ?? '',
-                        $restaurant->description ?? '',
-                        $restaurant->terms_conditions ?? '',
-                        $restaurant->is_active ? '1' : '0',
-                        '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
-                    ];
-                    $data[] = $row;
+                $images = $restaurant->images ?? '';
+                if (is_array($images)) {
+                    $images = implode(',', $images);
+                } elseif (is_string($images) && str_starts_with(trim($images), '[')) {
+                    $decoded = json_decode($images, true);
+                    $images = is_array($decoded) ? implode(',', $decoded) : $images;
                 }
+
+                $data[] = [
+                    $restaurant->name ?? '',
+                    $restaurant->phone ?? '',
+                    $restaurant->cuisine ?? '',
+                    $restaurant->country ?? '',
+                    $restaurant->city ?? '',
+                    $restaurant->latitude ?? '',
+                    $restaurant->longitude ?? '',
+                    $restaurant->owned_by ?? '0',
+                    $restaurant->property ?? 'third_party',
+                    $restaurant->email ?? '',
+                    '', // password blank on export — set only when creating via upload
+                    $restaurant->breakfast_available ? '1' : '0',
+                    $restaurant->opening_time_bf ?? '',
+                    $restaurant->closing_time_bf ?? '',
+                    $restaurant->lunch_available ? '1' : '0',
+                    $restaurant->opening_time_lunch ?? '',
+                    $restaurant->closing_time_lunch ?? '',
+                    $restaurant->dinner_available ? '1' : '0',
+                    $restaurant->opening_time_dinner ?? '',
+                    $restaurant->closing_time_dinner ?? '',
+                    $restaurant->master_image ?? '',
+                    $images,
+                    $restaurant->description ?? '',
+                    $restaurant->remarks ?? '',
+                    $restaurant->terms_conditions ?? '',
+                    $restaurant->is_active ? '1' : '0',
+                ];
             }
         } else {
-            // No existing restaurants, add sample data for Virtual DMC format
-            $sampleData1 = [
+            $data[] = [
                 'Sample Restaurant',
+                '65821234',
                 'Indian',
                 'Singapore',
                 'Singapore',
@@ -1149,51 +1017,53 @@ class BulkUploadController extends Controller
                 '103.8194',
                 '0',
                 'third_party',
+                'sample.restaurant@example.com',
+                'ChangeMe123!',
                 '1',
                 '07:00',
                 '11:00',
-                '1', 
+                '1',
                 '12:00',
                 '15:00',
                 '1',
                 '18:00',
                 '23:00',
                 'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1745191653_qn4Fw4.jpeg',
-                'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1745191653_qn4Fw4.jpeg,https://stgdmcappdev.blob.core.windows.net/uploads/logo_1745191653_qn4Fw4.jpeg',
-                'Authentic Italian restaurant with fresh ingredients',
+                'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1745191653_qn4Fw4.jpeg',
+                'Authentic restaurant with fresh ingredients',
+                '',
                 'No outside food allowed. Dress code applies.',
                 '1'
             ];
-
-            $sampleData2 = [
+            $data[] = [
                 'Cafe Delight',
+                '65880000',
                 'South Indian',
                 'Singapore',
                 'Singapore',
                 '1.352248',
-                '2.352269',
+                '103.8198',
                 '0',
                 'third_party',
+                'cafe.delight@example.com',
+                'ChangeMe123!',
                 '1',
                 '06:30',
                 '10:30',
-                '1', 
-                '07:00',
-                '11:00',
+                '1',
+                '11:30',
+                '15:00',
                 '1',
                 '17:00',
                 '22:00',
                 'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1745191653_qn4Fw4.jpeg',
-                'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1745191653_qn4Fw4.jpeg,https://stgdmcappdev.blob.core.windows.net/uploads/logo_1745191653_qn4Fw4.jpeg',
-                'Modern French cafe with delicious pastries',
-                'Reservation required for dinner. No cancellation within 2 hours.',
+                'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1745191653_qn4Fw4.jpeg',
+                'Modern cafe with delicious pastries',
+                '',
+                'Reservation required for dinner.',
                 '1'
             ];
-
-            $data[] = $sampleData1;
-            $data[] = $sampleData2;
         }
-
         $content = $this->generateCsvContent($data);
         $filename = 'virtual_dmc_restaurant_bulk_upload_template.csv';
 
@@ -1559,33 +1429,43 @@ class BulkUploadController extends Controller
                     continue;
                 }
                 
-                // Map CSV columns
+                // Map CSV columns — aligned with RestaurantController::store / add-restaurant
+                // dmc_id never from CSV (same as normal create)
                 $restaurantName = trim($row[0] ?? '');
-                $cuisine = trim($row[1] ?? '');
-                $country = trim($row[2] ?? '');
-                $city = trim($row[3] ?? '');
-                $latitude = trim($row[4] ?? '');
-                $longitude = trim($row[5] ?? '');
-                $ownedBy = trim($row[6] ?? '0');
-                $property = trim($row[7] ?? 'third_party');
-                $breakfastAvailability = trim($row[8] ?? '0');
-                $breakfastOpenTime = trim($row[9] ?? '');
-                $breakfastCloseTime = trim($row[10] ?? '');
-                $lunchAvailability = trim($row[11] ?? '0');
-                $lunchOpenTime = trim($row[12] ?? '');
-                $lunchCloseTime = trim($row[13] ?? '');
-                $dinnerAvailability = trim($row[14] ?? '0');
-                $dinnerOpenTime = trim($row[15] ?? '');
-                $dinnerCloseTime = trim($row[16] ?? '');
-                $masterImage = trim($row[17] ?? '');
-                $additionalImages = trim($row[18] ?? '');
-                $description = trim($row[19] ?? '');
-                $termsConditions = trim($row[20] ?? '');
-                $status = trim($row[21] ?? '1');
+                $phone = trim($row[1] ?? '');
+                $cuisine = trim($row[2] ?? '');
+                $country = trim($row[3] ?? '');
+                $city = trim($row[4] ?? '');
+                $latitude = trim($row[5] ?? '');
+                $longitude = trim($row[6] ?? '');
+                $ownedBy = trim($row[7] ?? '0');
+                $property = trim($row[8] ?? 'third_party');
+                $email = trim($row[9] ?? '');
+                $password = trim($row[10] ?? '');
+                $breakfastAvailability = trim($row[11] ?? '0');
+                $breakfastOpenTime = trim($row[12] ?? '');
+                $breakfastCloseTime = trim($row[13] ?? '');
+                $lunchAvailability = trim($row[14] ?? '0');
+                $lunchOpenTime = trim($row[15] ?? '');
+                $lunchCloseTime = trim($row[16] ?? '');
+                $dinnerAvailability = trim($row[17] ?? '0');
+                $dinnerOpenTime = trim($row[18] ?? '');
+                $dinnerCloseTime = trim($row[19] ?? '');
+                $masterImage = trim($row[20] ?? '');
+                $additionalImages = trim($row[21] ?? '');
+                $description = trim($row[22] ?? '');
+                $remarks = trim($row[23] ?? '');
+                $termsConditions = trim($row[24] ?? '');
+                $status = trim($row[25] ?? '1');
                 
                 // Validate required fields
-                if (empty($restaurantName) || empty($cuisine) || empty($country) || empty($city)) {
-                    $errors[] = "Row {$rowNumber}: Missing required restaurant fields (Restaurant Name, Cuisine, Country, or City)";
+                if ($restaurantName === '' || $phone === '' || $cuisine === '' || $country === '' || $city === '' || $email === '' || $password === '') {
+                    $errors[] = "Row {$rowNumber}: Missing required restaurant fields (Name, Phone, Cuisine, Country, City, Email, or Password)";
+                    $errorCount++;
+                    continue;
+                }
+                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $errors[] = "Row {$rowNumber}: Invalid email format '{$email}'";
                     $errorCount++;
                     continue;
                 }
@@ -1621,71 +1501,53 @@ class BulkUploadController extends Controller
                 // Mark this restaurant as being processed
                 $processedRestaurants[$restaurantKey] = $rowNumber;
 
-                // Create new restaurant
+                // Create new restaurant — same fields as RestaurantController::store
                 $restaurant = new Restaurant();
                 $restaurant->name = $restaurantName;
+                $restaurant->phone = $phone;
                 $restaurant->cuisine = $cuisine;
                 $restaurant->breakfast_available = ($breakfastAvailability == '1') ? 1 : 0;
                 $restaurant->lunch_available = ($lunchAvailability == '1') ? 1 : 0;
                 $restaurant->dinner_available = ($dinnerAvailability == '1') ? 1 : 0;
                 $restaurant->owned_by = ($ownedBy == '1') ? 1 : 0;
                 $restaurant->property = $property;
-                
-                if (Schema::hasColumn('restaurants', 'country')) {
-                    $restaurant->country = $country;
-                }
-                if (Schema::hasColumn('restaurants', 'city')) {
-                    $restaurant->city = $city;
-                }
-                if (Schema::hasColumn('restaurants', 'latitude')) {
-                    $restaurant->latitude = is_numeric($latitude) ? floatval($latitude) : null;
-                }
-                if (Schema::hasColumn('restaurants', 'longitude')) {
-                    $restaurant->longitude = is_numeric($longitude) ? floatval($longitude) : null;
-                }
-                if (Schema::hasColumn('restaurants', 'description')) {
-                    $restaurant->description = $description;
-                }
-                if (Schema::hasColumn('restaurants', 'terms_conditions')) {
-                    $restaurant->terms_conditions = $termsConditions;
-                }
-                if (Schema::hasColumn('restaurants', 'hotel_id')) {
-                    $restaurant->hotel_id = 1; // Default hotel ID
-                }
-                if (Schema::hasColumn('restaurants', 'status')) {
-                    $restaurant->status = ($status == '1') ? 1 : 0;
-                }
-                if (Schema::hasColumn('restaurants', 'is_active')) {
-                    $restaurant->is_active = ($status == '1') ? 1 : 0;
-                }
-                if (Schema::hasColumn('restaurants', 'created_by')) {
-                    $restaurant->created_by = $auth_user->userId;
-                }
+                $restaurant->email = $email;
+                $restaurant->password = Hash::make($password);
+                $restaurant->country = $country;
+                $restaurant->city = $city;
+                $restaurant->latitude = is_numeric($latitude) ? floatval($latitude) : null;
+                $restaurant->longitude = is_numeric($longitude) ? floatval($longitude) : null;
+                $restaurant->description = $description;
+                $restaurant->remarks = $remarks !== '' ? $remarks : null;
+                $restaurant->terms_conditions = $termsConditions;
+                $restaurant->status = ($status == '1') ? 1 : 0;
+                $restaurant->is_active = ($status == '1') ? 1 : 0;
+                $restaurant->created_by = $auth_user->userId;
                 
                 // Set time fields
-                if ($restaurant->breakfast_available && !empty($breakfastOpenTime) && !empty($breakfastCloseTime)) {
+                if ($restaurant->breakfast_available && $breakfastOpenTime !== '' && $breakfastCloseTime !== '') {
                     $restaurant->opening_time_bf = $breakfastOpenTime;
                     $restaurant->closing_time_bf = $breakfastCloseTime;
                 }
-                if ($restaurant->lunch_available && !empty($lunchOpenTime) && !empty($lunchCloseTime)) {
+                if ($restaurant->lunch_available && $lunchOpenTime !== '' && $lunchCloseTime !== '') {
                     $restaurant->opening_time_lunch = $lunchOpenTime;
                     $restaurant->closing_time_lunch = $lunchCloseTime;
                 }
-                if ($restaurant->dinner_available && !empty($dinnerOpenTime) && !empty($dinnerCloseTime)) {
+                if ($restaurant->dinner_available && $dinnerOpenTime !== '' && $dinnerCloseTime !== '') {
                     $restaurant->opening_time_dinner = $dinnerOpenTime;
                     $restaurant->closing_time_dinner = $dinnerCloseTime;
                 }
                 
                 // Set image fields
-                if (!empty($masterImage)) {
+                if ($masterImage !== '') {
                     $restaurant->master_image = $masterImage;
                 }
-                if (!empty($additionalImages)) {
+                if ($additionalImages !== '') {
                     $imagesArray = array_map('trim', explode(',', $additionalImages));
                     $restaurant->images = json_encode($imagesArray);
                 }
                 
-                // restaurant_id is assigned by DB sequence on save (same as RestaurantController::store)
+                // restaurant_id assigned on save; dmc_id left null (later selection), same as normal create
                 $restaurant->save();
                 $restaurant->refresh();
                 $successCount++;
@@ -1732,7 +1594,7 @@ class BulkUploadController extends Controller
         
         return redirect()->back()
             ->with('success', $message)
-            ->with('errors', $errors);
+            ->with('upload_errors', $errors);
     }
 
 
@@ -1817,13 +1679,32 @@ class BulkUploadController extends Controller
         return !empty($closingTimes) ? max($closingTimes) : '';
     }
 
-    private function createMeal($restaurant, $mealType, $beverage, $mealsType, $itemName, $itemPrice, $itemType, $adultPrice, $childPrice, $itemDescription, $mealStatus, $userId)
-    {
+    /**
+     * Create meal from bulk CSV — columns aligned with MealController::store / create-meals.
+     * Cost + sell for Buffet (adult/child) and Set Menu (item).
+     */
+    private function createMeal(
+        $restaurant,
+        $mealType,
+        $beverage,
+        $mealsType,
+        $itemName,
+        $itemPrice,
+        $itemCostPrice,
+        $itemType,
+        $adultPrice,
+        $adultCostPrice,
+        $childPrice,
+        $childCostPrice,
+        $itemDescription,
+        $mealStatus,
+        $userId
+    ) {
         $meal = new Meal();
         $meal->restaurant_id = $restaurant->restaurant_id;
-        $meal->name = $itemName ?: 'Menu Item';
+        $meal->name = $itemName !== '' ? $itemName : 'Menu Item';
         $meal->item_description = $itemDescription;
-        // Store DMC's userId like tickets do
+        // Store DMC's userId like tickets do (from auth, not CSV)
         $meal->dmc_id = $userId;
         
         // Map meal period (breakfast/lunch/dinner)
@@ -1858,12 +1739,21 @@ class BulkUploadController extends Controller
             };
         }
         
-        // Set prices based on meal type
+        // Set prices based on meal type (same columns as MealController::store)
         if (strtolower($mealsType) === 'buffet') {
             $meal->adult_price = is_numeric($adultPrice) ? floatval($adultPrice) : 0;
+            $meal->adult_cost_price = is_numeric($adultCostPrice) ? floatval($adultCostPrice) : 0;
             $meal->child_price = is_numeric($childPrice) ? floatval($childPrice) : 0;
+            $meal->child_cost_price = is_numeric($childCostPrice) ? floatval($childCostPrice) : 0;
+            $meal->price = null;
+            $meal->item_cost_price = null;
         } else {
             $meal->price = is_numeric($itemPrice) ? floatval($itemPrice) : 0;
+            $meal->item_cost_price = is_numeric($itemCostPrice) ? floatval($itemCostPrice) : 0;
+            $meal->adult_price = null;
+            $meal->adult_cost_price = null;
+            $meal->child_price = null;
+            $meal->child_cost_price = null;
         }
         
         $meal->is_active = ($mealStatus == '1') ? 1 : 0;
@@ -1896,60 +1786,77 @@ class BulkUploadController extends Controller
                     continue;
                 }
                 
-                // Map CSV columns to variables based on template
+                // Map CSV columns — aligned with create-guide.blade.php
                 $salutation = trim($row[0] ?? '');
                 $gender = trim($row[1] ?? '');
                 $guideName = trim($row[2] ?? '');
-                $email = trim($row[3] ?? '');
-                $contactNo = trim($row[4] ?? '');
-                $serviceType = trim($row[5] ?? '');
-                $age = trim($row[6] ?? '');
-                $masterImage = trim($row[7] ?? '');
-                $licenseNumber = trim($row[8] ?? '');
-                $licenseImage = trim($row[9] ?? '');
-                $licenseExpiryDate = trim($row[10] ?? '');
-                $city = trim($row[11] ?? '');
-                $country = trim($row[12] ?? '');
-                $experienceYears = trim($row[13] ?? '');
-                $language = trim($row[14] ?? '');
-                $proficiency = trim($row[15] ?? '');
-                $minimumSellPrice = trim($row[16] ?? '');
-                $minimumCostPrice = trim($row[17] ?? '');
-                $nightSurcharge = trim($row[18] ?? '');
-                $nightStartTime = trim($row[19] ?? '');
-                $nightEndTime = trim($row[20] ?? '');
-                $hourlyPrice = trim($row[21] ?? '');
+                $contactNo = trim($row[3] ?? '');
+                $email = trim($row[4] ?? '');
+                $appPassword = trim($row[5] ?? '');
+                $country = trim($row[6] ?? '');
+                $city = trim($row[7] ?? '');
+                $serviceType = trim($row[8] ?? '');
+                $age = trim($row[9] ?? '');
+                $wpNumber = trim($row[10] ?? '');
+                $language = trim($row[11] ?? '');
+                $proficiency = trim($row[12] ?? '');
+                $licenseNumber = trim($row[13] ?? '');
+                $licenseExpiryDate = trim($row[14] ?? '');
+                $experienceYears = trim($row[15] ?? '');
+                $licenseImage = trim($row[16] ?? '');
+                $nightSurcharge = trim($row[17] ?? '');
+                $nightStartTime = trim($row[18] ?? '');
+                $nightEndTime = trim($row[19] ?? '');
+                $minimumCostPrice = trim($row[20] ?? '');
+                $minimumSellPrice = trim($row[21] ?? '');
                 $hourlyCostPrice = trim($row[22] ?? '');
-                $twoHourPrice = trim($row[23] ?? '');
+                $hourlyPrice = trim($row[23] ?? '');
                 $twoHourCostPrice = trim($row[24] ?? '');
-                $fourHourPrice = trim($row[25] ?? '');
+                $twoHourPrice = trim($row[25] ?? '');
                 $fourHourCostPrice = trim($row[26] ?? '');
-                $sixHourPrice = trim($row[27] ?? '');
+                $fourHourPrice = trim($row[27] ?? '');
                 $sixHourCostPrice = trim($row[28] ?? '');
-                $eightHourPrice = trim($row[29] ?? '');
+                $sixHourPrice = trim($row[29] ?? '');
                 $eightHourCostPrice = trim($row[30] ?? '');
-                $tenHourPrice = trim($row[31] ?? '');
+                $eightHourPrice = trim($row[31] ?? '');
                 $tenHourCostPrice = trim($row[32] ?? '');
-                $twelveHourPrice = trim($row[33] ?? '');
+                $tenHourPrice = trim($row[33] ?? '');
                 $twelveHourCostPrice = trim($row[34] ?? '');
-                $about = trim($row[35] ?? '');
-                $status = trim($row[36] ?? '1');
+                $twelveHourPrice = trim($row[35] ?? '');
+                $masterImage = trim($row[36] ?? '');
+                $about = trim($row[37] ?? '');
+                $status = trim($row[38] ?? '1');
                 
                 // Check if this is a new guide or additional language for existing guide
                 if (!empty($guideName) && !empty($email) && !empty($contactNo)) {
                     // This is a new guide or first row for a guide
                     
-                    // Validate required fields for new guide
-                    if (empty($gender) || empty($guideName) || empty($email) || empty($contactNo) || 
-                        empty($serviceType) || empty($age) || empty($masterImage) || empty($licenseNumber) || 
-                        empty($licenseImage) || empty($licenseExpiryDate) || empty($city) || empty($country) || 
-                        empty($experienceYears) || empty($language) || empty($proficiency) || 
-                        empty($minimumSellPrice) || empty($minimumCostPrice) || empty($nightSurcharge) || empty($nightStartTime) || 
-                        empty($nightEndTime) || empty($hourlyPrice) || empty($hourlyCostPrice) || empty($twoHourPrice) ||
-                        empty($twoHourCostPrice) || empty($fourHourPrice) || empty($fourHourCostPrice) ||
-                        empty($sixHourPrice) || empty($sixHourCostPrice) || empty($eightHourPrice) || empty($eightHourCostPrice) ||
-                        empty($tenHourPrice) || empty($tenHourCostPrice) || empty($twelveHourPrice) || empty($twelveHourCostPrice) || empty($about)) {
-                        $errors[] = "Row {$rowNumber}: Missing required fields for new guide";
+                    // Validate required fields for new guide (match create-guide).
+                    // Profile Image is optional when Master Setting guide_default_pic is set.
+                    if (empty($salutation) || empty($gender) || empty($guideName) || empty($email) || empty($contactNo) ||
+                        empty($country) || empty($city) || empty($serviceType) || empty($age) || empty($wpNumber) ||
+                        empty($language) || empty($proficiency) || empty($licenseNumber) || empty($licenseExpiryDate) ||
+                        empty($experienceYears) || empty($licenseImage) || empty($nightSurcharge) || empty($nightStartTime) ||
+                        empty($nightEndTime) || empty($minimumCostPrice) || empty($minimumSellPrice) ||
+                        empty($hourlyCostPrice) || empty($hourlyPrice) || empty($twoHourCostPrice) || empty($twoHourPrice) ||
+                        empty($fourHourCostPrice) || empty($fourHourPrice) || empty($sixHourCostPrice) || empty($sixHourPrice) ||
+                        empty($eightHourCostPrice) || empty($eightHourPrice) || empty($tenHourCostPrice) || empty($tenHourPrice) ||
+                        empty($twelveHourCostPrice) || empty($twelveHourPrice) || empty($about)) {
+                        $errors[] = "Row {$rowNumber}: Missing required fields for new guide (see create-guide: WhatsApp, Cost+Sell rates, license image, etc.)";
+                        $errorCount++;
+                        continue;
+                    }
+
+                    $resolvedGuideImage = $this->resolveBulkImageOrDefault($masterImage, 'guide_default_pic');
+                    if ($resolvedGuideImage === null) {
+                        $errors[] = "Row {$rowNumber}: Profile Image is empty and no Guide Default Pic is set in Master Settings";
+                        $errorCount++;
+                        continue;
+                    }
+                    $masterImage = $resolvedGuideImage;
+
+                    if (!in_array($serviceType, ['1', '2', '3'], true)) {
+                        $errors[] = "Row {$rowNumber}: Service Type must be 1 (Private), 2 (Shared), or 3 (Both). Found: '{$serviceType}'";
                         $errorCount++;
                         continue;
                     }
@@ -2033,14 +1940,16 @@ class BulkUploadController extends Controller
                     // Mark this guide as being processed
                     $processedGuides[$guideKey] = $rowNumber;
                     
-                    // Create new guide — guide_id auto-assigned on save (same as GuideController::store)
+                    // Create new guide — same persisted fields as GuideController::store / create-guide
                     $guide = new Guide();
                     $guide->salutation = $salutation;
                     $guide->guide_gender = $gender;
                     $guide->name = $guideName;
                     $guide->email = $email;
                     $guide->contact_no = $contactNo;
-                    $guide->service_type = is_numeric($serviceType) ? intval($serviceType) : 1;
+                    $guide->wp_number = $wpNumber;
+                    $guide->app_password = $appPassword !== '' ? Hash::make($appPassword) : null;
+                    $guide->service_type = intval($serviceType);
                     $guide->guide_age = is_numeric($age) ? intval($age) : 0;
                     $guide->image = $masterImage;
                     $guide->government_license_no = $licenseNumber;
@@ -2049,25 +1958,25 @@ class BulkUploadController extends Controller
                     $guide->city = $city;
                     $guide->country = $country;
                     $guide->experience_years = is_numeric($experienceYears) ? intval($experienceYears) : 0;
-                    $guide->day_rate = is_numeric($minimumSellPrice) ? floatval($minimumSellPrice) : 0;
-                    $guide->minimum_cost_price = is_numeric($minimumCostPrice) ? floatval($minimumCostPrice) : 0;
-                    $guide->night_surcharge = is_numeric($nightSurcharge) ? floatval($nightSurcharge) : 0;
+                    $guide->minimum_cost_price = floatval($minimumCostPrice);
+                    $guide->day_rate = floatval($minimumSellPrice);
+                    $guide->night_surcharge = floatval($nightSurcharge);
                     $guide->night_start_time = $nightStartTime;
                     $guide->night_end_time = $nightEndTime;
-                    $guide->hourly_price = is_numeric($hourlyPrice) ? floatval($hourlyPrice) : 0;
-                    $guide->hourly_cost_price = is_numeric($hourlyCostPrice) ? floatval($hourlyCostPrice) : 0;
-                    $guide->two_hour_price = is_numeric($twoHourPrice) ? floatval($twoHourPrice) : 0;
-                    $guide->two_hour_cost_price = is_numeric($twoHourCostPrice) ? floatval($twoHourCostPrice) : 0;
-                    $guide->four_hour_price = is_numeric($fourHourPrice) ? floatval($fourHourPrice) : 0;
-                    $guide->four_hour_cost_price = is_numeric($fourHourCostPrice) ? floatval($fourHourCostPrice) : 0;
-                    $guide->six_hour_price = is_numeric($sixHourPrice) ? floatval($sixHourPrice) : 0;
-                    $guide->six_hour_cost_price = is_numeric($sixHourCostPrice) ? floatval($sixHourCostPrice) : 0;
-                    $guide->eight_hour_price = is_numeric($eightHourPrice) ? floatval($eightHourPrice) : 0;
-                    $guide->eight_hour_cost_price = is_numeric($eightHourCostPrice) ? floatval($eightHourCostPrice) : 0;
-                    $guide->ten_hour_price = is_numeric($tenHourPrice) ? floatval($tenHourPrice) : 0;
-                    $guide->ten_hour_cost_price = is_numeric($tenHourCostPrice) ? floatval($tenHourCostPrice) : 0;
-                    $guide->twelve_hour_price = is_numeric($twelveHourPrice) ? floatval($twelveHourPrice) : 0;
-                    $guide->twelve_hour_cost_price = is_numeric($twelveHourCostPrice) ? floatval($twelveHourCostPrice) : 0;
+                    $guide->hourly_cost_price = floatval($hourlyCostPrice);
+                    $guide->hourly_price = floatval($hourlyPrice);
+                    $guide->two_hour_cost_price = floatval($twoHourCostPrice);
+                    $guide->two_hour_price = floatval($twoHourPrice);
+                    $guide->four_hour_cost_price = floatval($fourHourCostPrice);
+                    $guide->four_hour_price = floatval($fourHourPrice);
+                    $guide->six_hour_cost_price = floatval($sixHourCostPrice);
+                    $guide->six_hour_price = floatval($sixHourPrice);
+                    $guide->eight_hour_cost_price = floatval($eightHourCostPrice);
+                    $guide->eight_hour_price = floatval($eightHourPrice);
+                    $guide->ten_hour_cost_price = floatval($tenHourCostPrice);
+                    $guide->ten_hour_price = floatval($tenHourPrice);
+                    $guide->twelve_hour_cost_price = floatval($twelveHourCostPrice);
+                    $guide->twelve_hour_price = floatval($twelveHourPrice);
                     $guide->description = $about;
                     $guide->is_active = ($status == '1') ? 1 : 0;
                     $guide->status = 1; // Default approved status
@@ -2144,7 +2053,7 @@ class BulkUploadController extends Controller
         
         return redirect()->back()
             ->with('success', $message)
-            ->with('errors', $errors);
+            ->with('upload_errors', $errors);
     }
     
     private function addGuideLanguage($guideId, $language, $proficiency)
@@ -2179,179 +2088,150 @@ class BulkUploadController extends Controller
             abort(403, 'You do not have permission to download vehicle templates. Only DMC and Virtual DMC users can download vehicle templates.');
         }
 
+        // Columns match add-vehicle.blade.php create form (including hourly_price_1..12)
+        // Zone mapping remains post-create. Profit type/markup are UI-only helpers (not CSV).
         $headers = [
+            'Driver ID',
             'Vehicle Name*',
             'Vehicle Type*',
             'Vehicle Model*',
+            'Vehicle Color*',
             'Model Year*',
-            'Vehicle Plate No*',
+            'Plate Number*',
             'Seating Capacity*',
-            'City*',
-            'Vehicle Sharing Option*',
-            'Attraction Private Transport Price*',
-            'Attraction Shared Transport Price*',
-            'Restaurant Private Transport Price*',
-            'Restaurant Shared Transport Price*',
-            'Base Sell Price*',
+            'Capacity Arr/Dept*',
+            'Country*',
+            'City Name*',
+            'Sharing Option (Private/Sharable/Both)',
             'Base Cost Price*',
-            'Per KM Below 10 Sell Price*',
-            'Per KM Below 10 Cost Price*',
-            'Per KM 10-25 Sell Price*',
-            'Per KM 10-25 Cost Price*',
-            'Per KM Above 25 Sell Price*',
-            'Per KM Above 25 Cost Price*',
-            'Per Hour Sell Price*',
-            'Per Hour Cost Price*',
-            'Cancel Sell Price*',
-            'Cancel Cost Price*',
-            'Night Base Sell Price*',
+            'Base Sell Price*',
             'Night Base Cost Price*',
-            'Night Per KM Below 10 Sell Price*',
-            'Night Per KM Below 10 Cost Price*',
-            'Night Per KM 10-25 Sell Price*',
-            'Night Per KM 10-25 Cost Price*',
-            'Night Per KM Above 25 Sell Price*',
-            'Night Per KM Above 25 Cost Price*',
-            'Night Per Hour Sell Price*',
+            'Night Base Sell Price*',
+            'Per Hour Cost Price*',
+            'Per Hour Sell Price*',
             'Night Per Hour Cost Price*',
-            'Night Cancel Sell Price*',
-            'Night Cancel Cost Price*',
-            'Vehicle Image*',
+            'Night Per Hour Sell Price*',
+            'Cancellation Cost*',
+            'Cancellation Sell*',
+            'Hourly Price 1 Hr',
+            'Hourly Price 2 Hr',
+            'Hourly Price 3 Hr',
+            'Hourly Price 4 Hr',
+            'Hourly Price 5 Hr',
+            'Hourly Price 6 Hr',
+            'Hourly Price 7 Hr',
+            'Hourly Price 8 Hr',
+            'Hourly Price 9 Hr',
+            'Hourly Price 10 Hr',
+            'Hourly Price 11 Hr',
+            'Hourly Price 12 Hr',
+            'Vehicle Image (optional; uses Master Setting default if blank)',
             'Description*',
             'Status (1=Active, 0=Inactive)'
         ];
 
         $data = [$headers];
 
-        // Always provide dummy data - 3 rows showing different sharing options
-        // Sample data for Private sharing option
-        $sampleData1 = [
-            'Toyota Camry 2023',
-            'Sedan',
-            'Camry',
-            '2023',
-            'SG1234A',
-            '4',
-            'Singapore',
-            'Private',
-            '50.00',
-            '', // Empty for private
-            '30.00',
-            '', // Empty for private
-            '80.00',
-            '65.00',
-            '2.50',
-            '2.00',
-            '2.00',
-            '1.60',
-            '1.80',
-            '1.50',
-            '15.00',
-            '12.00',
-            '20.00',
-            '16.00',
-            '100.00',
-            '80.00',
-            '3.00',
-            '2.40',
-            '2.50',
-            '2.00',
-            '2.20',
-            '1.80',
-            '18.00',
-            '14.00',
-            '25.00',
-            '20.00',
-            'https://stgdmcappdev.blob.core.windows.net/uploads/vehicle_1234.jpg',
-            'Comfortable sedan for city travel',
-            '1'
-        ];
+        $sampleHourly = ['80', '150', '210', '270', '320', '370', '420', '470', '520', '570', '620', '670'];
 
-        // Sample data for Sharable sharing option
-        $sampleData2 = [
-            'Honda Civic 2022',
-            'Sedan',
-            'Civic',
-            '2022',
-            'SG5678B',
-            '4',
-            'Singapore',
-            'Sharable',
-            '', // Empty for sharable
-            '35.00',
-            '', // Empty for sharable
-            '25.00',
-            '60.00',
-            '48.00',
-            '2.00',
-            '1.60',
-            '1.80',
-            '1.50',
-            '1.50',
-            '1.20',
-            '12.00',
-            '10.00',
-            '15.00',
-            '12.00',
-            '80.00',
-            '64.00',
-            '2.50',
-            '2.00',
-            '2.20',
-            '1.80',
-            '1.80',
-            '1.50',
-            '15.00',
-            '12.00',
-            '20.00',
-            '16.00',
-            'https://stgdmcappdev.blob.core.windows.net/uploads/vehicle_5678.jpg',
-            'Economical shared ride option',
-            '1'
-        ];
+        $sampleData1 = array_merge(
+            [
+                '',
+                'Toyota Camry 2023',
+                'Sedan',
+                'Camry',
+                'White',
+                '2023',
+                'SG1234A',
+                '4',
+                '4',
+                'Singapore',
+                'Singapore',
+                'Private',
+                '65.00',
+                '80.00',
+                '80.00',
+                '100.00',
+                '12.00',
+                '15.00',
+                '14.00',
+                '18.00',
+                '16.00',
+                '20.00',
+            ],
+            $sampleHourly,
+            [
+                'https://stgdmcappdev.blob.core.windows.net/uploads/vehicle_1234.jpg',
+                'Comfortable sedan for city travel',
+                '1'
+            ]
+        );
 
-        // Sample data for Both sharing option
-        $sampleData3 = [
-            'Toyota Vios 2023',
-            'Sedan',
-            'Vios',
-            '2023',
-            'SG9012C',
-            '4',
-            'Singapore',
-            'Both',
-            '45.00',
-            '30.00',
-            '28.00',
-            '20.00',
-            '70.00',
-            '56.00',
-            '2.20',
-            '1.80',
-            '1.90',
-            '1.50',
-            '1.60',
-            '1.30',
-            '13.00',
-            '10.50',
-            '18.00',
-            '14.50',
-            '90.00',
-            '72.00',
-            '2.80',
-            '2.20',
-            '2.30',
-            '1.85',
-            '2.00',
-            '1.60',
-            '16.00',
-            '13.00',
-            '22.00',
-            '18.00',
-            'https://stgdmcappdev.blob.core.windows.net/uploads/vehicle_9012.jpg',
-            'Versatile vehicle for both private and shared rides',
-            '1'
-        ];
+        $sampleData2 = array_merge(
+            [
+                '',
+                'Honda Civic 2022',
+                'Sedan',
+                'Civic',
+                'Silver',
+                '2022',
+                'SG5678B',
+                '4',
+                '4',
+                'Singapore',
+                'Singapore',
+                'Sharable',
+                '48.00',
+                '60.00',
+                '64.00',
+                '80.00',
+                '10.00',
+                '12.00',
+                '12.00',
+                '15.00',
+                '12.00',
+                '15.00',
+            ],
+            ['60', '110', '160', '200', '240', '280', '320', '360', '400', '440', '480', '520'],
+            [
+                '', // blank → vehicle_default_pic from Master Settings
+                'Economical shared ride option',
+                '1'
+            ]
+        );
+
+        $sampleData3 = array_merge(
+            [
+                '',
+                'Toyota Innova',
+                'MPV',
+                'Innova',
+                'Black',
+                '2023',
+                'SG9012C',
+                '7',
+                '5',
+                'Singapore',
+                'Singapore',
+                'Both',
+                '56.00',
+                '70.00',
+                '72.00',
+                '90.00',
+                '10.50',
+                '13.00',
+                '13.00',
+                '16.00',
+                '14.50',
+                '18.00',
+            ],
+            ['90', '170', '240', '300', '360', '420', '480', '540', '600', '660', '720', '780'],
+            [
+                'https://stgdmcappdev.blob.core.windows.net/uploads/vehicle_9012.jpg',
+                'Versatile MPV for private and shared rides',
+                '1'
+            ]
+        );
 
         $data[] = $sampleData1;
         $data[] = $sampleData2;
@@ -2393,23 +2273,29 @@ class BulkUploadController extends Controller
 
     private function downloadDmcAttractionTemplate($auth_user)
     {
+        // Aligned with create-attraction (dmc_id stays backend/auth — never CSV)
         $headers = [
             'Attraction Name*',
+            'Phone*',
             'Country*',
             'City*',
             'Senior Age Threshold*',
             'Maximum Child Age*',
+            'Shared Transport Price*',
+            'Private Transport Price*',
             'Latitude*',
             'Longitude*',
             'Morning Opening*',
             'Afternoon Opening*',
             'Evening Opening*',
             'Night Opening*',
+            'Attraction Type*',
             'Open Time*',
             'Close Time*',
             'Master Image*',
             'Additional Images',
             'Description*',
+            'Remarks',
             'Terms & Conditions*',
             'Status*'
         ];
@@ -2419,21 +2305,26 @@ class BulkUploadController extends Controller
         // Always provide a single dummy/sample row
         $sampleData = [
             'Sample Museum',
+            '65821234',
             'Singapore',
             'Singapore',
             '65',
             '12',
+            '30.00',
+            '50.00',
             '1.7128',
             '103.8198',
             '1',
             '1',
             '0',
             '0',
+            'Attraction', // or Tour Site (maps to attraction_type 2 / 1)
             '09:00',
             '17:00',
             'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1752212552_1UGsf9.jpg',
             'https://stgdmcappdev.blob.core.windows.net/uploads/logo_1752212551_BYQRMD.jpg',
             'Please arrive 15 minutes before your scheduled time',
+            '',
             'No refunds after booking confirmation',
             '1'
         ];
@@ -2450,23 +2341,29 @@ class BulkUploadController extends Controller
 
     private function downloadTravclicksAttractionTemplate($auth_user)
     {
+        // Same columns as DMC template (create-attraction parity)
         $headers = [
             'Attraction Name*',
+            'Phone*',
             'Country*',
             'City*',
             'Senior Age Threshold*',
             'Maximum Child Age*',
+            'Shared Transport Price*',
+            'Private Transport Price*',
             'Latitude*',
             'Longitude*',
             'Morning Opening*',
             'Afternoon Opening*',
             'Evening Opening*',
             'Night Opening*',
+            'Attraction Type*',
             'Open Time*',
             'Close Time*',
             'Master Image*',
             'Additional Images',
             'Important Notes*',
+            'Remarks',
             'Terms & Conditions*',
             'Status*'
         ];
@@ -2478,77 +2375,70 @@ class BulkUploadController extends Controller
 
         if ($attractions->count() > 0) {
             foreach ($attractions as $attraction) {
-                $row = [
+                $openTime = $attraction->open_time;
+                if (is_string($openTime) && str_starts_with(trim($openTime), '[')) {
+                    $decoded = json_decode($openTime, true);
+                    $openTime = is_array($decoded) ? ($decoded[0] ?? '') : $openTime;
+                } elseif (is_array($openTime)) {
+                    $openTime = $openTime[0] ?? '';
+                }
+                $closeTime = $attraction->close_time;
+                if (is_string($closeTime) && str_starts_with(trim($closeTime), '[')) {
+                    $decoded = json_decode($closeTime, true);
+                    $closeTime = is_array($decoded) ? ($decoded[0] ?? '') : $closeTime;
+                } elseif (is_array($closeTime)) {
+                    $closeTime = $closeTime[0] ?? '';
+                }
+
+                $typeLabel = match((int) ($attraction->attraction_type ?? 0)) {
+                    1 => 'Tour Site',
+                    2 => 'Attraction',
+                    default => ''
+                };
+
+                $data[] = [
                     $attraction->name ?? '',
+                    $attraction->phone ?? '',
                     $attraction->country ?? '',
                     $attraction->location ?? '',
                     $attraction->senior_min_age ?? '',
                     $attraction->child_max_age ?? '',
+                    $attraction->price_shared ?? '',
+                    $attraction->price_private ?? '',
                     $attraction->latitude ?? '',
                     $attraction->longitude ?? '',
                     $attraction->morning_opening ? '1' : '0',
                     $attraction->afternoon_opening ? '1' : '0',
                     $attraction->evening_opening ? '1' : '0',
                     $attraction->night_opening ? '1' : '0',
-                    $attraction->open_time ?? '',
-                    $attraction->close_time ?? '',
+                    $typeLabel,
+                    $openTime ?? '',
+                    $closeTime ?? '',
                     $attraction->master_image ?? '',
-                    is_array($attraction->additional_image) ? implode(',', $attraction->additional_image) : 
-                        (is_string($attraction->additional_image) && !empty($attraction->additional_image) ? 
+                    is_array($attraction->additional_image) ? implode(',', $attraction->additional_image) :
+                        (is_string($attraction->additional_image) && !empty($attraction->additional_image) ?
                          implode(',', json_decode($attraction->additional_image, true) ?? []) : ''),
                     $attraction->description ?? '',
+                    $attraction->remarks ?? '',
                     $attraction->terms_conditions ?? '',
                     $attraction->status ? '1' : '0'
                 ];
-                
-                $data[] = $row;
             }
         } else {
-            // No existing attractions, add sample data for Travclicks format
-            $sampleData1 = [
-                'Sample Museum',
-            'United States',
-                'New York',
-                '65',
-                '12',
-                '40.7128',
-                '-74.0060',
-                '1',
-                '1',
-                '0',
-                '0',
-            '09:00',
-            '17:00',
-                'museum_main.jpg',
-                'image1.jpg,image2.jpg,image3.jpg',
-                'Please arrive 15 minutes before your scheduled time',
-                'No refunds after booking confirmation',
-            '1'
-        ];
-
-            $sampleData2 = [
-                'Adventure Park',
-                'Singapore',
-                'Singapore',
-                '60',
-                '15',
-                '1.3521',
-                '103.8198',
-                '1',
-                '1',
-                '1',
-                '0',
-                '08:00',
-                '22:00',
-                'adventure_main.jpg',
-                'adventure1.jpg,adventure2.jpg',
-                'Safety equipment provided for all activities',
-                'All bookings are non-refundable',
-                '1'
+            $data[] = [
+                'Sample Museum', '12125550100', 'United States', 'New York', '65', '12',
+                '25.00', '45.00', '40.7128', '-74.0060', '1', '1', '0', '0', 'Attraction',
+                '09:00', '17:00', 'museum_main.jpg', 'image1.jpg,image2.jpg',
+                'Please arrive 15 minutes before your scheduled time', '',
+                'No refunds after booking confirmation', '1'
             ];
-
-            $data[] = $sampleData1;
-            $data[] = $sampleData2;
+            $data[] = [
+                'Adventure Park', '65880000', 'Singapore', 'Singapore', '60', '15',
+                '20.00', '40.00', '1.3521', '103.8198', '1', '1', '1', '0', 'Tour Site',
+                '08:00', '22:00', 'adventure_main.jpg', 'adventure1.jpg,adventure2.jpg',
+                'Safety equipment provided for all activities', '',
+                'All bookings are non-refundable', '1'
+            ];
         }
 
         $content = $this->generateCsvContent($data);
@@ -2566,7 +2456,7 @@ class BulkUploadController extends Controller
         $auth_user = Auth::user();
 
         // Check for DMC role - role_id is stored as string "11"
-        if (!$auth_user || $auth_user->role_id !== '11') {
+        if (!$auth_user || (int) $auth_user->role_id !== 11) {
             abort(403, 'Access denied. Only DMC users can access ticket bulk upload.');
         }
 
@@ -2588,21 +2478,28 @@ class BulkUploadController extends Controller
             $attractions = collect();
         }
 
-        // Headers for attraction + ticket data
+        // Attraction context + ticket columns matching add-ticket.blade.php
         $headers = [
             'Attraction Name*',
             'Country*',
             'City*',
             'Ticket Name*',
-            'Child Price(local)*',
-            'Adult Price(local)*',
-            'Senior Citizen Price(local)*',
-            'Child Price(foreigner)*',
-            'Adult Price(foreigner)*',
-            'Senior Citizen Price(foreigner)*',
+            'Child Cost (Local)*',
+            'Child Sell (Local)*',
+            'Adult Cost (Local)*',
+            'Adult Sell (Local)*',
+            'Senior Cost (Local)*',
+            'Senior Sell (Local)*',
+            'Child Cost (Foreigner)*',
+            'Child Sell (Foreigner)*',
+            'Adult Cost (Foreigner)*',
+            'Adult Sell (Foreigner)*',
+            'Senior Cost (Foreigner)*',
+            'Senior Sell (Foreigner)*',
             'Important Notes*',
+            'Remarks',
             'Terms & Conditions*',
-            'Status*'
+            'Status (1=Active, 0=Inactive)'
         ];
 
         $data = [$headers];
@@ -2619,13 +2516,20 @@ class BulkUploadController extends Controller
                             $isFirstRowForAttraction ? ($attraction->country ?? '') : '',
                             $isFirstRowForAttraction ? ($attraction->location ?? '') : '',
                             $ticket->name ?? '',
-                            $ticket->child_price ?? '0',
-                            $ticket->adult_price ?? '0',
-                            $ticket->senior_adult_price ?? '0',
-                            $ticket->child_price_nri ?? '0',
-                            $ticket->adult_price_nri ?? '0',
-                            $ticket->senior_adult_price_nri ?? '0',
+                            $ticket->child_cost_price ?? '',
+                            $ticket->child_price ?? '',
+                            $ticket->adult_cost_price ?? '',
+                            $ticket->adult_price ?? '',
+                            $ticket->senior_adult_cost_price ?? '',
+                            $ticket->senior_adult_price ?? '',
+                            $ticket->child_cost_price_nri ?? '',
+                            $ticket->child_price_nri ?? '',
+                            $ticket->adult_cost_price_nri ?? '',
+                            $ticket->adult_price_nri ?? '',
+                            $ticket->senior_adult_cost_price_nri ?? '',
+                            $ticket->senior_adult_price_nri ?? '',
                             $ticket->description ?? '',
+                            $ticket->remarks ?? '',
                             $ticket->terms_conditions ?? '',
                             $ticket->status ? '1' : '0'
                         ];
@@ -2639,11 +2543,12 @@ class BulkUploadController extends Controller
                     $isFirstRowForAttraction ? ($attraction->name ?? '') : '',
                     $isFirstRowForAttraction ? ($attraction->country ?? '') : '',
                     $isFirstRowForAttraction ? ($attraction->location ?? '') : '',
-                    '', // Empty ticket name - user can add new ticket
-                    '', '', '', '', '', '', // Empty prices
-                    '', // Empty important notes
-                    '', // Empty terms & conditions
-                    '1' // Default active status
+                    '',
+                    '', '', '', '', '', '', '', '', '', '', '', '',
+                    '',
+                    '',
+                    '',
+                    '1'
                 ];
                 $data[] = $emptyRow;
             }
@@ -2654,62 +2559,57 @@ class BulkUploadController extends Controller
                 'United States',
                 'New York',
                 'Adult Entry Ticket',
-                '10.00',
-                '25.00',
-                '20.00',
-                '15.00',
-                '35.00',
-                '30.00',
+                '8.00', '10.00',
+                '20.00', '25.00',
+                '16.00', '20.00',
+                '12.00', '15.00',
+                '28.00', '35.00',
+                '24.00', '30.00',
                 'Please arrive 15 minutes before scheduled time',
+                '',
                 'No refunds after booking confirmation',
                 '1'
             ];
             $data[] = $sampleData;
 
-            // Add another sample ticket for the same attraction (empty attraction details)
             $sampleData2 = [
-                '', // Empty attraction name
-                '', // Empty country
-                '', // Empty city
+                '', '', '',
                 'VIP Entry Ticket',
-                '20.00',
-                '50.00',
-                '40.00',
-                '25.00',
-                '60.00',
-                '50.00',
+                '16.00', '20.00',
+                '40.00', '50.00',
+                '32.00', '40.00',
+                '20.00', '25.00',
+                '48.00', '60.00',
+                '40.00', '50.00',
                 'Includes guided tour and priority access',
+                '',
                 'No refunds after booking confirmation',
                 '1'
             ];
             $data[] = $sampleData2;
             
-            // Add empty row for users to add more tickets to the same attraction
             $emptyRow = [
-                '', // Empty attraction name
-                '', // Empty country
-                '', // Empty city
-                '', // Empty ticket name - user can add new ticket
-                '', '', '', '', '', '', // Empty prices
-                '', // Empty important notes
-                '', // Empty terms & conditions
-                '1' // Default active status
+                '', '', '',
+                '',
+                '', '', '', '', '', '', '', '', '', '', '', '',
+                '', '', '',
+                '1'
             ];
             $data[] = $emptyRow;
             
-            // Add sample for second attraction to show multiple attraction format
             $sampleData3 = [
                 'Adventure Park',
-                'Singapore', 
+                'Singapore',
                 'Singapore',
                 'Standard Entry',
-                '5.00',
-                '15.00',
-                '10.00',
-                '8.00',
-                '20.00',
-                '15.00',
+                '4.00', '5.00',
+                '12.00', '15.00',
+                '8.00', '10.00',
+                '6.00', '8.00',
+                '16.00', '20.00',
+                '12.00', '15.00',
                 'All safety equipment included',
+                '',
                 'Weather dependent. No refunds for cancellations',
                 '1'
             ];
@@ -2877,13 +2777,21 @@ class BulkUploadController extends Controller
                 if (empty($licenseNo)) $missingFields[] = 'License Number';
                 if (empty($licenseExpiryDate)) $missingFields[] = 'License Expiry Date';
                 if (empty($driverAge)) $missingFields[] = 'Driver Age';
-                if (empty($profileImage)) $missingFields[] = 'Profile Image';
+                // Profile Image optional when Master Setting driver_default_pic is set
                 
                 if (!empty($missingFields)) {
                     $errors[] = "Row {$rowNumber}: ❌ Missing required fields: " . implode(', ', $missingFields);
                     $errorCount++;
                     continue;
                 }
+
+                $resolvedDriverImage = $this->resolveBulkImageOrDefault($profileImage, 'driver_default_pic');
+                if ($resolvedDriverImage === null) {
+                    $errors[] = "Row {$rowNumber}: ❌ Profile Image is empty and no Driver Default Pic is set in Master Settings";
+                    $errorCount++;
+                    continue;
+                }
+                $profileImage = $resolvedDriverImage;
                 
                 // Validate email format
                 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -3071,7 +2979,7 @@ class BulkUploadController extends Controller
         
         return redirect()->back()
             ->with('success', $message)
-            ->with('errors', $errors);
+            ->with('upload_errors', $errors);
     }
 
     // Guide Upload Method
@@ -3204,82 +3112,64 @@ class BulkUploadController extends Controller
                     continue;
                 }
                 
-                // Map CSV columns to variables based on new template
-                $vehicleName = trim($row[0] ?? '');
-                $vehicleType = trim($row[1] ?? '');
-                $vehicleModel = trim($row[2] ?? '');
-                $modelYear = trim($row[3] ?? '');
-                $vehiclePlateNo = trim($row[4] ?? '');
-                $seatingCapacity = trim($row[5] ?? '');
-                $city = trim($row[6] ?? '');
-                $vehicleSharingOption = trim($row[7] ?? '');
-                $attractionPrivatePrice = trim($row[8] ?? '');
-                $attractionSharedPrice = trim($row[9] ?? '');
-                $restaurantPrivatePrice = trim($row[10] ?? '');
-                $restaurantSharedPrice = trim($row[11] ?? '');
-                $basePrice = trim($row[12] ?? '');
-                $baseCostPrice = trim($row[13] ?? '');
-                $costPerKmBelow10 = trim($row[14] ?? '');
-                $perKmBelow10CostPrice = trim($row[15] ?? '');
-                $costPerKm10To25 = trim($row[16] ?? '');
-                $perKm10To25CostPrice = trim($row[17] ?? '');
-                $costPerKmAbove25 = trim($row[18] ?? '');
-                $perKmAbove25CostPrice = trim($row[19] ?? '');
-                $costPerHour = trim($row[20] ?? '');
-                $perHourCostPrice = trim($row[21] ?? '');
-                $cancelCost = trim($row[22] ?? '');
-                $cancelCostPrice = trim($row[23] ?? '');
-                $nightBasePrice = trim($row[24] ?? '');
-                $nightBaseCostPrice = trim($row[25] ?? '');
-                $nightCostPerKmBelow10 = trim($row[26] ?? '');
-                $nightPerKmBelow10CostPrice = trim($row[27] ?? '');
-                $nightCostPerKm10To25 = trim($row[28] ?? '');
-                $nightPerKm10To25CostPrice = trim($row[29] ?? '');
-                $nightCostPerKmAbove25 = trim($row[30] ?? '');
-                $nightPerKmAbove25CostPrice = trim($row[31] ?? '');
-                $nightCostPerHour = trim($row[32] ?? '');
-                $nightPerHourCostPrice = trim($row[33] ?? '');
-                $nightCancelCost = trim($row[34] ?? '');
-                $nightCancelCostPrice = trim($row[35] ?? '');
-                $vehicleImage = trim($row[36] ?? '');
-                $description = trim($row[37] ?? '');
-                $status = trim($row[38] ?? '1');
+                // Map CSV columns — aligned with add-vehicle.blade.php create form (incl. hourly 1–12)
+                $driverId = trim($row[0] ?? '');
+                $vehicleName = trim($row[1] ?? '');
+                $vehicleType = trim($row[2] ?? '');
+                $vehicleModel = trim($row[3] ?? '');
+                $vehicleColor = trim($row[4] ?? '');
+                $modelYear = trim($row[5] ?? '');
+                $vehiclePlateNo = trim($row[6] ?? '');
+                $seatingCapacity = trim($row[7] ?? '');
+                $cityTourSeatingCapacity = trim($row[8] ?? '');
+                $country = trim($row[9] ?? '');
+                $city = trim($row[10] ?? '');
+                $vehicleSharingOption = trim($row[11] ?? 'Private');
+                $baseCostPrice = trim($row[12] ?? '');
+                $basePrice = trim($row[13] ?? '');
+                $nightBaseCostPrice = trim($row[14] ?? '');
+                $nightBasePrice = trim($row[15] ?? '');
+                $perHourCostPrice = trim($row[16] ?? '');
+                $costPerHour = trim($row[17] ?? '');
+                $nightPerHourCostPrice = trim($row[18] ?? '');
+                $nightCostPerHour = trim($row[19] ?? '');
+                $cancellationCost = trim($row[20] ?? '');
+                $cancellationSell = trim($row[21] ?? '');
+                $hourlyPrices = [];
+                for ($hour = 1; $hour <= 12; $hour++) {
+                    $hourlyPrices[$hour] = trim($row[21 + $hour] ?? ''); // indexes 22..33
+                }
+                $vehicleImage = trim($row[34] ?? '');
+                $description = trim($row[35] ?? '');
+                $status = trim($row[36] ?? '1');
+
+                if ($vehicleSharingOption === '') {
+                    $vehicleSharingOption = 'Private';
+                }
                 
                 // Validate required fields with specific missing field names
                 $missingFields = [];
                 if (empty($vehicleName)) $missingFields[] = 'Vehicle Name';
                 if (empty($vehicleType)) $missingFields[] = 'Vehicle Type';
                 if (empty($vehicleModel)) $missingFields[] = 'Vehicle Model';
+                if (empty($vehicleColor)) $missingFields[] = 'Vehicle Color';
                 if (empty($modelYear)) $missingFields[] = 'Model Year';
-                if (empty($vehiclePlateNo)) $missingFields[] = 'Vehicle Plate No';
+                if (empty($vehiclePlateNo)) $missingFields[] = 'Plate Number';
                 if (empty($seatingCapacity)) $missingFields[] = 'Seating Capacity';
-                if (empty($city)) $missingFields[] = 'City';
-                if (empty($vehicleSharingOption)) $missingFields[] = 'Vehicle Sharing Option';
-                if (empty($basePrice)) $missingFields[] = 'Base Sell Price';
+                if (empty($cityTourSeatingCapacity)) $missingFields[] = 'Capacity Arr/Dept';
+                if (empty($country)) $missingFields[] = 'Country';
+                if (empty($city)) $missingFields[] = 'City Name';
                 if (empty($baseCostPrice)) $missingFields[] = 'Base Cost Price';
-                if (empty($costPerKmBelow10)) $missingFields[] = 'Per KM Below 10 Sell Price';
-                if (empty($perKmBelow10CostPrice)) $missingFields[] = 'Per KM Below 10 Cost Price';
-                if (empty($costPerKm10To25)) $missingFields[] = 'Per KM 10-25 Sell Price';
-                if (empty($perKm10To25CostPrice)) $missingFields[] = 'Per KM 10-25 Cost Price';
-                if (empty($costPerKmAbove25)) $missingFields[] = 'Per KM Above 25 Sell Price';
-                if (empty($perKmAbove25CostPrice)) $missingFields[] = 'Per KM Above 25 Cost Price';
-                if (empty($costPerHour)) $missingFields[] = 'Per Hour Sell Price';
-                if (empty($perHourCostPrice)) $missingFields[] = 'Per Hour Cost Price';
-                if (empty($cancelCost)) $missingFields[] = 'Cancel Sell Price';
-                if (empty($cancelCostPrice)) $missingFields[] = 'Cancel Cost Price';
-                if (empty($nightBasePrice)) $missingFields[] = 'Night Base Sell Price';
+                if (empty($basePrice)) $missingFields[] = 'Base Sell Price';
                 if (empty($nightBaseCostPrice)) $missingFields[] = 'Night Base Cost Price';
-                if (empty($nightCostPerKmBelow10)) $missingFields[] = 'Night Per KM Below 10 Sell Price';
-                if (empty($nightPerKmBelow10CostPrice)) $missingFields[] = 'Night Per KM Below 10 Cost Price';
-                if (empty($nightCostPerKm10To25)) $missingFields[] = 'Night Per KM 10-25 Sell Price';
-                if (empty($nightPerKm10To25CostPrice)) $missingFields[] = 'Night Per KM 10-25 Cost Price';
-                if (empty($nightCostPerKmAbove25)) $missingFields[] = 'Night Per KM Above 25 Sell Price';
-                if (empty($nightPerKmAbove25CostPrice)) $missingFields[] = 'Night Per KM Above 25 Cost Price';
-                if (empty($nightCostPerHour)) $missingFields[] = 'Night Per Hour Sell Price';
+                if (empty($nightBasePrice)) $missingFields[] = 'Night Base Sell Price';
+                if (empty($perHourCostPrice)) $missingFields[] = 'Per Hour Cost Price';
+                if (empty($costPerHour)) $missingFields[] = 'Per Hour Sell Price';
                 if (empty($nightPerHourCostPrice)) $missingFields[] = 'Night Per Hour Cost Price';
-                if (empty($nightCancelCost)) $missingFields[] = 'Night Cancel Sell Price';
-                if (empty($nightCancelCostPrice)) $missingFields[] = 'Night Cancel Cost Price';
-                if (empty($vehicleImage)) $missingFields[] = 'Vehicle Image';
+                if (empty($nightCostPerHour)) $missingFields[] = 'Night Per Hour Sell Price';
+                if (empty($cancellationCost)) $missingFields[] = 'Cancellation Cost';
+                if (empty($cancellationSell)) $missingFields[] = 'Cancellation Sell';
+                // Vehicle Image optional when Master Setting vehicle_default_pic is set
                 if (empty($description)) $missingFields[] = 'Description';
                 
                 if (!empty($missingFields)) {
@@ -3287,6 +3177,14 @@ class BulkUploadController extends Controller
                     $errorCount++;
                     continue;
                 }
+
+                $resolvedVehicleImage = $this->resolveBulkImageOrDefault($vehicleImage, 'vehicle_default_pic');
+                if ($resolvedVehicleImage === null) {
+                    $errors[] = "Row {$rowNumber}: ❌ Vehicle Image is empty and no Vehicle Default Pic is set in Master Settings";
+                    $errorCount++;
+                    continue;
+                }
+                $vehicleImage = $resolvedVehicleImage;
                 
                 // Validate model year
                 if (!is_numeric($modelYear) || strlen($modelYear) != 4) {
@@ -3301,70 +3199,53 @@ class BulkUploadController extends Controller
                     $errorCount++;
                     continue;
                 }
-                
-                // Validate vehicle sharing option
-                if (!in_array($vehicleSharingOption, ['Private', 'Sharable', 'Both'])) {
-                    $errors[] = "Row {$rowNumber}: 🔄 Invalid Vehicle Sharing Option '{$vehicleSharingOption}'. Must be: Private, Sharable, or Both";
+
+                if (!is_numeric($cityTourSeatingCapacity) || $cityTourSeatingCapacity <= 0) {
+                    $errors[] = "Row {$rowNumber}: 🚗 Capacity Arr/Dept must be a positive number. Found: '{$cityTourSeatingCapacity}'";
                     $errorCount++;
                     continue;
                 }
                 
-                // Validate pricing fields based on sharing option
-                if ($vehicleSharingOption == 'Private') {
-                    if (empty($attractionPrivatePrice) || empty($restaurantPrivatePrice)) {
-                        $errors[] = "Row {$rowNumber}: 💰 Private sharing option requires Attraction Private Transport Price and Restaurant Private Transport Price";
-                        $errorCount++;
-                        continue;
-                    }
-                    if (!empty($attractionSharedPrice) || !empty($restaurantSharedPrice)) {
-                        $errors[] = "Row {$rowNumber}: ⚠️ Private sharing option should not have shared prices filled";
-                        $errorCount++;
-                        continue;
-                    }
-                } elseif ($vehicleSharingOption == 'Sharable') {
-                    if (empty($attractionSharedPrice) || empty($restaurantSharedPrice)) {
-                        $errors[] = "Row {$rowNumber}: 💰 Sharable option requires Attraction Shared Transport Price and Restaurant Shared Transport Price";
-                        $errorCount++;
-                        continue;
-                    }
-                    if (!empty($attractionPrivatePrice) || !empty($restaurantPrivatePrice)) {
-                        $errors[] = "Row {$rowNumber}: ⚠️ Sharable option should not have private prices filled";
-                        $errorCount++;
-                        continue;
-                    }
-                } elseif ($vehicleSharingOption == 'Both') {
-                    if (empty($attractionPrivatePrice) || empty($attractionSharedPrice) || empty($restaurantPrivatePrice) || empty($restaurantSharedPrice)) {
-                        $errors[] = "Row {$rowNumber}: 💰 Both option requires all four transport prices to be filled";
-                        $errorCount++;
-                        continue;
-                    }
+                // Validate vehicle sharing option
+                if (!in_array($vehicleSharingOption, ['Private', 'Sharable', 'Both'])) {
+                    $errors[] = "Row {$rowNumber}: 🔄 Invalid Sharing Option '{$vehicleSharingOption}'. Must be: Private, Sharable, or Both";
+                    $errorCount++;
+                    continue;
                 }
                 
-                // Validate numeric fields
+                // Validate numeric pricing fields (match add-vehicle)
                 $numericFields = [
-                    'Attraction Private Transport Price' => $attractionPrivatePrice,
-                    'Attraction Shared Transport Price' => $attractionSharedPrice,
-                    'Restaurant Private Transport Price' => $restaurantPrivatePrice,
-                    'Restaurant Shared Transport Price' => $restaurantSharedPrice,
-                    'Base Price' => $basePrice,
-                    'Cost per KM Below 10' => $costPerKmBelow10,
-                    'Cost per KM 10 to 25' => $costPerKm10To25,
-                    'Cost per KM Above 25' => $costPerKmAbove25,
-                    'Cost per Hour' => $costPerHour,
-                    'Cancel Cost' => $cancelCost,
-                    'Night Base Price' => $nightBasePrice,
-                    'Night Cost per KM Below 10' => $nightCostPerKmBelow10,
-                    'Night Cost per KM 10 to 25' => $nightCostPerKm10To25,
-                    'Night Cost per KM Above 25' => $nightCostPerKmAbove25,
-                    'Night Cost per Hour' => $nightCostPerHour,
-                    'Night Cancel Cost' => $nightCancelCost
+                    'Base Cost Price' => $baseCostPrice,
+                    'Base Sell Price' => $basePrice,
+                    'Night Base Cost Price' => $nightBaseCostPrice,
+                    'Night Base Sell Price' => $nightBasePrice,
+                    'Per Hour Cost Price' => $perHourCostPrice,
+                    'Per Hour Sell Price' => $costPerHour,
+                    'Night Per Hour Cost Price' => $nightPerHourCostPrice,
+                    'Night Per Hour Sell Price' => $nightCostPerHour,
+                    'Cancellation Cost' => $cancellationCost,
+                    'Cancellation Sell' => $cancellationSell,
                 ];
                 
                 foreach ($numericFields as $fieldName => $value) {
-                    if (!empty($value) && !is_numeric($value)) {
+                    if (!is_numeric($value)) {
                         $errors[] = "Row {$rowNumber}: 🔢 {$fieldName} must be a valid number. Found: '{$value}'";
                         $errorCount++;
                         continue 2; // Skip to next row
+                    }
+                }
+
+                // Optional hourly package prices (1–12) — same as add-vehicle
+                foreach ($hourlyPrices as $hour => $hourlyValue) {
+                    if ($hourlyValue !== '' && !is_numeric($hourlyValue)) {
+                        $errors[] = "Row {$rowNumber}: 🔢 Hourly Price {$hour} Hr must be a valid number. Found: '{$hourlyValue}'";
+                        $errorCount++;
+                        continue 2;
+                    }
+                    if ($hourlyValue !== '' && floatval($hourlyValue) < 0) {
+                        $errors[] = "Row {$rowNumber}: 🔢 Hourly Price {$hour} Hr must be >= 0. Found: '{$hourlyValue}'";
+                        $errorCount++;
+                        continue 2;
                     }
                 }
                 
@@ -3373,6 +3254,20 @@ class BulkUploadController extends Controller
                 
                 // Get DMC ID based on user role (same logic as VehicleController)
                 $dmc_id = $this->getDmcIdForVehicle($auth_user);
+
+                // Optional driver assignment (must belong to same DMC)
+                $resolvedDriverId = null;
+                if ($driverId !== '') {
+                    $driver = Driver::where('driver_id', $driverId)
+                        ->where('dmc_id', $dmc_id)
+                        ->first();
+                    if (!$driver) {
+                        $errors[] = "Row {$rowNumber}: 👤 Driver ID '{$driverId}' not found for your account";
+                        $errorCount++;
+                        continue;
+                    }
+                    $resolvedDriverId = $driver->driver_id;
+                }
                 
                 // Create unique key for this vehicle
                 $vehicleKey = strtolower($normalizedPlateNumber . '|' . $dmc_id);
@@ -3399,20 +3294,24 @@ class BulkUploadController extends Controller
                 // Mark this vehicle as being processed
                 $processedVehicles[$vehicleKey] = $rowNumber;
                 
-                // Create new vehicle — vehicle_id auto-assigned on save (same as VehicleController::store)
+                // Create new vehicle — fields aligned with VehicleController::store / add-vehicle
                 $vehicle = new Vehicle();
                 $vehicle->vehicle_name = $vehicleName;
                 $vehicle->vehicle_type = $vehicleType;
                 $vehicle->vehicle_model = $vehicleModel;
                 $vehicle->model_year = intval($modelYear);
                 $vehicle->vehicle_plate_no = $vehiclePlateNo;
+                $vehicle->vehicle_color = $vehicleColor;
                 $vehicle->seating_capacity = intval($seatingCapacity);
+                $vehicle->city_tour_seating_capacity = intval($cityTourSeatingCapacity);
+                $vehicle->country = $country;
                 $vehicle->city = $city;
                 $vehicle->description = $description;
                 $vehicle->image = $vehicleImage;
                 $vehicle->is_available = ($status == '1') ? 1 : 0;
                 $vehicle->dmc_id = $dmc_id;
                 $vehicle->created_by = $auth_user->userId;
+                $vehicle->driver_id = $resolvedDriverId;
                 
                 // Set sharing option (1=Private, 2=Sharable, 3=Both)
                 $vehicle->sharable = match($vehicleSharingOption) {
@@ -3421,40 +3320,55 @@ class BulkUploadController extends Controller
                     'Both' => 3,
                     default => 1
                 };
+
+                // Zone-mapping transport prices are set post-create (same as add-vehicle flow)
+                $vehicle->attraction_private_transport_price = 0;
+                $vehicle->attraction_shared_transport_price = 0;
+                $vehicle->restaurant_private_transport_price = 0;
+                $vehicle->restaurant_shared_transport_price = 0;
                 
-                // Set transport prices
-                $vehicle->attraction_private_transport_price = is_numeric($attractionPrivatePrice) ? floatval($attractionPrivatePrice) : 0;
-                $vehicle->attraction_shared_transport_price = is_numeric($attractionSharedPrice) ? floatval($attractionSharedPrice) : 0;
-                $vehicle->restaurant_private_transport_price = is_numeric($restaurantPrivatePrice) ? floatval($restaurantPrivatePrice) : 0;
-                $vehicle->restaurant_shared_transport_price = is_numeric($restaurantSharedPrice) ? floatval($restaurantSharedPrice) : 0;
-                
-                // Set pricing fields
-                $vehicle->base_price = is_numeric($basePrice) ? floatval($basePrice) : 0;
-                $vehicle->base_cost_price = is_numeric($baseCostPrice) ? floatval($baseCostPrice) : 0;
-                $vehicle->cost_per_km_below_10 = is_numeric($costPerKmBelow10) ? floatval($costPerKmBelow10) : 0;
-                $vehicle->per_km_below_10_cost_price = is_numeric($perKmBelow10CostPrice) ? floatval($perKmBelow10CostPrice) : 0;
-                $vehicle->cost_per_km_10_to_25 = is_numeric($costPerKm10To25) ? floatval($costPerKm10To25) : 0;
-                $vehicle->per_km_10_to_25_cost_price = is_numeric($perKm10To25CostPrice) ? floatval($perKm10To25CostPrice) : 0;
-                $vehicle->cost_per_km_above_25 = is_numeric($costPerKmAbove25) ? floatval($costPerKmAbove25) : 0;
-                $vehicle->per_km_above_25_cost_price = is_numeric($perKmAbove25CostPrice) ? floatval($perKmAbove25CostPrice) : 0;
-                $vehicle->cost_per_hour = is_numeric($costPerHour) ? floatval($costPerHour) : 0;
-                $vehicle->per_hour_cost_price = is_numeric($perHourCostPrice) ? floatval($perHourCostPrice) : 0;
-                $vehicle->cancel_cost = is_numeric($cancelCost) ? floatval($cancelCost) : 0;
-                $vehicle->cancel_cost_price = is_numeric($cancelCostPrice) ? floatval($cancelCostPrice) : 0;
-                
-                // Set night pricing fields
-                $vehicle->night_base_price = is_numeric($nightBasePrice) ? floatval($nightBasePrice) : 0;
-                $vehicle->night_base_cost_price = is_numeric($nightBaseCostPrice) ? floatval($nightBaseCostPrice) : 0;
-                $vehicle->night_cost_per_km_below_10 = is_numeric($nightCostPerKmBelow10) ? floatval($nightCostPerKmBelow10) : 0;
-                $vehicle->night_per_km_below_10_cost_price = is_numeric($nightPerKmBelow10CostPrice) ? floatval($nightPerKmBelow10CostPrice) : 0;
-                $vehicle->night_cost_per_km_10_to_25 = is_numeric($nightCostPerKm10To25) ? floatval($nightCostPerKm10To25) : 0;
-                $vehicle->night_per_km_10_to_25_cost_price = is_numeric($nightPerKm10To25CostPrice) ? floatval($nightPerKm10To25CostPrice) : 0;
-                $vehicle->night_cost_per_km_above_25 = is_numeric($nightCostPerKmAbove25) ? floatval($nightCostPerKmAbove25) : 0;
-                $vehicle->night_per_km_above_25_cost_price = is_numeric($nightPerKmAbove25CostPrice) ? floatval($nightPerKmAbove25CostPrice) : 0;
-                $vehicle->night_cost_per_hour = is_numeric($nightCostPerHour) ? floatval($nightCostPerHour) : 0;
-                $vehicle->night_per_hour_cost_price = is_numeric($nightPerHourCostPrice) ? floatval($nightPerHourCostPrice) : 0;
-                $vehicle->night_cancel_cost = is_numeric($nightCancelCost) ? floatval($nightCancelCost) : 0;
-                $vehicle->night_cancel_cost_price = is_numeric($nightCancelCostPrice) ? floatval($nightCancelCostPrice) : 0;
+                // Day / night pricing (cost + sell) — no per-KM columns on add-vehicle
+                $vehicle->base_cost_price = floatval($baseCostPrice);
+                $vehicle->base_price = floatval($basePrice);
+                $vehicle->night_base_cost_price = floatval($nightBaseCostPrice);
+                $vehicle->night_base_price = floatval($nightBasePrice);
+                $vehicle->per_hour_cost_price = floatval($perHourCostPrice);
+                $vehicle->cost_per_hour = floatval($costPerHour);
+                $vehicle->night_per_hour_cost_price = floatval($nightPerHourCostPrice);
+                $vehicle->night_cost_per_hour = floatval($nightCostPerHour);
+
+                $vehicle->cancellation_cost = floatval($cancellationCost);
+                $vehicle->cancellation_sell = floatval($cancellationSell);
+                $vehicle->cancel_cost_price = floatval($cancellationCost);
+                $vehicle->cancel_cost = floatval($cancellationSell);
+                // Night cancel auto-synced from day (same as add-vehicle hidden fields)
+                $vehicle->night_cancel_cost_price = floatval($cancellationCost);
+                $vehicle->night_cancel_cost = floatval($cancellationSell);
+
+                // Hourly package prices (optional) — same columns as add-vehicle
+                for ($hour = 1; $hour <= 12; $hour++) {
+                    $field = 'hourly_price_' . $hour;
+                    if (!\Schema::hasColumn('vehicles', $field)) {
+                        continue;
+                    }
+                    $hourlyValue = $hourlyPrices[$hour] ?? '';
+                    $vehicle->{$field} = ($hourlyValue !== '' && is_numeric($hourlyValue))
+                        ? floatval($hourlyValue)
+                        : null;
+                }
+
+                $vehicle->cost_per_km_below_10 = 0;
+                $vehicle->per_km_below_10_cost_price = 0;
+                $vehicle->cost_per_km_10_to_25 = 0;
+                $vehicle->per_km_10_to_25_cost_price = 0;
+                $vehicle->cost_per_km_above_25 = 0;
+                $vehicle->per_km_above_25_cost_price = 0;
+                $vehicle->night_cost_per_km_below_10 = 0;
+                $vehicle->night_per_km_below_10_cost_price = 0;
+                $vehicle->night_cost_per_km_10_to_25 = 0;
+                $vehicle->night_per_km_10_to_25_cost_price = 0;
+                $vehicle->night_cost_per_km_above_25 = 0;
+                $vehicle->night_per_km_above_25_cost_price = 0;
                 
                 $vehicle->save();
                 $vehicle->refresh();
@@ -3513,7 +3427,7 @@ class BulkUploadController extends Controller
             
             return redirect()->back()
                 ->with('success', $message)
-                ->with('errors', $errors);
+                ->with('upload_errors', $errors);
                 
         } else {
             // Complete failure
@@ -3524,7 +3438,7 @@ class BulkUploadController extends Controller
             
             return redirect()->back()
                 ->with('error', $message)
-                ->with('errors', $errors);
+                ->with('upload_errors', $errors);
         }
     }
     
@@ -3618,30 +3532,55 @@ class BulkUploadController extends Controller
                         continue;
                     }
                     
-                    // Map CSV columns to variables
+                    // Map CSV columns — aligned with AttractionController::store / create-attraction
+                    // dmc_id is NEVER from CSV (same as normal create; later via addDmcId)
                     $attractionName = trim($row[0] ?? '');
-                    $country = trim($row[1] ?? '');
-                    $city = trim($row[2] ?? '');
-                    $seniorAgeThreshold = trim($row[3] ?? '');
-                    $maxChildAge = trim($row[4] ?? '');
-                    $latitude = trim($row[5] ?? '');
-                    $longitude = trim($row[6] ?? '');
-                    $morningOpening = trim($row[7] ?? '');
-                    $afternoonOpening = trim($row[8] ?? '');
-                    $eveningOpening = trim($row[9] ?? '');
-                    $nightOpening = trim($row[10] ?? '');
-                    $openTime = trim($row[11] ?? '');
-                    $closeTime = trim($row[12] ?? '');
-                    $masterImage = trim($row[13] ?? '');
-                    $additionalImages = trim($row[14] ?? '');
-                    $importantNotes = trim($row[15] ?? '');
-                    $termsConditions = trim($row[16] ?? '');
-                    $status = trim($row[17] ?? '1');
+                    $phone = trim($row[1] ?? '');
+                    $country = trim($row[2] ?? '');
+                    $city = trim($row[3] ?? '');
+                    $seniorAgeThreshold = trim($row[4] ?? '');
+                    $maxChildAge = trim($row[5] ?? '');
+                    $priceShared = trim($row[6] ?? '');
+                    $pricePrivate = trim($row[7] ?? '');
+                    $latitude = trim($row[8] ?? '');
+                    $longitude = trim($row[9] ?? '');
+                    $morningOpening = trim($row[10] ?? '');
+                    $afternoonOpening = trim($row[11] ?? '');
+                    $eveningOpening = trim($row[12] ?? '');
+                    $nightOpening = trim($row[13] ?? '');
+                    $attractionTypeRaw = trim($row[14] ?? '');
+                    $openTime = trim($row[15] ?? '');
+                    $closeTime = trim($row[16] ?? '');
+                    $masterImage = trim($row[17] ?? '');
+                    $additionalImages = trim($row[18] ?? '');
+                    $importantNotes = trim($row[19] ?? '');
+                    $remarks = trim($row[20] ?? '');
+                    $termsConditions = trim($row[21] ?? '');
+                    $status = trim($row[22] ?? '1');
+
                     // Validate required fields
-                    if (empty($attractionName) || empty($country) || empty($city) || empty($seniorAgeThreshold) || 
-                        empty($maxChildAge) || empty($latitude) || empty($longitude) || empty($openTime) || 
-                        empty($closeTime) || empty($masterImage) || empty($importantNotes) || empty($termsConditions)) {
+                    if ($attractionName === '' || $phone === '' || $country === '' || $city === '' ||
+                        $seniorAgeThreshold === '' || $maxChildAge === '' || $priceShared === '' || $pricePrivate === '' ||
+                        $latitude === '' || $longitude === '' || $attractionTypeRaw === '' ||
+                        $openTime === '' || $closeTime === '' || $masterImage === '' ||
+                        $importantNotes === '' || $termsConditions === '') {
                         $errors[] = "Row {$rowNumber}: Missing required fields";
+                        $errorCount++;
+                        continue;
+                    }
+
+                    $attractionType = match(strtolower($attractionTypeRaw)) {
+                        '1', 'tour site', 'toursite' => 1,
+                        '2', 'attraction' => 2,
+                        default => null
+                    };
+                    if ($attractionType === null) {
+                        $errors[] = "Row {$rowNumber}: Invalid Attraction Type. Use Attraction or Tour Site (or 2 / 1)";
+                        $errorCount++;
+                        continue;
+                    }
+                    if (!is_numeric($priceShared) || floatval($priceShared) < 0 || !is_numeric($pricePrivate) || floatval($pricePrivate) < 0) {
+                        $errors[] = "Row {$rowNumber}: Shared/Private Transport Price must be numbers >= 0";
                         $errorCount++;
                         continue;
                     }
@@ -3675,57 +3614,37 @@ class BulkUploadController extends Controller
                     // Use Important Notes as description (no additional data appended)
                     $description = $importantNotes;
                   
-                    // Create attraction record — attraction_id auto-assigned on save
+                    // Create attraction record — same persisted fields as AttractionController::store
+                    // (dmc_id intentionally not set here; ownership via later addDmcId / selection)
                     $attraction = new Attraction();
                     $attraction->name = $attractionName;
+                    $attraction->phone = $phone;
                     $attraction->description = $description;
+                    $attraction->remarks = $remarks !== '' ? $remarks : null;
                     $attraction->master_image = $masterImage;
                     $attraction->additional_image = json_encode($additionalImagesArray);
                     $attraction->open_time = json_encode([$openTime]);
                     $attraction->close_time = json_encode([$closeTime]);
-                    
-                    // Map additional fields if they exist in the database
-                    if (Schema::hasColumn('attractions', 'location')) {
-                        $attraction->location = $city;
-                    }
-                    if (Schema::hasColumn('attractions', 'country')) {
-                        $attraction->country = $country;
-                    }
-                    if (Schema::hasColumn('attractions', 'latitude')) {
-                        $attraction->latitude = is_numeric($latitude) ? floatval($latitude) : null;
-                    }
-                    if (Schema::hasColumn('attractions', 'longitude')) {
-                        $attraction->longitude = is_numeric($longitude) ? floatval($longitude) : null;
-                    }
-                    if (Schema::hasColumn('attractions', 'senior_min_age')) {
-                        $attraction->senior_min_age = is_numeric($seniorAgeThreshold) ? intval($seniorAgeThreshold) : null;
-                    }
-                    if (Schema::hasColumn('attractions', 'child_max_age')) {
-                        $attraction->child_max_age = is_numeric($maxChildAge) ? intval($maxChildAge) : null;
-                    }
-                    if (Schema::hasColumn('attractions', 'morning_opening')) {
-                        $attraction->morning_opening = ($morningOpening == '1') ? 1 : 0;
-                    }
-                    if (Schema::hasColumn('attractions', 'afternoon_opening')) {
-                        $attraction->afternoon_opening = ($afternoonOpening == '1') ? 1 : 0;
-                    }
-                    if (Schema::hasColumn('attractions', 'evening_opening')) {
-                        $attraction->evening_opening = ($eveningOpening == '1') ? 1 : 0;
-                    }
-                    if (Schema::hasColumn('attractions', 'night_opening')) {
-                        $attraction->night_opening = ($nightOpening == '1') ? 1 : 0;
-                    }
-                    if (Schema::hasColumn('attractions', 'terms_conditions')) {
-                        $attraction->terms_conditions = $termsConditions;
-                    }
-                    if (Schema::hasColumn('attractions', 'status')) {
-                        $attraction->status = ($status == '1') ? 1 : 0;
-                    }
-                    
-                    
-                    if (Schema::hasColumn('attractions', 'created_by')) {
-                        $attraction->created_by = $auth_user->userId;
-                    }
+                    $attraction->adult_price = 0;
+                    $attraction->child_price = 0;
+                    $attraction->senior_adult_price = 0;
+                    $attraction->price_shared = floatval($priceShared);
+                    $attraction->price_private = floatval($pricePrivate);
+                    $attraction->attraction_type = $attractionType;
+                    $attraction->location = $city;
+                    $attraction->country = $country;
+                    $attraction->latitude = is_numeric($latitude) ? floatval($latitude) : null;
+                    $attraction->longitude = is_numeric($longitude) ? floatval($longitude) : null;
+                    $attraction->senior_min_age = is_numeric($seniorAgeThreshold) ? intval($seniorAgeThreshold) : null;
+                    $attraction->child_max_age = is_numeric($maxChildAge) ? intval($maxChildAge) : null;
+                    $attraction->morning_opening = ($morningOpening == '1') ? 1 : 0;
+                    $attraction->afternoon_opening = ($afternoonOpening == '1') ? 1 : 0;
+                    $attraction->evening_opening = ($eveningOpening == '1') ? 1 : 0;
+                    $attraction->night_opening = ($nightOpening == '1') ? 1 : 0;
+                    $attraction->terms_conditions = $termsConditions;
+                    $attraction->status = ($status == '1') ? 1 : 0;
+                    $attraction->is_active = ($status == '1') ? 1 : 0;
+                    $attraction->created_by = $auth_user->userId;
                     
                     $attraction->save();
                     $attraction->refresh();
@@ -3766,7 +3685,7 @@ class BulkUploadController extends Controller
 
             return redirect()->back()
                 ->with('success', $message)
-                ->with('errors', $errors);
+                ->with('upload_errors', $errors);
                 
         } catch (\Exception $e) {
             DB::rollback();
@@ -3791,7 +3710,7 @@ class BulkUploadController extends Controller
             $auth_user = Auth::user();
             
             // Check for DMC role - role_id is stored as string "11"
-            if (!$auth_user || $auth_user->role_id !== '11') {
+            if (!$auth_user || (int) $auth_user->role_id !== 11) {
                 return redirect()->back()->with('error', 'Access denied. Only DMC users can upload tickets.');
             }
             
@@ -3834,20 +3753,27 @@ class BulkUploadController extends Controller
                 $rowNumber = $rowIndex + 2; // +2 because we removed header and rows start at 1
                 
                 try {
-                    // Map CSV columns to variables
+                    // Map CSV columns — attraction context + ticket cost/sell (same as add-ticket)
                     $attractionName = trim($row[0] ?? '');
                     $country = trim($row[1] ?? '');
                     $city = trim($row[2] ?? '');
                     $ticketName = trim($row[3] ?? '');
-                    $childPrice = trim($row[4] ?? '0');
-                    $adultPrice = trim($row[5] ?? '0');
-                    $seniorAdultPrice = trim($row[6] ?? '0');
-                    $childPriceNri = trim($row[7] ?? '0');
-                    $adultPriceNri = trim($row[8] ?? '0');
-                    $seniorAdultPriceNri = trim($row[9] ?? '0');
-                    $description = trim($row[10] ?? '');
-                    $termsConditions = trim($row[11] ?? '');
-                    $status = trim($row[12] ?? '1');
+                    $childCostPrice = trim($row[4] ?? '');
+                    $childPrice = trim($row[5] ?? '');
+                    $adultCostPrice = trim($row[6] ?? '');
+                    $adultPrice = trim($row[7] ?? '');
+                    $seniorAdultCostPrice = trim($row[8] ?? '');
+                    $seniorAdultPrice = trim($row[9] ?? '');
+                    $childCostPriceNri = trim($row[10] ?? '');
+                    $childPriceNri = trim($row[11] ?? '');
+                    $adultCostPriceNri = trim($row[12] ?? '');
+                    $adultPriceNri = trim($row[13] ?? '');
+                    $seniorAdultCostPriceNri = trim($row[14] ?? '');
+                    $seniorAdultPriceNri = trim($row[15] ?? '');
+                    $description = trim($row[16] ?? '');
+                    $remarks = trim($row[17] ?? '');
+                    $termsConditions = trim($row[18] ?? '');
+                    $status = trim($row[19] ?? '1');
                     
                     // Check if this row defines a new attraction context
                     if (!empty($attractionName) && !empty($country) && !empty($city)) {
@@ -3879,17 +3805,23 @@ class BulkUploadController extends Controller
                         continue;
                     }
                     
-                    // Validate required ticket fields
+                    // Validate required ticket fields (match add-ticket UI)
                     $missingFields = [];
-                    if (empty($ticketName)) $missingFields[] = 'Ticket Name';
-                    if (empty($childPrice) || $childPrice === '0') $missingFields[] = 'Child Price';
-                    if (empty($adultPrice) || $adultPrice === '0') $missingFields[] = 'Adult Price';
-                    if (empty($seniorAdultPrice) || $seniorAdultPrice === '0') $missingFields[] = 'Senior Citizen Price';
-                    if (empty($childPriceNri) || $childPriceNri === '0') $missingFields[] = 'Child Price NRI';
-                    if (empty($adultPriceNri) || $adultPriceNri === '0') $missingFields[] = 'Adult Price NRI';
-                    if (empty($seniorAdultPriceNri) || $seniorAdultPriceNri === '0') $missingFields[] = 'Senior Citizen Price NRI';
-                    if (empty($description)) $missingFields[] = 'Important Notes';
-                    if (empty($termsConditions)) $missingFields[] = 'Terms & Conditions';
+                    if ($ticketName === '') $missingFields[] = 'Ticket Name';
+                    if ($childCostPrice === '') $missingFields[] = 'Child Cost (Local)';
+                    if ($childPrice === '') $missingFields[] = 'Child Sell (Local)';
+                    if ($adultCostPrice === '') $missingFields[] = 'Adult Cost (Local)';
+                    if ($adultPrice === '') $missingFields[] = 'Adult Sell (Local)';
+                    if ($seniorAdultCostPrice === '') $missingFields[] = 'Senior Cost (Local)';
+                    if ($seniorAdultPrice === '') $missingFields[] = 'Senior Sell (Local)';
+                    if ($childCostPriceNri === '') $missingFields[] = 'Child Cost (Foreigner)';
+                    if ($childPriceNri === '') $missingFields[] = 'Child Sell (Foreigner)';
+                    if ($adultCostPriceNri === '') $missingFields[] = 'Adult Cost (Foreigner)';
+                    if ($adultPriceNri === '') $missingFields[] = 'Adult Sell (Foreigner)';
+                    if ($seniorAdultCostPriceNri === '') $missingFields[] = 'Senior Cost (Foreigner)';
+                    if ($seniorAdultPriceNri === '') $missingFields[] = 'Senior Sell (Foreigner)';
+                    if ($description === '') $missingFields[] = 'Important Notes';
+                    if ($termsConditions === '') $missingFields[] = 'Terms & Conditions';
                     
                     if (!empty($missingFields)) {
                         $errors[] = "Row {$rowNumber}: Missing required fields: " . implode(', ', $missingFields);
@@ -3897,26 +3829,31 @@ class BulkUploadController extends Controller
                         continue;
                     }
 
-                    // Validate numeric fields and ensure they are greater than 0
                     $numericFields = [
-                        'Child Price' => $childPrice,
-                        'Adult Price' => $adultPrice,
-                        'Senior Citizen Price' => $seniorAdultPrice,
-                        'Child Price NRI' => $childPriceNri,
-                        'Adult Price NRI' => $adultPriceNri,
-                        'Senior Citizen Price NRI' => $seniorAdultPriceNri
+                        'Child Cost (Local)' => $childCostPrice,
+                        'Child Sell (Local)' => $childPrice,
+                        'Adult Cost (Local)' => $adultCostPrice,
+                        'Adult Sell (Local)' => $adultPrice,
+                        'Senior Cost (Local)' => $seniorAdultCostPrice,
+                        'Senior Sell (Local)' => $seniorAdultPrice,
+                        'Child Cost (Foreigner)' => $childCostPriceNri,
+                        'Child Sell (Foreigner)' => $childPriceNri,
+                        'Adult Cost (Foreigner)' => $adultCostPriceNri,
+                        'Adult Sell (Foreigner)' => $adultPriceNri,
+                        'Senior Cost (Foreigner)' => $seniorAdultCostPriceNri,
+                        'Senior Sell (Foreigner)' => $seniorAdultPriceNri,
                     ];
 
                     foreach ($numericFields as $fieldName => $value) {
-                        if (!empty($value) && !is_numeric($value)) {
+                        if (!is_numeric($value)) {
                             $errors[] = "Row {$rowNumber}: {$fieldName} must be a valid number. Found: '{$value}'";
                             $errorCount++;
-                            continue 2; // Skip to next row
+                            continue 2;
                         }
-                        if (!empty($value) && is_numeric($value) && floatval($value) <= 0) {
-                            $errors[] = "Row {$rowNumber}: {$fieldName} must be greater than 0. Found: '{$value}'";
+                        if (floatval($value) < 0) {
+                            $errors[] = "Row {$rowNumber}: {$fieldName} must be 0 or greater. Found: '{$value}'";
                             $errorCount++;
-                            continue 2; // Skip to next row
+                            continue 2;
                         }
                     }
 
@@ -3945,20 +3882,27 @@ class BulkUploadController extends Controller
                         continue;
                     }
                     
-                    // Create ticket record — ticket_id auto-assigned on save (same as TicketController::store)
+                    // Create ticket record — same columns as TicketController::store
                     $ticket = new \App\Models\Ticket();
                     $ticket->name = $ticketName;
                     $ticket->description = $description;
+                    $ticket->remarks = $remarks !== '' ? $remarks : null;
                     $ticket->terms_conditions = $termsConditions;
-                    $ticket->child_price = is_numeric($childPrice) ? floatval($childPrice) : 0;
-                    $ticket->adult_price = is_numeric($adultPrice) ? floatval($adultPrice) : 0;
-                    $ticket->senior_adult_price = is_numeric($seniorAdultPrice) ? floatval($seniorAdultPrice) : 0;
-                    $ticket->child_price_nri = is_numeric($childPriceNri) ? floatval($childPriceNri) : 0;
-                    $ticket->adult_price_nri = is_numeric($adultPriceNri) ? floatval($adultPriceNri) : 0;
-                    $ticket->senior_adult_price_nri = is_numeric($seniorAdultPriceNri) ? floatval($seniorAdultPriceNri) : 0;
+                    $ticket->child_cost_price = floatval($childCostPrice);
+                    $ticket->child_price = floatval($childPrice);
+                    $ticket->adult_cost_price = floatval($adultCostPrice);
+                    $ticket->adult_price = floatval($adultPrice);
+                    $ticket->senior_adult_cost_price = floatval($seniorAdultCostPrice);
+                    $ticket->senior_adult_price = floatval($seniorAdultPrice);
+                    $ticket->child_cost_price_nri = floatval($childCostPriceNri);
+                    $ticket->child_price_nri = floatval($childPriceNri);
+                    $ticket->adult_cost_price_nri = floatval($adultCostPriceNri);
+                    $ticket->adult_price_nri = floatval($adultPriceNri);
+                    $ticket->senior_adult_cost_price_nri = floatval($seniorAdultCostPriceNri);
+                    $ticket->senior_adult_price_nri = floatval($seniorAdultPriceNri);
                     $ticket->status = ($status == '1') ? 1 : 0;
                     $ticket->attraction_id = $currentAttraction->attraction_id;
-                    $ticket->dmc_id = $auth_user->userId; // Store DMC's userId
+                    $ticket->dmc_id = $auth_user->userId; // from auth, not CSV
                     $ticket->created_by = $auth_user->userId;
                     
                     $ticket->save();
@@ -4001,7 +3945,7 @@ class BulkUploadController extends Controller
 
             return redirect()->back()
                 ->with('success', $message)
-                ->with('errors', $errors);
+                ->with('upload_errors', $errors);
                 
         } catch (\Exception $e) {
             DB::rollback();
@@ -4023,7 +3967,7 @@ class BulkUploadController extends Controller
         $auth_user = Auth::user();
         
         // Check for DMC role - role_id is stored as string "11"
-        if (!$auth_user || $auth_user->role_id !== '11') {
+        if (!$auth_user || (int) $auth_user->role_id !== 11) {
             abort(403, 'Access denied. Only DMC users can access ticket bulk upload.');
         }
 
@@ -4063,7 +4007,7 @@ class BulkUploadController extends Controller
         $auth_user = Auth::user();
         
         // Check for DMC role
-        if (!$auth_user || $auth_user->role_id !== '11') {
+        if (!$auth_user || (int) $auth_user->role_id !== 11) {
             abort(403, 'Access denied. Only DMC users can download ticket templates.');
         }
 
@@ -4089,56 +4033,86 @@ class BulkUploadController extends Controller
     }
 
     // Generate CSV template data for attraction-specific ticket upload
+    // Columns match add-ticket.blade.php persisted fields (profit type/on-cost are UI-only)
     private function generateAttractionTicketCsvData($attraction)
     {
         $header = [
-            'Ticket Name (Required)',
-            'Child Price(local) (Required)',
-            'Adult Price(local) (Required)',
-            'Senior Citizen Price(local) (Required)',
-            'Child Price(foreigner) (Required)',
-            'Adult Price(foreigner) (Required)',
-            'Senior Citizen Price(foreigner) (Required)',
-            'Important Notes (Required)',
-            'Terms & Conditions (Required)',
+            'Ticket Name*',
+            'Child Cost (Local)*',
+            'Child Sell (Local)*',
+            'Adult Cost (Local)*',
+            'Adult Sell (Local)*',
+            'Senior Cost (Local)*',
+            'Senior Sell (Local)*',
+            'Child Cost (Foreigner)*',
+            'Child Sell (Foreigner)*',
+            'Adult Cost (Foreigner)*',
+            'Adult Sell (Foreigner)*',
+            'Senior Cost (Foreigner)*',
+            'Senior Sell (Foreigner)*',
+            'Important Notes*',
+            'Remarks',
+            'Terms & Conditions*',
             'Status (1=Active, 0=Inactive)'
         ];
 
         $data = [$header];
 
-        // Add sample data with proper required field values
-        $sampleData = [
-            'Standard Entry Ticket',
-            '15.00',  // Child Price (required)
-            '25.00',  // Adult Price (required)
-            '20.00',  // Senior Citizen Price (required)
-            '20.00',  // Child Price NRI (required)
-            '35.00',  // Adult Price NRI (required)
-            '30.00',  // Senior Citizen Price NRI (required)
-            'Valid for one day entry. Please bring valid ID.',
-            'No refund after booking. Entry subject to availability.',
-            '1'
-        ];
-        $data[] = $sampleData;
+        // Prefer existing tickets so template mirrors live data (incl. cost fields)
+        $existingTickets = \App\Models\Ticket::where('attraction_id', $attraction->attraction_id)
+            ->orderBy('ticket_id')
+            ->get();
 
-        // Add another sample
-        $sampleData2 = [
-            'VIP Entry Ticket',
-            '25.00',  // Child Price (required)
-            '50.00',  // Adult Price (required)
-            '40.00',  // Senior Citizen Price (required)
-            '30.00',  // Child Price NRI (required)
-            '60.00',  // Adult Price NRI (required)
-            '50.00',  // Senior Citizen Price NRI (required)
-            'Includes priority access and guided tour.',
-            'Advance booking required. No cancellation allowed.',
-            '1'
-        ];
-        $data[] = $sampleData2;
-
-        // Add empty row for user input (with notes for required fields)
-        // $emptyRow = ['[Required]', '[Required]', '[Required]', '[Required]', '[Required]', '[Required]', '[Required]', '[Required]', '[Required]', '1'];
-        // $data[] = $emptyRow;
+        if ($existingTickets->isNotEmpty()) {
+            foreach ($existingTickets as $ticket) {
+                $data[] = [
+                    $ticket->name ?? '',
+                    $ticket->child_cost_price ?? '',
+                    $ticket->child_price ?? '',
+                    $ticket->adult_cost_price ?? '',
+                    $ticket->adult_price ?? '',
+                    $ticket->senior_adult_cost_price ?? '',
+                    $ticket->senior_adult_price ?? '',
+                    $ticket->child_cost_price_nri ?? '',
+                    $ticket->child_price_nri ?? '',
+                    $ticket->adult_cost_price_nri ?? '',
+                    $ticket->adult_price_nri ?? '',
+                    $ticket->senior_adult_cost_price_nri ?? '',
+                    $ticket->senior_adult_price_nri ?? '',
+                    $ticket->description ?? '',
+                    $ticket->remarks ?? '',
+                    $ticket->terms_conditions ?? '',
+                    ((int) ($ticket->status ?? 0) === 1) ? '1' : '0',
+                ];
+            }
+        } else {
+            $data[] = [
+                'Standard Entry Ticket',
+                '12.00', '15.00',
+                '20.00', '25.00',
+                '16.00', '20.00',
+                '16.00', '20.00',
+                '28.00', '35.00',
+                '24.00', '30.00',
+                'Valid for one day entry. Please bring valid ID.',
+                '',
+                'No refund after booking. Entry subject to availability.',
+                '1'
+            ];
+            $data[] = [
+                'VIP Entry Ticket',
+                '20.00', '25.00',
+                '40.00', '50.00',
+                '32.00', '40.00',
+                '24.00', '30.00',
+                '48.00', '60.00',
+                '40.00', '50.00',
+                'Includes priority access and guided tour.',
+                '',
+                'Advance booking required. No cancellation allowed.',
+                '1'
+            ];
+        }
 
         return $data;
     }
@@ -4164,7 +4138,7 @@ class BulkUploadController extends Controller
             $file = $request->file('file');
             
             // Check for DMC role
-            if (!$auth_user || $auth_user->role_id !== '11') {
+            if (!$auth_user || (int) $auth_user->role_id !== 11) {
                 return redirect()->back()->with('error', 'Access denied. Only DMC users can upload tickets.');
             }
 
@@ -4206,11 +4180,11 @@ class BulkUploadController extends Controller
                 return redirect()->back()->with('error', 'The CSV file must contain at least a header row and one data row.');
             }
 
-            // Validate CSV structure
-            $expectedColumns = 10; // Based on template
+            // Validate CSV structure (aligned with add-ticket: cost + sell + remarks)
+            $expectedColumns = 17;
             $headerRow = $csvData[0];
             if (count($headerRow) < $expectedColumns) {
-                return redirect()->back()->with('error', "Invalid CSV format. Expected at least {$expectedColumns} columns, found " . count($headerRow) . ".");
+                return redirect()->back()->with('error', "Invalid CSV format. Expected at least {$expectedColumns} columns (cost + sell pricing), found " . count($headerRow) . ". Please download the latest template.");
             }
 
             // Remove header row
@@ -4249,29 +4223,42 @@ class BulkUploadController extends Controller
                         continue;
                     }
 
-                    // Map CSV columns to variables with better null handling
+                    // Map CSV columns — same field set as TicketController::store
                     $ticketName = trim($row[0] ?? '');
-                    $childPrice = trim($row[1] ?? '0');
-                    $adultPrice = trim($row[2] ?? '0');
-                    $seniorAdultPrice = trim($row[3] ?? '0');
-                    $childPriceNri = trim($row[4] ?? '0');
-                    $adultPriceNri = trim($row[5] ?? '0');
-                    $seniorAdultPriceNri = trim($row[6] ?? '0');
-                    $description = trim($row[7] ?? '');
-                    $termsConditions = trim($row[8] ?? '');
-                    $status = trim($row[9] ?? '1');
+                    $childCostPrice = trim($row[1] ?? '');
+                    $childPrice = trim($row[2] ?? '');
+                    $adultCostPrice = trim($row[3] ?? '');
+                    $adultPrice = trim($row[4] ?? '');
+                    $seniorAdultCostPrice = trim($row[5] ?? '');
+                    $seniorAdultPrice = trim($row[6] ?? '');
+                    $childCostPriceNri = trim($row[7] ?? '');
+                    $childPriceNri = trim($row[8] ?? '');
+                    $adultCostPriceNri = trim($row[9] ?? '');
+                    $adultPriceNri = trim($row[10] ?? '');
+                    $seniorAdultCostPriceNri = trim($row[11] ?? '');
+                    $seniorAdultPriceNri = trim($row[12] ?? '');
+                    $description = trim($row[13] ?? '');
+                    $remarks = trim($row[14] ?? '');
+                    $termsConditions = trim($row[15] ?? '');
+                    $status = trim($row[16] ?? '1');
                     
-                    // Enhanced validation for required fields
+                    // Enhanced validation for required fields (match add-ticket UI)
                     $missingFields = [];
-                    if (empty($ticketName)) $missingFields[] = 'Ticket Name';
-                    if (empty($childPrice) || $childPrice === '0') $missingFields[] = 'Child Price';
-                    if (empty($adultPrice) || $adultPrice === '0') $missingFields[] = 'Adult Price';
-                    if (empty($seniorAdultPrice) || $seniorAdultPrice === '0') $missingFields[] = 'Senior Citizen Price';
-                    if (empty($childPriceNri) || $childPriceNri === '0') $missingFields[] = 'Child Price NRI';
-                    if (empty($adultPriceNri) || $adultPriceNri === '0') $missingFields[] = 'Adult Price NRI';
-                    if (empty($seniorAdultPriceNri) || $seniorAdultPriceNri === '0') $missingFields[] = 'Senior Citizen Price NRI';
-                    if (empty($description)) $missingFields[] = 'Important Notes';
-                    if (empty($termsConditions)) $missingFields[] = 'Terms & Conditions';
+                    if ($ticketName === '') $missingFields[] = 'Ticket Name';
+                    if ($childCostPrice === '') $missingFields[] = 'Child Cost (Local)';
+                    if ($childPrice === '') $missingFields[] = 'Child Sell (Local)';
+                    if ($adultCostPrice === '') $missingFields[] = 'Adult Cost (Local)';
+                    if ($adultPrice === '') $missingFields[] = 'Adult Sell (Local)';
+                    if ($seniorAdultCostPrice === '') $missingFields[] = 'Senior Cost (Local)';
+                    if ($seniorAdultPrice === '') $missingFields[] = 'Senior Sell (Local)';
+                    if ($childCostPriceNri === '') $missingFields[] = 'Child Cost (Foreigner)';
+                    if ($childPriceNri === '') $missingFields[] = 'Child Sell (Foreigner)';
+                    if ($adultCostPriceNri === '') $missingFields[] = 'Adult Cost (Foreigner)';
+                    if ($adultPriceNri === '') $missingFields[] = 'Adult Sell (Foreigner)';
+                    if ($seniorAdultCostPriceNri === '') $missingFields[] = 'Senior Cost (Foreigner)';
+                    if ($seniorAdultPriceNri === '') $missingFields[] = 'Senior Sell (Foreigner)';
+                    if ($description === '') $missingFields[] = 'Important Notes';
+                    if ($termsConditions === '') $missingFields[] = 'Terms & Conditions';
                     
                     if (!empty($missingFields)) {
                         $errors[] = "Row {$rowNumber}: Missing required fields: " . implode(', ', $missingFields);
@@ -4279,26 +4266,32 @@ class BulkUploadController extends Controller
                         continue;
                     }
 
-                    // Validate numeric fields and ensure they are greater than 0
+                    // Validate numeric fields (>= 0, same as form inputs min=0)
                     $numericFields = [
-                        'Child Price' => $childPrice,
-                        'Adult Price' => $adultPrice,
-                        'Senior Citizen Price' => $seniorAdultPrice,
-                        'Child Price NRI' => $childPriceNri,
-                        'Adult Price NRI' => $adultPriceNri,
-                        'Senior Citizen Price NRI' => $seniorAdultPriceNri
+                        'Child Cost (Local)' => $childCostPrice,
+                        'Child Sell (Local)' => $childPrice,
+                        'Adult Cost (Local)' => $adultCostPrice,
+                        'Adult Sell (Local)' => $adultPrice,
+                        'Senior Cost (Local)' => $seniorAdultCostPrice,
+                        'Senior Sell (Local)' => $seniorAdultPrice,
+                        'Child Cost (Foreigner)' => $childCostPriceNri,
+                        'Child Sell (Foreigner)' => $childPriceNri,
+                        'Adult Cost (Foreigner)' => $adultCostPriceNri,
+                        'Adult Sell (Foreigner)' => $adultPriceNri,
+                        'Senior Cost (Foreigner)' => $seniorAdultCostPriceNri,
+                        'Senior Sell (Foreigner)' => $seniorAdultPriceNri,
                     ];
 
                     foreach ($numericFields as $fieldName => $value) {
-                        if (!empty($value) && !is_numeric($value)) {
+                        if (!is_numeric($value)) {
                             $errors[] = "Row {$rowNumber}: {$fieldName} must be a valid number. Found: '{$value}'";
                             $errorCount++;
-                            continue 2; // Skip to next row
+                            continue 2;
                         }
-                        if (!empty($value) && is_numeric($value) && floatval($value) <= 0) {
-                            $errors[] = "Row {$rowNumber}: {$fieldName} must be greater than 0. Found: '{$value}'";
+                        if (floatval($value) < 0) {
+                            $errors[] = "Row {$rowNumber}: {$fieldName} must be 0 or greater. Found: '{$value}'";
                             $errorCount++;
-                            continue 2; // Skip to next row
+                            continue 2;
                         }
                     }
 
@@ -4334,21 +4327,28 @@ class BulkUploadController extends Controller
                         continue;
                     }
                     
-                    // Create ticket record — ticket_id auto-assigned on save (same as TicketController::store)
+                    // Create ticket record — same columns as TicketController::store
                     try {
                         $ticket = new \App\Models\Ticket();
                         $ticket->name = $ticketName;
                         $ticket->description = $description;
+                        $ticket->remarks = $remarks !== '' ? $remarks : null;
                         $ticket->terms_conditions = $termsConditions;
-                        $ticket->child_price = is_numeric($childPrice) ? floatval($childPrice) : 0;
-                        $ticket->adult_price = is_numeric($adultPrice) ? floatval($adultPrice) : 0;
-                        $ticket->senior_adult_price = is_numeric($seniorAdultPrice) ? floatval($seniorAdultPrice) : 0;
-                        $ticket->child_price_nri = is_numeric($childPriceNri) ? floatval($childPriceNri) : 0;
-                        $ticket->adult_price_nri = is_numeric($adultPriceNri) ? floatval($adultPriceNri) : 0;
-                        $ticket->senior_adult_price_nri = is_numeric($seniorAdultPriceNri) ? floatval($seniorAdultPriceNri) : 0;
+                        $ticket->child_cost_price = floatval($childCostPrice);
+                        $ticket->child_price = floatval($childPrice);
+                        $ticket->adult_cost_price = floatval($adultCostPrice);
+                        $ticket->adult_price = floatval($adultPrice);
+                        $ticket->senior_adult_cost_price = floatval($seniorAdultCostPrice);
+                        $ticket->senior_adult_price = floatval($seniorAdultPrice);
+                        $ticket->child_cost_price_nri = floatval($childCostPriceNri);
+                        $ticket->child_price_nri = floatval($childPriceNri);
+                        $ticket->adult_cost_price_nri = floatval($adultCostPriceNri);
+                        $ticket->adult_price_nri = floatval($adultPriceNri);
+                        $ticket->senior_adult_cost_price_nri = floatval($seniorAdultCostPriceNri);
+                        $ticket->senior_adult_price_nri = floatval($seniorAdultPriceNri);
                         $ticket->status = ($status == '1') ? 1 : 0;
                         $ticket->attraction_id = $attraction->attraction_id;
-                        $ticket->dmc_id = $auth_user->userId;
+                        $ticket->dmc_id = $auth_user->userId; // from auth, not CSV
                         $ticket->created_by = $auth_user->userId;
                         
                         $ticket->save();
@@ -4441,7 +4441,7 @@ class BulkUploadController extends Controller
         //dd(1);
         $auth_user = Auth::user();
 
-        if (!$auth_user || $auth_user->role_id !== '11') {
+        if (!$auth_user || (int) $auth_user->role_id !== 11) {
             abort(403, 'Only DMC users can access meal bulk upload.');
         }
         
@@ -4493,15 +4493,21 @@ class BulkUploadController extends Controller
 
     private function generateDmcMealTemplate($restaurant)
     {
+        // Aligned with create-meals: item name + cost/sell by meal type
         $headers = [
             'Meal Type*',
             'Beverage*',
             'Meals*',
-            'Item Price',
+            'Item Name*',
+            'Item Cost Price',
+            'Item Sell Price',
             'Item Type',
-            'Adult Price',
-            'Child Price',
-            'Item Description*'
+            'Adult Cost Price',
+            'Adult Sell Price',
+            'Child Cost Price',
+            'Child Sell Price',
+            'Item Description*',
+            'Status (1=Active, 0=Inactive)*'
         ];
 
         $data = [$headers];
@@ -4511,119 +4517,80 @@ class BulkUploadController extends Controller
 
         if ($meals->count() > 0) {
             foreach ($meals as $meal) {
-                $row = [
-                    // Meal Type (using meal_period column)
-                    match($meal->meal_period ?? 1) {
+                $isBuffet = ((int) $meal->type === 1);
+                $data[] = [
+                    match((int) ($meal->meal_period ?? 1)) {
                         1 => 'Breakfast',
-                        2 => 'Lunch', 
+                        2 => 'Lunch',
                         3 => 'Dinner',
                         default => 'Breakfast'
                     },
-                    
-                    // Beverage (using category column)
-                    match($meal->category ?? 2) {
+                    match((int) ($meal->category ?? 2)) {
                         1 => 'Alcoholic',
                         2 => 'Non Alcoholic',
                         3 => 'No Beverage',
                         default => 'Non Alcoholic'
                     },
-                    
-                    // Meals Type (using type column)
-                    ($meal->type == 1) ? 'Buffet' : 'Set Menu',
-                    
-                    // Item Price (only for Set Menu - type = 2)
-                    ($meal->type == 2) ? ($meal->price ?? '') : '',
-                    
-                    // Item Type (only for Set Menu - type = 2, empty for Buffet)
-                    ($meal->type == 2) ? (match($meal->item_type ?? null) {
+                    $isBuffet ? 'Buffet' : 'Set Menu',
+                    $meal->name ?? '',
+                    !$isBuffet ? ($meal->item_cost_price ?? '') : '',
+                    !$isBuffet ? ($meal->price ?? '') : '',
+                    !$isBuffet ? (match((int) ($meal->item_type ?? 0)) {
                         1 => 'Vegetarian',
                         2 => 'Non Vegetarian',
                         default => ''
                     }) : '',
-                    
-                    // Adult Price (only for Buffet - type = 1)
-                    ($meal->type == 1) ? ($meal->adult_price ?? '') : '',
-                    
-                    // Child Price (only for Buffet - type = 1)
-                    ($meal->type == 1) ? ($meal->child_price ?? '') : '',
-                    
-                    // Item Description
-                    $meal->item_description ?? ''
+                    $isBuffet ? ($meal->adult_cost_price ?? '') : '',
+                    $isBuffet ? ($meal->adult_price ?? '') : '',
+                    $isBuffet ? ($meal->child_cost_price ?? '') : '',
+                    $isBuffet ? ($meal->child_price ?? '') : '',
+                    $meal->item_description ?? '',
+                    ((int) ($meal->is_active ?? 0) === 1) ? '1' : '0',
                 ];
-                
-                $data[] = $row;
             }
         } else {
-            // No existing meals, add sample data based on restaurant's meal availability
-            if (isset($restaurant->breakfast_available) && $restaurant->breakfast_available) {
-                $sampleBreakfast = [
-                    'Breakfast',
-                    'Non Alcoholic',
-                    'Buffet',
-                    '', // No item price for Buffet
-                    '', // No item type for Buffet
-                    '25.00', // Adult price for Buffet
-                    '12.50', // Child price for Buffet
-                    'Continental breakfast with fresh fruits and pastries'
+            if (!empty($restaurant->breakfast_available)) {
+                $data[] = [
+                    'Breakfast', 'Non Alcoholic', 'Buffet', 'Continental Breakfast',
+                    '', '', '',
+                    '20.00', '25.00', '10.00', '12.50',
+                    'Continental breakfast with fresh fruits and pastries',
+                    '1'
                 ];
-                $data[] = $sampleBreakfast;
             }
-            
-            if (isset($restaurant->lunch_available) && $restaurant->lunch_available) {
-                $sampleLunch = [
-                    'Lunch',
-                    'Non Alcoholic',
-                    'Set Menu',
-                    '18.50', // Item price for Set Menu
-                    'Non Vegetarian', // Item type for Set Menu
-                    '', // No adult price for Set Menu
-                    '', // No child price for Set Menu
-                    'Authentic local cuisine lunch special'
+            if (!empty($restaurant->lunch_available)) {
+                $data[] = [
+                    'Lunch', 'Non Alcoholic', 'Set Menu', 'Local Lunch Special',
+                    '15.00', '18.50', 'Non Vegetarian',
+                    '', '', '', '',
+                    'Authentic local cuisine lunch special',
+                    '1'
                 ];
-                $data[] = $sampleLunch;
             }
-            
-            if (isset($restaurant->dinner_available) && $restaurant->dinner_available) {
-                $sampleDinner = [
-                    'Dinner',
-                    'Alcoholic',
-                    'Set Menu',
-                    '35.00', // Item price for Set Menu
-                    'Non Vegetarian', // Item type for Set Menu
-                    '', // No adult price for Set Menu
-                    '', // No child price for Set Menu
-                    'Premium dinner with wine pairing'
+            if (!empty($restaurant->dinner_available)) {
+                $data[] = [
+                    'Dinner', 'Alcoholic', 'Set Menu', 'Premium Dinner',
+                    '28.00', '35.00', 'Non Vegetarian',
+                    '', '', '', '',
+                    'Premium dinner with wine pairing',
+                    '1'
                 ];
-                $data[] = $sampleDinner;
             }
-            
-            // If no meal types are available, add one example of each meal type
-            if (!isset($restaurant->breakfast_available) && !isset($restaurant->lunch_available) && !isset($restaurant->dinner_available)) {
-                // Add Buffet example
-                $buffetExample = [
-                    'Breakfast',
-                    'Non Alcoholic',
-                    'Buffet',
-                    '', // No item price for Buffet
-                    '', // No item type for Buffet  
-                    '25.00', // Adult price required for Buffet
-                    '12.50', // Child price required for Buffet
-                    'Sample buffet breakfast description'
+            if (empty($restaurant->breakfast_available) && empty($restaurant->lunch_available) && empty($restaurant->dinner_available)) {
+                $data[] = [
+                    'Breakfast', 'Non Alcoholic', 'Buffet', 'Sample Buffet Breakfast',
+                    '', '', '',
+                    '20.00', '25.00', '10.00', '12.50',
+                    'Sample buffet breakfast description',
+                    '1'
                 ];
-                $data[] = $buffetExample;
-                
-                // Add Set Menu example
-                $setMenuExample = [
-                    'Lunch',
-                    'Non Alcoholic', 
-                    'Set Menu',
-                    '18.50', // Item price required for Set Menu
-                    'Vegetarian', // Item type required for Set Menu
-                    '', // No adult price for Set Menu
-                    '', // No child price for Set Menu
-                    'Sample set menu lunch description'
+                $data[] = [
+                    'Lunch', 'Non Alcoholic', 'Set Menu', 'Sample Set Menu Lunch',
+                    '15.00', '18.50', 'Vegetarian',
+                    '', '', '', '',
+                    'Sample set menu lunch description',
+                    '1'
                 ];
-                $data[] = $setMenuExample;
             }
         }
 
@@ -4698,19 +4665,24 @@ class BulkUploadController extends Controller
                     continue;
                 }
                 
-                // Map CSV columns to variables
+                // Map CSV columns — aligned with create-meals (name + cost/sell)
                 $mealType = trim($row[0] ?? '');
                 $beverage = trim($row[1] ?? '');
                 $mealsType = trim($row[2] ?? '');
-                $itemPrice = trim($row[3] ?? '');
-                $itemType = trim($row[4] ?? '');
-                $adultPrice = trim($row[5] ?? '');
-                $childPrice = trim($row[6] ?? '');
-                $itemDescription = trim($row[7] ?? '');
+                $itemName = trim($row[3] ?? '');
+                $itemCostPrice = trim($row[4] ?? '');
+                $itemPrice = trim($row[5] ?? '');
+                $itemType = trim($row[6] ?? '');
+                $adultCostPrice = trim($row[7] ?? '');
+                $adultPrice = trim($row[8] ?? '');
+                $childCostPrice = trim($row[9] ?? '');
+                $childPrice = trim($row[10] ?? '');
+                $itemDescription = trim($row[11] ?? '');
+                $mealStatus = trim($row[12] ?? '1');
                 
                 // Validate required fields
-                if (empty($mealType) || empty($beverage) || empty($mealsType) || empty($itemDescription)) {
-                    $errors[] = "Row {$rowNumber}: Missing required fields (Meal Type, Beverage, Meals Type, or Item Description)";
+                if ($mealType === '' || $beverage === '' || $mealsType === '' || $itemName === '' || $itemDescription === '') {
+                    $errors[] = "Row {$rowNumber}: Missing required fields (Meal Type, Beverage, Meals, Item Name, or Item Description)";
                     $errorCount++;
                     continue;
                 }
@@ -4761,44 +4733,49 @@ class BulkUploadController extends Controller
                     $errorCount++;
                     continue;
                 }
+
+                if (!in_array($mealStatus, ['0', '1'], true)) {
+                    $errors[] = "Row {$rowNumber}: Status must be 0 (inactive) or 1 (active). Found: '{$mealStatus}'";
+                    $errorCount++;
+                    continue;
+                }
                 
                 // Validate pricing and dependencies based on meal type
                 if ($mealsTypeNum == 1) { // Buffet
-                    // For Buffet: Adult Price and Child Price are required, Item Price and Item Type should be empty
-                    if (empty($adultPrice) || empty($childPrice)) {
-                        $errors[] = "Row {$rowNumber}: Buffet requires Adult Price and Child Price";
+                    if ($adultCostPrice === '' || $adultPrice === '' || $childCostPrice === '' || $childPrice === '') {
+                        $errors[] = "Row {$rowNumber}: Buffet requires Adult/Child Cost and Sell prices";
                         $errorCount++;
                         continue;
                     }
-                    if (!is_numeric($adultPrice) || !is_numeric($childPrice)) {
-                        $errors[] = "Row {$rowNumber}: Adult Price and Child Price must be numeric for Buffet";
-                        $errorCount++;
-                        continue;
+                    foreach ([
+                        'Adult Cost Price' => $adultCostPrice,
+                        'Adult Sell Price' => $adultPrice,
+                        'Child Cost Price' => $childCostPrice,
+                        'Child Sell Price' => $childPrice,
+                    ] as $label => $value) {
+                        if (!is_numeric($value) || floatval($value) < 0) {
+                            $errors[] = "Row {$rowNumber}: {$label} must be a number >= 0";
+                            $errorCount++;
+                            continue 2;
+                        }
                     }
-                    // Check if unwanted fields are filled for Buffet
-                    if (!empty($itemPrice)) {
-                        $errors[] = "Row {$rowNumber}: Item Price should be empty for Buffet meals";
-                        $errorCount++;
-                        continue;
-                    }
-                    if (!empty($itemType)) {
-                        $errors[] = "Row {$rowNumber}: Item Type should be empty for Buffet meals";
+                    if ($itemPrice !== '' || $itemCostPrice !== '' || $itemType !== '') {
+                        $errors[] = "Row {$rowNumber}: Item Cost/Sell Price and Item Type should be empty for Buffet meals";
                         $errorCount++;
                         continue;
                     }
                 } else { // Set Menu
-                    // For Set Menu: Item Price and Item Type are required, Adult Price and Child Price should be empty
-                    if (empty($itemPrice)) {
-                        $errors[] = "Row {$rowNumber}: Set Menu requires Item Price";
+                    if ($itemCostPrice === '' || $itemPrice === '') {
+                        $errors[] = "Row {$rowNumber}: Set Menu requires Item Cost Price and Item Sell Price";
                         $errorCount++;
                         continue;
                     }
-                    if (!is_numeric($itemPrice)) {
-                        $errors[] = "Row {$rowNumber}: Item Price must be numeric for Set Menu";
+                    if (!is_numeric($itemCostPrice) || floatval($itemCostPrice) < 0 || !is_numeric($itemPrice) || floatval($itemPrice) < 0) {
+                        $errors[] = "Row {$rowNumber}: Item Cost/Sell Price must be numbers >= 0 for Set Menu";
                         $errorCount++;
                         continue;
                     }
-                    if (empty($itemType)) {
+                    if ($itemType === '') {
                         $errors[] = "Row {$rowNumber}: Set Menu requires Item Type (Vegetarian or Non Vegetarian)";
                         $errorCount++;
                         continue;
@@ -4808,32 +4785,29 @@ class BulkUploadController extends Controller
                         $errorCount++;
                         continue;
                     }
-                    // Check if unwanted fields are filled for Set Menu
-                    if (!empty($adultPrice)) {
-                        $errors[] = "Row {$rowNumber}: Adult Price should be empty for Set Menu meals";
-                        $errorCount++;
-                        continue;
-                    }
-                    if (!empty($childPrice)) {
-                        $errors[] = "Row {$rowNumber}: Child Price should be empty for Set Menu meals";
+                    if ($adultPrice !== '' || $adultCostPrice !== '' || $childPrice !== '' || $childCostPrice !== '') {
+                        $errors[] = "Row {$rowNumber}: Adult/Child prices should be empty for Set Menu meals";
                         $errorCount++;
                         continue;
                     }
                 }
                 
-                // Create meal using existing createMeal method
+                // Create meal — same persisted fields as MealController::store
                 $this->createMeal(
-                    $restaurant, 
-                    $mealType, 
-                    $beverage, 
-                    $mealsType, 
-                    '', // itemName - not used in new format
-                    $itemPrice, 
-                    $itemType, 
-                    $adultPrice, 
-                    $childPrice, 
-                    $itemDescription, 
-                    '1', // mealStatus - active by default
+                    $restaurant,
+                    $mealType,
+                    $beverage,
+                    $mealsType,
+                    $itemName,
+                    $itemPrice,
+                    $itemCostPrice,
+                    $itemType,
+                    $adultPrice,
+                    $adultCostPrice,
+                    $childPrice,
+                    $childCostPrice,
+                    $itemDescription,
+                    $mealStatus,
                     $auth_user->userId
                 );
                 
@@ -4899,7 +4873,7 @@ class BulkUploadController extends Controller
         
         return redirect()->back()
             ->with('success', $message)
-            ->with('errors', $errors);
+            ->with('upload_errors', $errors);
     }
 
     /**
@@ -4953,7 +4927,7 @@ class BulkUploadController extends Controller
         $auth_user = Auth::user();
         
         // Check for DMC role - role_id is stored as string "11"
-        if (!$auth_user || $auth_user->role_id !== '11') {
+        if (!$auth_user || (int) $auth_user->role_id !== 11) {
             abort(403, 'Access denied. Only DMC users can access meal bulk upload.');
         }
 
@@ -4993,7 +4967,7 @@ class BulkUploadController extends Controller
         $auth_user = Auth::user();
         
         // Check for DMC role
-        if (!$auth_user || $auth_user->role_id !== '11') {
+        if (!$auth_user || (int) $auth_user->role_id !== 11) {
             abort(403, 'Access denied. Only DMC users can download meal templates.');
         }
 
@@ -5021,146 +4995,103 @@ class BulkUploadController extends Controller
     // Generate CSV template data for restaurant-specific meal upload
     private function generateRestaurantMealCsvData($restaurant)
     {
+        // Same column contract as generateDmcMealTemplate / create-meals
         $header = [
-            'Meal Type (Required)',
-            'Beverage (Required)',
-            'Meals (Required)',
-            'Item Price',
+            'Meal Type*',
+            'Beverage*',
+            'Meals*',
+            'Item Name*',
+            'Item Cost Price',
+            'Item Sell Price',
             'Item Type',
-            'Adult Price',
-            'Child Price',
-            'Item Description (Required)',
-            'Status (1=Active, 0=Inactive)'
+            'Adult Cost Price',
+            'Adult Sell Price',
+            'Child Cost Price',
+            'Child Sell Price',
+            'Item Description*',
+            'Status (1=Active, 0=Inactive)*'
         ];
 
         $data = [$header];
 
-        // Get existing meals for this restaurant
         $meals = Meal::where('restaurant_id', $restaurant->restaurant_id)->get();
 
         if ($meals->count() > 0) {
             foreach ($meals as $meal) {
-                $row = [
-                    // Meal Type
-                    match($meal->meal_period ?? 1) {
+                $isBuffet = ((int) $meal->type === 1);
+                $data[] = [
+                    match((int) ($meal->meal_period ?? 1)) {
                         1 => 'Breakfast',
-                        2 => 'Lunch', 
+                        2 => 'Lunch',
                         3 => 'Dinner',
                         default => 'Breakfast'
                     },
-                    
-                    // Beverage
-                    match($meal->category ?? 2) {
+                    match((int) ($meal->category ?? 2)) {
                         1 => 'Alcoholic',
                         2 => 'Non Alcoholic',
                         3 => 'No Beverage',
                         default => 'Non Alcoholic'
                     },
-                    
-                    // Meals Type
-                    ($meal->type == 1) ? 'Buffet' : 'Set Menu',
-                    
-                    // Item Price (only for Set Menu)
-                    ($meal->type == 2) ? ($meal->price ?? '') : '',
-                    
-                    // Item Type (only for Set Menu)
-                    ($meal->type == 2) ? (match($meal->item_type ?? 1) {
+                    $isBuffet ? 'Buffet' : 'Set Menu',
+                    $meal->name ?? '',
+                    !$isBuffet ? ($meal->item_cost_price ?? '') : '',
+                    !$isBuffet ? ($meal->price ?? '') : '',
+                    !$isBuffet ? (match((int) ($meal->item_type ?? 0)) {
                         1 => 'Vegetarian',
                         2 => 'Non Vegetarian',
-                        default => 'Vegetarian'
+                        default => ''
                     }) : '',
-                    
-                    // Adult Price (only for Buffet)
-                    ($meal->type == 1) ? ($meal->adult_price ?? '') : '',
-                    
-                    // Child Price (only for Buffet)
-                    ($meal->type == 1) ? ($meal->child_price ?? '') : '',
-                    
-                    // Item Description
+                    $isBuffet ? ($meal->adult_cost_price ?? '') : '',
+                    $isBuffet ? ($meal->adult_price ?? '') : '',
+                    $isBuffet ? ($meal->child_cost_price ?? '') : '',
+                    $isBuffet ? ($meal->child_price ?? '') : '',
                     $meal->item_description ?? '',
-                    
-                    // Status
-                    $meal->is_active ? '1' : '0'
+                    $meal->is_active ? '1' : '0',
                 ];
-                
-                $data[] = $row;
             }
         } else {
-            // Add sample data based on restaurant's meal availability
             if ($restaurant->breakfast_available) {
-                $sampleBreakfast = [
-                    'Breakfast',
-                    'Non Alcoholic',
-                    'Buffet',
-                    '', // No item price for Buffet
-                    '', // No item type for Buffet
-                    '25.00', // Adult price for Buffet (required)
-                    '12.50', // Child price for Buffet (required)
+                $data[] = [
+                    'Breakfast', 'Non Alcoholic', 'Buffet', 'Continental Breakfast',
+                    '', '', '',
+                    '20.00', '25.00', '10.00', '12.50',
                     'Continental breakfast with fresh fruits and pastries',
                     '1'
                 ];
-                $data[] = $sampleBreakfast;
             }
-            
             if ($restaurant->lunch_available) {
-                $sampleLunch = [
-                    'Lunch',
-                    'Non Alcoholic',
-                    'Set Menu',
-                    '18.50', // Item price for Set Menu (required)
-                    'Non Vegetarian', // Item type for Set Menu (required)
-                    '', // No adult price for Set Menu
-                    '', // No child price for Set Menu
+                $data[] = [
+                    'Lunch', 'Non Alcoholic', 'Set Menu', 'Local Lunch Special',
+                    '15.00', '18.50', 'Non Vegetarian',
+                    '', '', '', '',
                     'Authentic local cuisine lunch special',
                     '1'
                 ];
-                $data[] = $sampleLunch;
             }
-            
             if ($restaurant->dinner_available) {
-                $sampleDinner = [
-                    'Dinner',
-                    'Alcoholic',
-                    'Set Menu',
-                    '35.00', // Item price for Set Menu (required)
-                    'Vegetarian', // Item type for Set Menu (required)
-                    '', // No adult price for Set Menu
-                    '', // No child price for Set Menu
+                $data[] = [
+                    'Dinner', 'Alcoholic', 'Set Menu', 'Premium Dinner',
+                    '28.00', '35.00', 'Vegetarian',
+                    '', '', '', '',
                     'Premium dinner with special sauce',
                     '1'
                 ];
-                $data[] = $sampleDinner;
             }
-            
-            // If no meal types are available, add examples
             if (!$restaurant->breakfast_available && !$restaurant->lunch_available && !$restaurant->dinner_available) {
-                // Add Buffet example
-                $buffetExample = [
-                    'Breakfast',
-                    'Non Alcoholic',
-                    'Buffet',
-                    '', // No item price for Buffet
-                    '', // No item type for Buffet  
-                    '25.00', // Adult price required for Buffet
-                    '12.50', // Child price required for Buffet
+                $data[] = [
+                    'Breakfast', 'Non Alcoholic', 'Buffet', 'Sample Buffet Breakfast',
+                    '', '', '',
+                    '20.00', '25.00', '10.00', '12.50',
                     'Sample buffet breakfast description',
                     '1'
                 ];
-                $data[] = $buffetExample;
-                
-                // Add Set Menu example
-                $setMenuExample = [
-                    'Lunch',
-                    'Non Alcoholic', 
-                    'Set Menu',
-                    '18.50', // Item price required for Set Menu
-                    'Vegetarian', // Item type required for Set Menu
-                    '', // No adult price for Set Menu
-                    '', // No child price for Set Menu
+                $data[] = [
+                    'Lunch', 'Non Alcoholic', 'Set Menu', 'Sample Set Menu Lunch',
+                    '15.00', '18.50', 'Vegetarian',
+                    '', '', '', '',
                     'Sample set menu lunch description',
                     '1'
                 ];
-                $data[] = $setMenuExample;
             }
         }
 
@@ -5171,9 +5102,6 @@ class BulkUploadController extends Controller
     public function uploadRestaurantMeals(Request $request, $restaurant_id)
     {
         $auth_user = Auth::user();
-        $successCount = 0;
-        $errorCount = 0;
-        $errors = [];
         
         try {
             // Enhanced validation
@@ -5188,7 +5116,7 @@ class BulkUploadController extends Controller
             $file = $request->file('file');
             
             // Check for DMC role
-            if (!$auth_user || $auth_user->role_id !== '11') {
+            if (!$auth_user || (int) $auth_user->role_id !== 11) {
                 return redirect()->back()->with('error', 'Access denied. Only DMC users can upload meals.');
             }
 
@@ -5230,293 +5158,29 @@ class BulkUploadController extends Controller
                 return redirect()->back()->with('error', 'The CSV file must contain at least a header row and one data row.');
             }
 
-            // Validate CSV structure
-            $expectedColumns = 9; // Based on template
+            // Same 13-column contract as generateDmcMealTemplate / create-meals
+            $expectedColumns = 13;
             $headerRow = $csvData[0];
             if (count($headerRow) < $expectedColumns) {
-                return redirect()->back()->with('error', "Invalid CSV format. Expected at least {$expectedColumns} columns, found " . count($headerRow) . ".");
+                return redirect()->back()->with('error', "Invalid CSV format. Expected at least {$expectedColumns} columns (item name + cost/sell), found " . count($headerRow) . ". Please download the latest template.");
             }
 
             // Remove header row
             array_shift($csvData);
-            
-            // Filter out empty rows more thoroughly
-            $csvData = array_filter($csvData, function($row) {
-                // Check if all cells are empty or whitespace
-                $nonEmptyCells = array_filter($row, function($cell) {
-                    return !empty(trim($cell ?? ''));
-                });
-                return count($nonEmptyCells) > 0;
-            });
-            
-            $csvData = array_values($csvData);
-            
-            if (empty($csvData)) {
-                return redirect()->back()->with('error', 'No valid data rows found in the CSV file.');
-            }
 
-            // Limit number of rows to prevent timeout
-            if (count($csvData) > 1000) {
-                return redirect()->back()->with('error', 'Maximum 1000 rows allowed per upload. Your file contains ' . count($csvData) . ' rows.');
-            }
-            
-            DB::beginTransaction();
-            
-            foreach ($csvData as $rowIndex => $row) {
-                $rowNumber = $rowIndex + 2; // +2 because we removed header and array is 0-indexed
-                
-                try {
-                    // Ensure row has enough columns
-                    if (count($row) < $expectedColumns) {
-                        $errors[] = "Row {$rowNumber}: Insufficient columns. Expected {$expectedColumns}, found " . count($row);
-                        $errorCount++;
-                        continue;
-                    }
+            // Shared writer with /bulk-upload/meals path
+            return $this->processMealUpload($csvData, $restaurant, $auth_user);
 
-                    // Map CSV columns to variables with better null handling
-                    $mealType = trim($row[0] ?? '');
-                    $beverage = trim($row[1] ?? '');
-                    $mealsType = trim($row[2] ?? '');
-                    $itemPrice = trim($row[3] ?? '');
-                    $itemType = trim($row[4] ?? '');
-                    $adultPrice = trim($row[5] ?? '');
-                    $childPrice = trim($row[6] ?? '');
-                    $itemDescription = trim($row[7] ?? '');
-                    $status = trim($row[8] ?? '1');
-                    
-                    // Enhanced validation for required fields
-                    $missingFields = [];
-                    if (empty($mealType)) $missingFields[] = 'Meal Type';
-                    if (empty($beverage)) $missingFields[] = 'Beverage';
-                    if (empty($mealsType)) $missingFields[] = 'Meals';
-                    if (empty($itemDescription)) $missingFields[] = 'Item Description';
-                    
-                    if (!empty($missingFields)) {
-                        $errors[] = "Row {$rowNumber}: Please fill in: " . implode(', ', $missingFields);
-                        $errorCount++;
-                        continue;
-                    }
-
-                    // Validate meal type
-                    $validMealTypes = ['breakfast', 'lunch', 'dinner'];
-                    if (!in_array(strtolower($mealType), $validMealTypes)) {
-                        $errors[] = "Row {$rowNumber}: Invalid meal type. Must be Breakfast, Lunch, or Dinner. Found: '{$mealType}'";
-                        $errorCount++;
-                        continue;
-                    }
-
-                    // Check if meal type is available for this restaurant
-                    $mealTypeNum = match(strtolower($mealType)) {
-                        'breakfast' => 1,
-                        'lunch' => 2,
-                        'dinner' => 3
-                    };
-                    
-                    $availabilityField = match($mealTypeNum) {
-                        1 => 'breakfast_available',
-                        2 => 'lunch_available',
-                        3 => 'dinner_available'
-                    };
-                    
-                    if (!$restaurant->$availabilityField) {
-                        $errors[] = "Row {$rowNumber}: {$mealType} is not available for this restaurant";
-                        $errorCount++;
-                        continue;
-                    }
-
-                    // Validate beverage type
-                    $validBeverages = ['alcoholic', 'non alcoholic', 'no beverage'];
-                    if (!in_array(strtolower($beverage), $validBeverages)) {
-                        $errors[] = "Row {$rowNumber}: Invalid beverage type. Must be Alcoholic, Non Alcoholic, or No Beverage. Found: '{$beverage}'";
-                        $errorCount++;
-                        continue;
-                    }
-
-                    // Validate meals type
-                    $validMealsTypes = ['buffet', 'set menu'];
-                    if (!in_array(strtolower($mealsType), $validMealsTypes)) {
-                        $errors[] = "Row {$rowNumber}: Invalid meals type. Must be Buffet or Set Menu. Found: '{$mealsType}'";
-                        $errorCount++;
-                        continue;
-                    }
-
-                    // Validate pricing and dependencies based on meal type
-                    $mealsTypeNum = match(strtolower($mealsType)) {
-                        'buffet' => 1,
-                        'set menu' => 2
-                    };
-                    
-                    if ($mealsTypeNum == 1) { // Buffet
-                        // For Buffet: Adult Price and Child Price are required
-                        if (empty($adultPrice) || empty($childPrice)) {
-                            $errors[] = "Row {$rowNumber}: Buffet meals require Adult Price and Child Price";
-                            $errorCount++;
-                            continue;
-                        }
-                        if (!is_numeric($adultPrice) || !is_numeric($childPrice)) {
-                            $errors[] = "Row {$rowNumber}: Adult Price and Child Price must be numeric for Buffet meals";
-                            $errorCount++;
-                            continue;
-                        }
-                        if (floatval($adultPrice) <= 0 || floatval($childPrice) <= 0) {
-                            $errors[] = "Row {$rowNumber}: Adult Price and Child Price must be greater than 0 for Buffet meals";
-                            $errorCount++;
-                            continue;
-                        }
-                    } else { // Set Menu
-                        // For Set Menu: Item Price and Item Type are required
-                        if (empty($itemPrice)) {
-                            $errors[] = "Row {$rowNumber}: Set Menu meals require Item Price";
-                            $errorCount++;
-                            continue;
-                        }
-                        if (!is_numeric($itemPrice)) {
-                            $errors[] = "Row {$rowNumber}: Item Price must be numeric for Set Menu meals";
-                            $errorCount++;
-                            continue;
-                        }
-                        if (floatval($itemPrice) <= 0) {
-                            $errors[] = "Row {$rowNumber}: Item Price must be greater than 0 for Set Menu meals";
-                            $errorCount++;
-                            continue;
-                        }
-                        if (empty($itemType)) {
-                            $errors[] = "Row {$rowNumber}: Set Menu meals require Item Type (Vegetarian or Non Vegetarian)";
-                            $errorCount++;
-                            continue;
-                        }
-                        if (!in_array(strtolower($itemType), ['vegetarian', 'non vegetarian'])) {
-                            $errors[] = "Row {$rowNumber}: Invalid item type. Must be Vegetarian or Non Vegetarian. Found: '{$itemType}'";
-                            $errorCount++;
-                            continue;
-                        }
-                    }
-
-                    // Validate status field
-                    if (!in_array($status, ['0', '1'])) {
-                        $errors[] = "Row {$rowNumber}: Status must be 0 (inactive) or 1 (active). Found: '{$status}'";
-                        $errorCount++;
-                        continue;
-                    }
-                    
-                    // Create meal record — meal_id auto-assigned on save (same as MealController::store)
-                    try {
-                        $meal = new Meal();
-                        $meal->restaurant_id = $restaurant->restaurant_id;
-                        $meal->name = 'Menu Item'; // Default name
-                        $meal->item_description = $itemDescription;
-                        // Convert dmc_id to JSON string if it's an array
-                        $meal->dmc_id = $auth_user->userId; // Store DMC's userId like tickets do
-                        
-                        // Map meal period
-                        $meal->meal_period = $mealTypeNum;
-                        
-                        // Map category (beverage type)
-                        $meal->category = match(strtolower($beverage)) {
-                            'alcoholic' => 1,
-                            'non alcoholic' => 2,
-                            'no beverage' => 3
-                        };
-                        
-                        // Map type (buffet/set menu)
-                        $meal->type = $mealsTypeNum;
-                        
-                        // Set prices based on meal type
-                        if ($mealsTypeNum == 1) { // Buffet
-                            $meal->adult_price = floatval($adultPrice);
-                            $meal->child_price = floatval($childPrice);
-                        } else { // Set Menu
-                            $meal->price = floatval($itemPrice);
-                            $meal->item_type = match(strtolower($itemType)) {
-                                'vegetarian' => 1,
-                                'non vegetarian' => 2
-                            };
-                        }
-                        
-                        $meal->is_active = ($status == '1') ? 1 : 0;
-                        $meal->created_by = $auth_user->userId;
-                        
-                        $meal->save();
-                        $meal->refresh();
-                        $successCount++;
-                    } catch (\Exception $e) {
-                        Log::error("Meal save error for row {$rowNumber}: " . $e->getMessage());
-                        $errors[] = "Row {$rowNumber}: Error saving meal - " . $e->getMessage();
-                        $errorCount++;
-                    }
-                    
-                } catch (\Exception $e) {
-                    $errors[] = "Row {$rowNumber}: Unexpected error - " . $e->getMessage();
-                    $errorCount++;
-                    Log::error("Restaurant meal bulk upload error on row {$rowNumber}: " . $e->getMessage());
-                }
-            }
-            
-            // Commit transaction only if we have successes
-            if ($successCount > 0) {
-                DB::commit();
-            } else {
-                DB::rollback();
-            }
-            
         } catch (\Illuminate\Validation\ValidationException $e) {
-            DB::rollback();
             Log::error('Validation error in restaurant meal upload: ' . json_encode($e->errors()));
             return redirect()->back()
                 ->withErrors($e->validator)
                 ->withInput();
         } catch (\Exception $e) {
-            DB::rollback();
             Log::error('Restaurant meal bulk upload failed with exception: ' . $e->getMessage());
             Log::error('Stack trace: ' . $e->getTraceAsString());
             
             return redirect()->back()->with('error', 'Upload failed due to an unexpected error. Please check your file format and try again.');
-        }
-
-        // Save upload history regardless of success/failure
-        try {
-            UploadHistory::createRecord(
-                'restaurant_meals_' . $restaurant_id,
-                $file->getClientOriginalName(),
-                $file->getClientOriginalName(),
-                count($csvData ?? []),
-                $successCount,
-                $errorCount,
-                $errors,
-                $auth_user->userId
-            );
-        } catch (\Exception $e) {
-            Log::error('Failed to save upload history: ' . $e->getMessage());
-        }
-        
-        // Generate user-friendly messages
-        if ($successCount > 0 && $errorCount == 0) {
-            $message = "Success! {$successCount} meals uploaded successfully for {$restaurant->name}.";
-            return redirect()->back()->with('success', $message);
-        } elseif ($successCount > 0 && $errorCount > 0) {
-            $message = "Partial success: {$successCount} meals uploaded successfully, {$errorCount} failed for {$restaurant->name}.";
-            
-            // Create error bag for Laravel
-            $validator = Validator::make([], []);
-            foreach ($errors as $error) {
-                $validator->errors()->add('upload', $error);
-            }
-            
-            return redirect()->back()
-                ->with('success', $message)
-                ->withErrors($validator);
-        } else {
-            $message = "Upload failed: {$errorCount} errors occurred. No meals were uploaded.";
-            
-            // Create error bag for Laravel  
-            $validator = Validator::make([], []);
-            foreach ($errors as $error) {
-                $validator->errors()->add('upload', $error);
-            }
-            
-            return redirect()->back()
-                ->with('error', $message)
-                ->withErrors($validator);
         }
     }
 
@@ -5530,7 +5194,7 @@ class BulkUploadController extends Controller
         $auth_user = Auth::user();
         
         // Check for DMC role - only DMC users can access
-        if (!$auth_user || $auth_user->role_id !== '11') {
+        if (!$auth_user || (int) $auth_user->role_id !== 11) {
             abort(403, 'Access denied. Only DMC users can access bed bulk upload.');
         }
         
@@ -5577,7 +5241,7 @@ class BulkUploadController extends Controller
         $auth_user = Auth::user();
         
         // Check for DMC role
-        if (!$auth_user || $auth_user->role_id !== '11') {
+        if (!$auth_user || (int) $auth_user->role_id !== 11) {
             abort(403, 'Access denied. Only DMC users can download bed templates.');
         }
         
@@ -5721,7 +5385,7 @@ class BulkUploadController extends Controller
             $file = $request->file('file');
             
             // Check for DMC role
-            if (!$auth_user || $auth_user->role_id !== '11') {
+            if (!$auth_user || (int) $auth_user->role_id !== 11) {
                 return redirect()->back()->with('error', 'Access denied. Only DMC users can upload beds.');
             }
 
@@ -6127,7 +5791,7 @@ class BulkUploadController extends Controller
         $auth_user = Auth::user();
         
         // Check for DMC role
-        if (!$auth_user || $auth_user->role_id !== '11') {
+        if (!$auth_user || (int) $auth_user->role_id !== 11) {
             abort(403, 'Access denied. Only DMC users can upload seasons.');
         }
 
@@ -6163,7 +5827,7 @@ class BulkUploadController extends Controller
         $auth_user = Auth::user();
         
         // Check for DMC role
-        if (!$auth_user || $auth_user->role_id !== '11') {
+        if (!$auth_user || (int) $auth_user->role_id !== 11) {
             abort(403, 'Access denied. Only DMC users can download season templates.');
         }
         
@@ -6286,7 +5950,7 @@ class BulkUploadController extends Controller
             $file = $request->file('file');
             
             // Check for DMC role
-            if (!$auth_user || $auth_user->role_id !== '11') {
+            if (!$auth_user || (int) $auth_user->role_id !== 11) {
                 return redirect()->back()->with('error', 'Access denied. Only DMC users can upload seasons.');
             }
 

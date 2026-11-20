@@ -606,27 +606,114 @@
     };
 
     /**
-     * Resolve once-discount defaults from country groups (agency special_discount).
-     * Optional agentOffers can override with the latest negotiated discount.
+     * Derive the discount that turns list/actual into the negotiated offer.
+     * Prefer stored discount_value when it explains the gap; otherwise compute from
+     * actual_amount (list) vs amount (negotiated), falling back to gross vs amount.
+     */
+    window.deriveNegotiationDiscountFromOffer = function (offer, fallbackGross) {
+        if (!offer || typeof offer !== 'object') {
+            return null;
+        }
+        var amount = parseFloat(offer.amount);
+        var actual = parseFloat(offer.actual_amount);
+        var gross = parseFloat(offer.gross != null ? offer.gross : fallbackGross);
+        var discountType = String(offer.discount_type || 'percentage').toLowerCase();
+        if (discountType === 'fixed') {
+            discountType = 'flat';
+        }
+        if (discountType !== 'flat' && discountType !== 'foc') {
+            discountType = 'percentage';
+        }
+
+        var storedRaw = parseFloat(offer.discount_value);
+        var hasStoredField = (offer.discount_type != null && String(offer.discount_type) !== '')
+            || (offer.discount_value != null && String(offer.discount_value) !== '');
+        var amountBelowList = Number.isFinite(amount) && Number.isFinite(actual)
+            && actual > 0 && amount < (actual - 0.009);
+
+        // Use stored discount unless it is zero while amount clearly reflects a cut.
+        if (hasStoredField && Number.isFinite(storedRaw) && storedRaw >= 0) {
+            if (!(storedRaw === 0 && amountBelowList)) {
+                return {
+                    discountType: discountType,
+                    discountRaw: Math.max(0, Math.round(storedRaw * 100) / 100)
+                };
+            }
+        }
+
+        if (!Number.isFinite(amount) || amount < 0) {
+            return null;
+        }
+
+        var round2 = function (n) {
+            return Math.max(0, Math.round(n * 100) / 100);
+        };
+
+        // Preferred: list baseline (actual_amount) vs negotiated amount.
+        if (Number.isFinite(actual) && actual > 0 && amount <= actual + 0.009) {
+            var moneyOff = Math.max(0, actual - amount);
+            if (discountType === 'flat' || discountType === 'foc') {
+                return { discountType: discountType, discountRaw: round2(moneyOff) };
+            }
+            return {
+                discountType: 'percentage',
+                discountRaw: round2((moneyOff / actual) * 100)
+            };
+        }
+
+        // Fallback when actual_amount is missing: discount on gross (UI formula base).
+        if (Number.isFinite(gross) && gross > 0 && amount <= gross + 0.009) {
+            var moneyOffGross = Math.max(0, gross - amount);
+            if (discountType === 'flat' || discountType === 'foc') {
+                return { discountType: discountType, discountRaw: round2(moneyOffGross) };
+            }
+            return {
+                discountType: 'percentage',
+                discountRaw: round2((moneyOffGross / gross) * 100)
+            };
+        }
+
+        return null;
+    };
+
+    /** Keep the visible offer pinned to enquiry_comments.amount after recalculation. */
+    window.pinNegotiatedOfferAmount = function (card, negotiatedAmount) {
+        if (!card) return;
+        var amount = parseFloat(negotiatedAmount);
+        if (!Number.isFinite(amount) || amount <= 0) return;
+        var offerInput = card.querySelector('.dmc-nego-offer-input, .agent-nego-offer-input');
+        var amountHidden = card.querySelector('.dmc-nego-offer-hidden, .agent-nego-offer-hidden');
+        if (offerInput) offerInput.value = String(amount);
+        if (amountHidden) amountHidden.value = String(amount);
+    };
+
+    /**
+     * Resolve once-discount defaults.
+     * enquiry_comments offers (amount / actual_amount / discount_*) win over tour country groups.
      */
     window.resolveNegotiationDiscountOnce = function (groups, agentOffers) {
         var discountType = 'percentage';
         var discountRaw = 0;
         var first = (Array.isArray(groups) && groups.length) ? groups[0] : {};
-        if (first && (first.discount_type || first.discount_raw != null || first.discount != null)) {
-            discountType = String(first.discount_type || 'percentage').toLowerCase();
-            discountRaw = Number(first.discount_raw != null ? first.discount_raw : (first.discount || 0)) || 0;
-        }
+        var fallbackGross = first && first.gross != null ? Number(first.gross) : 0;
+
         if (Array.isArray(agentOffers) && agentOffers.length) {
             for (var i = 0; i < agentOffers.length; i++) {
                 var offer = agentOffers[i] || {};
-                if (offer.discount_type != null || offer.discount_value != null) {
-                    discountType = String(offer.discount_type || discountType || 'percentage').toLowerCase();
-                    discountRaw = Number(offer.discount_value != null ? offer.discount_value : discountRaw) || 0;
+                var derived = (typeof window.deriveNegotiationDiscountFromOffer === 'function')
+                    ? window.deriveNegotiationDiscountFromOffer(offer, fallbackGross)
+                    : null;
+                if (derived) {
+                    discountType = derived.discountType;
+                    discountRaw = derived.discountRaw;
                     break;
                 }
             }
+        } else if (first && (first.discount_type || first.discount_raw != null || first.discount != null)) {
+            discountType = String(first.discount_type || 'percentage').toLowerCase();
+            discountRaw = Number(first.discount_raw != null ? first.discount_raw : (first.discount || 0)) || 0;
         }
+
         if (discountType === 'fixed') discountType = 'flat';
         if (discountType !== 'flat' && discountType !== 'foc') discountType = 'percentage';
         return {
