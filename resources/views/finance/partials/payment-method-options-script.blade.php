@@ -826,9 +826,15 @@
                 return '<li><span class="tc-pay-badge ' + (ok ? 'ok' : 'bad') + '">' + (ok ? 'Booked' : 'Not booked') + '</span>'
                     + '<span><span class="tc-pay-name">' + esc(r.name || r.type || 'Service') + '</span>'
                     + (ok ? '<span class="tc-pay-why">Confirmed with supplier · approved'
-                              + (r.reference_id ? '<br>Reference ID: <b>' + esc(r.reference_id) + '</b>' : '')
-                              + (r.display_due_date ? '<br>Due: <b>' + esc(r.display_due_date) + '</b>'
-                                  + (r.actual_due_date ? ' (free cancellation until ' + esc(String(r.actual_due_date).slice(0, 10)) + ')' : '') : '')
+                              + (function () {
+                                    var ref = r.supplier_reference || r.supplier_booking_reference || r.reference_id || '';
+                                    return ref ? '<br>Reference ID: <b>' + esc(ref) + '</b>' : '';
+                                })()
+                              + (r.display_due_date ? '<br>Due: <b>' + esc(r.display_due_date) + '</b>' : '')
+                              + (r.actual_due_date
+                                  ? '<br><span style="color:#dc2626;font-weight:600;">(free cancellation until '
+                                      + esc(String(r.actual_due_date).slice(0, 10)) + ')</span>'
+                                  : '')
                               + '</span>'
                           : '<span class="tc-pay-why">' + esc(r.message || 'Could not be booked.') + '</span>')
                     + '</span></li>';

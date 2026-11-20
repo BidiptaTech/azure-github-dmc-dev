@@ -129,13 +129,15 @@ class InvoiceDataBuilder
                 $nativeUnit,
                 $bookingCurrency,
                 $displayCurrency,
-                $baseCurrency
+                $baseCurrency,
+                $invoice->tour ?? null
             );
             $displayTotal = CommonHelper::convertInvoiceAmountToSelected(
                 $nativeTotal,
                 $bookingCurrency,
                 $displayCurrency,
-                $baseCurrency
+                $baseCurrency,
+                $invoice->tour ?? null
             );
 
             $row = [
@@ -201,7 +203,8 @@ class InvoiceDataBuilder
         $ordersTotalBase = $this->toFloat($notes['orders_total'] ?? null);
         $discountFixedBase = $this->toFloat($notes['discount_fixed'] ?? null);
 
-        $toDisplay = static function (?float $amount) use ($baseCurrency, $displayCurrency): ?float {
+        $invoiceTour = $invoice->tour ?? null;
+        $toDisplay = static function (?float $amount) use ($baseCurrency, $displayCurrency, $invoiceTour): ?float {
             if ($amount === null) {
                 return null;
             }
@@ -210,7 +213,8 @@ class InvoiceDataBuilder
                 $amount,
                 $baseCurrency,
                 $displayCurrency,
-                $baseCurrency
+                $baseCurrency,
+                $invoiceTour
             );
         };
 

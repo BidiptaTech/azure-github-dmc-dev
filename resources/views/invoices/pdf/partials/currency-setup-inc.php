@@ -41,7 +41,15 @@ $selectedCurrencyPrefix = $selectedCurrency . ' ';
             CommonHelper::enrichInvoiceItemsWithOrderGeo($invoice);
         }
 
-$formatPrice = function ($amount, $itemOrCurrency = null) use ($baseCurrency, $selectedCurrency, $exchangeRate, $isThirdPartyInvoice) {
+$invoiceTour = $invoice->tour ?? null;
+
+$formatPrice = function ($amount, $itemOrCurrency = null) use (
+    $baseCurrency,
+    $selectedCurrency,
+    $exchangeRate,
+    $isThirdPartyInvoice,
+    $invoiceTour
+) {
     if (!$isThirdPartyInvoice) {
         return CommonHelper::formatInvoiceDualPrice($amount, $baseCurrency, $selectedCurrency, $exchangeRate);
     }
@@ -59,7 +67,13 @@ $formatPrice = function ($amount, $itemOrCurrency = null) use ($baseCurrency, $s
         $itemCurrency = strtoupper(trim((string) $itemOrCurrency)) ?: $baseCurrency;
     }
 
-    return CommonHelper::formatInvoiceItemPrice($amount, $itemCurrency, $selectedCurrency, $baseCurrency);
+    return CommonHelper::formatInvoiceItemPrice(
+        $amount,
+        $itemCurrency,
+        $selectedCurrency,
+        $baseCurrency,
+        $invoiceTour
+    );
 };
 
 $formatItemPrice = $formatPrice;
@@ -119,13 +133,14 @@ $invoicePaymentReceivedForDisplay = !empty($isThirdPartyInvoice)
 /**
  * Keep Currency Conversion box in sync with the Final / Outstanding amount shown above it.
  */
-$syncInvoiceCurrencyConversion = function ($displayAmountInSelected) use (&$currencyConversion, &$showCurrencyConversion, $baseCurrency, $selectedCurrency) {
+$syncInvoiceCurrencyConversion = function ($displayAmountInSelected) use (&$currencyConversion, &$showCurrencyConversion, $baseCurrency, $selectedCurrency, $invoice) {
     $amt = is_numeric($displayAmountInSelected) ? (float) $displayAmountInSelected : 0.0;
     $currencyConversion = CommonHelper::buildInvoiceCurrencyConversionFromAmount(
         $amt,
         $selectedCurrency,
         $baseCurrency,
-        $selectedCurrency
+        $selectedCurrency,
+        $invoice->tour ?? null
     );
     $showCurrencyConversion = CommonHelper::shouldShowInvoiceCurrencyConversion(
         $baseCurrency,

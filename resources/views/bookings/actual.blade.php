@@ -3417,8 +3417,15 @@
 
         $discountAmount = $tourDiscountMoney;
         $priceAfterFoc = max(0, $grossTourAmount + $tourMarkupMoney - $tourDiscountMoney);
-        $netPayableBase = (int) ceil($priceAfterFoc);
-        $baseAmount = $lastNegotiatedAmount > 0 ? $lastNegotiatedAmount : $netPayableBase;
+        $tourIsOnlineOnly = strtolower(trim((string) ($tour->order_classification ?? ''))) === 'online'
+            || app(\App\Services\Payment\OrderClassificationService::class)->classifyTour($tour)
+                === \App\Services\Payment\OrderClassificationService::ONLINE;
+        $netPayableBase = $tourIsOnlineOnly
+            ? round($priceAfterFoc, 2)
+            : (float) ((int) ceil($priceAfterFoc));
+        $baseAmount = $lastNegotiatedAmount > 0
+            ? ($tourIsOnlineOnly ? round((float) $lastNegotiatedAmount, 2) : (float) $lastNegotiatedAmount)
+            : $netPayableBase;
         $netTourAmount = $baseAmount;
         $negotiationDiscount = max(0, $netPayableBase - $baseAmount);
 
@@ -6889,7 +6896,12 @@ function loadIndividualHotelContent(tourId, hotelOrderIndex, bookingIndex, modal
                 transferOptions: hotelData.transfer_options || null,
                 // Approval status
                 isApprove: hotelData.is_approve || false,
-                referenceId: hotelData.reference_id || null,
+                // Online: supplier booking ref; offline: orders.reference_id (not our ONLINE-… agency id)
+                referenceId: hotelData.display_reference_id
+                    || hotelData.supplier_booking_reference
+                    || hotelData.mg_booking_id
+                    || hotelData.reference_id
+                    || null,
                 actualDueDate: hotelData.actual_due_date || null,
                 displayDueDate: hotelData.display_due_date || null,
                 approvalFile: hotelData.approval_file || null,
