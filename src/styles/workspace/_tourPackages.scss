@@ -256,12 +256,426 @@
 }
 
 /* Itinerary step */
+.partner-tour-packages.is-building {
+  max-width: none;
+}
+
 .partner-tour-packages__itinerary {
   overflow: visible;
 }
 
 .partner-tour-packages__itinerary-body {
-  margin-top: 4px;
+  margin-top: 0;
+}
+
+.tp-builder-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 0;
+}
+
+.tp-builder-toolbar__kicker {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #8a96ad;
+  margin-bottom: 2px;
+}
+
+.tp-builder-toolbar__title {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.2;
+  font-weight: 750;
+  color: #192944;
+}
+
+.tp-trip-summary {
+  border: 1px solid #e5eaf3 !important;
+  border-radius: 12px !important;
+  background: #fff !important;
+}
+
+/* Itinerary service tabs — compact professional look */
+.tp-itinerary-shell {
+  --tp-blue: #234adc;
+  --tp-ink: #192944;
+  --tp-muted: #748097;
+  --tp-line: #e5eaf3;
+  --tp-soft: #edf1ff;
+  overflow: hidden !important;
+  border: 1px solid var(--tp-line) !important;
+  border-radius: 12px !important;
+  background: #fff !important;
+  box-shadow: 0 4px 16px rgba(25, 41, 68, 0.04) !important;
+}
+
+.tp-itinerary-shell__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--tp-line);
+  background: #fafbfd;
+}
+
+.tp-itinerary-shell__bar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.tp-itinerary-shell__icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tp-itinerary-shell__title {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.2;
+  font-weight: 750;
+  color: var(--tp-ink);
+}
+
+.tp-itinerary-shell__lede {
+  margin: 1px 0 0;
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--tp-muted);
+}
+
+.tp-itinerary-shell__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid var(--tp-line);
+  color: var(--tp-muted);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tp-service-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 10px 14px 0;
+}
+
+.tp-service-tabs__btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--tp-line);
+  background: #fff;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--tp-ink);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tp-service-tabs__btn:hover {
+  border-color: #c9d4ef;
+  background: #f7f9ff;
+}
+
+.tp-service-tabs__btn.is-active {
+  background: var(--tp-blue);
+  border-color: var(--tp-blue);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(35, 74, 220, 0.2);
+}
+
+.tp-day-picker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 14px 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #f7f9fc;
+  border: 1px solid var(--tp-line);
+}
+
+.tp-day-picker__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  color: var(--tp-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tp-day-picker__row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.tp-day-chip {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 5px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--tp-line);
+  background: #fff;
+  color: var(--tp-ink);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tp-day-chip strong,
+.tp-day-chip span {
+  display: inline;
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.tp-day-chip strong {
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.tp-day-chip span {
+  margin-top: 0;
+  font-size: 11px;
+  color: var(--tp-muted);
+}
+
+.tp-day-chip:hover {
+  border-color: #c9d4ef;
+}
+
+.tp-day-chip.is-active {
+  background: var(--tp-soft);
+  border-color: var(--tp-blue);
+  box-shadow: 0 2px 8px rgba(35, 74, 220, 0.12);
+}
+
+.tp-day-chip.is-active strong,
+.tp-day-chip.is-active span {
+  color: var(--tp-blue);
+}
+
+.tp-itinerary-panel {
+  padding: 10px 14px 14px;
+}
+
+.tp-itinerary-panel__section {
+  display: grid;
+  gap: 8px;
+}
+
+.tp-day-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #1e3a8a 0%, #234adc 58%, #4f6ef2 100%);
+  color: #fff;
+}
+
+.tp-day-banner__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 46px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tp-day-banner__copy {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+}
+
+.tp-day-banner__copy strong {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.tp-day-banner__copy span {
+  font-size: 11px;
+  opacity: 0.88;
+}
+
+.tp-itinerary-panel__card {
+  border: 1px solid var(--tp-line);
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+  padding: 12px;
+}
+
+.tp-itinerary-panel__card--attractions {
+  border-left: 3px solid #f44336;
+  padding: 0;
+}
+
+.tp-itinerary-panel__card--guides {
+  border-left: 3px solid #2196f3;
+}
+
+.tp-itinerary-panel__card--restaurants {
+  border-left: 3px solid #ff9800;
+}
+
+.tp-itinerary-panel__card--transport {
+  border-left: 3px solid #4caf50;
+}
+
+.tp-itinerary-panel__card--ports {
+  border-left: 3px solid #234adc;
+}
+
+.tp-port-tabs-wrap {
+  display: grid;
+  gap: 10px;
+}
+
+.tp-port-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 10px;
+  background: #f4f7fc;
+  border: 1px solid var(--tp-line);
+}
+
+.tp-port-tabs__btn {
+  appearance: none;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--tp-ink);
+  cursor: pointer;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 700;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tp-port-tabs__btn em {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tp-muted);
+  width: 100%;
+  padding-left: 14px;
+}
+
+.tp-port-tabs__btn:hover {
+  background: #fff;
+  border-color: #d7deed;
+}
+
+.tp-port-tabs__btn.is-active {
+  background: #fff;
+  border-color: #c9d4ef;
+  box-shadow: 0 3px 10px rgba(25, 41, 68, 0.06);
+}
+
+.tp-port-tabs__btn.is-arrival.is-active {
+  border-color: #9ed7c2;
+}
+
+.tp-port-tabs__btn.is-departure.is-active {
+  border-color: #efd39a;
+}
+
+.tp-port-tabs__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-bottom: 0;
+}
+
+.tp-port-tabs__dot--in {
+  background: #20815f;
+}
+
+.tp-port-tabs__dot--out {
+  background: #a2751f;
+}
+
+.tp-port-block {
+  display: grid;
+  gap: 8px;
+}
+
+.tp-day-banner--arrival {
+  background: linear-gradient(135deg, #14664a 0%, #20815f 55%, #3aa57d 100%);
+}
+
+.tp-day-banner--departure {
+  background: linear-gradient(135deg, #8a6418 0%, #a2751f 55%, #c4922f 100%);
+}
+
+@media (max-width: 560px) {
+  .tp-port-tabs {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .tp-builder-toolbar {
+    align-items: flex-start;
+  }
+
+  .tp-itinerary-shell__bar {
+    flex-wrap: wrap;
+  }
+
+  .tp-day-picker {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
 }
 
 .partner-tour-packages__itinerary .MuiPaper-root {

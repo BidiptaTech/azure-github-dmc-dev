@@ -42,7 +42,7 @@ function formatGoibiboDate(date) {
   }
 }
 
-function LegCityField({ label, city, usedCityIds, onSelect }) {
+function LegCityField({ label, city, onSelect, fromCityName = null }) {
   const dispatch = useDispatch();
   const [searchValue, setSearchValue] = useState("");
   const [open, setOpen] = useState(false);
@@ -69,10 +69,8 @@ function LegCityField({ label, city, usedCityIds, onSelect }) {
     }
   }, [searchValue, dispatch]);
 
-  const suggestions = (cityCountryResults || []).filter(
-    (item) =>
-      !usedCityIds.includes(item.city_id) || item.city_id === city?.city_id
-  );
+  // Allow revisiting a city (Singapore → Batam → Singapore)
+  const suggestions = cityCountryResults || [];
 
   const pick = (item) => {
     onSelect(item);
@@ -334,8 +332,6 @@ export default function MultiCityLegs({
   ctaLabel = "Build multi-city trip →",
   guestOpenSignal = 0,
 }) {
-  const usedCityIds = legs.map((leg) => leg.city?.city_id).filter(Boolean);
-
   const updateLeg = (index, patch) => {
     const next = legs.map((leg, i) => (i === index ? { ...leg, ...patch } : leg));
 
@@ -382,12 +378,28 @@ export default function MultiCityLegs({
   return (
     <div style={{ display: "grid", gap: 8 }}>
       {legs.map((leg, index) => {
+        const prevLeg = index > 0 ? legs[index - 1] : null;
         const prevCheckout =
-          index > 0 &&
-          Array.isArray(legs[index - 1].dates) &&
-          legs[index - 1].dates.length === 2
-            ? legs[index - 1].dates[1]
+          prevLeg &&
+          Array.isArray(prevLeg.dates) &&
+          prevLeg.dates.length === 2
+            ? prevLeg.dates[1]
             : undefined;
+        const prevCityName = prevLeg?.city?.city || null;
+        const isRevisit =
+          Boolean(leg.city?.city_id) &&
+          legs
+            .slice(0, index)
+            .some(
+              (earlier) =>
+                earlier.city?.city_id &&
+                String(earlier.city.city_id) === String(leg.city.city_id)
+            );
+        const cityLabel = isRevisit
+          ? `City ${index + 1} · Return from ${prevCityName || "previous"}`
+          : prevCityName
+            ? `City ${index + 1} · From ${prevCityName}`
+            : `City ${index + 1}`;
 
         return (
           <div
@@ -406,9 +418,9 @@ export default function MultiCityLegs({
           >
             <div style={{ minWidth: 0, borderRight: "1px solid #e2e8f0" }}>
               <LegCityField
-                label={`City ${index + 1}`}
+                label={cityLabel}
                 city={leg.city}
-                usedCityIds={usedCityIds}
+                fromCityName={prevCityName}
                 onSelect={(city) => updateLeg(index, { city })}
               />
             </div>

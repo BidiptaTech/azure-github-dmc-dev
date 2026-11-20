@@ -73,43 +73,52 @@ const Counter = ({
     }
   };
 
+  const renderCounterControls = (value, onMinus, onPlus, minusDisabled, plusDisabled) => (
+    <div className="guest-pax-controls">
+      <button
+        type="button"
+        className="button -outline-blue-1 text-blue-1 size-38 rounded-4 js-down counter-btn"
+        onClick={onMinus}
+        disabled={minusDisabled}
+      >
+        <i className="icon-minus text-12" />
+      </button>
+      <div className="guest-pax-count">
+        <div className="text-15 js-count fw-500">{value}</div>
+      </div>
+      <button
+        type="button"
+        className="button -outline-blue-1 text-blue-1 size-38 rounded-4 js-up counter-btn"
+        onClick={onPlus}
+        disabled={plusDisabled}
+      >
+        <i className="icon-plus text-12" />
+      </button>
+    </div>
+  );
+
   return (
     <>
-      <div className="row y-gap-10 justify-between items-center">
-        <div className="col-auto">
-          <div className="counter-label-container">
-            {getCounterIcon()}
-            <div className="counter-text-container">
-              <div className="text-15 lh-12 fw-500">{name}</div>
-              {name === "Children" && (
-                <div className="text-14 lh-12 text-light-1 mt-5">Ages 1 - 17</div>
-              )}
-              {name === "Infants" && (
-                <div className="text-14 lh-12 text-light-1 mt-5">Younger than 1 year old</div>
-              )}
-            </div>
+      <div className="guest-pax-row">
+        <div className="counter-label-container guest-pax-label">
+          {getCounterIcon()}
+          <div className="counter-text-container">
+            <div className="text-15 lh-12 fw-500">{name}</div>
+            {name === "Children" && (
+              <div className="text-14 lh-12 text-light-1 mt-5">Ages 1 - 17</div>
+            )}
+            {name === "Infants" && (
+              <div className="text-14 lh-12 text-light-1 mt-5">Younger than 1 year old</div>
+            )}
           </div>
         </div>
-        <div className="col-auto">
-          <div className="d-flex items-center js-counter">
-            <button
-              className="button -outline-blue-1 text-blue-1 size-38 rounded-4 js-down counter-btn"
-              onClick={decrementCount}
-              disabled={name === "Adults" ? count <= 1 : count <= 0}
-            >
-              <i className="icon-minus text-12" />
-            </button>
-            <div className="flex-center size-20 ml-15 mr-15">
-              <div className="text-15 js-count fw-500">{count}</div>
-            </div>
-            <button
-              className="button -outline-blue-1 text-blue-1 size-38 rounded-4 js-up counter-btn"
-              onClick={incrementCount}
-            >
-              <i className="icon-plus text-12" />
-            </button>
-          </div>
-        </div>
+        {renderCounterControls(
+          count,
+          decrementCount,
+          incrementCount,
+          name === "Adults" ? count <= 1 : count <= 0,
+          false
+        )}
       </div>
 
      
@@ -121,60 +130,36 @@ const Counter = ({
             <span className="text-14 fw-500">Gender Distribution</span>
           </div>
           
-          <div className="gender-counter-item">
+          <div className="guest-pax-row gender-counter-item">
             <div className="gender-counter-header">
               <span className="gender-icon-badge male-badge">
                 <MaleIcon className="custom-icon male-icon" />
               </span>
               <span className="gender-label">Male</span>
             </div>
-            <div className="d-flex items-center js-counter">
-              <button
-                className="button -outline-blue-1 text-blue-1 size-38 rounded-4 js-down counter-btn"
-                onClick={() => decrementGenderCount("Male")}
-                disabled={maleCount === 0}
-              >
-                <i className="icon-minus text-12" />
-              </button>
-              <div className="flex-center size-20 ml-15 mr-15">
-                <div className="text-15 js-count fw-500">{maleCount}</div>
-              </div>
-              <button
-                className="button -outline-blue-1 text-blue-1 size-38 rounded-4 js-up counter-btn"
-                onClick={() => incrementGenderCount("Male")}
-                disabled={maleCount === totalAdults}
-              >
-                <i className="icon-plus text-12" />
-              </button>
-            </div>
+            {renderCounterControls(
+              maleCount,
+              () => decrementGenderCount("Male"),
+              () => incrementGenderCount("Male"),
+              maleCount === 0,
+              maleCount === totalAdults
+            )}
           </div>
 
-          <div className="gender-counter-item mt-15">
+          <div className="guest-pax-row gender-counter-item mt-15">
             <div className="gender-counter-header">
               <span className="gender-icon-badge female-badge">
                 <FemaleIcon className="custom-icon female-icon" />
               </span>
               <span className="gender-label">Female</span>
             </div>
-            <div className="d-flex items-center js-counter">
-              <button
-                className="button -outline-blue-1 text-blue-1 size-38 rounded-4 js-down counter-btn"
-                onClick={() => decrementGenderCount("Female")}
-                disabled={femaleCount === 0}
-              >
-                <i className="icon-minus text-12" />
-              </button>
-              <div className="flex-center size-20 ml-15 mr-15">
-                <div className="text-15 js-count fw-500">{femaleCount}</div>
-              </div>
-              <button
-                className="button -outline-blue-1 text-blue-1 size-38 rounded-4 js-up counter-btn"
-                onClick={() => incrementGenderCount("Female")}
-                disabled={femaleCount === totalAdults}
-              >
-                <i className="icon-plus text-12" />
-              </button>
-            </div>
+            {renderCounterControls(
+              femaleCount,
+              () => decrementGenderCount("Female"),
+              () => incrementGenderCount("Female"),
+              femaleCount === 0,
+              femaleCount === totalAdults
+            )}
           </div>
         </div>
       )}
@@ -230,6 +215,36 @@ const Counter = ({
       )}
 
       <style jsx>{`
+        .guest-pax-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          width: 100%;
+          gap: 16px;
+        }
+
+        .guest-pax-label {
+          min-width: 0;
+          flex: 1;
+        }
+
+        .guest-pax-controls {
+          display: flex;
+          align-items: center;
+          flex-shrink: 0;
+          width: 126px;
+          justify-content: space-between;
+        }
+
+        .guest-pax-count {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 28px;
+          min-width: 28px;
+          text-align: center;
+        }
+
         .counter-label-container {
           display: flex;
           align-items: center;
@@ -257,7 +272,7 @@ const Counter = ({
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 12px 15px;
+          padding: 12px 0 12px 15px;
           margin-bottom: 8px;
           background: rgba(53, 84, 209, 0.05);
           border-radius: 10px;
@@ -379,26 +394,22 @@ const Counter = ({
         .gender-counters {
           background: rgba(53, 84, 209, 0.05);
           border-radius: 10px;
-          padding: 15px;
+          padding: 15px 0 15px 15px;
         }
         
         .gender-counter-title {
           display: flex;
           align-items: center;
           margin-bottom: 15px;
-          padding-bottom: 10px;
+          padding: 0 15px 10px 0;
           border-bottom: 1px dashed rgba(53, 84, 209, 0.15);
-        }
-        
-        .gender-counter-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
         }
         
         .gender-counter-header {
           display: flex;
           align-items: center;
+          min-width: 0;
+          flex: 1;
         }
         
         .gender-label {

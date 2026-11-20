@@ -1,3 +1,6 @@
+import { useState } from "react";
+import DemoRequestDialog from "@/components/login/DemoRequestDialog";
+
 const WORKFLOW = [
   {
     label: "01 / SALES",
@@ -21,34 +24,41 @@ const WORKFLOW = [
   },
 ];
 
-const AgentOutboundWorkspace = () => (
-  <section className="agent-overview" aria-labelledby="agent-overview-title">
-    <p className="agent-eyebrow">
-      <span /> THE OUTBOUND WORKSPACE
-    </p>
-    <h2 id="agent-overview-title">From the first brief to the final booking.</h2>
-    <p className="agent-overview-lede">
-      Manage a single tailor-made FIT trip or coordinate group departures across
-      multiple destinations with the same DMC workflow.
-    </p>
+const AgentOutboundWorkspace = () => {
+  const [demoOpen, setDemoOpen] = useState(false);
 
-    <div className="agent-workflow">
-      {WORKFLOW.map((item) => (
-        <article key={item.label}>
-          <span>{item.label}</span>
-          <h3>{item.title}</h3>
-          <p>{item.body}</p>
-        </article>
-      ))}
-    </div>
+  return (
+    <section className="agent-overview" aria-labelledby="agent-overview-title">
+      <p className="agent-eyebrow">
+        <span /> THE OUTBOUND WORKSPACE
+      </p>
+      <h2 id="agent-overview-title">From the first brief to the final booking.</h2>
+      <p className="agent-overview-lede">
+        Manage a single tailor-made FIT trip or coordinate group departures across
+        multiple destinations with the same DMC workflow.
+      </p>
 
-    <a
-      className="agent-demo-link"
-      href="mailto:admin@travclicks.com?subject=Travclicks%20Agent%20Portal%20demo%20request"
-    >
-      Request a Demo <span aria-hidden="true">→</span>
-    </a>
-  </section>
-);
+      <div className="agent-workflow">
+        {WORKFLOW.map((item) => (
+          <article key={item.label}>
+            <span>{item.label}</span>
+            <h3>{item.title}</h3>
+            <p>{item.body}</p>
+          </article>
+        ))}
+      </div>
+
+      <button
+        type="button"
+        className="agent-demo-link"
+        onClick={() => setDemoOpen(true)}
+      >
+        Request a Demo <span aria-hidden="true">→</span>
+      </button>
+
+      <DemoRequestDialog open={demoOpen} onClose={() => setDemoOpen(false)} />
+    </section>
+  );
+};
 
 export default AgentOutboundWorkspace;
