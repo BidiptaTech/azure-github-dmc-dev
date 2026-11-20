@@ -69,9 +69,16 @@
         <div class="card mb-6">
             <h5 class="card-header d-flex justify-content-between align-items-center">
                 Add New Driver
-                <a href="{{ route('driver.index') }}" class="btn btn-sm btn-outline-danger">
-                    <i class="mdi mdi-arrow-left"></i> Back
-                </a>
+                <div class="d-flex gap-2 align-items-center">
+                    @if(in_array((int) auth()->user()->role_id, [11, 20]))
+                        <a href="{{ route('bulk-upload.drivers') }}" class="btn btn-warning btn-sm">
+                            <i class="ri-upload-cloud-2-line me-1"></i>Bulk Upload Drivers
+                        </a>
+                    @endif
+                    <a href="{{ route('driver.index') }}" class="btn btn-sm btn-outline-danger">
+                        <i class="mdi mdi-arrow-left"></i> Back
+                    </a>
+                </div>
             </h5>
             @if (session('error'))
                 <div class="alert alert-danger border-0 border-start border-5 border-danger-subtle shadow-sm px-4 py-3 rounded-3">

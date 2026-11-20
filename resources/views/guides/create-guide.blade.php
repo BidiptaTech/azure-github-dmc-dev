@@ -239,9 +239,16 @@
                         country-select-id="country"
                     />
                 </div>
-                <a href="{{ route('guide.index') }}" class="btn btn-sm btn-outline-danger">
-                    <i class="mdi mdi-arrow-left"></i> Back
-                </a>
+                <div class="d-flex gap-2 align-items-center">
+                    @if(in_array((int) auth()->user()->role_id, [11, 20]))
+                        <a href="{{ route('bulk-upload.guides') }}" class="btn btn-warning btn-sm">
+                            <i class="ri-upload-cloud-2-line me-1"></i>Bulk Upload Guides
+                        </a>
+                    @endif
+                    <a href="{{ route('guide.index') }}" class="btn btn-sm btn-outline-danger">
+                        <i class="mdi mdi-arrow-left"></i> Back
+                    </a>
+                </div>
             </div>
             {{-- @if (session('error'))
                 <div class="alert alert-danger">

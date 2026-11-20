@@ -51,9 +51,16 @@
                     Add New Meal
                     <x-currency-price-note :watch-country="true" country-select-id="restaurantSelect" />
                 </span>
-                <a href="{{ route('meals.index') }}" class="btn btn-sm btn-outline-danger">
-                    <i class="mdi mdi-arrow-left"></i> Back
-                </a>
+                <div class="d-flex gap-2 align-items-center">
+                    @if(auth()->user()->role_id == 11 || auth()->user()->role_id == '11')
+                        <a href="{{ route('bulk-upload.meals') }}" class="btn btn-warning btn-sm">
+                            <i class="ri-upload-cloud-2-line me-1"></i>Bulk Upload Meals
+                        </a>
+                    @endif
+                    <a href="{{ route('meals.index') }}" class="btn btn-sm btn-outline-danger">
+                        <i class="mdi mdi-arrow-left"></i> Back
+                    </a>
+                </div>
             </h5>
             <form id="restaurantForm" method="POST" action="{{ route('meals.store') }}" enctype="multipart/form-data" class="card-body js-submit-loader-form" data-loader-message="Saving meal...">
                 @csrf

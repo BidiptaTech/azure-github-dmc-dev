@@ -500,6 +500,11 @@
                         </a>
                         @endif
                         @endif
+                        @if(auth()->user()->role_id == 20 || auth()->user()->role_id == '20')
+                        <a href="{{ route('bulk-upload.restaurants') }}" class="btn btn-success btn-premium">
+                            <i class="ri-upload-cloud-2-line"></i> Bulk Upload
+                        </a>
+                        @endif
 
                         <div class="dropdown">
                             <button class="btn btn-warning btn-premium dropdown-toggle" type="button" id="exportDropdown"

@@ -1024,7 +1024,7 @@
             @endif
             
             <!-- Bulk Upload -->
-            {{-- @if(in_array(auth()->user()->role_id, [11, 20]))
+            @if(in_array(auth()->user()->role_id, [11, 20]))
                 <li class="menu-header mt-5">
                     <span class="menu-header-text" data-i18n="Bulk Upload">Bulk Upload</span>
                 </li>
@@ -1034,13 +1034,13 @@
                         <i class="menu-icon tf-icons ri-upload-cloud-2-line" style="color: #10b981 !important; background: rgba(16, 185, 129, 0.1);"></i>
                         <div data-i18n="Bulk Upload">Bulk Upload</div>
                     </a>
-                    <ul class="menu-sub"> --}}
-                        {{-- <li class="menu-item @if(Request::is('bulk-upload/hotels')) active @endif">
+                    <ul class="menu-sub">
+                        <li class="menu-item @if(Request::is('bulk-upload/hotels')) active @endif">
                             <a href="{{ route('bulk-upload.hotels') }}" class="menu-link">
                                 <div data-i18n="Hotels">Hotels</div>
                             </a>
-                        </li> --}}
-                        {{-- <li class="menu-item @if(Request::is('bulk-upload/guides')) active @endif">
+                        </li>
+                        <li class="menu-item @if(Request::is('bulk-upload/guides')) active @endif">
                             <a href="{{ route('bulk-upload.guides') }}" class="menu-link">
                                 <div data-i18n="Guides">Guides</div>
                             </a>
@@ -1055,19 +1055,19 @@
                                 <div data-i18n="Vehicles">Vehicles</div>
                             </a>
                         </li>
-                        @if(auth()->user()->role_id !== '11')
+                        @if(auth()->user()->role_id != 11)
                         <li class="menu-item @if(Request::is('bulk-upload/restaurants')) active @endif">
                             <a href="{{ route('bulk-upload.restaurants') }}" class="menu-link">
                                 <div data-i18n="Restaurants">Restaurants</div>
                             </a>
                         </li>
+                        @endif
                         <li class="menu-item @if(Request::is('bulk-upload/attractions')) active @endif">
                             <a href="{{ route('bulk-upload.attractions') }}" class="menu-link">
                                 <div data-i18n="Attractions">Attractions</div>
                             </a>
                         </li>
-                        @endif --}}
-                        {{-- @if(auth()->user()->role_id == '11')
+                        @if(auth()->user()->role_id == 11)
                         <li class="menu-item @if(Request::is('bulk-upload/tickets')) active @endif">
                             <a href="{{ route('bulk-upload.tickets') }}" class="menu-link">
                                 <div data-i18n="Attraction Tickets">Attraction Tickets</div>
@@ -1078,10 +1078,10 @@
                                 <div data-i18n="Restaurant Meals">Restaurant Meals</div>
                             </a>
                         </li>
-                        @endif --}}
-                    {{-- </ul>
+                        @endif
+                    </ul>
                 </li>
-            @endif --}}
+            @endif
             <!-- End Bulk Upload -->
 
                 <!-- Jobsheets -->

@@ -292,8 +292,8 @@
                                 </form>
                             </div>
 
-                            <!-- Display Errors -->
-                            @if($errors->any())
+                            <!-- Display row-level upload errors (do not overwrite Laravel $errors ViewErrorBag) -->
+                            @if(session('upload_errors') && count(session('upload_errors')) > 0)
                                 <div class="error-section mt-4">
                                     <div class="alert alert-warning modern-alert">
                                         <div class="alert-header">
@@ -301,7 +301,7 @@
                                             <strong>Upload Errors Detected</strong>
                                         </div>
                                         <div class="error-list">
-                                            @foreach($errors->all() as $error)
+                                            @foreach(session('upload_errors') as $error)
                                                 <div class="error-item">
                                                     <i class="ri-close-circle-line text-danger me-2"></i>
                                                     {{ $error }}

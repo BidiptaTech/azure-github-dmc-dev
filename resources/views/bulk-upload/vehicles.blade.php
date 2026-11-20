@@ -40,12 +40,12 @@
                             </div>
                         @endif
 
-                        @if(session('errors') && count(session('errors')) > 0)
+                        @if(session('upload_errors') && count(session('upload_errors')) > 0)
                             <div class="alert alert-warning alert-dismissible fade show" role="alert">
                                 <i class="ri-alert-line me-2"></i>
                                 <strong>Upload Errors:</strong>
                                 <ul class="mb-0 mt-2">
-                                    @foreach(session('errors') as $error)
+                                    @foreach(session('upload_errors') as $error)
                                         <li>{{ $error }}</li>
                                     @endforeach
                                 </ul>
@@ -73,18 +73,15 @@
                                 <div>
                                     <h6 class="mb-2">🚗 Upload Instructions</h6>
                                     <ul class="mb-0 small">
-                                        <li><strong>Required Fields:</strong> Vehicle Name, Type, Model, Year, Plate No, Seating Capacity, City, Sharing Option</li>
+                                        <li><strong>Columns match Add Vehicle:</strong> Driver ID, Name, Type, Model, Color, Year, Plate, Seating Capacity, Capacity Arr/Dept, Country, City, Sharing Option, Base/Night/Per-Hour Cost+Sell, Cancellation Cost+Sell, Hourly Price 1–12 Hr, Image URL (optional), Description, Status</li>
+                                        <li><strong>Vehicle Image:</strong> Optional — if blank, uses Vehicle Default Pic from Master Settings</li>
                                         <li><strong>Model Year:</strong> Must be a 4-digit number (e.g., 2023)</li>
-                                        <li><strong>Seating Capacity:</strong> Must be a positive number</li>
+                                        <li><strong>Seating Capacity / Arr-Dept:</strong> Must be positive numbers</li>
                                         <li><strong>Plate Number:</strong> Must be unique per DMC account</li>
-                                        <li><strong>Vehicle Sharing Options:</strong>
-                                            <ul class="mt-1">
-                                                <li><strong>Private:</strong> Fill only Attraction Private & Restaurant Private prices</li>
-                                                <li><strong>Sharable:</strong> Fill only Attraction Shared & Restaurant Shared prices</li>
-                                                <li><strong>Both:</strong> Fill all four transport price fields</li>
-                                            </ul>
-                                        </li>
-                                        <li><strong>Pricing Fields:</strong> All cost fields (Base Price, Cost per KM, Cost per Hour, etc.) are required</li>
+                                        <li><strong>Hourly Prices:</strong> Optional package rates for 1–12 hours (same as Add Vehicle)</li>
+                                        <li><strong>Driver ID:</strong> Optional; must belong to your DMC</li>
+                                        <li><strong>Sharing Option:</strong> Private, Sharable, or Both (default Private). Zone mapping prices are set after create.</li>
+                                        <li><strong>Not in this CSV:</strong> Per-KM prices, Day/Night profit type & markup (UI auto-fill only), zone mapping</li>
                                         <li><strong>File Format:</strong> CSV file only, maximum 10MB</li>
                                         <li><strong>Access:</strong> Only DMC and Virtual DMC users can upload vehicles</li>
                                     </ul>
