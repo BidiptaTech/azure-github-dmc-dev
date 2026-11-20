@@ -1,7 +1,10 @@
 @extends('layouts.layout')
 @section('title', 'Definite Bookings')
 @extends('layouts.datatablecss')
-@php $pageCurrency = isset($currency) ? $currency : 'SGD'; @endphp
+@php
+    $pageCurrency = isset($currency) ? $currency : 'SGD';
+    $bookingEmailSignature = \App\Helpers\CommonHelper::getBookingEmailSignature();
+@endphp
 
 <!-- Add SweetAlert2 CSS -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
@@ -18,6 +21,7 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
     window.bookingCurrency = @json($pageCurrency);
+    window.bookingEmailSignature = @json($bookingEmailSignature);
     window.tourNegotiationHistory = @json($tourNegotiationHistory ?? []);
     window.tourActiveServiceCounts = @json($tourActiveServiceCounts ?? []);
     window.rejectServicePageTourStatus = 'Definite';
@@ -25536,8 +25540,7 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
         content += `${fullRow('')}\n`;
         content += `${fullRow('For any queries or modifications, please contact us immediately.')}\n`;
         content += `${endBorder}\n\n`;
-        
-        // content += `Best regards,\nNam Ho Singapore`;
+        content += buildBookingEmailSignature();
         
         return content;
     }
@@ -25576,10 +25579,21 @@ function confirmIndividualGuideRejection(tourId, guideOrderIndex, bookingIndex) 
         content += `${border}\n${sectionHeader('IMPORTANT NOTES')}\n${sectionBorder}\n`;
         content += `${row('Note', 'Please contact us for complete hotel details')}\n`;
         content += `${endBorder}\n\n`;
-        
-        // content += `Best regards,\nNam Ho Singapore`;
+        content += buildBookingEmailSignature();
         
         return content;
+    }
+
+    // DMC company name + email + phone for booking email previews
+    function buildBookingEmailSignature() {
+        const sig = window.bookingEmailSignature || {};
+        const name = String(sig.name || 'DMC').trim() || 'DMC';
+        const email = String(sig.email || '').trim();
+        const phone = String(sig.phone || '').trim();
+        let block = `Best regards,\n${name}`;
+        if (email) block += `\nEmail: ${email}`;
+        if (phone) block += `\nPhone: ${phone}`;
+        return block;
     }
 
     // Helper function to pad text to the right
