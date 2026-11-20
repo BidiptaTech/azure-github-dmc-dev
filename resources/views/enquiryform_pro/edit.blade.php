@@ -41509,6 +41509,11 @@ exitPortData.push({
                 ?? 0
             ) || null,
             dmc_profile_markup: data.dmc_profile_markup || (data.price_payload && data.price_payload.dmc_profile_markup) || null,
+            online_price_breakdown: data.online_price_breakdown
+                || (data.price_payload && data.price_payload.online_price_breakdown)
+                || data.dmc_profile_markup
+                || (data.price_payload && data.price_payload.dmc_profile_markup)
+                || null,
             hotelDetails: hotelDetails,
             country: data.country || '',
             city: data.city || hotelDetails.city || data.destination || '',
@@ -41542,6 +41547,34 @@ exitPortData.push({
             const bedSell = parseFloat(firstBed.avgSell ?? firstBed.sell ?? firstBed.price ?? data.avgSell ?? data.sell ?? 0) || 0;
             if (bedCost > 0) { hotel.cost = bedCost; hotel.avgCost = bedCost; }
             if (bedSell > 0) { hotel.sell = bedSell; hotel.avgSell = bedSell; hotel.roomPrice = bedSell; }
+        }
+        // Online: never leave stay totals in AVG COST / SELL (create uses per-night base / marked).
+        if (hotel.isOnlineHotel || hotel.hotelSourceType === 'online') {
+            const stayN = Math.max(1, parseInt(hotel.nights, 10) || nights || 1);
+            const stamp = hotel.online_price_breakdown || hotel.dmc_profile_markup || null;
+            const baseStay = parseFloat(
+                hotel.base_grand_total
+                ?? (stamp && (stamp.hotel_price != null ? stamp.hotel_price : stamp.base_price))
+                ?? 0
+            ) || 0;
+            const markedStay = parseFloat(
+                (stamp && (stamp.total_price != null ? stamp.total_price : stamp.price))
+                ?? hotel.savedTotalPrice
+                ?? 0
+            ) || 0;
+            if (baseStay > 0 && (!hotel.cost || hotel.cost >= baseStay * 0.9)) {
+                hotel.cost = Math.round((baseStay / stayN) * 100) / 100;
+                hotel.avgCost = hotel.cost;
+            }
+            if (markedStay > 0 && (!hotel.sell || hotel.sell >= Math.min(baseStay || markedStay, markedStay) * 0.9)) {
+                hotel.sell = Math.round((markedStay / stayN) * 100) / 100;
+                hotel.avgSell = hotel.sell;
+                hotel.roomPrice = hotel.sell;
+            } else if (baseStay > 0 && (!hotel.sell || hotel.sell >= baseStay * 0.9)) {
+                hotel.sell = Math.round((baseStay / stayN) * 100) / 100;
+                hotel.avgSell = hotel.sell;
+                hotel.roomPrice = hotel.sell;
+            }
         }
         if (!hotel.roomPrice && hotel.sell) hotel.roomPrice = hotel.sell;
         if ((!hotel.cost || hotel.cost <= 0) && hotel.avgCost > 0) hotel.cost = hotel.avgCost;

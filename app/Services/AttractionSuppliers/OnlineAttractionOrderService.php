@@ -86,8 +86,13 @@ class OnlineAttractionOrderService
      * @param  array<string, mixed>  $attraction
      * @return array{success: bool, order_ref_id: ?string, external_status: ?string, message: ?string, credits_insufficient: bool}
      */
-    public function createOrder(array $attraction, ?int $tourId = null, bool $chargeCredits = false): array
+    public function createOrder(array $attraction, ?int $tourId = null, bool $chargeCredits = false, bool $forceNew = false): array
     {
+        if ($forceNew) {
+            $attraction = $this->clearAttractionOrderRef($attraction);
+            $this->forgetPendingRefCache($attraction, $tourId);
+        }
+
         $existing = self::extractSavedRef((object) ['order_ref_no' => $attraction['order_ref_no'] ?? null], $attraction);
         if ($existing !== null) {
             Log::info('Attraction external create-order skipped (payload already has order_ref_id)', [
@@ -108,6 +113,7 @@ class OnlineAttractionOrderService
         if (is_string($cached) && ! self::isPlaceholderRef($cached)) {
             Log::info('Attraction external create-order skipped (cached order_ref_id from prior attempt)', [
                 'order_ref_id' => $cached,
+                'ticket' => self::ticketFingerprint($attraction),
             ]);
 
             return [
@@ -340,8 +346,18 @@ class OnlineAttractionOrderService
      */
     public function requiredPaymentAmount(array $attraction): float
     {
-        $adults = max(0, (int) ($attraction['adultCount'] ?? 0));
-        $children = max(0, (int) ($attraction['childCount'] ?? 0));
+        $adults = max(0, (int) (
+            $attraction['adultCount']
+            ?? $attraction['adultsQty']
+            ?? $attraction['adults']
+            ?? 0
+        ));
+        $children = max(0, (int) (
+            $attraction['childCount']
+            ?? $attraction['childQty']
+            ?? $attraction['children']
+            ?? 0
+        ));
         $quantity = max(1, $adults + $children);
         $skuId = trim((string) ($attraction['sku_id'] ?? $attraction['ticket_sku_id'] ?? ''));
         $ticket = $this->ticketFromAttractionPayload($attraction, $skuId);
@@ -670,14 +686,30 @@ class OnlineAttractionOrderService
             }
         }
 
-        $adults = max(0, (int) ($attraction['adultCount'] ?? 0));
-        $children = max(0, (int) ($attraction['childCount'] ?? 0));
+        $adults = max(0, (int) (
+            $attraction['adultCount']
+            ?? $attraction['adultsQty']
+            ?? $attraction['adults']
+            ?? 0
+        ));
+        $children = max(0, (int) (
+            $attraction['childCount']
+            ?? $attraction['childQty']
+            ?? $attraction['children']
+            ?? 0
+        ));
         $quantity = $adults + $children;
         if ($quantity < 1) {
             $quantity = 1;
         }
 
-        $visitDate = $this->normalizeVisitDate($attraction['bookingDate'] ?? '');
+        $visitDate = $this->normalizeVisitDate(
+            $attraction['bookingDate']
+            ?? $attraction['date']
+            ?? $attraction['dateTime']
+            ?? $attraction['booking_date']
+            ?? ''
+        );
         $ticket = $this->resolveProviderTicket($attraction, $skuId, $tourId);
         $orderSku = $ticket['sku_id'] !== '' ? $ticket['sku_id'] : $skuId;
 
@@ -1207,17 +1239,150 @@ class OnlineAttractionOrderService
     /**
      * @param  array<string, mixed>  $attraction
      */
+    /**
+     * Stable ticket fingerprint so two tickets of the same attraction (same catalog sku/date/pax)
+     * never share a pending supplier order_ref (that caused pay "Invalid parameter(s)" on the 2nd).
+     *
+     * @param  array<string, mixed>  $attraction
+     */
+    public static function ticketFingerprint(array $attraction): string
+    {
+        $ticketSku = trim((string) (
+            $attraction['ticket_sku_id']
+            ?? $attraction['item_sku_id']
+            ?? $attraction['provider_sku_id']
+            ?? $attraction['provider_ticket_id']
+            ?? $attraction['ticketId']
+            ?? $attraction['ticket_id']
+            ?? ''
+        ));
+        $ticketName = strtolower(trim((string) (
+            $attraction['ticketName']
+            ?? $attraction['ticket_name']
+            ?? ''
+        )));
+        $localId = trim((string) ($attraction['id'] ?? ''));
+
+        return implode('|', [$ticketSku, $ticketName, $localId]);
+    }
+
+    /**
+     * Strip a wrongly shared / stale supplier ref so createOrder opens a new vendor order.
+     *
+     * @param  array<string, mixed>  $attraction
+     * @return array<string, mixed>
+     */
+    public function clearAttractionOrderRef(array $attraction): array
+    {
+        unset(
+            $attraction['order_ref_no'],
+            $attraction['order_reference_id'],
+            $attraction['external_order_ref_id'],
+            $attraction['attraction_order_ref_id']
+        );
+
+        return $attraction;
+    }
+
+    /**
+     * True when another attraction order on this tour already owns this supplier ref
+     * (approved, or an earlier pending row — first ticket keeps the shared legacy ref).
+     */
+    public static function isSupplierRefOwnedBySibling(int $tourId, int $orderId, string $ref): bool
+    {
+        $ref = trim($ref);
+        if ($ref === '' || self::isPlaceholderRef($ref)) {
+            return false;
+        }
+
+        return \Illuminate\Support\Facades\DB::table('orders')
+            ->where('tour_id', $tourId)
+            ->where('id', '!=', $orderId)
+            ->whereNull('deleted_at')
+            ->where('order_ref_no', $ref)
+            ->where(function ($q) use ($orderId) {
+                $q->where('is_approve', 1)
+                    ->orWhere('id', '<', $orderId);
+            })
+            ->exists();
+    }
+
+    /**
+     * Drop current + legacy (pre-ticket) pending-ref cache entries.
+     *
+     * @param  array<string, mixed>  $attraction
+     */
+    public function forgetPendingRefCache(array $attraction, ?int $tourId): void
+    {
+        Cache::forget($this->pendingRefCacheKey($attraction, $tourId));
+        Cache::forget($this->legacyPendingRefCacheKey($attraction, $tourId));
+    }
+
+    /**
+     * @param  array<string, mixed>  $attraction
+     */
+    private function legacyPendingRefCacheKey(array $attraction, ?int $tourId): string
+    {
+        $sku = (string) ($attraction['sku_id'] ?? $attraction['AttractionId'] ?? $attraction['attractionId'] ?? '');
+        $date = (string) (
+            $attraction['bookingDate']
+            ?? $attraction['date']
+            ?? $attraction['dateTime']
+            ?? $attraction['booking_date']
+            ?? ''
+        );
+        $adults = (string) (
+            $attraction['adultCount']
+            ?? $attraction['adultsQty']
+            ?? $attraction['adults']
+            ?? 0
+        );
+        $children = (string) (
+            $attraction['childCount']
+            ?? $attraction['childQty']
+            ?? $attraction['children']
+            ?? 0
+        );
+
+        // Pre-fix key omitted ticket_sku — collisions reused one order_ref for two tickets.
+        return 'sg_attractions_pending_order_ref:' . md5(implode('|', [
+            (string) ($tourId ?? 0),
+            (string) ($attraction['api_environment'] ?? 'demo'),
+            $sku,
+            $date,
+            $adults,
+            $children,
+        ]));
+    }
+
     private function pendingRefCacheKey(array $attraction, ?int $tourId): string
     {
-        $sku = (string) ($attraction['sku_id'] ?? $attraction['AttractionId'] ?? '');
-        $date = (string) ($attraction['bookingDate'] ?? '');
-        $adults = (string) ($attraction['adultCount'] ?? 0);
-        $children = (string) ($attraction['childCount'] ?? 0);
+        $sku = (string) ($attraction['sku_id'] ?? $attraction['AttractionId'] ?? $attraction['attractionId'] ?? '');
+        $date = (string) (
+            $attraction['bookingDate']
+            ?? $attraction['date']
+            ?? $attraction['dateTime']
+            ?? $attraction['booking_date']
+            ?? ''
+        );
+        $adults = (string) (
+            $attraction['adultCount']
+            ?? $attraction['adultsQty']
+            ?? $attraction['adults']
+            ?? 0
+        );
+        $children = (string) (
+            $attraction['childCount']
+            ?? $attraction['childQty']
+            ?? $attraction['children']
+            ?? 0
+        );
 
         return 'sg_attractions_pending_order_ref:' . md5(implode('|', [
             (string) ($tourId ?? 0),
             (string) ($attraction['api_environment'] ?? 'demo'),
             $sku,
+            self::ticketFingerprint($attraction),
             $date,
             $adults,
             $children,

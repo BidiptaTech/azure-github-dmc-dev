@@ -1257,33 +1257,34 @@
             return;
         }
         host.classList.remove('d-none');
-        host.innerHTML = list.map(function (svc) {
+        const rows = list.map(function (svc) {
             const type = String(svc.type || 'service').toLowerCase();
+            const typeLabel = type === 'attraction' ? 'Attraction' : (type === 'hotel' ? 'Hotel' : 'Service');
             const icon = type === 'attraction' ? 'ri-camera-line'
                 : (type === 'hotel' ? 'ri-hotel-line' : 'ri-checkbox-blank-circle-line');
             const name = escPayHtml(svc.name || 'Online service');
             const ticket = escPayHtml(svc.ticket_name || '');
             const visit = escPayHtml(svc.visit_date || '');
-            const ref = String(svc.order_ref || '').trim();
+            // order_ref stays internal (orders / update-order) — not shown in Pay Now UI.
             const amount = Number(svc.amount || 0);
             const currency = escPayHtml(svc.currency || 'SGD');
+            const meta = [ticket, visit].filter(Boolean).join(' · ');
             return ''
-                + '<div class="border rounded-3 p-3 mb-2 bg-light">'
-                +   '<div class="d-flex align-items-start gap-2">'
-                +     '<div class="rounded-circle bg-white border d-flex align-items-center justify-content-center flex-shrink-0" style="width:36px;height:36px;">'
-                +       '<i class="' + icon + ' text-muted"></i>'
+                + '<div class="acceptance-pay-svc-row">'
+                +   '<div class="acceptance-pay-svc-ico"><i class="' + icon + '" aria-hidden="true"></i></div>'
+                +   '<div class="acceptance-pay-svc-main">'
+                +     '<div class="acceptance-pay-svc-top">'
+                +       '<span class="acceptance-pay-svc-type">' + escPayHtml(typeLabel) + '</span>'
+                +       '<span class="acceptance-pay-svc-name">' + name + '</span>'
                 +     '</div>'
-                +     '<div class="flex-grow-1">'
-                +       '<label class="form-label small text-muted mb-1">' + escPayHtml(type === 'attraction' ? 'Attraction' : (type === 'hotel' ? 'Hotel' : 'Service')) + '</label>'
-                +       '<input type="text" class="form-control form-control-sm mb-2" value="' + name + '" disabled readonly>'
-                +       (ticket ? '<div class="small text-muted mb-2">' + ticket + (visit ? ' · ' + visit : '') + '</div>' : (visit ? '<div class="small text-muted mb-2">' + visit + '</div>' : ''))
-                +       '<label class="form-label small text-muted mb-1">Reference number</label>'
-                +       '<input type="text" class="form-control form-control-sm" value="' + escPayHtml(ref || 'Pending supplier reference') + '" disabled readonly>'
-                +       (amount > 0 ? '<div class="small text-muted mt-2">Due: <strong>' + currency + ' ' + amount.toFixed(2) + '</strong></div>' : '')
-                +     '</div>'
+                +     (meta ? '<div class="acceptance-pay-svc-meta">' + meta + '</div>' : '')
                 +   '</div>'
+                +   (amount > 0
+                    ? '<div class="acceptance-pay-svc-due">' + currency + '&nbsp;' + amount.toFixed(2) + '</div>'
+                    : '')
                 + '</div>';
         }).join('');
+        host.innerHTML = '<div class="acceptance-pay-svc-list">' + rows + '</div>';
     }
 
     /**
@@ -1605,17 +1606,93 @@
         padding: 1.15rem 1.25rem 0.5rem;
     }
     #acceptancePayModal #acceptancePayHint {
-        margin-bottom: 1rem;
-        padding: 0.65rem 0.75rem;
-        border-radius: 0.65rem;
+        margin-bottom: 0.75rem;
+        padding: 0.5rem 0.65rem;
+        border-radius: 0.5rem;
         background: #f0fdfa;
         border: 1px solid #99f6e4;
         color: #134e4a;
-        font-size: 0.82rem;
-        line-height: 1.4;
+        font-size: 0.78rem;
+        line-height: 1.35;
     }
     #acceptancePayModal #acceptancePayHint:empty {
         display: none;
+    }
+    #acceptancePayModal #acceptancePayServices {
+        margin-bottom: 0.75rem !important;
+    }
+    #acceptancePayModal .acceptance-pay-svc-list {
+        border: 1px solid #e2e8f0;
+        border-radius: 0.65rem;
+        overflow: auto;
+        max-height: 11.5rem;
+        background: #f8fafc;
+    }
+    #acceptancePayModal .acceptance-pay-svc-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+        padding: 0.45rem 0.65rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    #acceptancePayModal .acceptance-pay-svc-row:last-child {
+        border-bottom: 0;
+    }
+    #acceptancePayModal .acceptance-pay-svc-ico {
+        width: 1.35rem;
+        height: 1.35rem;
+        margin-top: 0.1rem;
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #0f766e;
+        font-size: 0.95rem;
+    }
+    #acceptancePayModal .acceptance-pay-svc-main {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+    #acceptancePayModal .acceptance-pay-svc-top {
+        display: flex;
+        align-items: baseline;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+        line-height: 1.25;
+    }
+    #acceptancePayModal .acceptance-pay-svc-type {
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        color: #64748b;
+    }
+    #acceptancePayModal .acceptance-pay-svc-name {
+        font-size: 0.82rem;
+        font-weight: 650;
+        color: #0f172a;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+    }
+    #acceptancePayModal .acceptance-pay-svc-meta {
+        margin-top: 0.1rem;
+        font-size: 0.7rem;
+        color: #64748b;
+        line-height: 1.25;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    #acceptancePayModal .acceptance-pay-svc-due {
+        flex-shrink: 0;
+        margin-left: 0.25rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #0f766e;
+        white-space: nowrap;
+        line-height: 1.25;
     }
     #acceptancePayModal .form-label {
         font-size: 0.78rem;

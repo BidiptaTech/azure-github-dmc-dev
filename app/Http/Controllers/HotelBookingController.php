@@ -3675,13 +3675,37 @@ class HotelBookingController extends Controller
                 $orderService = app(OnlineAttractionOrderService::class);
                 $alreadyPaid = OnlineAttractionOrderService::isProviderPaymentComplete($attractionOrder, $booking);
 
+                // Legacy bug: two tickets of the same attraction shared one supplier order_ref.
+                // If a sibling order already owns this ref, create a fresh vendor order for this ticket.
+                if ($savedExternalRef !== null && ! $alreadyPaid
+                    && OnlineAttractionOrderService::isSupplierRefOwnedBySibling(
+                        (int) $tourId,
+                        (int) $attractionOrder->id,
+                        $savedExternalRef
+                    )) {
+                    Log::warning('Attraction online approval: shared supplier ref with sibling — creating new order', [
+                        'tour_id' => $tourId,
+                        'local_order_id' => $attractionOrder->id,
+                        'shared_order_ref_id' => $savedExternalRef,
+                        'ticket' => OnlineAttractionOrderService::ticketFingerprint($booking),
+                    ]);
+                    $booking = $orderService->clearAttractionOrderRef($booking);
+                    $writeBookingIntoData();
+                    DB::table('orders')->where('id', $attractionOrder->id)->update([
+                        'order_ref_no' => null,
+                        'data' => json_encode($attractionData),
+                        'updated_at' => now(),
+                    ]);
+                    $savedExternalRef = null;
+                }
+
                 if ($savedExternalRef === null) {
                     Log::info('Attraction online approval: creating provider order (pay happens after credit check)', [
                         'tour_id' => $tourId,
                         'local_order_id' => $attractionOrder->id,
                     ]);
 
-                    $createResult = $orderService->createOrder($booking, (int) $tourId, false);
+                    $createResult = $orderService->createOrder($booking, (int) $tourId, false, true);
                     if (! empty($createResult['credits_insufficient'])) {
                         return response()->json([
                             'success' => false,
@@ -3767,6 +3791,32 @@ class HotelBookingController extends Controller
                     ]);
 
                     $payResult = $orderService->payOrder($savedExternalRef, $booking);
+                    // Shared/already-paid ref often returns "Invalid parameter(s)" — create a new vendor order once.
+                    if (empty($payResult['success']) && empty($payResult['credits_insufficient'])) {
+                        $payMsg = strtolower((string) ($payResult['message'] ?? ''));
+                        if (str_contains($payMsg, 'invalid parameter') || str_contains($payMsg, 'already')) {
+                            Log::warning('Attraction online approval: pay failed on saved ref — recreating order', [
+                                'tour_id' => $tourId,
+                                'local_order_id' => $attractionOrder->id,
+                                'order_ref_id' => $savedExternalRef,
+                                'message' => $payResult['message'] ?? null,
+                            ]);
+                            $booking = $orderService->clearAttractionOrderRef($booking);
+                            $createRetry = $orderService->createOrder($booking, (int) $tourId, false, true);
+                            if (! empty($createRetry['success']) && ! empty($createRetry['order_ref_id'])) {
+                                $savedExternalRef = $createRetry['order_ref_id'];
+                                $booking = $orderService->applyRefToAttraction($booking, $savedExternalRef, 'pending');
+                                $writeBookingIntoData();
+                                DB::table('orders')->where('id', $attractionOrder->id)->update([
+                                    'order_ref_no' => $savedExternalRef,
+                                    'data' => json_encode($attractionData),
+                                    'updated_at' => now(),
+                                ]);
+                                $referenceId = $savedExternalRef;
+                                $payResult = $orderService->payOrder($savedExternalRef, $booking);
+                            }
+                        }
+                    }
                     if (! empty($payResult['credits_insufficient'])) {
                         return response()->json([
                             'success' => false,

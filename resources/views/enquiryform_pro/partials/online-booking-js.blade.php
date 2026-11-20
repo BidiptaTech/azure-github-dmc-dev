@@ -411,6 +411,10 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
             sku_id: payload.skuId || payload.attractionId || null,
             ticket_sku_id: payload.ticketSkuId || null,
             provider_ticket_id: payload.providerTicketId || null,
+            // Lite/API create-order fields (pending-ref cache + quantity)
+            adultCount: adults,
+            childCount: children,
+            bookingDate: visitDate,
             lowest_ticket_price: toNum(payload.lowestTicketPrice) || null,
             highest_ticket_price: toNum(payload.highestTicketPrice) || null,
             supplier_code: payload.supplierCode || 'sg_attractions',
@@ -886,6 +890,10 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
             dmc_profile_markup: priceStamp,
             online_price_breakdown: priceStamp
         };
+        // Per-night avgs (same basis as mapOnlineHotelToTour / create listing).
+        // beds.price stays as stay total for Lite; avgCost/avgSell keep edit hydrate correct.
+        const perNightBase = nights > 0 ? Math.round((hotelPrice / nights) * 100) / 100 : hotelPrice;
+        const perNightSell = nights > 0 ? Math.round((stayTotal / nights) * 100) / 100 : stayTotal;
 
         return {
             fullName: proRow.fullName || '',
@@ -964,19 +972,23 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
                     extra_bed: 0,
                     extra_bed_price: 0,
                     extra_bed_cost: 0,
-                    // Online: cost === sell (stay total)
+                    // Stay totals on price/cost/sell (Lite); avg* = per-night for Pro edit listing
                     price: stayTotal,
                     cost: stayTotal,
                     sell: stayTotal,
                     cost_price: stayTotal,
+                    avgCost: perNightBase,
+                    avgSell: perNightSell,
                     mealTypes: [mealPlan],
                     meal_plan: mealPlan
                 }]
             }],
             totalPrice: stayTotal,
             price: stayTotal,
-            cost: stayTotal,
-            sell: stayTotal,
+            cost: perNightBase,
+            sell: perNightSell,
+            avgCost: perNightBase,
+            avgSell: perNightSell,
             cost_price: stayTotal,
             transfer_options: null,
             child_with_bed: null,
@@ -1140,6 +1152,9 @@ window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
                     row.sku_id = src.sku_id || null;
                     row.ticket_sku_id = src.ticket_sku_id || null;
                     row.provider_ticket_id = src.provider_ticket_id || null;
+                    row.adultCount = adults;
+                    row.childCount = children;
+                    row.bookingDate = ymdOnly(src.dateTime || src.bookingDate || row.bookingDate || row.dateTime || '') || row.bookingDate;
                     row.lowest_ticket_price = src.lowest_ticket_price || null;
                     row.highest_ticket_price = src.highest_ticket_price || null;
                     row.supplier_code = src.supplier_code || 'sg_attractions';
