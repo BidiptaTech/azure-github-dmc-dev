@@ -4549,84 +4549,21 @@ class HotelBookingController extends Controller
                 ], 422);
             }
 
-            $voucherCancelResult = null;
-            if ($isOnline && $hasVoucher) {
-                // Already cancelled locally (e.g. prior attempt succeeded at supplier but failed mid-request)
-                $alreadyCancelledLocally = ! empty($booking['voucher_cancelled']);
-
-                if ($alreadyCancelledLocally) {
-                    $voucherCancelResult = [
-                        'success' => true,
-                        'message' => 'Voucher was already cancelled.',
-                        'provider_status' => null,
-                        'provider' => null,
-                    ];
-                } else {
-                    $voucherCancelResult = app(OnlineAttractionOrderService::class)
-                        ->cancelVoucher($voucherCode, $cancelReason, $booking);
-                }
-
-                // Supplier already cancelled (credits returned) — treat as success so local reject can finish.
-                if (empty($voucherCancelResult['success'])) {
-                    $failMsg = strtolower(trim((string) ($voucherCancelResult['message'] ?? '')));
-                    $alreadyCancelledAtSupplier = $failMsg !== '' && (
-                        str_contains($failMsg, 'not cancellable')
-                        || str_contains($failMsg, 'already cancel')
-                        || str_contains($failMsg, 'already cancelled')
-                    );
-                    if ($alreadyCancelledAtSupplier) {
-                        $voucherCancelResult['success'] = true;
-                        $voucherCancelResult['message'] = $voucherCancelResult['message']
-                            ?: 'Voucher was already cancelled with the supplier.';
-                    } else {
-                        return response()->json([
-                            'success' => false,
-                            'message' => $voucherCancelResult['message']
-                                ?: 'Provider voucher cancellation failed. Booking was not rejected.',
-                            'data' => [
-                                'voucher_cancel' => $voucherCancelResult,
-                                'voucher_code' => $voucherCode,
-                            ],
-                        ], 422);
-                    }
-                }
-
-                $booking['voucher_cancelled'] = true;
-                $booking['voucher_cancel_reason'] = $cancelReason;
-                $booking['voucher_cancelled_at'] = now()->toIso8601String();
-                $booking['voucher_cancel_response'] = [
-                    'message' => $voucherCancelResult['message'] ?? null,
-                    'provider_status' => $voucherCancelResult['provider_status'] ?? null,
-                ];
-
-                // Vendor refunded the credits → return to TravClicks vendor credit (auto-verified).
-                app(\App\Services\SupplierCredit\SupplierCreditService::class)->recordCancellationRefund([
-                    'order_id' => (int) $attractionOrder->id,
-                    'tour_id' => (int) $tourId,
-                    'service_type' => 'attraction',
-                    'charge_reported' => false,
-                    'supplier_booking_reference' => $voucherCode,
-                    'metadata' => ['voucher_code' => $voucherCode, 'trigger' => 'reject_voucher'],
-                ]);
-
-                // findTourAttractionOrder returns stdClass from query builder — markConfirmed needs Order model.
-                $orderModel = $attractionOrder instanceof \App\Models\Order
-                    ? $attractionOrder
-                    : \App\Models\Order::query()->find((int) $attractionOrder->id);
-                if ($orderModel) {
-                    app(\App\Services\Payment\SupplierCancellationStatusService::class)->markConfirmed(
-                        $orderModel,
-                        (string) ($voucherCancelResult['message'] ?? 'Supplier voucher cancellation confirmed.')
-                    );
-                }
-
-                if (isset($attractionData[$bookingIndex]) && is_array($attractionData[$bookingIndex])) {
-                    $attractionData[$bookingIndex] = $booking;
-                } elseif (isset($attractionData[0]) && is_array($attractionData[0])) {
-                    $attractionData[0] = $booking;
-                } else {
-                    $attractionData = [$booking];
-                }
+            // Online cancel + TravClicks wallet credit run only on TravClicks auto-refund.
+            // DMC cancel here only soft-deletes and queues the refund.
+            $orderModel = $attractionOrder instanceof \App\Models\Order
+                ? $attractionOrder
+                : \App\Models\Order::query()->find((int) $attractionOrder->id);
+            if ($isOnline && $hasVoucher && $orderModel && empty($booking['voucher_cancelled'])) {
+                app(\App\Services\Payment\SupplierCancellationStatusService::class)->markPending(
+                    $orderModel,
+                    'Queued for TravClicks auto-refund: supplier cancel + wallet credit pending.'
+                );
+            } elseif ($isOnline && $orderModel && ! empty($booking['voucher_cancelled'])) {
+                app(\App\Services\Payment\SupplierCancellationStatusService::class)->markConfirmed(
+                    $orderModel,
+                    'Voucher was already cancelled.'
+                );
             }
 
             // Update the orders table with rejection data and soft delete
@@ -4635,9 +4572,6 @@ class HotelBookingController extends Controller
                 'deleted_at' => now(), // Soft delete
                 'updated_at' => now(),
             ], true);
-            if ($isOnline && $hasVoucher) {
-                $updateData['data'] = json_encode($attractionData);
-            }
 
             // Update the order
             $updated = DB::table('orders')
@@ -4653,15 +4587,6 @@ class HotelBookingController extends Controller
 
             app(\App\Services\JobsheetRemovalService::class)->deleteForOrder($attractionOrder);
 
-            $walletAuto = null;
-            if ($isOnline && $hasVoucher) {
-                $fresh = \App\Models\Order::withTrashed()->find($attractionOrder->id);
-                if ($fresh) {
-                    $walletAuto = app(\App\Services\Payment\TravclicksOnlineWalletRefundService::class)
-                        ->afterOnlineCancelConfirmed($fresh, Tour::where('tour_id', $tourId)->first());
-                }
-            }
-
             // Log successful rejection
             Log::info('Attraction booking rejected successfully', [
                 'tour_id' => $tourId,
@@ -4669,8 +4594,7 @@ class HotelBookingController extends Controller
                 'cancel_reason' => $cancelReason,
                 'is_online' => $isOnline,
                 'voucher_code' => $hasVoucher ? $voucherCode : null,
-                'voucher_cancel_message' => $voucherCancelResult['message'] ?? null,
-                'wallet_auto_refund' => $walletAuto,
+                'supplier_cancel_deferred' => $isOnline && $hasVoucher,
                 'deleted_at' => now()
             ]);
 
@@ -4679,9 +4603,9 @@ class HotelBookingController extends Controller
 
             $message = 'Attraction booking rejected successfully';
             if ($isOnline && $hasVoucher) {
-                $message = ! empty($walletAuto['credited'])
-                    ? 'Online attraction cancelled and TravClicks refunded to the DMC wallet automatically.'
-                    : 'Online attraction voucher cancelled and booking rejected successfully.';
+                $message = $request->boolean('without_refund')
+                    ? 'Online attraction cancelled without refund. TravClicks will cancel the supplier voucher on auto-refund.'
+                    : 'Online attraction sent to Refunds. TravClicks will cancel the supplier voucher and credit the DMC wallet on auto-refund.';
             }
 
             return response()->json([
@@ -4692,9 +4616,8 @@ class HotelBookingController extends Controller
                     'attraction_order_id' => $attractionOrder->id,
                     'cancel_reason' => $cancelReason,
                     'voucher_code' => $hasVoucher ? $voucherCode : null,
-                    'voucher_cancel' => $voucherCancelResult,
                     'is_online_attraction' => $isOnline,
-                    'wallet_auto_refund' => $walletAuto,
+                    'supplier_cancel_deferred' => $isOnline && $hasVoucher,
                     'deleted_at' => now()->toISOString()
                 ]
             ]);

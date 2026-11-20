@@ -788,55 +788,21 @@ class SingleTourPackageController extends Controller
             $cancelReason = trim((string) $request->input('cancel_reason', ''));
             $voucherCancelResult = null;
 
-            // Soft-fail supplier cancel: local remove + refund queue still proceed;
-            // failed/pending blocks TravClicks wallet until retry or manual resolve.
+            // Defer supplier cancel + TravClicks wallet to TravClicks auto-refund.
+            $voucherCancelResult = null;
             $supplierCancelSoftFailed = false;
-            try {
-                $hotelCancelResult = app(OnlineHotelCancellationService::class)
-                    ->cancelIfApplicable($order, true);
-                $voucherCancelResult = app(OnlineAttractionCancellationService::class)
-                    ->cancelIfApplicable($order, $cancelReason !== '' ? $cancelReason : null, true);
-
-                foreach ([$hotelCancelResult, $voucherCancelResult] as $cancelResult) {
-                    if (is_array($cancelResult) && ! empty($cancelResult['soft_failed'])) {
-                        $supplierCancelSoftFailed = true;
-                        Log::warning('Online supplier cancellation soft-failed during order remove', [
-                            'order_id' => $order->id,
-                            'booking_id' => $order->booking_id,
-                            'type' => $order->type ?? null,
-                            'message' => $cancelResult['message'] ?? null,
-                        ]);
-                    }
-                }
-            } catch (\Throwable $e) {
-                $supplierCancelSoftFailed = true;
-                Log::error('Online supplier cancellation unexpected error during order remove', [
-                    'order_id' => $order->id,
-                    'booking_id' => $order->booking_id,
-                    'order_type' => $order->order_type ?? null,
-                    'type' => $order->type ?? null,
-                    'error' => $e->getMessage(),
-                    'previous' => $e->getPrevious()?->getMessage(),
-                ]);
-
+            if (strtolower(trim((string) ($order->order_type ?? ''))) === 'online') {
                 try {
-                    app(\App\Services\Payment\SupplierCancellationStatusService::class)->markFailed(
+                    app(\App\Services\Payment\SupplierCancellationStatusService::class)->markPending(
                         $order,
-                        SupplierFacingCopy::mask($e->getMessage() ?: 'Unexpected supplier cancellation error.')
+                        'Queued for TravClicks auto-refund: supplier cancel + wallet credit pending.'
                     );
-                } catch (\Throwable $statusError) {
-                    Log::warning('Could not persist supplier cancellation failed status', [
+                } catch (\Throwable $e) {
+                    Log::warning('Could not mark supplier cancellation pending on order remove', [
                         'order_id' => $order->id,
-                        'error' => $statusError->getMessage(),
+                        'error' => $e->getMessage(),
                     ]);
                 }
-
-                $voucherCancelResult = [
-                    'success' => false,
-                    'message' => SupplierFacingCopy::mask($e->getMessage()),
-                    'soft_failed' => true,
-                    'status' => 'failed',
-                ];
             }
 
             DB::transaction(function () use ($order, $tourId, $tourStatus) {
@@ -902,37 +868,16 @@ class SingleTourPackageController extends Controller
             });
 
             $walletAuto = null;
-            if (! $supplierCancelSoftFailed
-                && strtolower(trim((string) ($order->order_type ?? ''))) === 'online'
-            ) {
-                $fresh = Order::withTrashed()->find($order->id);
-                if ($fresh) {
-                    $walletAuto = app(\App\Services\Payment\TravclicksOnlineWalletRefundService::class)
-                        ->afterOnlineCancelConfirmed($fresh, $tour);
-                }
-            }
-
             $message = 'Order cancelled successfully';
-            if (is_array($voucherCancelResult) && ! empty($voucherCancelResult['success'])) {
-                $message = 'Online attraction voucher cancelled and booking removed successfully.';
-                if (! empty($voucherCancelResult['message'])) {
-                    $message .= ' ' . $voucherCancelResult['message'];
-                }
-            } elseif ($supplierCancelSoftFailed) {
-                $message = 'Service removed and queued for refund, but supplier cancellation failed or is pending. TravClicks must retry or mark resolved before wallet credit.';
-            } elseif (! empty($walletAuto['credited'])) {
-                $message = 'Order cancelled and TravClicks refunded to the DMC wallet automatically.';
+            if (strtolower(trim((string) ($order->order_type ?? ''))) === 'online') {
+                $message = 'Online service removed and queued for refund. TravClicks will cancel the supplier booking and credit the DMC wallet on auto-refund.';
             }
 
             return response()->json([
                 'success' => true,
                 'message' => $message,
                 'data' => [
-                    'voucher_cancel' => $voucherCancelResult,
-                    'voucher_code' => is_array($voucherCancelResult)
-                        ? ($voucherCancelResult['voucher_code'] ?? null)
-                        : null,
-                    'supplier_cancel_soft_failed' => $supplierCancelSoftFailed,
+                    'supplier_cancel_deferred' => strtolower(trim((string) ($order->order_type ?? ''))) === 'online',
                     'wallet_auto_refund' => $walletAuto,
                 ],
             ]);
