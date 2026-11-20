@@ -5352,39 +5352,19 @@ class EnquiryFormPro extends Controller
         }
 
         $deleted = 0;
-        $cancelService = app(\App\Services\AttractionSuppliers\OnlineAttractionCancellationService::class);
         foreach ($orphans as $orphan) {
-            try {
-                $cancelResult = $cancelService->cancelIfApplicable(
-                    $orphan,
-                    'Removed from Pro enquiry edit form',
-                    true
-                );
-                if (is_array($cancelResult) && ! empty($cancelResult['soft_failed'])) {
-                    \Log::warning('Pro edit: online attraction voucher cancel soft-failed during orphan soft-delete', [
+            // Defer supplier cancel + wallet to TravClicks auto-refund.
+            if (strtolower(trim((string) ($orphan->order_type ?? ''))) === 'online') {
+                try {
+                    app(\App\Services\Payment\SupplierCancellationStatusService::class)->markPending(
+                        $orphan,
+                        'Queued for TravClicks auto-refund: supplier cancel + wallet credit pending.'
+                    );
+                } catch (\Throwable $e) {
+                    \Log::warning('Pro edit: could not mark supplier cancellation pending', [
                         'tour_id' => $tour->tour_id,
                         'order_id' => $orphan->id,
-                        'booking_id' => $orphan->booking_id,
-                        'message' => $cancelResult['message'] ?? null,
-                    ]);
-                }
-            } catch (\Throwable $e) {
-                \Log::error('Pro edit: online attraction voucher cancel unexpected error during orphan soft-delete', [
-                    'tour_id' => $tour->tour_id,
-                    'order_id' => $orphan->id,
-                    'booking_id' => $orphan->booking_id,
-                    'error' => $e->getMessage(),
-                ]);
-
-                try {
-                    app(\App\Services\Payment\SupplierCancellationStatusService::class)->markFailed(
-                        $orphan,
-                        $e->getMessage() ?: 'Unexpected supplier cancellation error.'
-                    );
-                } catch (\Throwable $statusError) {
-                    \Log::warning('Could not persist supplier cancellation failed status', [
-                        'order_id' => $orphan->id,
-                        'error' => $statusError->getMessage(),
+                        'error' => $e->getMessage(),
                     ]);
                 }
             }
