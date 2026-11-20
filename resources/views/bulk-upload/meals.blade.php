@@ -35,11 +35,11 @@
         </div>
         @endif
 
-        @if(session('errors') && count(session('errors')) > 0)
+        @if(session('upload_errors') && count(session('upload_errors')) > 0)
         <div class="alert alert-warning alert-dismissible fade show" role="alert">
             <strong>Upload Errors:</strong>
             <ul class="mb-0">
-                @foreach(session('errors') as $error)
+                @foreach(session('upload_errors') as $error)
                     <li>{{ $error }}</li>
                 @endforeach
             </ul>

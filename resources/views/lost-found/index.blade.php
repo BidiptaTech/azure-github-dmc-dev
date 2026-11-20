@@ -1,0 +1,474 @@
+@extends('layouts.layout')
+@section('title', 'Lost & Found and Incident Management')
+
+@push('css')
+<style>
+    .lf-page { background: #f1f5f9; min-height: 100vh; padding: 0.75rem 0 1.5rem; }
+    .lf-header {
+        background: #fff;
+        border-radius: 0.375rem;
+        border: 1px solid #e2e8f0;
+        padding: 0.75rem 1rem;
+        margin-bottom: 0.75rem;
+    }
+    .lf-header h4 { font-size: 1rem; font-weight: 600; color: #334155; margin: 0; }
+    .lf-card { border: 1px solid #e2e8f0; border-radius: 0.375rem; overflow: hidden; background: #fff; }
+    .lf-table { font-size: 0.8125rem; margin: 0; }
+    .lf-table thead th {
+        background: rgb(6, 132, 216);
+        color: #fff;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        padding: 0.5rem 0.65rem;
+        white-space: nowrap;
+        border: none;
+    }
+    .lf-table tbody td { padding: 0.5rem 0.65rem; vertical-align: middle; }
+    /* Resolved column: explicit true vs false/null */
+    .lf-badge-resolved {
+        background: #166534;
+        color: #ecfdf5;
+        font-weight: 600;
+    }
+    .lf-badge-unresolved {
+        background: #991b1b;
+        color: #fef2f2;
+        font-weight: 600;
+    }
+    .lf-modal .form-label { font-size: 0.8125rem; font-weight: 600; color: #475569; }
+    .lf-readonly-box {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.375rem;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+        color: #334155;
+        min-height: 2.5rem;
+    }
+    .lf-preview-img { max-width: 80px; max-height: 80px; object-fit: cover; border-radius: 0.25rem; margin: 0.25rem; border: 1px solid #e2e8f0; }
+    .lf-modal-guest-img {
+        max-width: 100%;
+        max-height: 220px;
+        object-fit: contain;
+        border-radius: 0.375rem;
+        border: 1px solid #e2e8f0;
+        background: #f8fafc;
+    }
+    .lf-report-history {
+        max-height: 280px;
+        overflow-y: auto;
+        border: 1px solid #e2e8f0;
+        border-radius: 0.375rem;
+        background: #f8fafc;
+        padding: 0.75rem;
+    }
+    .lf-history-empty {
+        color: #94a3b8;
+        font-size: 0.8125rem;
+        text-align: center;
+        margin: 0;
+    }
+    .lf-history-item {
+        display: flex;
+        flex-direction: column;
+        max-width: 85%;
+        margin-bottom: 0.65rem;
+    }
+    .lf-history-item:last-child { margin-bottom: 0; }
+    .lf-history-item--guest { align-self: flex-start; }
+    .lf-history-item--dmc { align-self: flex-end; align-items: flex-end; }
+    .lf-history-meta {
+        font-size: 0.6875rem;
+        color: #64748b;
+        margin-bottom: 0.2rem;
+    }
+    .lf-history-bubble {
+        padding: 0.45rem 0.65rem;
+        border-radius: 0.5rem;
+        font-size: 0.8125rem;
+        line-height: 1.45;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+    .lf-history-item--guest .lf-history-bubble {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        color: #334155;
+    }
+    .lf-history-item--dmc .lf-history-bubble {
+        background: rgb(6, 132, 216);
+        color: #fff;
+        border: 1px solid rgb(5, 118, 194);
+    }
+</style>
+@endpush
+
+@section('content')
+<div class="container-fluid lf-page">
+    <div class="lf-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <h4>Lost and Found Reports</h4>
+    </div>
+
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
+    @if(!$dmcId)
+        <div class="alert alert-warning">Unable to determine DMC for your account. Reports cannot be loaded.</div>
+    @endif
+
+    <div class="lf-card">
+        <div class="table-responsive">
+            <table class="table table-hover lf-table mb-0">
+                <thead>
+                    <tr>
+                        <th>Tour Id</th>
+                        <th>Subject</th>
+                        <th>Phone</th>
+                        <th>Email</th>
+                        <th>Resolved</th>
+                        <th class="text-center">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($reports as $report)
+                        <tr>
+                            <td>{{ $report->tour_display_id ?? $report->tour_id }}</td>
+                            <td>{{ $report->subject }}</td>
+                            <td>{{ $report->phone ?? '—' }}</td>
+                            <td>{{ $report->email ?? '—' }}</td>
+                            <td>
+                                @if($report->resolved === true)
+                                    <span class="badge lf-badge-resolved">Yes</span>
+                                @else
+                                    <span class="badge lf-badge-unresolved">No</span>
+                                @endif
+                            </td>
+                            <td class="text-center">
+                                <button type="button"
+                                        class="btn btn-sm btn-primary lf-view-btn"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#lostFoundModal"
+                                        data-id="{{ $report->id }}"
+                                        data-tour-id="{{ $report->tour_display_id ?? $report->tour_id }}"
+                                        data-subject="{{ e($report->subject) }}"
+                                        data-description="{{ e($report->description ?? '') }}"
+                                        data-guest-images='@json($report->guest_images ?? [])'
+                                        data-report-history='@json(\App\Models\LostFound::decodeCommentsList($report->comments ?? []))'>
+                                    <i class="ri-eye-line me-1"></i> View
+                                </button>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">No lost & found reports found.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{{-- Detail & response modal --}}
+<div class="modal fade lf-modal" id="lostFoundModal" tabindex="-1" aria-labelledby="lostFoundModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="lostFoundModalLabel">Report Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">Tour Id: <strong id="lfModalTourId">—</strong></p>
+
+                <div class="mb-3">
+                    <label class="form-label">Subject</label>
+                    <div class="lf-readonly-box" id="lfModalSubject">—</div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <div class="lf-readonly-box" id="lfModalDescription" style="white-space: pre-wrap;">—</div>
+                </div>
+
+                <div class="mb-3 d-none" id="lfModalGuestImagesWrap">
+                    <label class="form-label">Guest images</label>
+                    <div class="d-flex flex-wrap gap-2 align-items-start" id="lfModalGuestImages"></div>
+                </div>
+
+                <div class="mb-3" id="lfReportHistoryWrap">
+                    <label class="form-label">Report History</label>
+                    <div class="lf-report-history d-flex flex-column" id="lfReportHistory">
+                        <p class="lf-history-empty">No conversation yet.</p>
+                    </div>
+                </div>
+
+                <hr>
+
+                <p class="text-muted small mb-2">Add your comment and/or upload images, then click Send.</p>
+
+                <div class="mb-3">
+                    <label for="lfComment" class="form-label">Comment</label>
+                    <textarea class="form-control" id="lfComment" rows="3" placeholder="Enter your comment..."></textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label for="lfImages" class="form-label">Upload Images</label>
+                    <input type="file" class="form-control" id="lfImages" accept="image/*" multiple>
+                    <div id="lfImagePreview" class="d-flex flex-wrap mt-2"></div>
+                </div>
+
+                <div id="lfAlert" class="alert d-none" role="alert"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-label-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="lfSendBtn" disabled>
+                    <span class="spinner-border spinner-border-sm d-none me-1" id="lfSendSpinner" role="status"></span>
+                    Send
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+@endsection
+
+@push('scripts')
+<script>
+(function () {
+    const modalEl = document.getElementById('lostFoundModal');
+    const commentEl = document.getElementById('lfComment');
+    const imagesEl = document.getElementById('lfImages');
+    const sendBtn = document.getElementById('lfSendBtn');
+    const sendSpinner = document.getElementById('lfSendSpinner');
+    const previewEl = document.getElementById('lfImagePreview');
+    const alertEl = document.getElementById('lfAlert');
+    const guestImagesWrap = document.getElementById('lfModalGuestImagesWrap');
+    const guestImagesContainer = document.getElementById('lfModalGuestImages');
+    const reportHistoryEl = document.getElementById('lfReportHistory');
+    let currentReportId = null;
+    let currentViewBtn = null;
+
+    function isGuestSender(user) {
+        if (!user) return true;
+        const u = String(user).trim().toLowerCase();
+        if (u === 'guest' || /^guest\d*$/.test(u)) return true;
+        if (u.includes('(dmc)') || u.includes('dmc')) return false;
+        return false;
+    }
+
+    function parseReportHistoryAttr(raw) {
+        if (!raw) return [];
+        try {
+            const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+            if (!Array.isArray(parsed)) return [];
+            return parsed
+                .filter(function (item) { return item && typeof item.comments === 'string' && item.comments.trim(); })
+                .map(function (item) {
+                    return {
+                        comments: item.comments.trim(),
+                        user: item.user ? String(item.user) : 'Guest',
+                        time_date: item.time_date ? String(item.time_date) : ''
+                    };
+                })
+                .sort(function (a, b) {
+                    if (!a.time_date) return 1;
+                    if (!b.time_date) return -1;
+                    return a.time_date.localeCompare(b.time_date);
+                });
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function renderReportHistory(items) {
+        reportHistoryEl.innerHTML = '';
+        if (!items.length) {
+            reportHistoryEl.innerHTML = '<p class="lf-history-empty">No conversation yet.</p>';
+            return;
+        }
+
+        items.forEach(function (item) {
+            const isGuest = isGuestSender(item.user);
+            const wrap = document.createElement('div');
+            wrap.className = 'lf-history-item ' + (isGuest ? 'lf-history-item--guest' : 'lf-history-item--dmc');
+
+            const meta = document.createElement('div');
+            meta.className = 'lf-history-meta';
+            meta.textContent = (item.user || (isGuest ? 'Guest' : 'DMC')) + (item.time_date ? ' · ' + item.time_date : '');
+
+            const bubble = document.createElement('div');
+            bubble.className = 'lf-history-bubble';
+            bubble.textContent = item.comments;
+
+            wrap.appendChild(meta);
+            wrap.appendChild(bubble);
+            reportHistoryEl.appendChild(wrap);
+        });
+
+        reportHistoryEl.scrollTop = reportHistoryEl.scrollHeight;
+    }
+
+    function renderModalReportHistory(btn) {
+        const items = parseReportHistoryAttr(btn.getAttribute('data-report-history'));
+        renderReportHistory(items);
+    }
+
+    function updateViewBtnReportHistory(btn, items) {
+        if (!btn) return;
+        btn.setAttribute('data-report-history', JSON.stringify(items || []));
+        renderReportHistory(items || []);
+    }
+
+    function parseGuestImagesAttr(raw) {
+        if (!raw || typeof raw !== 'string') return [];
+        try {
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    function renderModalGuestImages(btn) {
+        const urls = parseGuestImagesAttr(btn.getAttribute('data-guest-images'))
+            .filter(function (u) { return typeof u === 'string' && u.trim().length > 0; })
+            .map(function (u) { return u.trim(); });
+
+        guestImagesContainer.innerHTML = '';
+        if (!urls.length) {
+            guestImagesWrap.classList.add('d-none');
+            return;
+        }
+
+        guestImagesWrap.classList.remove('d-none');
+        urls.forEach(function (url) {
+            const img = document.createElement('img');
+            img.className = 'lf-modal-guest-img';
+            img.src = url;
+            img.alt = 'Guest submitted image';
+            img.loading = 'lazy';
+            img.referrerPolicy = 'no-referrer-when-downgrade';
+            guestImagesContainer.appendChild(img);
+        });
+    }
+
+    function showAlert(type, message) {
+        alertEl.className = 'alert alert-' + type;
+        alertEl.textContent = message;
+        alertEl.classList.remove('d-none');
+    }
+
+    function hideAlert() {
+        alertEl.classList.add('d-none');
+    }
+
+    function updateSendButtonState() {
+        const hasComment = (commentEl.value || '').trim().length > 0;
+        const hasImages = imagesEl.files && imagesEl.files.length > 0;
+        sendBtn.disabled = !(hasComment || hasImages);
+    }
+
+    function renderImagePreviews() {
+        previewEl.innerHTML = '';
+        if (!imagesEl.files) return;
+        Array.from(imagesEl.files).forEach(function (file) {
+            const img = document.createElement('img');
+            img.className = 'lf-preview-img';
+            img.src = URL.createObjectURL(file);
+            img.onload = function () { URL.revokeObjectURL(img.src); };
+            previewEl.appendChild(img);
+        });
+    }
+
+    function resetModalForm() {
+        commentEl.value = '';
+        imagesEl.value = '';
+        previewEl.innerHTML = '';
+        hideAlert();
+        sendBtn.disabled = true;
+        sendSpinner.classList.add('d-none');
+    }
+
+    document.querySelectorAll('.lf-view-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            currentReportId = btn.getAttribute('data-id');
+            currentViewBtn = btn;
+            resetModalForm();
+            document.getElementById('lfModalTourId').textContent = btn.getAttribute('data-tour-id') || '—';
+            document.getElementById('lfModalSubject').textContent = btn.getAttribute('data-subject') || '—';
+            document.getElementById('lfModalDescription').textContent = btn.getAttribute('data-description') || '—';
+            renderModalGuestImages(btn);
+            renderModalReportHistory(btn);
+        });
+    });
+
+    commentEl.addEventListener('input', updateSendButtonState);
+    imagesEl.addEventListener('change', function () {
+        renderImagePreviews();
+        updateSendButtonState();
+    });
+
+    modalEl.addEventListener('hidden.bs.modal', function () {
+        currentReportId = null;
+        currentViewBtn = null;
+        guestImagesContainer.innerHTML = '';
+        guestImagesWrap.classList.add('d-none');
+        reportHistoryEl.innerHTML = '<p class="lf-history-empty">No conversation yet.</p>';
+        resetModalForm();
+    });
+
+    sendBtn.addEventListener('click', function () {
+        if (!currentReportId || sendBtn.disabled) return;
+
+        const formData = new FormData();
+        const comments = (commentEl.value || '').trim();
+        if (comments) formData.append('comments', comments);
+        Array.from(imagesEl.files || []).forEach(function (file) {
+            formData.append('images[]', file);
+        });
+
+        sendBtn.disabled = true;
+        sendSpinner.classList.remove('d-none');
+        hideAlert();
+
+        fetch("{{ route('lost-found.respond', ['id' => '__ID__']) }}".replace('__ID__', currentReportId), {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+        })
+        .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
+        .then(function (result) {
+            if (result.ok && result.data.success) {
+                showAlert('success', result.data.message || 'Sent successfully.');
+                if (result.data.data && result.data.data.comments) {
+                    updateViewBtnReportHistory(currentViewBtn, result.data.data.comments);
+                }
+                resetModalForm();
+                setTimeout(function () {
+                    bootstrap.Modal.getInstance(modalEl)?.hide();
+                }, 1200);
+            } else {
+                showAlert('danger', result.data.message || 'Failed to send.');
+                updateSendButtonState();
+            }
+        })
+        .catch(function () {
+            showAlert('danger', 'An error occurred. Please try again.');
+            updateSendButtonState();
+        })
+        .finally(function () {
+            sendSpinner.classList.add('d-none');
+        });
+    });
+})();
+</script>
+@endpush

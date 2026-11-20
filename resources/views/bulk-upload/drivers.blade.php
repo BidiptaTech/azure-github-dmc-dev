@@ -40,12 +40,12 @@
                             </div>
                         @endif
 
-                        @if(session('errors') && count(session('errors')) > 0)
+                        @if(session('upload_errors') && count(session('upload_errors')) > 0)
                             <div class="alert alert-warning alert-dismissible fade show" role="alert">
                                 <i class="ri-alert-line me-2"></i>
                                 <strong>Upload Errors:</strong>
                                 <ul class="mb-0 mt-2">
-                                    @foreach(session('errors') as $error)
+                                    @foreach(session('upload_errors') as $error)
                                         <li>{{ $error }}</li>
                                     @endforeach
                                 </ul>
@@ -73,7 +73,8 @@
                                 <div>
                                     <h6 class="mb-2">📋 Upload Instructions</h6>
                                     <ul class="mb-0 small">
-                                        <li><strong>Required Fields:</strong> Salutation, Gender, Name, Email, Phone, Address, Country, City, License No, License Expiry, Age, Profile Image</li>
+                                        <li><strong>Required Fields:</strong> Salutation, Gender, Name, Email, Phone, Address, Country, City, License No, License Expiry, Age</li>
+                                        <li><strong>Profile Image:</strong> Optional — if blank, uses Driver Default Pic from Master Settings</li>
                                         <li><strong>Email Validation:</strong> Must be unique - no duplicate emails allowed</li>
                                         <li><strong>License Validation:</strong> Must be unique for your account - no duplicate license numbers</li>
                                         <li><strong>Access Restriction:</strong> Only Virtual DMC and DMC users can upload drivers</li>

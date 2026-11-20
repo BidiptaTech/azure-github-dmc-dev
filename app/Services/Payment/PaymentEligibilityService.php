@@ -1,0 +1,875 @@
+<?php
+
+namespace App\Services\Payment;
+
+use App\Helpers\CurrencyHelper;
+use App\Helpers\TaxHelper;
+use App\Models\Agent;
+use App\Models\Country;
+use App\Models\Enquiry;
+use App\Models\Order;
+use App\Models\Tour;
+use App\Services\Finance\WalletQueryService;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+/**
+ * Central server-side payment method eligibility for a tour + stage.
+ * Frontend must render this response; backend re-enforces on initiate.
+ */
+class PaymentEligibilityService
+{
+    public function __construct(
+        protected OrderClassificationService $classificationService,
+        protected PaymentSettingsService $settingsService,
+        protected StripeConnectService $stripeConnectService,
+        protected WalletQueryService $walletQueryService,
+    ) {}
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function forTour(Tour $tour, ?float $requestedAmount = null): array
+    {
+        $classification = $this->classificationService->classifyTour($tour);
+        if ($classification === OrderClassificationService::EMPTY || $classification === '') {
+            $classification = (string) ($tour->order_classification ?: OrderClassificationService::EMPTY);
+        }
+
+        $stage = $this->classificationService->resolvePaymentStage($tour, $classification);
+        $recipient = $this->classificationService->resolvePaymentRecipient($stage);
+        $breakdown = $this->classificationService->amountBreakdown($tour);
+        $settings = $this->settingsService->get();
+
+        $collectionDue = $this->collectionOutstanding($tour, (float) $breakdown['total_amount']);
+        $payable = $this->resolvePayableAmount($tour, $classification, $stage, $breakdown, $collectionDue);
+        $negotiationOnly = $stage === 'offline_negotiation';
+        if ($requestedAmount !== null && $stage === 'supplier_initial') {
+            // Ignore client amount for supplier_initial — always server payable.
+            $requestedAmount = $payable;
+        }
+
+        // Wallet / method checks use the amount being collected (form amount when provided).
+        $amount = $requestedAmount !== null && $requestedAmount > 0
+            ? (float) $requestedAmount
+            : $payable;
+        // Online supplier-initial / full-online pay: use order quote currency (e.g. SGD hotel),
+        // then FX to DMC wallet (IDR). Do not treat tours.user_currency (DMC home) as the order
+        // currency — that caused Pro Pay Now to show "38.85 IDR" instead of converting SGD→IDR.
+        // After negotiation, settle in enquiry/confirmed currency as before.
+        $currency = ($stage === 'supplier_initial' || $classification === OrderClassificationService::ONLINE)
+            ? strtoupper((string) $this->classificationService->resolveTourCurrency($tour))
+            : $this->resolveSettlementCurrency($tour);
+        if ($stage === 'supplier_initial') {
+            // Pay Now for online services: the payable IS the online services' sell, which is
+            // priced in the services' own currency (e.g. SGD). Using the negotiation/user
+            // currency here (e.g. IDR) would charge "SGD 35.20" as "IDR 35.20".
+            $currency = strtoupper(app(AcceptanceFlowService::class)->resolveOnlineCurrency($tour, $currency));
+        }
+        $dmcId = (int) ($tour->dmc_id ?? 0);
+        $agentId = (int) ($tour->agent_id ?? 0);
+
+        $methods = [];
+
+        // Offline methods — always available when stage allows collection
+        foreach ([
+            ['code' => 'cash', 'label' => 'Cash'],
+            ['code' => 'cheque', 'label' => 'Cheque'],
+            ['code' => 'bank_transfer', 'label' => 'Bank Transfer', 'legacy_value' => 'online'],
+        ] as $offline) {
+            $allowed = $stage === 'dmc_collection' || $classification === OrderClassificationService::OFFLINE;
+            // Online/Mix supplier_initial: offline methods not for initial supplier payment.
+            // Mix offline negotiation is not a collection stage.
+            if ($stage === 'supplier_initial' || $negotiationOnly) {
+                $allowed = false;
+            }
+            $methods[] = [
+                'code' => $offline['code'],
+                'label' => $offline['label'],
+                'legacy_value' => $offline['legacy_value'] ?? $offline['code'],
+                'available' => $allowed,
+                'reason' => $allowed ? null : 'Offline methods are available after supplier-initial payment / for offline collection.',
+                'recipient' => 'dmc',
+                'amount_readonly' => false,
+            ];
+        }
+
+        // Legacy "card" offline recording (not Stripe)
+        $methods[] = [
+            'code' => 'card_offline',
+            'label' => 'Card (offline record)',
+            'legacy_value' => 'card',
+            'available' => ! $negotiationOnly && ($stage === 'dmc_collection' || $classification === OrderClassificationService::OFFLINE),
+            'reason' => $negotiationOnly
+                ? 'Offline services are negotiated before collection.'
+                : ($stage === 'supplier_initial'
+                    ? 'Use Online card for supplier-initial payment.'
+                    : null),
+            'recipient' => 'dmc',
+            'amount_readonly' => false,
+        ];
+
+        $fx = $this->fxQuote($tour, $amount, $currency, $agentId, $dmcId);
+        $walletAmount = (float) ($fx['wallet_payable_amount'] ?? $amount);
+        $walletCurrency = (string) ($fx['wallet_currency'] ?? $currency);
+
+        // Wallet balance is checked in the wallet currency, including any conversion charge.
+        $walletEval = $this->evaluateWallet($agentId, $dmcId, $walletAmount, $walletCurrency, $settings);
+        if ($negotiationOnly) {
+            $walletEval['available'] = false;
+            $walletEval['reason'] = 'Pay online services first, then negotiate the offline total.';
+        }
+        $methods[] = [
+            'code' => 'wallet',
+            'label' => 'Wallet',
+            'available' => $walletEval['available'],
+            'reason' => $walletEval['reason'],
+            'recipient' => $recipient,
+            'amount_readonly' => $stage === 'supplier_initial',
+            'wallet' => $walletEval,
+        ];
+
+        // Stripe Online Payment
+        $stripeEval = $this->evaluateStripe($recipient, $dmcId, $settings);
+        if ($negotiationOnly) {
+            $stripeEval['available'] = false;
+            $stripeEval['reason'] = 'Online payment for offline services starts after negotiation and confirmation.';
+        }
+        $methods[] = [
+            'code' => 'stripe',
+            'label' => 'Online Payment',
+            'available' => $stripeEval['available'],
+            'reason' => $stripeEval['reason'],
+            'recipient' => $recipient,
+            'amount_readonly' => $stage === 'supplier_initial',
+            'stripe' => $stripeEval,
+        ];
+
+        return [
+            'tour_id' => (int) ($tour->tour_id ?? $tour->getKey()),
+            'tour_status' => $tour->tour_status,
+            'order_classification' => $classification,
+            'payment_stage' => $stage,
+            'payment_recipient' => $recipient,
+            'currency' => $currency,
+            'payable_amount' => round($payable, 2),
+            'amount_readonly' => $stage === 'supplier_initial',
+            'acceptance' => $this->acceptanceSnapshot(
+                $tour,
+                $classification,
+                $stage,
+                (float) ($breakdown['online_amount'] ?? 0),
+                (float) ($breakdown['offline_amount'] ?? 0),
+                $currency,
+            ),
+            'online_services' => $stage === 'supplier_initial'
+                ? $this->onlineServicesForPayModal($tour)
+                : [],
+            'fx' => $fx,
+            'breakdown' => $breakdown,
+            'outstanding_balance' => $stage === 'dmc_collection'
+                ? $collectionDue
+                : $this->outstandingBalance($tour, (float) $breakdown['total_amount']),
+            'settings' => [
+                'offline_enabled' => true,
+                'wallet_enabled' => $settings['wallet_enabled'],
+                'online_enabled' => $settings['online_enabled'],
+                'stripe_mode' => $settings['stripe_mode'],
+            ],
+            'methods' => $methods,
+            'redirect_url' => $this->postPayRedirectUrl($classification, $stage, (string) ($tour->tour_status ?? '')),
+        ];
+    }
+
+    /**
+     * Unpaid online services shown (read-only) on the Pay Now modal.
+     * Attractions include the SG Attractions order_ref so the payer sees the reference before Wallet pay.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    protected function onlineServicesForPayModal(Tour $tour): array
+    {
+        $tourId = (int) ($tour->tour_id ?? $tour->getKey());
+        if ($tourId <= 0) {
+            return [];
+        }
+
+        $orders = Order::query()
+            ->where('tour_id', $tourId)
+            ->whereNull('deleted_at')
+            ->orderBy('id')
+            ->get();
+
+        $services = [];
+        foreach ($orders as $order) {
+            $orderType = strtolower(trim((string) ($order->order_type ?? '')));
+            if ($orderType !== OrderClassificationService::ONLINE) {
+                continue;
+            }
+            if ((int) ($order->is_approve ?? 0) === 1) {
+                continue;
+            }
+
+            $type = strtolower(trim((string) ($order->type ?? '')));
+            $data = is_string($order->data) ? (json_decode($order->data, true) ?: []) : (is_array($order->data) ? $order->data : []);
+            $row = is_array($data[0] ?? null) ? $data[0] : (is_array($data) ? $data : []);
+
+            $name = '';
+            $reference = '';
+            $currency = strtoupper(trim((string) ($order->currency ?? $row['currency'] ?? 'SGD'))) ?: 'SGD';
+            $amount = $this->classificationService->resolveOrderAmount($order);
+
+            if ($type === 'attraction') {
+                $name = trim((string) (
+                    $row['AttractionName']
+                    ?? $row['attraction_name']
+                    ?? $row['attractionName']
+                    ?? $row['name']
+                    ?? 'Online attraction'
+                ));
+                $reference = (string) (\App\Services\AttractionSuppliers\OnlineAttractionOrderService::extractSavedRef($order, $row) ?? '');
+                if ($reference === '') {
+                    $reference = trim((string) (
+                        $row['order_reference_id']
+                        ?? $row['external_order_ref_id']
+                        ?? $row['attraction_order_ref_id']
+                        ?? $order->order_ref_no
+                        ?? ''
+                    ));
+                }
+                $ticket = trim((string) ($row['ticketName'] ?? $row['ticket_name'] ?? ''));
+                $visit = trim((string) ($row['bookingDate'] ?? $row['date'] ?? ''));
+            } elseif ($type === 'hotel') {
+                $name = trim((string) (
+                    $row['hotelDetails']['hotel_name']
+                    ?? $row['onlineHotelBooking']['hotel']['name']
+                    ?? $row['hotel_name']
+                    ?? $row['name']
+                    ?? 'Online hotel'
+                ));
+                $reference = trim((string) (
+                    $order->order_ref_no
+                    ?? $row['supplier_reference']
+                    ?? $row['booking_reference']
+                    ?? ''
+                ));
+                $ticket = '';
+                $visit = trim((string) ($row['check_in'] ?? $row['checkIn'] ?? ''));
+            } else {
+                $name = trim((string) ($row['name'] ?? ucfirst($type ?: 'Service')));
+                $reference = trim((string) ($order->order_ref_no ?? ''));
+                $ticket = '';
+                $visit = '';
+            }
+
+            if ($name === '') {
+                $name = ucfirst($type ?: 'Online service');
+            }
+
+            $services[] = [
+                'order_id' => (int) $order->id,
+                'type' => $type ?: 'service',
+                'name' => $name,
+                'ticket_name' => $ticket ?? '',
+                'visit_date' => $visit ?? '',
+                'order_ref' => $reference,
+                'amount' => round((float) $amount, 2),
+                'currency' => $currency,
+                'is_approved' => false,
+            ];
+        }
+
+        return $services;
+    }
+
+    /**
+     * After full online Pay Now from New Enquiries, land on Definite.
+     */
+    protected function postPayRedirectUrl(string $classification, string $stage, string $tourStatus): ?string
+    {
+        if ($stage !== 'supplier_initial') {
+            return null;
+        }
+        if ($classification !== OrderClassificationService::ONLINE) {
+            return null;
+        }
+        if (in_array($tourStatus, ['Definite', 'Actual'], true)) {
+            return null;
+        }
+
+        return url('/bookings/definite');
+    }
+
+    /**
+     * Acceptance / online-paid snapshot for Add Payment UI (same source as negotiate modal).
+     *
+     * @return array<string, mixed>
+     */
+    protected function acceptanceSnapshot(
+        Tour $tour,
+        string $classification,
+        string $stage,
+        float $onlineAmount,
+        float $offlineAmount,
+        string $currency,
+    ): array {
+        $acceptanceFlow = app(AcceptanceFlowService::class);
+        $unpaid = $this->classificationService->unpaidOnlineAmount($tour);
+        $onlineSettled = $unpaid <= 0.009 && (
+            $acceptanceFlow->onlinePortionSettled($tour)
+            || $stage === 'offline_negotiation'
+            || ($classification === OrderClassificationService::ONLINE && $stage !== 'supplier_initial')
+        );
+
+        return $acceptanceFlow->describe(
+            $classification,
+            $onlineSettled,
+            $onlineAmount,
+            $offlineAmount,
+            $currency,
+            $onlineSettled ? $onlineAmount : max(0.0, $onlineAmount - $unpaid),
+            $acceptanceFlow->resolveOnlineCurrency($tour, $currency),
+            $unpaid,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $breakdown
+     */
+    protected function resolvePayableAmount(Tour $tour, string $classification, string $stage, array $breakdown, float $collectionDue): float
+    {
+        if ($stage === 'offline_negotiation') {
+            return 0.0;
+        }
+
+        if ($stage === 'supplier_initial') {
+            // Only online services not paid yet — services paid earlier are never charged again.
+            $unpaid = $this->classificationService->unpaidOnlineAmount($tour);
+            if ($unpaid > 0.009) {
+                return $unpaid;
+            }
+            if ($classification === OrderClassificationService::MIX) {
+                return (float) $breakdown['online_amount'];
+            }
+
+            return (float) ($breakdown['total_amount'] > 0
+                ? $breakdown['total_amount']
+                : ($tour->selling_price ?? 0));
+        }
+
+        return $collectionDue;
+    }
+
+    /**
+     * Tour markup is the DMC commission, shown only after the tour is fully paid.
+     *
+     * @return array{tour_id: int, currency_code: string, charged_amount: float, dmc_commission: float, markup_label: string, base_amount: float}|null
+     */
+    public function fullyPaidMarkup(Tour $tour): ?array
+    {
+        $breakdown = $this->classificationService->amountBreakdown($tour);
+        $base = (float) ($breakdown['total_amount'] ?? 0);
+        if ($this->hasPendingPayment($tour)) {
+            return null;
+        }
+
+        $paid = $this->verifiedPaid($tour);
+        $due = $this->collectionOutstanding($tour, $base);
+        if ($paid <= 0.009 || $due > 0.05) {
+            return null;
+        }
+
+        $markup = $this->markupCommission($tour, $base);
+        if ($markup['amount'] <= 0) {
+            return null;
+        }
+
+        return [
+            'tour_id' => (int) ($tour->tour_id ?? $tour->getKey()),
+            'currency_code' => (string) ($breakdown['currency'] ?? $this->classificationService->resolveTourCurrency($tour)),
+            'charged_amount' => round($paid, 2),
+            'dmc_commission' => $markup['amount'],
+            'markup_label' => $markup['label'],
+            'base_amount' => round($base, 2),
+            'travclicks_commission' => 0.0,
+            'api_cost' => 0.0,
+            'conversion_charge' => 0.0,
+        ];
+    }
+
+    /**
+     * @return array{amount: float, label: string}
+     */
+    protected function markupCommission(Tour $tour, float $base): array
+    {
+        $fromRows = $this->markupFromCurrencyRows($tour);
+        if ($fromRows['amount'] > 0) {
+            return $fromRows;
+        }
+
+        $flag = $tour->getAttributes()['markup'] ?? 0;
+        $raw = (float) ($tour->getAttributes()['markup_amount'] ?? 0);
+        $type = strtolower((string) ($tour->markup_type ?? ''));
+        $on = ((int) $flag === 1 || $flag === true) && $raw > 0;
+        if (! $on) {
+            return ['amount' => 0.0, 'label' => '—'];
+        }
+
+        if ($type === 'percentage') {
+            return [
+                'amount' => round($base * $raw / 100, 2),
+                'label' => $this->percentLabel($raw),
+            ];
+        }
+
+        return ['amount' => round($raw, 2), 'label' => 'Flat'];
+    }
+
+    /**
+     * Hotel markup applies to hotel services. Other markup applies to the rest.
+     *
+     * @return array{amount: float, label: string}
+     */
+    protected function markupFromCurrencyRows(Tour $tour): array
+    {
+        $rows = $tour->currency_markups;
+        if (! is_array($rows) || $rows === []) {
+            return ['amount' => 0.0, 'label' => '—'];
+        }
+
+        $row = null;
+        foreach ($rows as $candidate) {
+            if (is_array($candidate)) {
+                $row = $candidate;
+                break;
+            }
+        }
+        if ($row === null) {
+            return ['amount' => 0.0, 'label' => '—'];
+        }
+
+        $type = strtolower((string) ($row['markup_type'] ?? ''));
+        if ($type === '') {
+            $type = strtolower((string) ($tour->markup_type ?? 'percentage'));
+        }
+        if ($type === '' || $type === 'percent') {
+            $type = 'percentage';
+        }
+        if ($type === 'fixed') {
+            $type = 'flat';
+        }
+        $hotelRate = (float) ($row['hotel_markup'] ?? $row['markup_value'] ?? 0);
+        $otherRate = (float) ($row['other_markup'] ?? 0);
+        if ($hotelRate <= 0 && $otherRate <= 0) {
+            return ['amount' => 0.0, 'label' => '—'];
+        }
+
+        $tourId = (int) ($tour->tour_id ?? $tour->getKey());
+        $hotelBase = 0.0;
+        $otherBase = 0.0;
+        if ($tourId > 0) {
+            foreach (Order::query()->where('tour_id', $tourId)->get() as $order) {
+                $price = $this->classificationService->resolveOrderAmount($order);
+                if (strtolower((string) ($order->type ?? '')) === 'hotel') {
+                    $hotelBase += $price;
+                } else {
+                    $otherBase += $price;
+                }
+            }
+        }
+        if ($type === 'percentage') {
+            $amount = ($hotelBase * $hotelRate / 100) + ($otherBase * $otherRate / 100);
+            $label = $hotelRate === $otherRate
+                ? $this->percentLabel($hotelRate)
+                : 'Hotel '.$this->percentLabel($hotelRate).' · Other '.$this->percentLabel($otherRate);
+        } else {
+            $amount = ($hotelBase > 0 ? $hotelRate : 0) + ($otherBase > 0 ? $otherRate : 0);
+            $label = 'Flat';
+        }
+
+        return ['amount' => round(max(0, $amount), 2), 'label' => $label];
+    }
+
+    protected function percentLabel(float $rate): string
+    {
+        $text = rtrim(rtrim(number_format($rate, 2, '.', ''), '0'), '.');
+
+        return ($text === '' ? '0' : $text).'%';
+    }
+
+    protected function verifiedPaid(Tour $tour): float
+    {
+        $paid = 0.0;
+        foreach ($this->paymentRows($tour) as $payment) {
+            if ((int) ($payment['status'] ?? 0) === 1) {
+                $paid += (float) ($payment['amount'] ?? 0);
+            }
+        }
+
+        return round($paid, 2);
+    }
+
+    protected function hasPendingPayment(Tour $tour): bool
+    {
+        foreach ($this->paymentRows($tour) as $payment) {
+            if ((int) ($payment['status'] ?? 0) === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    protected function paymentRows(Tour $tour): array
+    {
+        $details = json_decode((string) ($tour->payment_details ?? '[]'), true) ?: [];
+
+        return is_array($details) ? array_values(array_filter($details, 'is_array')) : [];
+    }
+
+    /**
+     * Currency confirmed at negotiation (enquiry.currency). Falls back to tour/order currency.
+     */
+    protected function resolveSettlementCurrency(Tour $tour): string
+    {
+        $tourId = (int) ($tour->tour_id ?? 0);
+        if ($tourId > 0) {
+            $enquiryCurrency = Enquiry::query()
+                ->where('tour_id', $tourId)
+                ->where('status', 2)
+                ->orderByDesc('enquiry_id')
+                ->value('currency');
+            if (! is_string($enquiryCurrency) || trim($enquiryCurrency) === '') {
+                $enquiryCurrency = Enquiry::query()
+                    ->where('tour_id', $tourId)
+                    ->orderByDesc('enquiry_id')
+                    ->value('currency');
+            }
+            $code = strtoupper(trim((string) $enquiryCurrency));
+            if (preg_match('/^[A-Z]{3}$/', $code)) {
+                return $code;
+            }
+        }
+
+        $tourEnquiry = strtoupper(trim((string) ($tour->enquiry_currency ?? '')));
+        if (preg_match('/^[A-Z]{3}$/', $tourEnquiry)) {
+            return $tourEnquiry;
+        }
+
+        $userCurrency = strtoupper(trim((string) ($tour->user_currency ?? '')));
+        if (preg_match('/^[A-Z]{3}$/', $userCurrency)) {
+            return $userCurrency;
+        }
+
+        return strtoupper((string) $this->classificationService->resolveTourCurrency($tour));
+    }
+
+    /**
+     * Confirmed collection uses the negotiated amount plus tour tax, which is
+     * the remaining figure shown on Add Payment.
+     */
+    protected function collectionOutstanding(Tour $tour, float $orderTotal): float
+    {
+        $base = $orderTotal;
+        $tourId = (int) ($tour->tour_id ?? 0);
+        if ($tourId > 0) {
+            $negotiated = Enquiry::query()
+                ->where('tour_id', $tourId)
+                ->where('status', 2)
+                ->orderByDesc('enquiry_id')
+                ->value('amount');
+            if (! is_numeric($negotiated) || (float) $negotiated <= 0) {
+                $negotiated = Enquiry::query()
+                    ->where('tour_id', $tourId)
+                    ->orderByDesc('enquiry_id')
+                    ->value('amount');
+            }
+            if (is_numeric($negotiated) && (float) $negotiated > 0) {
+                $base = (float) ceil((float) $negotiated);
+            }
+        }
+
+        $persons = (int) ($tour->adult ?? 0) + (int) ($tour->child ?? 0);
+        $days = TaxHelper::calculateDays($tour->check_in_time ?? null, $tour->check_out_time ?? null);
+        // Online sell is tax-included; mix taxes offline portion only.
+        $tax = TaxHelper::calculateTourTaxesForTour($base, $tour->taxes ?? null, $persons, $days, $tour);
+        $final = $base + (float) ($tax['total_tax'] ?? 0);
+
+        // Negotiated collection is offline-only — never subtract online-service payments.
+        return $this->outstandingBalance($tour, $final, true);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function fxQuote(Tour $tour, float $amount, string $orderCurrency, int $agentId, int $dmcId): array
+    {
+        $orderCurrency = strtoupper($orderCurrency);
+        $percent = 0.0;
+        try {
+            $percent = app(FxConversionCharge::class)->percentForTour($tour);
+        } catch (\Throwable $e) {
+            Log::debug('fx_charge_percent_unavailable', ['error' => $e->getMessage()]);
+        }
+
+        // Always use that DMC's home wallet currency (Indonesia → IDR, Singapore → SGD).
+        $walletCurrency = $orderCurrency;
+        try {
+            if ($dmcId > 0) {
+                $home = strtoupper(trim($this->walletQueryService->resolveDmcWalletCurrency($dmcId)));
+                if ($home !== '') {
+                    $walletCurrency = $home;
+                }
+            }
+        } catch (\Throwable) {
+            $walletCurrency = $orderCurrency;
+        }
+
+        $differ = $walletCurrency !== $orderCurrency;
+        $rate = 1.0;
+        if ($differ) {
+            // Wallet pay amount uses countries.current_rate (SGD pivot), not live CurrencyHelper.
+            $rate = (float) (Country::exchangeRateBetween($orderCurrency, $walletCurrency) ?? 0);
+            if ($rate <= 0) {
+                $rate = 1.0;
+                $differ = false;
+            }
+        }
+
+        $fx = app(FxConversionCharge::class);
+        $quoted = $fx->apply($amount, $rate, $percent, $differ);
+        $sgdRateOrder = Country::sgdRateFor($orderCurrency);
+        $sgdRateWallet = Country::sgdRateFor($walletCurrency);
+        // Display rate X = base + (base × FX%): Paid-in uses this effective rate.
+        $sgdRateWalletEffective = $differ && $sgdRateWallet
+            ? $fx->effectiveRate((float) $sgdRateWallet, $percent)
+            : $sgdRateWallet;
+        $exchangeRateEffective = $differ
+            ? $fx->effectiveRate((float) $quoted['exchange_rate'], $percent)
+            : (float) $quoted['exchange_rate'];
+
+        return [
+            'charge_percent' => $percent,
+            'order_currency' => $orderCurrency,
+            'wallet_currency' => $walletCurrency,
+            'exchange_rate' => $quoted['exchange_rate'],
+            'exchange_rate_effective' => $exchangeRateEffective,
+            // Standard display: rates relative to SGD (1 SGD = current_rate units).
+            'sgd_rate_order' => $sgdRateOrder,
+            'sgd_rate_wallet' => $sgdRateWallet,
+            'sgd_rate_wallet_effective' => $sgdRateWalletEffective,
+            'conversion_charge' => $quoted['fee'],
+            'wallet_payable_amount' => $quoted['destination_amount'],
+        ];
+    }
+
+    protected function outstandingBalance(Tour $tour, float $total, bool $excludeOnlineServicePayments = false): float
+    {
+        // Add Payment UI records collections in payment_details. Do not treat
+        // finance payment_status=captured / selling_price alone as paid — that
+        // zeros payable while Cheque/Bank Transfer stay selectable.
+        $paid = 0.0;
+        $details = json_decode((string) ($tour->payment_details ?? '[]'), true) ?: [];
+        if (! is_array($details)) {
+            $details = [];
+        }
+
+        foreach ($details as $p) {
+            if (! is_array($p)) {
+                continue;
+            }
+            if ((int) ($p['status'] ?? 0) === 2) {
+                continue; // declined
+            }
+            // negotiation / offline collection must not merge payment_for=online
+            if ($excludeOnlineServicePayments
+                && strtolower(trim((string) ($p['payment_for'] ?? ''))) === OrderClassificationService::ONLINE) {
+                continue;
+            }
+            $paid += (float) ($p['amount'] ?? 0);
+        }
+
+        return max(0, round($total - $paid, 2));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function evaluateWallet(int $agentId, int $dmcId, float $amount, string $currency, array $settings): array
+    {
+        if (! $settings['wallet_enabled']) {
+            return ['available' => false, 'reason' => 'Wallet payments are disabled.', 'available_balance' => 0];
+        }
+
+        if ($dmcId <= 0) {
+            return ['available' => false, 'reason' => 'Wallet requires a DMC on the tour.', 'available_balance' => 0];
+        }
+
+        if (! Schema::hasTable('wallet')) {
+            return ['available' => false, 'reason' => 'Wallet ledger is not available.', 'available_balance' => 0];
+        }
+
+        $currency = CurrencyHelper::toIsoCode($currency, 'SGD');
+        $balance = $this->dmcWalletBalance($dmcId, $currency);
+
+        if ($amount <= 0) {
+            return [
+                'available' => false,
+                'reason' => 'No payable amount on this booking.',
+                'available_balance' => round($balance, 2),
+                'required_amount' => 0.0,
+                'currency' => $currency,
+                'source_dmc_id' => $dmcId,
+            ];
+        }
+
+        $sufficient = $balance >= $amount;
+
+        return [
+            'available' => $sufficient,
+            'reason' => $sufficient
+                ? null
+                : ($balance <= 0
+                    ? "No {$currency} balance in the DMC wallet."
+                    : "Insufficient DMC wallet balance ({$currency} {$balance} available, {$amount} required)."),
+            'available_balance' => round($balance, 2),
+            'required_amount' => round($amount, 2),
+            'currency' => $currency,
+            'source_dmc_id' => $dmcId,
+        ];
+    }
+
+    /**
+     * DMC allocations are stored against one agent in the agency.
+     * Any colleague on the same agency can spend that balance.
+     *
+     * @return array<int, int>
+     */
+    public function agencyAgentIds(int $agentId): array
+    {
+        if ($agentId <= 0) {
+            return [];
+        }
+
+        $agencyId = Agent::query()->where('agent_id', $agentId)->value('agency_id');
+        if (! $agencyId) {
+            return [$agentId];
+        }
+
+        $ids = Agent::query()
+            ->where('agency_id', $agencyId)
+            ->pluck('agent_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
+
+        return $ids !== [] ? $ids : [$agentId];
+    }
+
+    /**
+     * Owner id of the agency wallet this DMC funded. Falls back to the tour agent.
+     */
+    public function resolveAgencyWalletOwnerId(int $agentId, int $dmcId, string $currency): int
+    {
+        $currency = CurrencyHelper::toIsoCode($currency, strtoupper($currency));
+        $agentIds = $this->agencyAgentIds($agentId);
+        if ($agentIds === []) {
+            return $agentId;
+        }
+
+        $query = DB::table('wallet')
+            ->where('wallet_owner_type', 'agent')
+            ->whereIn('wallet_owner_id', $agentIds)
+            ->whereRaw('UPPER(wallet_currency_code) = ?', [$currency])
+            ->whereNull('deleted_at')
+            ->where(function ($q) {
+                $q->where('wallet_status', 'active')->orWhereNull('wallet_status');
+            });
+
+        $this->scopeWalletToDmc($query, $dmcId);
+
+        $ownerId = $query->orderByDesc('available_balance')->value('wallet_owner_id');
+
+        return $ownerId ? (int) $ownerId : $agentId;
+    }
+
+    public function dmcWalletBalance(int $dmcId, string $currency): float
+    {
+        $currency = CurrencyHelper::toIsoCode($currency, strtoupper($currency));
+
+        return (float) DB::table('wallet')
+            ->where('wallet_owner_type', 'dmc')
+            ->where('wallet_owner_id', $dmcId)
+            ->whereRaw('UPPER(wallet_currency_code) = ?', [$currency])
+            ->whereNull('deleted_at')
+            ->where(function ($q) {
+                $q->where('wallet_status', 'active')->orWhereNull('wallet_status');
+            })
+            ->sum('available_balance');
+    }
+
+    protected function scopeWalletToDmc($query, int $dmcId): void
+    {
+        if (! Schema::hasColumn('wallet', 'source_dmc_id')) {
+            return;
+        }
+
+        $query->where(function ($q) use ($dmcId) {
+            $q->where('source_dmc_id', $dmcId);
+            if (config('payment.wallet_legacy_unscoped_agent', true)) {
+                $q->orWhereNull('source_dmc_id');
+            }
+        });
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function evaluateStripe(string $recipient, int $dmcId, array $settings): array
+    {
+        if (! $settings['online_enabled']) {
+            return ['available' => false, 'reason' => 'Online card payments are disabled.', 'publishable_key' => null];
+        }
+
+        if (! $settings['stripe_configured']) {
+            return ['available' => false, 'reason' => 'Stripe is not configured for the active mode.', 'publishable_key' => null];
+        }
+
+        $publishable = config('payment.stripe.publishable_key');
+
+        if ($recipient === 'travclicks') {
+            return [
+                'available' => true,
+                'reason' => null,
+                'publishable_key' => $publishable,
+                'connected_account_id' => null,
+                'charge_model' => 'platform',
+            ];
+        }
+
+        if ($dmcId <= 0 || ! $this->stripeConnectService->isReadyForCharges($dmcId)) {
+            return [
+                'available' => false,
+                'reason' => 'DMC Stripe Connect account is not ready for charges.',
+                'publishable_key' => $publishable,
+                'connected_account_id' => null,
+                'charge_model' => 'destination',
+            ];
+        }
+
+        $account = $this->stripeConnectService->getAccountForDmc($dmcId);
+
+        return [
+            'available' => true,
+            'reason' => null,
+            'publishable_key' => $publishable,
+            'connected_account_id' => $account['stripe_account_id'] ?? null,
+            'charge_model' => 'destination',
+        ];
+    }
+}

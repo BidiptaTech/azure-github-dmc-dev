@@ -15,6 +15,8 @@ class MiscellaneousItem extends Model
     protected $fillable = [
         'item_name',
         'description',
+        'country',
+        'city',
         'image',
         'status'
     ];
@@ -35,7 +37,15 @@ class MiscellaneousItem extends Model
     }
 
     /**
-     * Get price for a specific DMC (relationship)
+     * Get all active prices for a specific DMC (supports multiple country/city rows).
+     */
+    public function pricesForDmc()
+    {
+        return $this->hasMany(MiscellaneousPrice::class, 'mis_id', 'mis_id');
+    }
+
+    /**
+     * Get price for a specific DMC (relationship) — first/legacy single row.
      */
     public function priceForDmc()
     {

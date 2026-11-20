@@ -62,7 +62,7 @@
                     <label for="image" class="form-label">Image</label>
                     @if($item->image)
                         <div class="mb-2">
-                            <img src="{{ asset('storage/' . $item->image) }}" 
+                            <img src="{{ (str_starts_with($item->image, 'http') || str_starts_with($item->image, '/')) ? $item->image : asset('storage/' . $item->image) }}" 
                                  alt="{{ $item->item_name }}" 
                                  style="max-width: 200px; max-height: 200px; border-radius: 4px; border: 1px solid #ddd;">
                             <p class="text-muted small mt-1">Current image (upload new to replace)</p>

@@ -1,0 +1,78 @@
+<?php
+
+return [
+
+    /*
+    |--------------------------------------------------------------------------
+    | Platform payment method defaults (overridden by payment_platform_settings)
+    |--------------------------------------------------------------------------
+    */
+    'offline_always_enabled' => true,
+
+    'wallet_enabled_default' => (bool) env('PAYMENT_WALLET_ENABLED', true),
+
+    'online_enabled_default' => (bool) env('PAYMENT_ONLINE_ENABLED', false),
+
+    /*
+    | When true, agent wallets with source_dmc_id NULL may still be used for
+    | DMC orders (legacy compatibility). Prefer false after re-allocation.
+    */
+    'wallet_legacy_unscoped_agent' => (bool) env('PAYMENT_WALLET_LEGACY_UNSCOPED_AGENT', true),
+
+    /*
+    | Percent added on top of a converted (wallet) amount when wallet currency
+    | differs from the order currency. Rates use countries.current_rate with SGD
+    | as pivot (1 SGD = rate). Empty/null/0 disables the fee. Never uses
+    | countries.gateway_percentage.
+    */
+    'fx_conversion_charge_percent' => env('PAYMENT_FX_CONVERSION_CHARGE_PERCENT', 11),
+
+    'stripe' => [
+        'mode' => env('STRIPE_MODE', 'test'), // test|live
+        'publishable_key' => env('STRIPE_PUBLIC_KEY', ''),
+        'secret_key' => env('STRIPE_SECRET_KEY', ''),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET', ''),
+        'connect_webhook_secret' => env('STRIPE_CONNECT_WEBHOOK_SECRET', env('STRIPE_WEBHOOK_SECRET', '')),
+        'connect_refresh_url' => env('STRIPE_CONNECT_REFRESH_URL', env('APP_URL').'/finance/stripe/connect/refresh'),
+        'connect_return_url' => env('STRIPE_CONNECT_RETURN_URL', env('APP_URL').'/finance/stripe/connect/return'),
+        // Optional default only when DMC does not pick a country (UI requires selection).
+        'connect_default_country' => strtolower((string) env('STRIPE_CONNECT_DEFAULT_COUNTRY', '')),
+        // Travclicks branding on connected merchant accounts / Checkout.
+        'brand_logo_path' => env('STRIPE_BRAND_LOGO_PATH', public_path('assets/images/logo-dark.png')),
+        'brand_primary_color' => env('STRIPE_BRAND_PRIMARY_COLOR') ?: '#0B5FFF',
+        // Destination charges for DMC; platform charges for Travclicks supplier_initial.
+        'charge_model' => 'destination',
+        // Used when travclicks_markup is not supplied on a destination charge.
+        'application_fee_percent' => (float) env('STRIPE_APPLICATION_FEE_PERCENT', 0),
+        'currency_fallback' => env('STRIPE_CURRENCY_FALLBACK', 'usd'),
+    ],
+
+    /*
+     * Online services paid up front (supplier_initial): hold the full amount, deduct each
+     * service as it is booked with the vendor, then capture once / release the remainder.
+     * Stripe card holds expire after ~7 days, so holds are force-settled before that.
+     */
+    'online_hold' => [
+        'enabled' => filter_var(env('PAYMENT_ONLINE_HOLD_ENABLED', true), FILTER_VALIDATE_BOOL),
+        'stripe_max_days' => (int) env('PAYMENT_ONLINE_HOLD_STRIPE_MAX_DAYS', 6),
+        'wallet_max_days' => (int) env('PAYMENT_ONLINE_HOLD_WALLET_MAX_DAYS', 30),
+        // After Pay Now, book the online services with the vendors automatically (no approve dialog).
+        'auto_book' => filter_var(env('PAYMENT_ONLINE_AUTO_BOOK', true), FILTER_VALIDATE_BOOL),
+        // Display due date = free-cancellation date − N days (D-1, D-2, …).
+        'display_due_days_before' => max(1, (int) env('PAYMENT_ONLINE_DISPLAY_DUE_DAYS_BEFORE', 1)),
+        // Before Pay Now: recheck live supplier prices; a changed price must be accepted first.
+        'require_price_check' => filter_var(env('PAYMENT_ONLINE_REQUIRE_PRICE_CHECK', true), FILTER_VALIDATE_BOOL),
+    ],
+
+    'stages' => [
+        'none' => 'none',
+        'supplier_initial' => 'supplier_initial',
+        'dmc_collection' => 'dmc_collection',
+    ],
+
+    'recipients' => [
+        'travclicks' => 'travclicks',
+        'dmc' => 'dmc',
+    ],
+
+];

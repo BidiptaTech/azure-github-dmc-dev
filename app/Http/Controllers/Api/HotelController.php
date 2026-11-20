@@ -471,8 +471,10 @@ class HotelController extends Controller
                     'child_count' => $bed->child_count,
                     'extra_bed' => $bed->extra_bed,
                     'extra_bed_price' => $extra_bed_price,
+                    'extra_bed_cost_price' => $bed->extra_bed_cost_price ?? null,
                     'baby_cot' => $bed->baby_cot,
                     'baby_cot_price' => $baby_cot_price,
+                    'baby_cot_cost_price' => $bed->baby_cot_cost_price ?? null,
                 ];
             }
 

@@ -65,13 +65,13 @@ class FacilityController extends Controller
         
         $storage_file = CommonHelper::image_path('file_storage', $image);
 
-        $facility_max_id = Facility::max('facilityId') ?? 0;
-        $facilityId = CommonHelper::createId($facility_max_id);
-        while (Facility::where('facilityId', $facilityId)->exists()) {
-            $facilityId = CommonHelper::createId($facilityId);
-        }
+        // $facility_max_id = Facility::max('facilityId') ?? 0;
+        // $facilityId = CommonHelper::createId($facility_max_id);
+        // while (Facility::where('facilityId', $facilityId)->exists()) {
+        //     $facilityId = CommonHelper::createId($facilityId);
+        // }
         
-        $facility = Facility::create([
+        $newFacility = Facility::create([
             'name' => $request->input('name'),
             'category_id' => $request->input('category_type'),
             'icon' => $storage_file['master_value'],
@@ -79,10 +79,16 @@ class FacilityController extends Controller
             'is_chargeable' => $request->input('chargeable'),
             'chargable_comment' => $request->input('comment'),
             'inserted_by_user' => Auth::user()->userId,
-            'facilityId' => $facilityId,
+            // 'facilityId' => $facilityId,
         ]);
-        return redirect()->route('facility.index')
-            ->with('success', 'Facility created successfully');
+        $newFacility->refresh();
+        if ($newFacility) {
+            return redirect()->route('facility.index')
+                ->with('success', 'Facility created successfully');
+        } else {
+            return redirect()->route('facility.index')
+                ->with('error', 'An error occurred while saving the facility details.');
+        }
     }
     
 

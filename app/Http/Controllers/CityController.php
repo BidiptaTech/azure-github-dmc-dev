@@ -6,7 +6,9 @@ use App\Helpers\CommonHelper;
 use App\Models\City;
 use App\Models\Country;
 use App\Models\CityExploration;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
@@ -46,6 +48,8 @@ class CityController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'country' => 'required|string|exists:countries,id',
+            'mg_country_code' => 'required|string|max:10',
+            'mg_city_code' => 'required|string|max:20',
             'image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp|max:2048',
         ]);
 
@@ -62,6 +66,8 @@ class CityController extends Controller
 
         $countryName = $country->name;
         $cityName = trim($request->name);
+        $mgCountryCode = strtoupper(trim((string) $request->mg_country_code));
+        $mgCityCode = strtoupper(trim((string) $request->mg_city_code));
 
         // Check if city already exists (case-insensitive) - active cities
         $existingCity = City::whereRaw('LOWER(name) = ?', [strtolower($cityName)])
@@ -87,6 +93,11 @@ class CityController extends Controller
             // Restore the soft-deleted city
             $deletedCity->restore();
             
+            $restoreData = [
+                'mg_country_code' => $mgCountryCode,
+                'mg_city_code' => $mgCityCode,
+            ];
+
             // Handle image upload for restored city
             if ($request->hasFile('image')) {
                 // Delete old image if exists using CommonHelper
@@ -96,9 +107,10 @@ class CityController extends Controller
                 
                 // Store new image using CommonHelper
                 $uploadResult = CommonHelper::image_path('file_storage', $request->file('image'), 'uploads');
-                $imagePath = $uploadResult['master_value'] ?? null;
-                $deletedCity->update(['image' => $imagePath]);
+                $restoreData['image'] = $uploadResult['master_value'] ?? null;
             }
+
+            $deletedCity->update($restoreData);
             
             if ($request->ajax()) {
                 return response()->json([
@@ -114,18 +126,18 @@ class CityController extends Controller
         }
 
         // Generate new city_id
-        $lastCity = City::withTrashed()->orderBy('city_id', 'desc')->first();
-        $lastCityId = $lastCity->city_id ?? 0;
-        $newCityId = \App\Helpers\CommonHelper::createId($lastCityId);
+        // $lastCity = City::withTrashed()->orderBy('city_id', 'desc')->first();
+        // $lastCityId = $lastCity->city_id ?? 0;
+        // $newCityId = \App\Helpers\CommonHelper::createId($lastCityId);
 
-        // Ensure uniqueness of city_id
-        while (City::where('city_id', $newCityId)->exists()) {
-            $newCityId = \App\Helpers\CommonHelper::createId($newCityId);
-        }
+        // // Ensure uniqueness of city_id
+        // while (City::where('city_id', $newCityId)->exists()) {
+        //     $newCityId = \App\Helpers\CommonHelper::createId($newCityId);
+        // }
 
         // Generate new database ID
-        $lastDbId = City::withTrashed()->orderBy('id', 'desc')->value('id') ?? 0;
-        $newId = $lastDbId + 1;
+        // $lastDbId = City::withTrashed()->orderBy('id', 'desc')->value('id') ?? 0;
+        // $newId = $lastDbId + 1;
 
         // Handle image upload using CommonHelper
         $imagePath = null;
@@ -136,13 +148,15 @@ class CityController extends Controller
 
         // Create city
         $city = City::create([
-            'id' => $newId,
+            // 'id' => $newId,
             'name' => $cityName,
             'country' => $countryName,
-            'city_id' => $newCityId,
+            // 'city_id' => $newCityId,
+            'mg_country_code' => $mgCountryCode,
+            'mg_city_code' => $mgCityCode,
             'image' => $imagePath,
         ]);
-
+        $city->refresh();
         if ($request->ajax()) {
             return response()->json([
                 'success' => true,
@@ -188,6 +202,8 @@ class CityController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'country' => 'required|string|exists:countries,id',
+            'mg_country_code' => 'required|string|max:10',
+            'mg_city_code' => 'required|string|max:20',
             'image' => 'nullable|image|mimes:jpeg,jpg,png,gif,webp|max:2048',
         ]);
 
@@ -207,6 +223,8 @@ class CityController extends Controller
 
         $countryName = $country->name;
         $cityName = trim($request->name);
+        $mgCountryCode = strtoupper(trim((string) $request->mg_country_code));
+        $mgCityCode = strtoupper(trim((string) $request->mg_city_code));
 
         // Check if city already exists (case-insensitive) excluding current city
         $existingCity = City::whereRaw('LOWER(name) = ?', [strtolower($cityName)])
@@ -244,6 +262,8 @@ class CityController extends Controller
         $city->update([
             'name' => $cityName,
             'country' => $countryName,
+            'mg_country_code' => $mgCountryCode,
+            'mg_city_code' => $mgCityCode,
             'image' => $city->image,
         ]);
 
@@ -749,5 +769,81 @@ class CityController extends Controller
             return redirect()->route('cities.index')
                 ->with('error', 'Failed to delete exploration data: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Country names from the DMC's master DMC profile (comma-separated on users.country).
+     */
+    private function getMasterDmcCountryNamesForDmc(int $dmcId): array
+    {
+        $dmcUser = User::where('userId', $dmcId)->first();
+        if (!$dmcUser) {
+            return [];
+        }
+
+        $masterDmcId = $dmcUser->master_dmc_id ?? null;
+        if (empty($masterDmcId)) {
+            $visited = [];
+            $candidateId = $dmcUser->created_by ?? null;
+            $safety = 0;
+            while (!empty($candidateId) && $safety < 8 && !in_array($candidateId, $visited, true)) {
+                $visited[] = $candidateId;
+                $candidate = User::where('userId', $candidateId)->first();
+                if (!$candidate) {
+                    break;
+                }
+                if ((int) ($candidate->role_id ?? 0) === 3) {
+                    $masterDmcId = $candidate->userId;
+                    break;
+                }
+                $candidateId = $candidate->created_by ?? null;
+                $safety++;
+            }
+        }
+
+        $masterDmc = User::where('userId', $masterDmcId ?: $dmcId)->first();
+        if ($masterDmc && !empty($masterDmc->country)) {
+            return array_values(array_filter(array_map(
+                static fn ($c) => trim($c),
+                preg_split('/\s*,\s*/', (string) $masterDmc->country)
+            )));
+        }
+
+        if (!empty($dmcUser->country)) {
+            return array_values(array_filter(array_map(
+                static fn ($c) => trim($c),
+                preg_split('/\s*,\s*/', (string) $dmcUser->country)
+            )));
+        }
+
+        return [];
+    }
+
+    /**
+     * AJAX city search for Select2 (Single/Multi City planning)
+     * Returns: { results: [{id, text}] }
+     */
+    public function ajaxCities(Request $request)
+    {
+        $q = trim((string) $request->query('q', ''));
+        $authUser = Auth::user();
+        $dmcId = $authUser ? CommonHelper::getDmcId($authUser) : null;
+
+        if (empty($dmcId)) {
+            return response()->json(['results' => []]);
+        }
+
+        $results = collect(CommonHelper::getSiblingDmcCityOptions((int) $dmcId, $q))
+            ->map(function (array $row) {
+                return [
+                    'id' => (string) ($row['id'] ?? ''),
+                    'text' => (string) ($row['text'] ?? ''),
+                    'country' => (string) ($row['country'] ?? ''),
+                    'dmc_id' => (int) ($row['dmc_id'] ?? 0),
+                ];
+            })
+            ->values();
+
+        return response()->json(['results' => $results]);
     }
 }

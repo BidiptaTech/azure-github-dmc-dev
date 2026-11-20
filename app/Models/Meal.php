@@ -24,4 +24,12 @@ class Meal extends Model
     {
         return $this->belongsTo(User::class, 'dmc_id', 'userId');
     }
+
+    /**
+     * User who created the meal (users.userId).
+     */
+    public function createdByUser()
+    {
+        return $this->belongsTo(User::class, 'created_by', 'userId');
+    }
 }

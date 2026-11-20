@@ -1,0 +1,376 @@
+{#
+  Professional Proforma Invoice — mirrors system Blade layout in Twig.
+  Preview: php artisan invoice-template:check-draft proforma --tour=TOUR_ID
+  Allowed elements only (no header/section/a/script).
+#}
+<div class="inv">
+  <table class="inv-top">
+    <tr>
+      <td class="inv-top-logo">
+        {% if branding.logo %}
+          <img src="{{ branding.logo }}" alt="" class="inv-logo" width="120" height="80">
+        {% endif %}
+      </td>
+      <td class="inv-top-brand">
+        <p class="inv-company">{{ branding.company_name|default('DMC') }}</p>
+        {% if branding.address %}
+          <p class="inv-muted">Address: {{ branding.address }}</p>
+        {% endif %}
+        {% if branding.phone or branding.email %}
+          <p class="inv-muted">
+            {% if branding.phone %}Tel: {{ branding.phone }}{% endif %}
+            {% if branding.phone and branding.email %} | {% endif %}
+            {% if branding.email %}Email: {{ branding.email }}{% endif %}
+          </p>
+        {% endif %}
+        {% if branding.company_reg_no %}
+          <p class="inv-muted">UEN/Co. Reg No.: {{ branding.company_reg_no }}</p>
+        {% endif %}
+        {% if branding.licence_no %}
+          <p class="inv-muted">TA Licence No.: {{ branding.licence_no }}</p>
+        {% endif %}
+      </td>
+      <td class="inv-top-number">
+        <p class="inv-doc-no">{{ invoice.number|default('DRAFT') }}</p>
+      </td>
+    </tr>
+  </table>
+
+  <h1 class="inv-doc-title">{{ invoice.doc_title|default('PROFORMA INVOICE') }}</h1>
+
+  <table class="inv-two-col">
+    <tr>
+      <td class="inv-col">
+        <div class="inv-box">
+          <h2 class="inv-box-title">Client / Guest Information</h2>
+          <table class="inv-kv">
+            <tr>
+              <td class="inv-k">Address</td>
+              <td class="inv-v">{{ client.address|default('—') }}</td>
+            </tr>
+            <tr>
+              <td class="inv-k">Email</td>
+              <td class="inv-v">{{ client.email|default('—') }}</td>
+            </tr>
+            <tr>
+              <td class="inv-k">Phone</td>
+              <td class="inv-v">{{ client.phone|default('—') }}</td>
+            </tr>
+            <tr>
+              <td class="inv-k">Booking ID</td>
+              <td class="inv-v">{{ client.booking_id|default('—') }}</td>
+            </tr>
+            <tr>
+              <td class="inv-k">Lead Guest</td>
+              <td class="inv-v">{{ client.lead_guest_name|default('—') }}</td>
+            </tr>
+            <tr>
+              <td class="inv-k">Adults</td>
+              <td class="inv-v">{{ travel.adults|default(0) }}</td>
+            </tr>
+            <tr>
+              <td class="inv-k">Children</td>
+              <td class="inv-v">{{ travel.children|default(0) }}</td>
+            </tr>
+            <tr>
+              <td class="inv-k">Infants</td>
+              <td class="inv-v">{{ travel.infants|default(0) }}</td>
+            </tr>
+          </table>
+        </div>
+      </td>
+      <td class="inv-col">
+        <div class="inv-box">
+          <h2 class="inv-box-title">Travel Company / Agent</h2>
+          <table class="inv-kv">
+            {% if travel_company.company_name %}
+              <tr>
+                <td class="inv-k">Travel Agency</td>
+                <td class="inv-v">{{ travel_company.company_name }}</td>
+              </tr>
+            {% endif %}
+            {% if travel_company.name %}
+              <tr>
+                <td class="inv-k">Travel Agent</td>
+                <td class="inv-v">{{ travel_company.name }}</td>
+              </tr>
+            {% endif %}
+            {% if travel_company.address %}
+              <tr>
+                <td class="inv-k">Address</td>
+                <td class="inv-v">{{ travel_company.address }}</td>
+              </tr>
+            {% endif %}
+            {% if travel_company.contact_person %}
+              <tr>
+                <td class="inv-k">Contact Person</td>
+                <td class="inv-v">{{ travel_company.contact_person }}</td>
+              </tr>
+            {% endif %}
+            {% if travel_company.phone %}
+              <tr>
+                <td class="inv-k">Phone</td>
+                <td class="inv-v">{{ travel_company.phone }}</td>
+              </tr>
+            {% endif %}
+            {% if travel_company.email %}
+              <tr>
+                <td class="inv-k">Email</td>
+                <td class="inv-v">{{ travel_company.email }}</td>
+              </tr>
+            {% endif %}
+            <tr>
+              <td class="inv-k">Proposal Date</td>
+              <td class="inv-v">{{ invoice.invoice_date_display|default(invoice.invoice_date|default('—')) }}</td>
+            </tr>
+            <tr>
+              <td class="inv-k">Proposal Validity</td>
+              <td class="inv-v">{{ invoice.validity_date_display|default(invoice.validity_date|default('—')) }}</td>
+            </tr>
+            {% if invoice.sent_by %}
+              <tr>
+                <td class="inv-k">Sent By</td>
+                <td class="inv-v">{{ invoice.sent_by }}</td>
+              </tr>
+            {% endif %}
+          </table>
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <div class="inv-box inv-box-full">
+    <h2 class="inv-box-title">Travel Summary</h2>
+    <table class="inv-kv">
+      <tr>
+        <td class="inv-k">Destination</td>
+        <td class="inv-v">
+          {{ travel.destination|default('—') }}
+          {% if travel.is_multi_city %}
+            <span class="inv-badge">Multi-city</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% if travel.is_multi_city and travel.cities|length > 0 %}
+        <tr>
+          <td class="inv-k">Cities</td>
+          <td class="inv-v">{{ travel.cities|join(', ') }}</td>
+        </tr>
+      {% endif %}
+      {% if travel.is_multi_city and travel.countries|length > 0 %}
+        <tr>
+          <td class="inv-k">Countries</td>
+          <td class="inv-v">{{ travel.countries|join(', ') }}</td>
+        </tr>
+      {% endif %}
+      <tr>
+        <td class="inv-k">Travel Date</td>
+        <td class="inv-v">
+          From: {{ travel.from_date_display|default(travel.from_date|default('—')) }}
+          · To: {{ travel.to_date_display|default(travel.to_date|default('—')) }}
+          · Duration: {{ travel.duration_days|default('—') }} days
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  {% if services.is_multi %}
+    <div class="inv-multi-notice">
+      <p><strong>Multi-city / multi-country booking</strong></p>
+      <p>Services below are grouped by city so you can see which items belong to each destination.</p>
+    </div>
+  {% endif %}
+
+  <h2 class="inv-section-title">Description</h2>
+
+  {% if items|length > 0 %}
+    {% if services.is_multi %}
+      {% for city_group in services.by_city %}
+        <div class="inv-city-block">
+          <h2 class="inv-city-title">
+            {{ city_group.label|default('Location') }}
+            {% if city_group.currency %}
+              <span class="inv-city-currency">{{ city_group.currency }}</span>
+            {% endif %}
+          </h2>
+
+          {% for section in city_group.sections %}
+            <h3 class="inv-service-title">{{ section.title_short|default(section.title) }}</h3>
+            <table class="inv-items">
+              <thead>
+                <tr>
+                  <th class="col-desc">Description</th>
+                  <th class="col-date">Date</th>
+                  <th class="col-pax">Pax</th>
+                  <th class="col-amt">Amount ({{ pricing.display_currency|default(city_group.currency|default(pricing.base_currency|default(''))) }})</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in section.items %}
+                  <tr>
+                    <td>
+                      <strong>{{ item.description|default('Service') }}</strong>
+                      {% for line in item.detail_lines|default([]) %}
+                        <br><span class="inv-muted">{{ line }}</span>
+                      {% endfor %}
+                    </td>
+                    <td>{{ item.booking_date_display|default(item.booking_date|default('—')) }}</td>
+                    <td>
+                      A{{ item.quantity_adults|default(0)|number_format(0) }}
+                      / C{{ item.quantity_children|default(0)|number_format(0) }}
+                      / I{{ item.quantity_infants|default(0)|number_format(0) }}
+                    </td>
+                    <td class="text-right">{{ item.total_price|default(0)|number_format(2) }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% endfor %}
+
+          <table class="inv-city-subtotal">
+            <tr>
+              <td class="inv-totals-label">Subtotal — {{ city_group.label|default('Location') }}</td>
+              <td class="inv-totals-value">{{ city_group.subtotal|default(0)|number_format(2) }} {{ pricing.display_currency|default(city_group.currency|default('')) }}</td>
+            </tr>
+          </table>
+        </div>
+      {% endfor %}
+    {% else %}
+      {% for type_key, type_items in services.by_type %}
+        <h3 class="inv-service-title">{{ services.type_labels[type_key]|default(type_key|title) }}</h3>
+        <table class="inv-items">
+          <thead>
+            <tr>
+              <th class="col-desc">Description</th>
+              <th class="col-date">Date</th>
+              <th class="col-pax">Pax</th>
+              <th class="col-amt">Amount ({{ pricing.display_currency|default(pricing.base_currency|default('')) }})</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in type_items %}
+              <tr>
+                <td>
+                  <strong>{{ item.description|default('Service') }}</strong>
+                  {% if item.geo_label %}
+                    <br><span class="inv-muted">{{ item.geo_label }}</span>
+                  {% endif %}
+                  {% for line in item.detail_lines|default([]) %}
+                    <br><span class="inv-muted">{{ line }}</span>
+                  {% endfor %}
+                </td>
+                <td>{{ item.booking_date_display|default(item.booking_date|default('—')) }}</td>
+                <td>
+                  A{{ item.quantity_adults|default(0)|number_format(0) }}
+                  / C{{ item.quantity_children|default(0)|number_format(0) }}
+                  / I{{ item.quantity_infants|default(0)|number_format(0) }}
+                </td>
+                <td class="text-right">{{ item.total_price|default(0)|number_format(2) }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% endfor %}
+    {% endif %}
+  {% else %}
+    <p class="inv-muted">No line items on this invoice.</p>
+  {% endif %}
+
+  <table class="inv-totals">
+    <tr>
+      <td class="inv-totals-label">Subtotal</td>
+      <td class="inv-totals-value">{{ pricing.subtotal|default(0)|number_format(2) }} {{ pricing.display_currency|default('') }}</td>
+    </tr>
+    {% if pricing.gst_amount and pricing.gst_amount > 0 %}
+      <tr>
+        <td class="inv-totals-label">Tax / GST</td>
+        <td class="inv-totals-value">{{ pricing.gst_amount|default(0)|number_format(2) }} {{ pricing.display_currency|default('') }}</td>
+      </tr>
+    {% endif %}
+    {% if pricing.service_charge and pricing.service_charge > 0 %}
+      <tr>
+        <td class="inv-totals-label">Service Charge</td>
+        <td class="inv-totals-value">{{ pricing.service_charge|number_format(2) }} {{ pricing.display_currency|default('') }}</td>
+      </tr>
+    {% endif %}
+    {% if pricing.tourist_tax and pricing.tourist_tax > 0 %}
+      <tr>
+        <td class="inv-totals-label">Tourist Tax</td>
+        <td class="inv-totals-value">{{ pricing.tourist_tax|number_format(2) }} {{ pricing.display_currency|default('') }}</td>
+      </tr>
+    {% endif %}
+    <tr class="inv-totals-grand">
+      <td class="inv-totals-label">Total Amount</td>
+      <td class="inv-totals-value">{{ pricing.total_amount|default(0)|number_format(2) }} {{ pricing.display_currency|default('') }}</td>
+    </tr>
+    <tr>
+      <td class="inv-totals-label">Payment Received</td>
+      <td class="inv-totals-value">{{ pricing.payment_received|default(0)|number_format(2) }} {{ pricing.display_currency|default('') }}</td>
+    </tr>
+    <tr class="inv-totals-due">
+      <td class="inv-totals-label">Outstanding Balance</td>
+      <td class="inv-totals-value">{{ pricing.outstanding_balance|default(0)|number_format(2) }} {{ pricing.display_currency|default('') }}</td>
+    </tr>
+  </table>
+
+  {% if payment_terms|length > 0 %}
+    <div class="inv-terms">
+      <p><strong>Payment Terms :</strong></p>
+      <ol>
+        {% for term in payment_terms %}
+          <li>{{ term }}</li>
+        {% endfor %}
+      </ol>
+    </div>
+  {% endif %}
+
+  {% if bank_details|length > 0 %}
+    <div class="inv-bank">
+      <p><strong>Bank Details</strong></p>
+      {% for bank in bank_details %}
+        <table class="inv-kv inv-bank-table">
+          {% if bank.bank_name %}
+            <tr><td class="inv-k">Bank</td><td class="inv-v">{{ bank.bank_name }}</td></tr>
+          {% endif %}
+          {% if bank.account_name %}
+            <tr><td class="inv-k">Account Name</td><td class="inv-v">{{ bank.account_name }}</td></tr>
+          {% endif %}
+          {% if bank.account_number %}
+            <tr><td class="inv-k">Account No.</td><td class="inv-v">{{ bank.account_number }}</td></tr>
+          {% endif %}
+          {% if bank.swift_code %}
+            <tr><td class="inv-k">SWIFT</td><td class="inv-v">{{ bank.swift_code }}</td></tr>
+          {% endif %}
+          {% if bank.branch %}
+            <tr><td class="inv-k">Bank Address</td><td class="inv-v">{{ bank.branch }}</td></tr>
+          {% endif %}
+          {% if bank.ifsc %}
+            <tr><td class="inv-k">IFSC</td><td class="inv-v">{{ bank.ifsc }}</td></tr>
+          {% endif %}
+          {% if bank.bank_code %}
+            <tr><td class="inv-k">Bank Code</td><td class="inv-v">{{ bank.bank_code }}</td></tr>
+          {% endif %}
+          {% if bank.currency %}
+            <tr><td class="inv-k">Currency</td><td class="inv-v">{{ bank.currency }}</td></tr>
+          {% endif %}
+        </table>
+        {% if not loop.last %}<hr>{% endif %}
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="inv-note">
+    <p>This is a computer-generated proforma invoice. Vouchers are issued only after full payment and required documents are received.</p>
+  </div>
+
+  <div class="inv-footer">
+    <p class="inv-company-sm">{{ branding.company_name|default('DMC') }}</p>
+    {% if branding.phone or branding.email %}
+      <p class="inv-muted">
+        {% if branding.phone %}{{ branding.phone }}{% endif %}
+        {% if branding.phone and branding.email %} · {% endif %}
+        {% if branding.email %}{{ branding.email }}{% endif %}
+      </p>
+    {% endif %}
+  </div>
+</div>

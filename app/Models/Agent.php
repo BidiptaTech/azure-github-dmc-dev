@@ -170,27 +170,39 @@ class Agent extends Authenticatable
 
     public function getDmc($agent_id){
         $agent = $this->where('agent_id', $agent_id)->first();
+        if (!$agent || empty($agent->sales_manager_dmc)) {
+            return null;
+        }
+
         $agent_creator = User::where('userId', $agent->sales_manager_dmc)->first();
+        if (!$agent_creator) {
+            return null;
+        }
+
         $dmc_id = null;
-        if($agent->role_id == 11 || $agent->role_id == 20){
+        if ($agent->role_id == 11 || $agent->role_id == 20) {
             $dmc_id = $agent_creator->userId;
-        }
-        elseif($agent->role_id == 33 || $agent->role_id == 128 || $agent->role_id == 129 || $agent->role_id == 130 || $agent->role_id == 134 || $agent->role_id == 135 || $agent->role_id == 136 || $agent->role_id == 138){
+        } elseif (in_array((int) $agent->role_id, [33, 128, 129, 130, 134, 135, 136, 138], true)) {
             $dmc_id = $agent_creator->created_by;
-        }
-        elseif($agent->role_id == 12 || $agent->role_id == 37){
+        } elseif ($agent->role_id == 12 || $agent->role_id == 37) {
             $sales_head = User::where('userId', $agent_creator->created_by)->first();
-            $dmc_id = $sales_head->created_by;
-        }
-        elseif($agent->role_id == 38){
+            $dmc_id = $sales_head?->created_by;
+        } elseif ($agent->role_id == 38) {
             $assistant_sales_manager = User::where('userId', $agent_creator->created_by)->first();
-            $sales_manager = User::where('userId', $assistant_sales_manager->created_by)->first();
-            $sales_head = User::where('userId', $sales_manager->created_by)->first();
-            $dmc_id = $sales_head->created_by;
+            $sales_manager = $assistant_sales_manager
+                ? User::where('userId', $assistant_sales_manager->created_by)->first()
+                : null;
+            $sales_head = $sales_manager
+                ? User::where('userId', $sales_manager->created_by)->first()
+                : null;
+            $dmc_id = $sales_head?->created_by;
         }
-       
-        $dmc = User::where('userId', $dmc_id)->first();
-        return $dmc;
+
+        if (empty($dmc_id)) {
+            return null;
+        }
+
+        return User::where('userId', $dmc_id)->first();
     }
 }
 

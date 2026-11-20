@@ -40,12 +40,12 @@
                             </div>
                         @endif
 
-                        @if(session('errors') && count(session('errors')) > 0)
+                        @if(session('upload_errors') && count(session('upload_errors')) > 0)
                             <div class="alert alert-warning alert-dismissible fade show" role="alert">
                                 <i class="ri-alert-line me-2"></i>
                                 <strong>Upload Errors:</strong>
                                 <ul class="mb-0 mt-2">
-                                    @foreach(session('errors') as $error)
+                                    @foreach(session('upload_errors') as $error)
                                         <li>{{ $error }}</li>
                                     @endforeach
                                 </ul>
@@ -73,7 +73,10 @@
                                 <div>
                                     <h6 class="mb-2">📋 Upload Instructions</h6>
                                     <ul class="mb-0 small">
-                                        <li><strong>Required Fields:</strong> Salutation, Gender, Name, Email, Phone, Address, Country, City</li>
+                                        <li><strong>Columns match Add Guide:</strong> Salutation, Gender, Name, Contact, Email, App Password (optional), Country, City, Service Type (1/2/3), Age, WhatsApp, Languages+Proficiency, License No/Expiry/Image, Experience, Night Surcharge/Start/End, Day–12hr Cost+Sell, Profile Image (optional), About, Status</li>
+                                        <li><strong>Profile Image:</strong> Optional — if blank, uses Guide Default Pic from Master Settings (License Image remains required)</li>
+                                        <li><strong>Extra language rows:</strong> leave other cells blank; fill only Languages + Proficiency</li>
+                                        <li><strong>Not in CSV:</strong> Profit Type / Profit Amount (UI auto-fill helpers only)</li>
                                         <li><strong>Email Validation:</strong> Must be unique - no duplicate emails allowed</li>
                                         <li><strong>Country Restriction:</strong> You can only upload guides for your country: <strong>{{ Auth::user()->country ?? 'Please set your country' }}</strong></li>
                                         <li><strong>City Validation:</strong> City must exist in our database for your country</li>

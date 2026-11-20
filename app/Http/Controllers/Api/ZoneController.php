@@ -11,100 +11,93 @@ use App\Models\Port;
 use App\Models\City;
 use App\Models\Vehicle;
 use App\Models\Driver;
+use App\Models\Agency;
 use App\Models\VehicleZoneMapping;
 class ZoneController extends Controller
 {
+    /**
+     * The DMCs the caller may browse.
+     *
+     * An agent inherits them from their agency (agencies.dmc_id), which is the same
+     * list the app renders from /get-dmcs and picks dmc_id from. Returns an empty
+     * array for internal sales users, who are not agency scoped.
+     */
+    private function allowedDmcIds($account): array
+    {
+        $ids = [];
+
+        if (!empty($account->agency_id)) {
+            $agency = Agency::where('agency_id', $account->agency_id)->first();
+            if ($agency) {
+                $ids = $agency->getSelectedDmcIds();
+            }
+        }
+
+        // Agents created before agencies existed carry their DMCs on the agent row.
+        if (empty($ids) && !empty($account->dmc_id)) {
+            $ids = is_array($account->dmc_id)
+                ? $account->dmc_id
+                : (json_decode((string) $account->dmc_id, true) ?: []);
+        }
+
+        return array_values(array_unique(array_map('intval', array_filter((array) $ids))));
+    }
+
+    /**
+     * Every port in the country, so a transfer can start or end at any port
+     * nationwide rather than only the ones in the anchor record's own city.
+     * Falls back to the city's country when the anchor record has none stored.
+     */
+    private function portsForCountry(?string $country, ?string $cityName)
+    {
+        if (empty($country) && !empty($cityName)) {
+            $country = City::where('name', $cityName)->value('country');
+        }
+
+        if (empty($country)) {
+            return collect();
+        }
+
+        return Port::orderBy('port_id', 'desc')->where('country', $country)->get();
+    }
+
     public function zone_lists(Request $request)
     {
-        $agent = auth()->user()->sales_manager_dmc;
-        if(!$agent){
-        $agent = auth()->user()->userId;
-        }
-        $user = User::where('userId', $agent)->first();
         $id = $request->id;
         $type = $request->type;
+        $dmc_id = (int) $request->dmc_id;
+
         if (!$id || !$type) {
             return response()->json([
                 'success' => false,
                 'message' => 'Please enter both id and type.',
             ]);
         }
-        if ($user) {
-            switch ($user->role_id) {
-                case 11: // Agent is a DMC
-                    $dmc_id = $user->userId; // Assuming `userId` in agent or fallback to agent_id
-                    $dmc_users = User::where('userId', $dmc_id)->first();
-                    break;
-                case 33: 
-                case 128: 
-                case 129: 
-                case 130: 
-                case 134: 
-                case 135: 
-                case 136: 
-                case 138: // Sales Head
-                    $salesManagerId = $user->userId;
-                        $saleshead_dmc = User::where('userId', $user->userId)->first(); // SH
-                        if ( $saleshead_dmc) {
-                            $dmc_users = User::where('userId',  $saleshead_dmc->created_by)->first(); // DMC
-                            if ($dmc_users && $dmc_users->role_id == 11) {
-                                $dmc_id = $dmc_users->userId;
-                            }
-                        }else{
-                            $dmc_users = User::where('userId',  $user->created_by)->first(); // DMC
-                            $dmc_id = $dmc_users->userId;
-                        }
-                    break;
-                case 12:
-                case 37: // Sales Manager
-                    $salesManagerId = $user->userId;
-                    $salesmng_dmc= User::where('userId', $user->userId)->first(); // SM
-                    
-                    if ($salesmng_dmc) {
-                        $saleshead_dmc = User::where('userId', $salesmng_dmc->created_by)->first(); // SH
-                        if ( $saleshead_dmc) {
-                            $dmc_users = User::where('userId',  $saleshead_dmc->created_by)->first(); // DMC
-                            if ($dmc_users && $dmc_users->role_id == 11) {
-                                $dmc_id = $dmc_users->userId;
-                            }
-                        }
-                    }else{
-                        $saleshead_dmc = User::where('userId', $user->created_by)->first(); // SH
-                        if ( $saleshead_dmc) {
-                            $dmc_users = User::where('userId',  $saleshead_dmc->created_by)->first(); // DMC
-                            if ($dmc_users && $dmc_users->role_id == 11) {
-                                $dmc_id = $dmc_users->userId;
-                            }
-                        }
-                    }
-                    break;
-                case 38: // Assistant Manager
-                    $salesManagerId = $user->userId;
-                    $asmng_dmc = User::where('userId', $user->userId)->first(); // SM
-                    if($asmng_dmc){
-                        $salesmng_dmc = User::where('userId', $asmng_dmc->created_by)->first(); // SH
-                    }
-                    if ($salesmng_dmc) {
-                        $saleshead_dmc = User::where('userId', $salesmng_dmc->created_by)->first(); // SH
-                        if ( $saleshead_dmc) {
-                            $dmc_users = User::where('userId',  $saleshead_dmc->created_by)->first(); // DMC
-                            if ($dmc_users && $dmc_users->role_id == 11) {
-                                $dmc_id = $dmc_users->userId;
-                            }
-                        }
-                    }
-                    break;
-            }
+
+        if (!$dmc_id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please provide dmc_id.',
+            ]);
         }
+
+        $allowedDmcIds = $this->allowedDmcIds(auth()->user());
+        if ($allowedDmcIds && !in_array($dmc_id, $allowedDmcIds, true)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You do not have access to this DMC.',
+            ], 403);
+        }
+
         switch ($type) {
             case 'hotel':
-                $city = Hotel::where('hotel_unique_id', $id)->value('city');
+                $hotel = Hotel::where('hotel_unique_id', $id)->first();
+                $city = $hotel->city ?? null;
         
                 $hotels = Hotel::orderBy('name', 'asc')->whereJsonContains('dmc_id', $dmc_id)->where('city', $city)->get();
                 $attractions = Attraction::orderBy('attraction_id', 'desc')->whereJsonContains('dmc_id', $dmc_id)->where('location', $city)->get();
                 $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->whereJsonContains('dmc_id', $dmc_id)->where('city', $city)->get();
-                $port_city = City::where('name', $city)->value('city_id');
-                $ports = Port::orderBy('port_id', 'desc')->where('city_id', $port_city)->get();
+                $ports = $this->portsForCountry($hotel->country ?? null, $city);
                 $items = [
                     'hotels' => $hotels,
                     'attractions' => $attractions,
@@ -114,27 +107,30 @@ class ZoneController extends Controller
                 break;
         
             case 'attraction':
-                $city = Attraction::where('attraction_id', $id)->value('location');
+                $attraction = Attraction::where('attraction_id', $id)->first();
+                $city = $attraction->location ?? null;
         
                 $attractions = Attraction::orderBy('attraction_id', 'desc')->whereJsonContains('dmc_id', $dmc_id)->where('location', $city)->get();
                 $hotels = Hotel::orderBy('name', 'asc')->whereJsonContains('dmc_id', $dmc_id)->where('city', $city)->get();
                 $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->whereJsonContains('dmc_id', $dmc_id)->where('city', $city)->get();
+                $ports = $this->portsForCountry($attraction->country ?? null, $city);
         
                 $items = [
                     'attractions' => $attractions,
                     'hotels' => $hotels,
                     'restaurants' => $restaurants,
+                    'ports' => $ports,
                 ];
                 break;
         
             case 'restaurant':
-                $city = Restaurant::where('restaurant_id', $id)->value('city');
+                $restaurant = Restaurant::where('restaurant_id', $id)->first();
+                $city = $restaurant->city ?? null;
         
                 $hotels = Hotel::orderBy('name', 'asc')->whereJsonContains('dmc_id', $dmc_id)->where('city', $city)->get();
                 $attractions = Attraction::orderBy('attraction_id', 'desc')->whereJsonContains('dmc_id', $dmc_id)->where('location', $city)->get();
                 $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->whereJsonContains('dmc_id', $dmc_id)->where('city', $city)->get();
-                $port_city = City::where('name', $city)->value('city_id');
-                $ports = Port::orderBy('port_id', 'desc')->where('city_id', $port_city)->get();
+                $ports = $this->portsForCountry($restaurant->country ?? null, $city);
         
                 $items = [
                     'hotels' => $hotels,
@@ -145,14 +141,13 @@ class ZoneController extends Controller
                 break;
         
             case 'port':
-                $port_city = Port::where('port_id', $id)->value('city_id');
-                $ports = Port::orderBy('port_id', 'desc')->where('city_id', $port_city)->get();
-                
-                $port_city = Port::where('port_id', $id)->value('city_id');
-                $city = City::where('city_id', $port_city)->first();
-                $hotels = Hotel::orderBy('name', 'asc')->whereJsonContains('dmc_id', $dmc_id)->where('city', $city->name)->get();
-                $attractions = Attraction::orderBy('attraction_id', 'desc')->whereJsonContains('dmc_id', $dmc_id)->where('location', $city->name)->get();
-                $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->whereJsonContains('dmc_id', $dmc_id)->where('city', $city->name)->get();
+                $port = Port::where('port_id', $id)->first();
+                $city = $port ? City::where('city_id', $port->city_id)->value('name') : null;
+        
+                $ports = $this->portsForCountry($port->country ?? null, $city);
+                $hotels = Hotel::orderBy('name', 'asc')->whereJsonContains('dmc_id', $dmc_id)->where('city', $city)->get();
+                $attractions = Attraction::orderBy('attraction_id', 'desc')->whereJsonContains('dmc_id', $dmc_id)->where('location', $city)->get();
+                $restaurants = Restaurant::orderBy('restaurant_id', 'desc')->whereJsonContains('dmc_id', $dmc_id)->where('city', $city)->get();
                 $items = [
                     'hotels' => $hotels,
                     'ports' => $ports,

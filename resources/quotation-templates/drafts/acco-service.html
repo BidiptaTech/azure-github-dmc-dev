@@ -1,0 +1,594 @@
+{#
+  Acco+Service Quotation (itinerary) — Twig draft for Quotation Template Studio.
+  Validate: php artisan quotation-template:check-draft acco-service --tour=TOUR_ID
+  Allowed HTML only (div/p/table/ul/…). No Blade/PHP/JS.
+#}
+<div class="page">
+
+  {# ========== HEADER / BRANDING ========== #}
+  <div class="header">
+    <table class="header-table">
+      <tr>
+        <td class="header-left">
+          {% set logoSrc = attribute(branding, 'logo')|default('') %}
+          {% if logoSrc %}
+            <img class="dmc-logo" src="{{ logoSrc }}" alt="Logo">
+          {% endif %}
+        </td>
+        <td class="header-center">
+          <div class="dmc-name">{{ branding.company_name|default('N/A') }}</div>
+          {% set brandAddress = attribute(branding, 'address')|default('') %}
+          {% set brandPhone = attribute(branding, 'phone')|default('') %}
+          {% set brandEmail = attribute(branding, 'email')|default('') %}
+          {% set dmcDetails = attribute(branding, 'dmc_details')|default({}) %}
+          {% if brandAddress and brandAddress != 'N/A' %}
+            <div class="dmc-address">{{ brandAddress }}</div>
+          {% endif %}
+          <div class="dmc-contact">
+            {% if brandPhone and brandPhone != 'N/A' %}Tel: {{ brandPhone }}{% endif %}
+            {% if brandPhone and brandEmail and brandPhone != 'N/A' and brandEmail != 'N/A' %} · {% endif %}
+            {% if brandEmail and brandEmail != 'N/A' %}Email: {{ brandEmail }}{% endif %}
+          </div>
+          {% set regNo = attribute(dmcDetails, 'company_reg_no')|default('') %}
+          {% set licNo = attribute(dmcDetails, 'ta_licence_no')|default(attribute(dmcDetails, 'licence_no')|default('')) %}
+          {% if regNo or licNo %}
+            <div class="dmc-meta">
+              {% if regNo %}<div>Reg No: {{ regNo }}</div>{% endif %}
+              {% if licNo %}<div>Licence: {{ licNo }}</div>{% endif %}
+            </div>
+          {% endif %}
+        </td>
+        <td class="header-right">
+          <div class="doc-number">{{ quotation.reference|default('N/A') }}</div>
+        </td>
+      </tr>
+    </table>
+    <div class="header-doc-title">Quotation</div>
+  </div>
+
+  {# ========== BOOKING / TRAVEL / AGENT META ========== #}
+  <table class="guest-meta">
+    <tr>
+      <td>
+        <table class="meta-grid">
+          <tr>
+            <td>
+              <div class="top-line"><span class="bold">Reference No:</span> {{ quotation.reference|default('N/A') }}</div>
+              <div class="top-line"><span class="bold">Proposal Date:</span> {{ attribute(quotation, 'date')|default('N/A') }}</div>
+              <div class="top-line"><span class="bold">Validity:</span> {{ attribute(quotation, 'valid_until')|default('N/A') }}</div>
+              <div class="top-line"><span class="bold">Lead Guest:</span> {{ booking.lead_guest_name|default('N/A') }}</div>
+              <div class="top-line">
+                <span class="bold">No. of Pax:</span>
+                {% set paxText = attribute(booking, 'pax_text')|default('') %}
+                {% if paxText %}
+                  {{ paxText }}
+                {% else %}
+                  {{ attribute(booking, 'display_adults')|default(attribute(booking, 'adults')|default(0)) }} Adult(s),
+                  {{ attribute(booking, 'children')|default(0) }} Child(ren),
+                  {{ attribute(booking, 'infants')|default(0) }} Infant(s)
+                {% endif %}
+              </div>
+              {% if attribute(booking, 'has_foc')|default(false) %}
+                <div class="top-line"><span class="bold">FOC Pax:</span> {{ attribute(booking, 'foc_size')|default('N/A') }}</div>
+              {% endif %}
+              <div class="top-line"><span class="bold">Travelling Date:</span> {{ attribute(travel, 'travelling_date')|default(attribute(travel, 'start_date')|default('N/A')) }}</div>
+              {% set rooming = attribute(travel, 'rooming_text')|default('') %}
+              {% if rooming %}
+                <div class="top-line"><span class="bold">Rooming:</span> {{ rooming }}</div>
+              {% endif %}
+            </td>
+            <td>
+              <div class="top-line"><span class="bold">Destination:</span> {{ attribute(travel, 'destination')|default('N/A') }}</div>
+              <div class="top-line"><span class="bold">Travel From:</span> {{ attribute(travel, 'start_date')|default('N/A') }}</div>
+              <div class="top-line"><span class="bold">Travel To:</span> {{ attribute(travel, 'end_date')|default('N/A') }}</div>
+              <div class="top-line"><span class="bold">Duration:</span> {{ attribute(travel, 'duration')|default('N/A') }}</div>
+              <div class="top-line"><span class="bold">Currency:</span> {{ attribute(quotation, 'currency')|default(attribute(pricing, 'display_currency')|default('N/A')) }}</div>
+              {% set agent = attribute(branding, 'agent_details')|default({}) %}
+              <div class="top-line">
+                <span class="bold">Travel Company / Agent:</span>
+                {{ attribute(agent, 'name')|default('N/A') }}
+              </div>
+              {% set agentContact = attribute(agent, 'contact_person')|default('') %}
+              {% set agentPhone = attribute(agent, 'phone')|default('') %}
+              {% set agentEmail = attribute(agent, 'email')|default('') %}
+              {% set agentAddress = attribute(agent, 'address')|default('') %}
+              {% if agentContact and agentContact != 'N/A' %}
+                <div class="top-line"><span class="bold">Contact Person:</span> {{ agentContact }}</div>
+              {% endif %}
+              {% if agentPhone and agentPhone != 'N/A' %}
+                <div class="top-line"><span class="bold">Agent Phone:</span> {{ agentPhone }}</div>
+              {% endif %}
+              {% if agentEmail and agentEmail != 'N/A' %}
+                <div class="top-line"><span class="bold">Agent Email:</span> {{ agentEmail }}</div>
+              {% endif %}
+              {% if agentAddress and agentAddress != 'N/A' %}
+                <div class="top-line"><span class="bold">Agent Address:</span> {{ agentAddress }}</div>
+              {% endif %}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  {# ========== COUNTRY: HOTELS + OTHER SERVICES ========== #}
+  {% set countryKeys = attribute(services, 'country_keys')|default([]) %}
+  {% set countryMetaMap = attribute(services, 'country_meta')|default({}) %}
+  {% set hotelsByCountry = attribute(services, 'hotels_by_country')|default({}) %}
+  {% set otherByCountry = attribute(services, 'other_by_country')|default({}) %}
+  {% if countryKeys|length > 0 %}
+    {% for bucketKey in countryKeys %}
+      {% set meta = attribute(countryMetaMap, bucketKey)|default({}) %}
+      {% set countryName = attribute(meta, 'country')|default(bucketKey) %}
+      {% set countryCity = attribute(meta, 'city')|default('') %}
+      {% set countryCurrency = attribute(meta, 'currency')|default(attribute(quotation, 'base_currency')|default('')) %}
+      {% set countryDateRange = attribute(meta, 'date_range')|default(attribute(travel, 'inclusion_date_range')|default('')) %}
+      {% set hotels = attribute(hotelsByCountry, bucketKey)|default([]) %}
+      {% set other = attribute(otherByCountry, bucketKey)|default({}) %}
+      {% set attractions = attribute(other, 'attractions')|default([]) %}
+      {% set restaurants = attribute(other, 'restaurants')|default([]) %}
+      {% set arrivals = attribute(other, 'arrivals')|default([]) %}
+      {% set departures = attribute(other, 'departures')|default([]) %}
+      {% set localTransfers = attribute(other, 'local_transfers')|default([]) %}
+      {% set pointToPoint = attribute(other, 'point_to_point')|default([]) %}
+      {% set hourly = attribute(other, 'hourly')|default([]) %}
+      {% set guides = attribute(other, 'guides')|default([]) %}
+      {% set hasOther = (attractions|length > 0) or (restaurants|length > 0) or (arrivals|length > 0) or (departures|length > 0) or (localTransfers|length > 0) or (pointToPoint|length > 0) or (hourly|length > 0) or (guides|length > 0) %}
+
+      <div class="country-box">
+        <div class="country-box-title">
+          {% if countryCity %}{{ countryCity|upper }}, {% endif %}{{ countryName|upper }}
+          {% if countryCurrency %} ({{ countryCurrency|upper }}){% endif %}
+          {% if attribute(meta, 'is_return')|default(false) %} — RETURN{% endif %}
+        </div>
+        {% if countryDateRange %}
+          <div class="country-date-row"><span class="bold">Dates:</span> {{ countryDateRange }}</div>
+        {% endif %}
+        <table class="country-box-inner">
+          <tr>
+            <td>
+              <div class="country-col-label">Hotels</div>
+              {% if hotels|length > 0 %}
+                <ul class="inclusion-list">
+                  {% for h in hotels %}
+                    {% set bits = attribute(h, 'occupancy_bits')|default([]) %}
+                    {% set stay = attribute(h, 'date_range')|default('') %}
+                    <li class="inclusion">
+                      <span class="bold">{{ attribute(h, 'hotel_name')|default('Hotel')|upper }}</span>
+                      — {{ attribute(h, 'room_category')|default('Room')|upper }},
+                      {{ attribute(h, 'room_count')|default(1) }}
+                      {% if (attribute(h, 'room_count')|default(1)) > 1 %}Rooms{% else %}Room{% endif %}
+                      ({{ attribute(h, 'total_pax')|default(attribute(h, 'selected_persons')|default(1)) }} Pax)
+                      {% if stay %}
+                        <span class="svc-inline"> · Stay: {{ stay }}</span>
+                      {% endif %}
+                      {% if bits|length > 0 %}
+                        <span class="svc-inline"> · {{ bits|join(' · ') }}</span>
+                      {% endif %}
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <div class="inclusion na">No hotels booked</div>
+              {% endif %}
+            </td>
+            <td>
+              <div class="country-col-label">Other Services</div>
+              {% if hasOther %}
+                <ul class="inclusion-list">
+                  {% for card in attractions %}
+                    {% set attr = attribute(card, 'attraction')|default({}) %}
+                    {% set transfer = attribute(attr, 'transfer')|default({}) %}
+                    <li class="inclusion">
+                      <span class="bold">{{ attribute(card, 'title')|default('Attraction') }}</span>
+                      {% set visitTime = attribute(attr, 'visit_time')|default(attribute(card, 'time')|default('')) %}
+                      {% if visitTime %}
+                        <span class="svc-inline"> · Time: {{ visitTime }}</span>
+                      {% endif %}
+                      {% set aAdults = attribute(attr, 'adult_count')|default(0) %}
+                      {% set aChildren = attribute(attr, 'child_count')|default(0) %}
+                      {% if aAdults or aChildren %}
+                        <span class="svc-inline">
+                          · Pax: {{ aAdults }} Adult(s){% if aChildren %}, {{ aChildren }} Child(ren){% endif %}
+                        </span>
+                      {% endif %}
+                      {% set tVeh = attribute(transfer, 'vehicle_name')|default(attribute(transfer, 'vehicle_type')|default('')) %}
+                      {% if tVeh %}
+                        <div class="svc-sub">
+                          <span class="bold">Transfer:</span> {{ tVeh }}
+                          {% set pickup = attribute(transfer, 'pickup_location_name')|default('') %}
+                          {% set ptime = attribute(transfer, 'pickup_time')|default('') %}
+                          {% if pickup %} · Pickup: {{ pickup }}{% endif %}
+                          {% if ptime %} · Time: {{ ptime }}{% endif %}
+                        </div>
+                      {% endif %}
+                    </li>
+                  {% endfor %}
+
+                  {% for card in restaurants %}
+                    {% set rest = attribute(card, 'restaurant')|default({}) %}
+                    <li class="inclusion">
+                      <span class="bold">{{ attribute(card, 'title')|default(attribute(rest, 'name')|default('Restaurant')) }}</span>
+                      {% set meal = attribute(rest, 'meal_type')|default('') %}
+                      {% if meal %}<span class="svc-inline"> · {{ meal }}</span>{% endif %}
+                      {% set rtime = attribute(card, 'time')|default('') %}
+                      {% if rtime %}<span class="svc-inline"> · Time: {{ rtime }}</span>{% endif %}
+                    </li>
+                  {% endfor %}
+
+                  {% for row in arrivals %}
+                    {% set rowCard = attribute(row, 'card')|default({}) %}
+                    <li class="inclusion">
+                      <span class="bold">Arrival:</span>
+                      {{ attribute(row, 'text')|default(attribute(rowCard, 'title')|default('Arrival transfer')) }}
+                      {% set flightNo = attribute(rowCard, 'flight_no')|default(attribute(row, 'flight_no')|default('')) %}
+                      {% if flightNo %}
+                        <span class="svc-inline"> · Flight: {{ flightNo }}</span>
+                      {% endif %}
+                      {% set veh = attribute(rowCard, 'vehicle_name')|default(attribute(row, 'vehicle_name')|default('')) %}
+                      {% if veh %}
+                        <div class="svc-sub"><span class="bold">Vehicle:</span> {{ veh }}</div>
+                      {% endif %}
+                    </li>
+                  {% endfor %}
+
+                  {% for row in departures %}
+                    {% set rowCard = attribute(row, 'card')|default({}) %}
+                    <li class="inclusion">
+                      <span class="bold">Departure:</span>
+                      {{ attribute(row, 'text')|default(attribute(rowCard, 'title')|default('Departure transfer')) }}
+                      {% set flightNo = attribute(rowCard, 'flight_no')|default(attribute(row, 'flight_no')|default('')) %}
+                      {% if flightNo %}
+                        <span class="svc-inline"> · Flight: {{ flightNo }}</span>
+                      {% endif %}
+                      {% set veh = attribute(rowCard, 'vehicle_name')|default(attribute(row, 'vehicle_name')|default('')) %}
+                      {% if veh %}
+                        <div class="svc-sub"><span class="bold">Vehicle:</span> {{ veh }}</div>
+                      {% endif %}
+                    </li>
+                  {% endfor %}
+
+                  {% for row in localTransfers %}
+                    {% set rowCard = attribute(row, 'card')|default({}) %}
+                    <li class="inclusion">
+                      <span class="bold">Local Transfer:</span>
+                      {{ attribute(row, 'text')|default(attribute(rowCard, 'title')|default('Local transfer')) }}
+                    </li>
+                  {% endfor %}
+
+                  {% for row in pointToPoint %}
+                    {% set rowCard = attribute(row, 'card')|default({}) %}
+                    <li class="inclusion">
+                      <span class="bold">Point to Point:</span>
+                      {{ attribute(row, 'text')|default(attribute(rowCard, 'title')|default('Point to point')) }}
+                    </li>
+                  {% endfor %}
+
+                  {% for row in hourly %}
+                    {% set rowCard = attribute(row, 'card')|default({}) %}
+                    <li class="inclusion">
+                      <span class="bold">Hourly Transfer:</span>
+                      {{ attribute(row, 'text')|default(attribute(rowCard, 'title')|default('Hourly')) }}
+                    </li>
+                  {% endfor %}
+
+                  {% for row in guides %}
+                    <li class="inclusion">
+                      <span class="bold">Guide:</span>
+                      {{ attribute(row, 'text')|default(attribute(row, 'guide_name')|default('Guide')) }}
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <div class="inclusion na">No other services booked</div>
+              {% endif %}
+            </td>
+          </tr>
+        </table>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="country-box">
+      <div class="country-box-title">Services</div>
+      <div class="country-box-body na">No hotel or other services booked</div>
+    </div>
+  {% endif %}
+
+  {# ========== PACKAGED PRICE BY COUNTRY ========== #}
+  {% set countrySharing = attribute(pricing, 'country_sharing')|default([]) %}
+  {% if countrySharing|length > 0 %}
+    <div class="overall-price-box">
+      <div class="panel-title">Packaged Price by Country</div>
+      {% for share in countrySharing %}
+        {% set shareCur = attribute(share, 'currency')|default('') %}
+        <div class="country-box share-block">
+          <div class="country-box-title">{{ attribute(share, 'title')|default(attribute(share, 'country')|default('Country')) }}</div>
+          <table class="price-split-table">
+            <tr>
+              <td>
+                <div class="country-col-label">Hotel-Accommodation (per pax)</div>
+                <table class="price-grid">
+                  <thead>
+                    <tr>
+                      <th>Single</th>
+                      <th>Double</th>
+                      <th>Triple</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        {% set hs = attribute(share, 'hotel_single')|default(0) %}
+                        {% if hs > 0 %}{{ shareCur }} {{ hs|number_format(2) }}{% else %}—{% endif %}
+                      </td>
+                      <td>
+                        {% set hd = attribute(share, 'hotel_double')|default(0) %}
+                        {% if hd > 0 %}{{ shareCur }} {{ hd|number_format(2) }}{% else %}—{% endif %}
+                      </td>
+                      <td>
+                        {% set ht = attribute(share, 'hotel_triple')|default(0) %}
+                        {% if ht > 0 %}{{ shareCur }} {{ ht|number_format(2) }}{% else %}—{% endif %}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </td>
+              <td>
+                <div class="country-col-label">Other Services (per pax)</div>
+                <table class="price-grid">
+                  <thead>
+                    <tr>
+                      <th>Adult</th>
+                      <th>Child</th>
+                      <th>—</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        {% set oa = attribute(share, 'other_services_adult')|default(attribute(share, 'other_services_single')|default(0)) %}
+                        {% if oa > 0 %}{{ shareCur }} {{ oa|number_format(2) }}{% else %}—{% endif %}
+                      </td>
+                      <td>
+                        {% set oc = attribute(share, 'other_services_child')|default(0) %}
+                        {% if oc > 0 %}{{ shareCur }} {{ oc|number_format(2) }}{% else %}—{% endif %}
+                      </td>
+                      <td>—</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </td>
+            </tr>
+          </table>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {# ========== TOTAL PACKAGE PRICE ========== #}
+  <div class="overall-price-box">
+    <div class="panel-title">
+      Total Package Price
+      ({{ pricing.display_currency|default(quotation.currency|default('')) }})
+    </div>
+    <table class="totals-table">
+      <thead>
+        <tr>
+          <th class="city-cell">City</th>
+          <th class="svc-cell">Particulars</th>
+          <th class="pax-cell">Pax</th>
+          <th class="amt-cell">Total Price</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set packageRows = attribute(pricing, 'package_rows')|default([]) %}
+        {% if packageRows|length == 0 %}
+          <tr>
+            <td colspan="4" class="na">No package items</td>
+          </tr>
+        {% else %}
+          {% for row in packageRows %}
+            {% set rowKind = attribute(row, 'row_kind')|default('normal') %}
+            {% if rowKind == 'city_group' %}
+              {% set servicesList = attribute(row, 'services')|default([]) %}
+              {% for svc in servicesList %}
+                <tr>
+                  {% if loop.first %}
+                    <td class="city-cell" rowspan="{{ servicesList|length }}">{{ attribute(row, 'city')|default('—') }}</td>
+                  {% endif %}
+                  <td class="svc-cell">{{ attribute(svc, 'service')|default('Service') }}</td>
+                  <td class="pax-cell">
+                    {% set sp = attribute(svc, 'pax')|default(0) %}
+                    {% if sp > 0 %}
+                      {{ sp }}
+                      {% if attribute(svc, 'pax_type')|default('adult')|lower == 'child' %}
+                        Child{% if sp > 1 %}ren{% endif %}
+                      {% else %}
+                        Adult{% if sp > 1 %}s{% endif %}
+                      {% endif %}
+                    {% else %}
+                      —
+                    {% endif %}
+                  </td>
+                  <td class="amt-cell">
+                    {{ attribute(pricing, 'display_currency')|default('') }}
+                    {{ attribute(svc, 'total')|default(0)|number_format(2) }}
+                  </td>
+                </tr>
+              {% endfor %}
+            {% elseif rowKind != 'city_total' %}
+              <tr>
+                <td class="city-cell">—</td>
+                <td class="svc-cell">{{ attribute(row, 'name')|default('Item') }}</td>
+                <td class="pax-cell">{{ attribute(row, 'multiplier')|default(1) }}</td>
+                <td class="amt-cell">
+                  {{ attribute(pricing, 'display_currency')|default('') }}
+                  {{ attribute(row, 'total')|default(attribute(row, 'price')|default(0))|number_format(2) }}
+                </td>
+              </tr>
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+
+        {% set subtotal = attribute(pricing, 'subtotal')|default(null) %}
+        {% set discountTotal = attribute(pricing, 'discount_total')|default(0) %}
+        {% set taxTotal = attribute(pricing, 'tax_total')|default(0) %}
+        {% set displayCurrency = attribute(pricing, 'display_currency')|default(attribute(quotation, 'currency')|default('')) %}
+        {% set grandLabel = attribute(pricing, 'grand_total_label')|default('') %}
+        {% if subtotal is not null %}
+          <tr class="subtotal-row">
+            <td colspan="3" style="text-align:right;"><span class="bold">Subtotal</span></td>
+            <td class="amt-cell">{{ displayCurrency }} {{ subtotal|number_format(2) }}</td>
+          </tr>
+        {% endif %}
+        {% if discountTotal > 0 %}
+          <tr>
+            <td colspan="3" style="text-align:right;">Discount</td>
+            <td class="amt-cell">{{ displayCurrency }} {{ discountTotal|number_format(2) }}</td>
+          </tr>
+        {% endif %}
+        {% if taxTotal > 0 %}
+          <tr>
+            <td colspan="3" style="text-align:right;">Tax</td>
+            <td class="amt-cell">{{ displayCurrency }} {{ taxTotal|number_format(2) }}</td>
+          </tr>
+        {% endif %}
+        <tr class="totals-row">
+          <td colspan="3" style="text-align:right;">TOTAL COST</td>
+          <td class="amt-cell">
+            {% if grandLabel %}
+              {{ grandLabel }}
+            {% else %}
+              {{ displayCurrency }} {{ attribute(pricing, 'grand_total')|default(0)|number_format(2) }}
+            {% endif %}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  {% if quotation_information %}
+    <div class="info-box">
+      <div class="panel-title">Quotation Information</div>
+      <div class="info-box-body">{{ quotation_information }}</div>
+    </div>
+  {% endif %}
+
+  <div class="api-footnote">
+    <span class="bold">Note:</span>
+    Please note that currency conversion is based on market rate and is subject to change at the time of payment.
+  </div>
+
+  {# ========== PAGE 2: PASSENGERS / EXCLUSIONS / TERMS / PAYMENT / BANK ========== #}
+  <div class="page-break"></div>
+
+  <div class="header-doc-title">Quotation Details</div>
+
+  <div class="info-box">
+    <div class="panel-title">Passenger Information</div>
+    <div class="info-box-body">
+      {% set passengers = attribute(booking, 'passengers')|default([]) %}
+      {% if passengers|length > 0 %}
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width:8%;">#</th>
+              <th style="width:32%;">Name</th>
+              <th style="width:15%;">Type</th>
+              <th style="width:20%;">Email</th>
+              <th style="width:25%;">Phone</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for pax in passengers %}
+              <tr>
+                <td style="text-align:center;">{{ loop.index }}</td>
+                <td>{{ attribute(pax, 'fullName')|default(attribute(pax, 'name')|default(attribute(pax, 'passenger_name')|default('N/A'))) }}</td>
+                <td style="text-align:center;">{{ attribute(pax, 'passenger_type')|default(attribute(pax, 'type')|default('N/A')) }}</td>
+                <td>{{ attribute(pax, 'email')|default('N/A') }}</td>
+                <td>{{ attribute(pax, 'phone')|default(attribute(pax, 'mobile')|default('N/A')) }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="na">No passenger details available. Lead guest: {{ booking.lead_guest_name|default('N/A') }}</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="info-box">
+    <div class="panel-title">Exclusions</div>
+    <div class="info-box-body">
+      {% if exclusions %}
+        <p>{{ exclusions }}</p>
+      {% else %}
+        <p class="na">N/A</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="info-box">
+    <div class="panel-title">Terms and Conditions</div>
+    <div class="info-box-body">
+      {% if terms_and_conditions %}
+        <p>{{ terms_and_conditions }}</p>
+      {% else %}
+        <p class="na">N/A</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="info-box">
+    <div class="panel-title">Payment Terms</div>
+    <div class="info-box-body">
+      {% set paymentTerms = attribute(pricing, 'payment_terms')|default([]) %}
+      {% if paymentTerms|length > 0 %}
+        <ul class="inclusion-list">
+          {% for term in paymentTerms %}
+            <li class="inclusion">
+              {% if term is iterable %}
+                {{ attribute(term, 'term')|default(attribute(term, 'description')|default(attribute(term, 'title')|default('N/A'))) }}
+              {% else %}
+                {{ term }}
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="na">N/A</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="info-box">
+    <div class="panel-title">Bank Details</div>
+    <div class="info-box-body">
+      {% if bank_details is defined and bank_details|length > 0 %}
+        <table class="kv-table">
+          {% set acctName = attribute(bank_details, 'account_name')|default('') %}
+          {% set acctNo = attribute(bank_details, 'account_number')|default('') %}
+          {% set bankName = attribute(bank_details, 'bank_name')|default('') %}
+          {% set bankAddr = attribute(bank_details, 'bank_address')|default('') %}
+          {% set ifsc = attribute(bank_details, 'ifsc')|default('') %}
+          {% set swift = attribute(bank_details, 'swift_bic_iban')|default('') %}
+          {% set bankCode = attribute(bank_details, 'bank_code')|default('') %}
+          {% set branchCode = attribute(bank_details, 'branch_code')|default('') %}
+          {% set aba = attribute(bank_details, 'aba_routing')|default('') %}
+          {% if acctName %}<tr><td class="k">Account Name</td><td>{{ acctName }}</td></tr>{% endif %}
+          {% if acctNo %}<tr><td class="k">Account Number</td><td>{{ acctNo }}</td></tr>{% endif %}
+          {% if bankName %}<tr><td class="k">Bank Name</td><td>{{ bankName }}</td></tr>{% endif %}
+          {% if bankAddr %}<tr><td class="k">Bank Address</td><td>{{ bankAddr }}</td></tr>{% endif %}
+          {% if ifsc %}<tr><td class="k">IFSC</td><td>{{ ifsc }}</td></tr>{% endif %}
+          {% if swift %}<tr><td class="k">SWIFT / BIC / IBAN</td><td>{{ swift }}</td></tr>{% endif %}
+          {% if bankCode %}<tr><td class="k">Bank Code</td><td>{{ bankCode }}</td></tr>{% endif %}
+          {% if branchCode %}<tr><td class="k">Branch Code</td><td>{{ branchCode }}</td></tr>{% endif %}
+          {% if aba %}<tr><td class="k">ABA Routing</td><td>{{ aba }}</td></tr>{% endif %}
+        </table>
+      {% else %}
+        <p class="na">N/A</p>
+      {% endif %}
+    </div>
+  </div>
+
+</div>

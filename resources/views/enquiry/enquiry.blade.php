@@ -76,7 +76,6 @@
     }
 
 </style>
-
 <div class="content-wrapper">
     <div class="container-xxl flex-grow-1 container-p-y">
         <div class="card">
@@ -85,9 +84,7 @@
                     <div class="d-flex align-items-center">
                         <h5 class="card-title mb-0">Enquiry Listing</h5>
                     </div>
-
                     <div class="d-flex justify-content-between gap-3">
-
                         <!-- Export Dropdown Button -->
                         <div class="dropdown">
                             <button class="btn btn-warning btn-sm dropdown-toggle" type="button" id="exportDropdown"
@@ -136,13 +133,11 @@
                                     <td>
                                         {{\App\Helpers\CommonHelper::DateFormatAdmin($enquiry->created_at)}}
                                     </td>
-                                    <td class="category-name">{{ $enquiry->comment }}</td>
-                                    
+                                    <td class="category-name">{{ $enquiry->comment }}</td>                                    
                                     <td class="category-name">
                                         {{ ($enquiry->actual_amount) }}</td>
                                     <td class="category-name">
-                                        {{ ($enquiry->amount) }}</td>
-                                    
+                                        {{ ($enquiry->amount) }}</td>                                    
                                     <td>
                                         @if($enquiry->status == 1)
                                             <span class="badge bg-success">Active</span>

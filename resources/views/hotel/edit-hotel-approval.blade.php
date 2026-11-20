@@ -41,6 +41,7 @@
 </style>
 
 <div class="page-content mt-5">
+    <x-alert />
     <!-- Added margin-top -->
     <div class="page-container">
         <div class="row justify-content-center">

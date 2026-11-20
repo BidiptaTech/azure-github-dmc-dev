@@ -1,0 +1,1321 @@
+{{-- Enquiry Pro ↔ STP Online Hotel / Attraction integration --}}
+@php
+    $enquiryProOnlineApiEnabled = \App\Helpers\CommonHelper::masterDmcOnlineApiEnabled(auth()->user());
+@endphp
+<script>
+window.ENQUIRY_PRO_ONLINE_CONFIG = {
+    enabled: @json(!empty($enquiryProOnlineApiEnabled)),
+    hotelEnabled: @json(!empty($enquiryProOnlineApiEnabled)),
+    attractionEnabled: @json(!empty($enquiryProOnlineApiEnabled))
+};
+window.onlineApiEnabled = !!window.ENQUIRY_PRO_ONLINE_CONFIG.enabled;
+</script>
+
+@if(!empty($enquiryProOnlineApiEnabled))
+<script>
+(function () {
+    'use strict';
+
+    if (window.__enquiryProOnlineBookingHooks) return;
+    window.__enquiryProOnlineBookingHooks = true;
+
+    function onlineEnabled() {
+        return !!(window.ENQUIRY_PRO_ONLINE_CONFIG && window.ENQUIRY_PRO_ONLINE_CONFIG.enabled);
+    }
+
+    function notify(msg, type) {
+        if (typeof showNotification === 'function') {
+            showNotification(msg, type || 'info');
+            return;
+        }
+        if (type === 'error' || type === 'warning') alert(msg);
+    }
+
+    function toNum(v) {
+        const n = parseFloat(String(v == null ? '' : v).replace(/[^0-9.-]/g, ''));
+        return Number.isFinite(n) ? n : 0;
+    }
+
+    function ymdOnly(v) {
+        if (!v) return '';
+        const s = String(v);
+        if (s.includes('T')) return s.split('T')[0];
+        if (s.length >= 10) return s.substring(0, 10);
+        return s;
+    }
+
+    function nightsBetween(checkIn, checkOut) {
+        const a = ymdOnly(checkIn);
+        const b = ymdOnly(checkOut);
+        if (!a || !b) return 1;
+        const d1 = new Date(a + 'T00:00:00');
+        const d2 = new Date(b + 'T00:00:00');
+        if (isNaN(d1) || isNaN(d2) || d2 <= d1) return 1;
+        return Math.max(1, Math.round((d2 - d1) / 86400000));
+    }
+
+    function headerDates() {
+        const startEl = typeof getHeaderStartInput === 'function' ? getHeaderStartInput() : document.getElementById('tourStart');
+        const endEl = typeof getHeaderEndInput === 'function' ? getHeaderEndInput() : document.getElementById('tourEnd');
+        const start = (typeof getHeaderInputISO === 'function' ? getHeaderInputISO(startEl) : null)
+            || startEl?.value || '';
+        const end = (typeof getHeaderInputISO === 'function' ? getHeaderInputISO(endEl) : null)
+            || endEl?.value || '';
+        return { start: ymdOnly(start), end: ymdOnly(end) };
+    }
+
+    function firstCity() {
+        const hv = typeof getHeaderValues === 'function' ? getHeaderValues() : {};
+        if (Array.isArray(hv.cities) && hv.cities.length) return String(hv.cities[0]);
+        const dest = document.getElementById('hotelDestination')?.value
+            || document.getElementById('tourDestination')?.value
+            || document.getElementById('destinationDisplay')?.value
+            || '';
+        if (!dest) return 'Singapore';
+        return String(dest).split(',')[0].trim() || 'Singapore';
+    }
+
+    function newId(prefix) {
+        if (typeof generateId === 'function') return generateId(prefix);
+        return prefix + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+    }
+
+    function onlineHotelBadgeHtml() {
+        return '<span class="badge ep-online-badge ep-online-badge--hotel ms-1" title="Live online hotel booking">ONLINE HOTEL</span>';
+    }
+
+    function onlineAttractionBadgeHtml() {
+        return '<span class="badge ep-online-badge ep-online-badge--attraction ms-1" title="Live online attraction booking">ONLINE ATTRACTION</span>';
+    }
+
+    window.getOnlineHotelSearchDefaults = function () {
+        const dates = headerDates();
+        const city = firstCity();
+        let checkOut = dates.end;
+        if (!checkOut && dates.start) {
+            const d = new Date(dates.start + 'T00:00:00');
+            d.setDate(d.getDate() + 1);
+            checkOut = d.toISOString().slice(0, 10);
+        }
+        return {
+            city: city,
+            cityLabel: city,
+            checkIn: dates.start || '',
+            checkOut: checkOut || ''
+        };
+    };
+
+    window.getOnlineAttractionSearchDefaults = function () {
+        const dates = headerDates();
+        const city = firstCity();
+        return {
+            city: city,
+            cityLabel: city,
+            visitDate: dates.start || '',
+            targetLabel: city + ' · Online Attraction'
+        };
+    };
+
+    window.getHotelNightPlanStart = function () {
+        return headerDates().start || '';
+    };
+
+    window.getHotelNightPlanNightCount = function () {
+        const d = headerDates();
+        if (d.start && d.end) return nightsBetween(d.start, d.end);
+        return 1;
+    };
+
+    function ensureHiddenHotelCitySelect(city) {
+        let el = document.getElementById('hotelCitySelect');
+        if (!el) {
+            el = document.createElement('select');
+            el.id = 'hotelCitySelect';
+            el.className = 'd-none';
+            el.setAttribute('aria-hidden', 'true');
+            document.body.appendChild(el);
+        }
+        const name = city || firstCity();
+        el.innerHTML = '';
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        opt.selected = true;
+        el.appendChild(opt);
+        el.value = name;
+    }
+
+    function mapOnlineHotelToAccommodation(hotelData) {
+        hotelData = hotelData || {};
+        const booking = hotelData.onlineHotelBooking || {};
+        const sel = booking.selection || {};
+        const checkIn = ymdOnly(sel.stay_check_in || booking.check_in || hotelData.checkIn || '') || headerDates().start;
+        const checkOut = ymdOnly(sel.stay_check_out || booking.check_out || hotelData.checkOut || '') || headerDates().end;
+        const nights = Array.isArray(hotelData.nights) && hotelData.nights.length
+            ? hotelData.nights.length
+            : nightsBetween(checkIn, checkOut);
+        const rooms = parseInt(hotelData.numberOfRooms, 10) || 1;
+        const persons = parseInt(hotelData.selectedPersons, 10) || 1;
+        // Stay total — never treat pricePerNight as grand total.
+        // Prefer modal stamp so add-modal and after-add show the same Hotel / DMC / Total.
+        const stamp = hotelData.online_price_breakdown
+            || hotelData.dmc_profile_markup
+            || (booking && booking.online_price_breakdown)
+            || (booking && booking.dmc_profile_markup)
+            || null;
+        let totalPrice = toNum(hotelData.price || hotelData.combinedRoomTotal || hotelData.customRoomPrice || hotelData.grand_total);
+        const perNightHint = toNum(hotelData.pricePerNight);
+        if (totalPrice <= 0 && perNightHint > 0) {
+            totalPrice = Math.round(perNightHint * nights * 100) / 100;
+        }
+        let hotelMarkupMeta = null;
+        if (stamp) {
+            const hotelPrice = toNum(stamp.hotel_price != null ? stamp.hotel_price : stamp.base_price);
+            const mkAmt = toNum(stamp.markup_amount);
+            const stampedTotal = toNum(stamp.total_price != null ? stamp.total_price : stamp.price);
+            const markedTotal = stampedTotal > 0 ? stampedTotal : (totalPrice > 0 ? totalPrice : (hotelPrice + mkAmt));
+            hotelMarkupMeta = {
+                currency: stamp.currency || hotelData.currency || null,
+                hotel_price: hotelPrice > 0 ? hotelPrice : Math.max(0, markedTotal - mkAmt),
+                base_price: hotelPrice > 0 ? hotelPrice : Math.max(0, markedTotal - mkAmt),
+                markup_amount: mkAmt,
+                markup_type: stamp.markup_type || 'percentage',
+                markup_value: toNum(stamp.markup_value),
+                markup_kind: 'hotel',
+                price: markedTotal,
+                total_price: markedTotal,
+                dmc_id: stamp.dmc_id || null
+            };
+            totalPrice = markedTotal;
+        } else if (toNum(hotelData.base_grand_total) > 0 && totalPrice > toNum(hotelData.base_grand_total) + 0.009) {
+            // Price already includes markup — peel for meta, do not mark up again.
+            hotelMarkupMeta = {
+                markup_kind: 'hotel',
+                hotel_price: toNum(hotelData.base_grand_total),
+                base_price: toNum(hotelData.base_grand_total),
+                markup_amount: Math.round((totalPrice - toNum(hotelData.base_grand_total)) * 100) / 100,
+                price: totalPrice,
+                total_price: totalPrice,
+                markup_type: 'percentage',
+                markup_value: 0,
+                currency: hotelData.currency || null
+            };
+        }
+        const city = hotelData.city || firstCity();
+        const country = (typeof resolveCountryForCity === 'function' ? resolveCountryForCity(city) : '') || '';
+        // Online supplier quote currency (e.g. Bali hotel priced in SGD) — not destination local currency.
+        const currency = resolveOnlineServiceCurrency(
+            hotelData.currency || (booking && booking.currency) || (stamp && stamp.currency),
+            country
+        );
+        // Bake Pro DMC hotel markup when modal stamp had none (breakdown shows 422.10; save must match).
+        hotelMarkupMeta = ensureOnlineHotelMarkup(totalPrice, currency, hotelMarkupMeta);
+        if (hotelMarkupMeta) {
+            totalPrice = toNum(hotelMarkupMeta.total_price != null ? hotelMarkupMeta.total_price : hotelMarkupMeta.price) || totalPrice;
+            hotelMarkupMeta.currency = hotelMarkupMeta.currency || currency;
+        }
+        const hotelBase = hotelMarkupMeta
+            ? toNum(hotelMarkupMeta.hotel_price != null ? hotelMarkupMeta.hotel_price : hotelMarkupMeta.base_price)
+            : totalPrice;
+        const perNightBase = nights > 0 ? (hotelBase / nights) : hotelBase;
+        const perNightSell = nights > 0 ? (totalPrice / nights) : totalPrice;
+        if (booking && typeof booking === 'object' && hotelMarkupMeta) {
+            booking.online_price_breakdown = hotelMarkupMeta;
+            booking.dmc_profile_markup = hotelMarkupMeta;
+            if (!booking.currency) booking.currency = currency;
+        }
+        const mealPlan = hotelData.mealPlan || 'Not specified';
+        const roomType = hotelData.roomType || 'Standard';
+        const bedType = hotelData.bedType || '';
+        const hotelName = hotelData.name || 'Online Hotel';
+        const hotelId = hotelData.id || ('online-' + Date.now());
+
+        return {
+            id: newId('hotel-online'),
+            hotelId: hotelId,
+            hotel_unique_id: hotelId,
+            hotelName: hotelName,
+            destination: city,
+            country: country,
+            currency: currency,
+            check_in_time: (booking.hotel && booking.hotel.check_in_time) || null,
+            check_out_time: (booking.hotel && booking.hotel.check_out_time) || null,
+            roomId: hotelData.roomId || (booking.room && booking.room.code) || '',
+            bedId: hotelData.bedId || ('online-bed-' + Date.now()),
+            databaseRoomId: hotelData.roomId || (booking.room && booking.room.code) || '',
+            roomType: roomType,
+            bedType: bedType,
+            bedTypeRaw: bedType,
+            maxOccupancy: persons,
+            checkIn: checkIn ? (checkIn + 'T14:00') : '',
+            checkOut: checkOut ? (checkOut + 'T12:00') : '',
+            nights: nights,
+            rooms: rooms,
+            extraBed: 0,
+            hasExtraBed: false,
+            hasCwb: false,
+            hasCnb: false,
+            hasInfant: false,
+            mealPlan: mealPlan,
+            mealPlanLabel: mealPlan,
+            mealPax: persons,
+            extraBedAvailable: false,
+            supplement: false,
+            roomPrice: perNightSell,
+            cost: perNightBase,
+            sell: perNightSell,
+            avgCost: perNightBase,
+            avgSell: perNightSell,
+            extraBedPrice: 0,
+            extraBedCostPrice: 0,
+            cwbPrice: 0,
+            cwbCostPrice: 0,
+            cnbPrice: 0,
+            cnbCostPrice: 0,
+            infantPrice: 0,
+            infantCostPrice: 0,
+            childWithBed: 0,
+            childWithoutBed: 0,
+            roomData: null,
+            bedData: null,
+            weekendDays: [],
+            hotelRates: [],
+            focServiceDiscount: false,
+            // Lite-parity online store fields
+            isOnlineHotel: true,
+            hotelSourceType: 'online',
+            priceMode: 'online',
+            onlineHotelSource: hotelData.onlineHotelSource || null,
+            onlineHotelBooking: booking,
+            onlineHotelRaw: hotelData.onlineHotelRaw || null,
+            api_environment: hotelData.api_environment || (booking && booking.api_environment) || '',
+            totalPrice: totalPrice,
+            grand_total: totalPrice,
+            base_grand_total: hotelBase,
+            dmc_profile_markup: hotelMarkupMeta,
+            online_price_breakdown: hotelMarkupMeta,
+            price_payload: {
+                room_total: hotelBase,
+                meal_total: 0,
+                grand_total: totalPrice,
+                nights: nights,
+                currency: currency,
+                is_online: true,
+                dmc_profile_markup: hotelMarkupMeta,
+                online_price_breakdown: hotelMarkupMeta,
+                base_grand_total: hotelBase
+            },
+            transferIds: [],
+            hotelTransfer: null,
+            skipArrivalDeparture: true,
+            selectedPersons: persons,
+            remarks: hotelData.remarks || '',
+            nightsList: Array.isArray(hotelData.nights) ? hotelData.nights.slice() : [],
+            onlineAddSnapshot: Object.assign({}, hotelData, {
+                currency: currency,
+                price: totalPrice,
+                combinedRoomTotal: totalPrice,
+                customRoomPrice: totalPrice,
+                dmc_profile_markup: hotelMarkupMeta,
+                online_price_breakdown: hotelMarkupMeta
+            })
+        };
+    }
+
+    function mapOnlineAttractionToTour(payload) {
+        payload = payload || {};
+        const adults = Math.max(0, parseInt(payload.adults, 10) || 0);
+        const children = Math.max(0, parseInt(payload.children, 10) || 0);
+        const infants = Math.max(0, parseInt(payload.infants, 10) || 0);
+        // Modal/API units already include TravClicks supplier + DMC other markup
+        // (AttractionPriceMarkupApplier). Do NOT apply DMC again — peel for Sell/base.
+        const adultFinal = toNum(payload.adultPrice);
+        const childFinal = toNum(payload.childPrice);
+        const infantFinal = 0;
+        const visitDate = ymdOnly(payload.visitDate) || headerDates().start;
+        const timeSlot = payload.timeSlot || '10:00';
+        let dateTime = visitDate;
+        if (visitDate) {
+            const t = String(timeSlot).split('-')[0].trim();
+            const hhmm = /^\d{1,2}:\d{2}/.test(t) ? t.substring(0, 5) : '10:00';
+            dateTime = visitDate + 'T' + hhmm;
+        }
+        const city = payload.cityValue || firstCity();
+        const country = (typeof resolveCountryForCity === 'function' ? resolveCountryForCity(city) : '') || '';
+        // Online attraction quote currency from modal (usually SGD), not destination local currency.
+        const currency = resolveOnlineServiceCurrency(payload.currency, country);
+        let total = toNum(payload.totalPrice) || ((adultFinal * adults) + (childFinal * children));
+        let attractionMarkupMeta = null;
+        const peel = function (finalAmt) {
+            if (typeof enquiryProSplitDmcMarkupFromFinal === 'function') {
+                return enquiryProSplitDmcMarkupFromFinal(finalAmt, 'other');
+            }
+            if (window.StpLiteDmcMarkup && typeof window.StpLiteDmcMarkup.splitFromFinal === 'function') {
+                return window.StpLiteDmcMarkup.splitFromFinal(finalAmt, 'other');
+            }
+            const n = Math.max(0, Number(finalAmt) || 0);
+            return { base_price: n, markup_amount: 0, price: n, markup_type: 'percentage', markup_value: 0, markup_kind: 'other' };
+        };
+        if (total > 0) {
+            attractionMarkupMeta = peel(total);
+            if (attractionMarkupMeta && typeof attractionMarkupMeta === 'object') {
+                attractionMarkupMeta.currency = attractionMarkupMeta.currency || currency;
+            }
+            // Keep Estimated Price as commercial total; listing Sell = base before DMC only.
+            total = toNum(attractionMarkupMeta.price) || total;
+        }
+        const adultPeeled = adultFinal > 0 ? peel(adultFinal) : { base_price: 0, price: 0 };
+        const childPeeled = childFinal > 0 ? peel(childFinal) : { base_price: 0, price: 0 };
+        const infantPeeled = infantFinal > 0 ? peel(infantFinal) : { base_price: 0, price: 0 };
+        // Cost = Sell = base before DMC (online: no transfer). Markup Price column applies once → Estimated.
+        // Zero unit prices when that pax type was not booked (avoids phantom Child/Infant lines).
+        const adultSell = adults > 0 ? toNum(adultPeeled.base_price) : 0;
+        const childSell = children > 0 ? toNum(childPeeled.base_price) : 0;
+        const infantSell = infants > 0 ? toNum(infantPeeled.base_price) : 0;
+        const adultP = adultSell;
+        const childP = childSell;
+        const infantP = infantSell;
+
+        return {
+            id: newId('tour-online'),
+            destination: city,
+            city: city,
+            country: country,
+            currency: currency,
+            attractionId: payload.attractionId || payload.skuId || '',
+            attractionName: payload.attractionName || 'Online Attraction',
+            ticketId: payload.ticketId || payload.ticketSkuId || payload.providerTicketId || '',
+            ticketName: payload.ticketName || 'Ticket',
+            dateTime: dateTime,
+            visitTime: timeSlot,
+            adultsQty: adults,
+            adultCost: adultP,
+            adultSell: adultSell,
+            childQty: children,
+            childCost: childP,
+            childSell: childSell,
+            infantQty: infants,
+            infantCost: infantP,
+            infantSell: infantSell,
+            transferId: null,
+            transferInfo: null,
+            guideId: null,
+            guideInfo: null,
+            guide_options: null,
+            guideRequired: false,
+            focServiceDiscount: false,
+            supplement: false,
+            // Lite-parity online store fields
+            isOnlineAttraction: true,
+            attractionSourceType: 'online',
+            sku_id: payload.skuId || payload.attractionId || null,
+            ticket_sku_id: payload.ticketSkuId || null,
+            provider_ticket_id: payload.providerTicketId || null,
+            // Lite/API create-order fields (pending-ref cache + quantity)
+            adultCount: adults,
+            childCount: children,
+            bookingDate: visitDate,
+            lowest_ticket_price: toNum(payload.lowestTicketPrice) || null,
+            highest_ticket_price: toNum(payload.highestTicketPrice) || null,
+            supplier_code: payload.supplierCode || 'sg_attractions',
+            api_environment: payload.apiEnvironment || null,
+            onlineAttractionRaw: payload.onlineAttractionRaw || null,
+            // totalPrice = Estimated (already marked once). base = Sell before DMC.
+            totalPrice: total,
+            grand_total: total,
+            base_grand_total: attractionMarkupMeta
+                ? toNum(attractionMarkupMeta.base_price)
+                : ((adultSell * adults) + (childSell * children) + (infantSell * infants)),
+            dmc_profile_markup: attractionMarkupMeta,
+            online_price_breakdown: attractionMarkupMeta,
+            remarks: payload.remarks || '',
+            Selection: 'withoutTransport',
+            transfer_options: null,
+            onlineAddSnapshot: Object.assign({}, payload, {
+                currency: currency,
+                adultPriceFinal: adultFinal,
+                childPriceFinal: childFinal,
+                totalPriceFinal: total,
+                // Keep explicit selection keys so edit restore cannot fall back to first ticket.
+                ticketId: payload.ticketId || payload.providerTicketId || '',
+                ticketName: payload.ticketName || '',
+                ticketSkuId: payload.ticketSkuId || '',
+                providerTicketId: payload.providerTicketId || payload.ticketId || '',
+                timeSlot: payload.timeSlot || '',
+                attractionId: payload.attractionId || payload.skuId || '',
+                skuId: payload.skuId || payload.attractionId || '',
+                adults: adults,
+                children: children,
+                infants: infants
+            })
+        };
+    }
+
+    window.pushSelectedHotel = function (hotelData) {
+        if (!onlineEnabled()) {
+            notify('Online hotel API is not enabled for this account.', 'warning');
+            return;
+        }
+        if (typeof accommodationList === 'undefined' || !Array.isArray(accommodationList)) {
+            notify('Accommodation list is not ready. Reload the page.', 'error');
+            return;
+        }
+        const row = mapOnlineHotelToAccommodation(hotelData);
+        const editIdx = window.__enquiryProOnlineHotelEditIndex;
+        if (editIdx != null && accommodationList[editIdx]) {
+            row.id = accommodationList[editIdx].id;
+            accommodationList[editIdx] = row;
+        } else {
+            accommodationList.push(row);
+        }
+        window.__enquiryProOnlineHotelEditIndex = null;
+        window.__enquiryProOnlineHotelEditSnapshot = null;
+        if (typeof window.updateAccommodationTable === 'function') window.updateAccommodationTable();
+        else if (typeof updateAccommodationTable === 'function') updateAccommodationTable();
+        if (typeof window.recalculateTotals === 'function') window.recalculateTotals();
+        else if (typeof recalculateTotals === 'function') recalculateTotals();
+        resetOnlineSourceToggles();
+    };
+
+    window.pushSelectedOnlineAttraction = function (payload) {
+        if (!onlineEnabled()) {
+            notify('Online attraction API is not enabled for this account.', 'warning');
+            return;
+        }
+        if (typeof tourList === 'undefined' || !Array.isArray(tourList)) {
+            notify('Attraction list is not ready. Reload the page.', 'error');
+            return;
+        }
+        const row = mapOnlineAttractionToTour(payload);
+        const editIdx = window.__enquiryProOnlineAttractionEditIndex;
+        if (editIdx != null && tourList[editIdx]) {
+            row.id = tourList[editIdx].id;
+            tourList[editIdx] = row;
+        } else {
+            tourList.push(row);
+        }
+        window.__enquiryProOnlineAttractionEditIndex = null;
+        window.__enquiryProOnlineAttractionEditSnapshot = null;
+        if (typeof window.updateTourTable === 'function') window.updateTourTable();
+        else if (typeof updateTourTable === 'function') updateTourTable();
+        if (typeof window.recalculateTotals === 'function') window.recalculateTotals();
+        else if (typeof recalculateTotals === 'function') recalculateTotals();
+        window.__enquiryProOnlineAttractionActive = false;
+        resetOnlineSourceToggles();
+    };
+
+    window.updateHotelDataField = function () { /* pro uses accommodationList */ };
+    window.updateAttractionDataField = function () { /* pro uses tourList */ };
+
+    function resetOnlineSourceToggles() {
+        document.querySelectorAll('.ep-hotel-source-type[value="offline"], .ep-attraction-source-type[value="offline"]').forEach(function (r) {
+            r.checked = true;
+        });
+        document.querySelectorAll('.ep-hotel-source-type[value="online"], .ep-attraction-source-type[value="online"]').forEach(function (r) {
+            r.checked = false;
+        });
+    }
+
+    function setOnlineHotelAddBtnLabel(isEdit) {
+        const btn = document.getElementById('onlineHotelAddBtn');
+        if (!btn) return;
+        btn.innerHTML = isEdit
+            ? '<i class="ri-save-line me-1"></i> Update Hotel'
+            : '<i class="ri-add-line me-1"></i> Add Hotel';
+    }
+
+    function setOnlineAttractionAddBtnLabel(isEdit) {
+        const btn = document.getElementById('onlineAttractionAddBtn');
+        if (!btn) return;
+        btn.innerHTML = isEdit
+            ? '<i class="ri-save-line me-1"></i> Update Attraction'
+            : '<i class="ri-add-line me-1"></i> Add Attraction';
+    }
+
+    function hotelSnapshotFromRow(hotel) {
+        if (!hotel) return null;
+        if (hotel.onlineAddSnapshot && typeof hotel.onlineAddSnapshot === 'object') {
+            return hotel.onlineAddSnapshot;
+        }
+        const checkIn = ymdOnly(hotel.checkIn);
+        const checkOut = ymdOnly(hotel.checkOut);
+        return {
+            id: hotel.hotelId || hotel.hotel_unique_id,
+            name: hotel.hotelName,
+            roomType: hotel.roomType,
+            bedType: hotel.bedType,
+            mealPlan: hotel.mealPlan || hotel.mealPlanLabel,
+            selectedPersons: hotel.selectedPersons || hotel.mealPax || 1,
+            numberOfRooms: hotel.rooms || 1,
+            price: toNum(hotel.totalPrice) || (toNum(hotel.sell) * (parseInt(hotel.nights, 10) || 1)),
+            pricePerNight: toNum(hotel.sell || hotel.cost),
+            nights: Array.isArray(hotel.nightsList) ? hotel.nightsList : [],
+            remarks: hotel.remarks || '',
+            city: hotel.destination || firstCity(),
+            checkIn: checkIn,
+            checkOut: checkOut,
+            stay_check_in: checkIn,
+            stay_check_out: checkOut,
+            isOnlineHotel: true,
+            onlineHotelSource: hotel.onlineHotelSource,
+            onlineHotelRaw: hotel.onlineHotelRaw,
+            onlineHotelBooking: hotel.onlineHotelBooking,
+            api_environment: hotel.api_environment || ''
+        };
+    }
+
+    function attractionSnapshotFromRow(tour) {
+        if (!tour) return null;
+        const snap = (tour.onlineAddSnapshot && typeof tour.onlineAddSnapshot === 'object')
+            ? Object.assign({}, tour.onlineAddSnapshot)
+            : {};
+        const adults = Math.max(0, parseInt(tour.adultsQty != null ? tour.adultsQty : snap.adults, 10) || 0);
+        const children = Math.max(0, parseInt(tour.childQty != null ? tour.childQty : snap.children, 10) || 0);
+        const infants = Math.max(0, parseInt(tour.infantQty != null ? tour.infantQty : snap.infants, 10) || 0);
+        const stamp = tour.dmc_profile_markup || tour.online_price_breakdown || snap.dmc_profile_markup || null;
+        const finalTotal = toNum(
+            (stamp && stamp.price != null ? stamp.price : null)
+            ?? tour.totalPrice
+            ?? snap.totalPriceFinal
+            ?? snap.totalPrice
+        );
+        // Prefer final (Estimated) unit prices for modal restore, not peeled sell/base.
+        const adultFinal = toNum(
+            snap.adultPriceFinal
+            ?? (adults > 0 && finalTotal > 0 && children <= 0 && infants <= 0 ? finalTotal / adults : null)
+            ?? snap.adultPrice
+            ?? tour.adultCost
+            ?? tour.adultSell
+        );
+        const childFinal = toNum(snap.childPriceFinal ?? snap.childPrice ?? tour.childCost ?? tour.childSell);
+        return Object.assign({}, snap, {
+            cityValue: snap.cityValue || tour.destination || tour.city || firstCity(),
+            city: snap.city || tour.city || tour.destination || firstCity(),
+            attractionId: tour.attractionId || tour.sku_id || snap.attractionId || snap.skuId,
+            skuId: tour.sku_id || tour.attractionId || snap.skuId || snap.attractionId,
+            supplierCode: tour.supplier_code || snap.supplierCode || 'sg_attractions',
+            apiEnvironment: tour.api_environment || snap.apiEnvironment || '',
+            attractionName: tour.attractionName || snap.attractionName,
+            timeSlot: tour.visitTime || snap.timeSlot || '',
+            timeSlotOptions: snap.timeSlotOptions || [],
+            ticketId: tour.ticketId || snap.ticketId || tour.provider_ticket_id || '',
+            ticketName: tour.ticketName || snap.ticketName || '',
+            ticketSkuId: tour.ticket_sku_id || snap.ticketSkuId || '',
+            providerTicketId: tour.provider_ticket_id || snap.providerTicketId || tour.ticketId || '',
+            adultPrice: adultFinal,
+            childPrice: childFinal,
+            seniorPrice: toNum(snap.seniorPrice),
+            adultPriceFinal: adultFinal,
+            childPriceFinal: childFinal,
+            adults: adults,
+            children: children,
+            infants: infants,
+            male: snap.male != null ? snap.male : adults,
+            female: snap.female != null ? snap.female : 0,
+            totalPrice: finalTotal,
+            totalPriceFinal: finalTotal,
+            currency: tour.currency || snap.currency || 'SGD',
+            visitDate: ymdOnly(tour.dateTime) || snap.visitDate || '',
+            remarks: tour.remarks || snap.remarks || '',
+            tickets: Array.isArray(snap.tickets) ? snap.tickets : [],
+            onlineAttractionRaw: tour.onlineAttractionRaw || snap.onlineAttractionRaw || null
+        });
+    }
+
+    window.openEnquiryProOnlineHotel = function (editIndex) {
+        if (!onlineEnabled()) {
+            notify('Online hotel booking is not enabled for your Master DMC.', 'warning');
+            return;
+        }
+        const isEdit = editIndex != null && editIndex !== '';
+        window.__enquiryProOnlineHotelEditIndex = isEdit ? editIndex : null;
+        window.__enquiryProOnlineHotelEditSnapshot = isEdit
+            ? hotelSnapshotFromRow(accommodationList[editIndex])
+            : null;
+        ensureHiddenHotelCitySelect(
+            (window.__enquiryProOnlineHotelEditSnapshot && window.__enquiryProOnlineHotelEditSnapshot.city) || firstCity()
+        );
+        window.__enquiryProOnlineHotelActive = true;
+        setOnlineHotelAddBtnLabel(isEdit);
+        if (typeof window.openOnlineHotelModal === 'function') {
+            window.openOnlineHotelModal();
+        } else {
+            notify('Online hotel modal is not available. Reload the page.', 'error');
+        }
+    };
+
+    window.openEnquiryProOnlineAttraction = function (editIndex) {
+        if (!onlineEnabled()) {
+            notify('Online attraction booking is not enabled for your Master DMC.', 'warning');
+            return;
+        }
+        const isEdit = editIndex != null && editIndex !== '';
+        window.__enquiryProOnlineAttractionEditIndex = isEdit ? editIndex : null;
+        window.__enquiryProOnlineAttractionEditSnapshot = isEdit
+            ? attractionSnapshotFromRow(tourList[editIndex])
+            : null;
+        window.__enquiryProOnlineAttractionActive = true;
+        window.__stpLiteOnlineAttractionRoot = document.getElementById('tourTable') || document.body;
+        setOnlineAttractionAddBtnLabel(isEdit);
+        if (typeof window.openOnlineAttractionModal === 'function') {
+            window.openOnlineAttractionModal(1, 1);
+        } else {
+            notify('Online attraction modal is not available. Reload the page.', 'error');
+            window.__enquiryProOnlineAttractionActive = false;
+            window.__stpLiteOnlineAttractionRoot = null;
+        }
+    };
+
+    /**
+     * Rebuild online hotel order JSON in STP Lite shape (stay total on beds[].price /
+     * totalPrice / price_payload — not Pro per-night lodging_cost_snapshot).
+     */
+    function formatStayLabel(checkIn, checkOut) {
+        if (!checkIn || !checkOut) return '';
+        try {
+            if (typeof moment !== 'undefined') {
+                return moment(checkIn, 'YYYY-MM-DD').format('MMM D') + ' → ' +
+                    moment(checkOut, 'YYYY-MM-DD').format('MMM D, YYYY');
+            }
+            const a = new Date(checkIn + 'T00:00:00');
+            const b = new Date(checkOut + 'T00:00:00');
+            if (isNaN(a) || isNaN(b)) return checkIn + ' → ' + checkOut;
+            const optsShort = { month: 'short', day: 'numeric' };
+            const optsLong = { month: 'short', day: 'numeric', year: 'numeric' };
+            return a.toLocaleDateString('en-US', optsShort) + ' → ' + b.toLocaleDateString('en-US', optsLong);
+        } catch (e) {
+            return checkIn + ' → ' + checkOut;
+        }
+    }
+
+    function resolveOnlineStayTotal(src, nights) {
+        const snap = src.onlineAddSnapshot || {};
+        const booking = src.onlineHotelBooking || {};
+        const sel = booking.selection || {};
+        const stamp = src.online_price_breakdown
+            || src.dmc_profile_markup
+            || (src.price_payload && (src.price_payload.online_price_breakdown || src.price_payload.dmc_profile_markup))
+            || (snap.online_price_breakdown || snap.dmc_profile_markup)
+            || (booking.online_price_breakdown || booking.dmc_profile_markup)
+            || null;
+
+        // Prefer marked-up stamp total (402 base + 5% → 422.10), then row totals, then snap/base.
+        const stampedTotal = toNum(stamp && (stamp.total_price != null ? stamp.total_price : stamp.price));
+        if (stampedTotal > 0) return stampedTotal;
+
+        let stay = toNum(
+            src.totalPrice ||
+            src.grand_total ||
+            (src.price_payload && src.price_payload.grand_total) ||
+            snap.price ||
+            snap.combinedRoomTotal ||
+            snap.customRoomPrice ||
+            sel.price
+        );
+        if (stay > 0) return stay;
+        const avg = toNum(src.sell || src.cost || src.avgSell || src.avgCost || snap.pricePerNight);
+        const n = Math.max(1, parseInt(nights, 10) || 1);
+        return avg > 0 ? Math.round(avg * n * 100) / 100 : 0;
+    }
+
+    /** Ensure hotel DMC markup is baked into stay total (Pro breakdown shows it; save must too). */
+    function ensureOnlineHotelMarkup(baseStay, currency, existingStamp) {
+        const base = toNum(
+            (existingStamp && (existingStamp.hotel_price != null ? existingStamp.hotel_price : existingStamp.base_price))
+            || baseStay
+        );
+        const existingMarked = toNum(existingStamp && (existingStamp.total_price != null ? existingStamp.total_price : existingStamp.price));
+        const existingMk = toNum(existingStamp && existingStamp.markup_amount);
+        if (existingMk > 0 && existingMarked > base + 0.009) {
+            return {
+                currency: (existingStamp && existingStamp.currency) || currency || 'SGD',
+                hotel_price: base,
+                base_price: base,
+                markup_amount: existingMk,
+                markup_type: (existingStamp && existingStamp.markup_type) || 'percentage',
+                markup_value: toNum(existingStamp && existingStamp.markup_value),
+                markup_kind: 'hotel',
+                price: existingMarked,
+                total_price: existingMarked,
+                dmc_id: (existingStamp && existingStamp.dmc_id) || null
+            };
+        }
+        if (base <= 0) {
+            return existingStamp || null;
+        }
+        let applied = null;
+        if (typeof window.enquiryProHotelSellWithMarkup === 'function') {
+            applied = window.enquiryProHotelSellWithMarkup(base);
+        } else if (typeof window.enquiryProApplyDmcMarkup === 'function') {
+            applied = window.enquiryProApplyDmcMarkup(base, 'hotel');
+        }
+        if (!applied || toNum(applied.price) <= 0) {
+            return existingStamp || {
+                currency: currency || 'SGD',
+                hotel_price: base,
+                base_price: base,
+                markup_amount: 0,
+                markup_type: 'percentage',
+                markup_value: 0,
+                markup_kind: 'hotel',
+                price: base,
+                total_price: base,
+                dmc_id: null
+            };
+        }
+        return {
+            currency: (applied.currency || currency || 'SGD'),
+            hotel_price: toNum(applied.base_price) || base,
+            base_price: toNum(applied.base_price) || base,
+            markup_amount: toNum(applied.markup_amount),
+            markup_type: applied.markup_type || 'percentage',
+            markup_value: toNum(applied.markup_value),
+            markup_kind: 'hotel',
+            price: toNum(applied.price),
+            total_price: toNum(applied.price),
+            dmc_id: applied.dmc_id || null
+        };
+    }
+
+    function resolveOnlineServiceCurrency(explicit, fallbackCountry) {
+        const fromExplicit = String(explicit || '').trim().toUpperCase();
+        if (fromExplicit) return fromExplicit;
+        if (typeof resolveCurrencyForCountry === 'function' && fallbackCountry) {
+            const fromCountry = String(resolveCurrencyForCountry(fallbackCountry) || '').trim().toUpperCase();
+            if (fromCountry) return fromCountry;
+        }
+        return 'SGD';
+    }
+
+    function mapOnlineHotelToLiteStoreRow(src, proRow) {
+        src = src || {};
+        proRow = proRow || {};
+        const booking = src.onlineHotelBooking || {};
+        const onlineHotel = booking.hotel || {};
+        const sel = booking.selection || {};
+        const snap = src.onlineAddSnapshot || {};
+
+        const checkIn = ymdOnly(
+            sel.stay_check_in || booking.check_in || src.checkIn ||
+            (Array.isArray(proRow.bookingDate) ? proRow.bookingDate[0] : '') || ''
+        );
+        const checkOut = ymdOnly(
+            sel.stay_check_out || booking.check_out || src.checkOut ||
+            (Array.isArray(proRow.bookingDate) ? proRow.bookingDate[1] : '') || ''
+        );
+        const nights = Math.max(
+            1,
+            parseInt(src.nights, 10) ||
+            (Array.isArray(src.nightsList) ? src.nightsList.length : 0) ||
+            (Array.isArray(snap.nights) ? snap.nights.length : 0) ||
+            nightsBetween(checkIn, checkOut)
+        );
+        const roomsCount = Math.max(1, parseInt(src.rooms || snap.numberOfRooms || sel.number_of_rooms, 10) || 1);
+        const persons = Math.max(1, parseInt(src.selectedPersons || sel.persons || snap.selectedPersons, 10) || 1);
+        let stayTotal = resolveOnlineStayTotal(src, nights);
+
+        const hv = (typeof getHeaderValues === 'function') ? getHeaderValues() : {};
+        const adults = Math.max(1, parseInt(hv.adults, 10) || persons || 1);
+        const children = Math.max(0, parseInt(hv.children, 10) || 0);
+        const infants = Math.max(0, parseInt(hv.infants, 10) || 0);
+
+        const mealPlan = src.mealPlan || src.mealPlanLabel || sel.meal_plan || snap.mealPlan || 'room only';
+        const roomType = src.roomType || sel.room_type || snap.roomType || '';
+        const bedType = src.bedType || src.bedTypeRaw || sel.bed_type || snap.bedType || 'Standard';
+        const hotelId = src.hotel_unique_id || src.hotelId || snap.id || onlineHotel.code || '';
+        const hotelName = src.hotelName || snap.name || onlineHotel.name || '';
+        const city = src.destination || snap.city || firstCity() || proRow.city || '';
+        const country = src.country || proRow.country ||
+            (typeof resolveCountryForCity === 'function' ? resolveCountryForCity(city) : '') || '';
+        // Prefer online quote currency (SGD for MG Bedbank / modal), not Bali→IDR from city.
+        const currency = resolveOnlineServiceCurrency(
+            src.currency || snap.currency || booking.currency || proRow.currency
+                || (src.online_price_breakdown && src.online_price_breakdown.currency)
+                || (src.dmc_profile_markup && src.dmc_profile_markup.currency),
+            country
+        );
+        const dmcId = parseInt(
+            (proRow.priceModeId != null ? proRow.priceModeId : null) ||
+            '{{ $dmc_id ?? "" }}' ||
+            (booking.markup && booking.markup.dmc_id) ||
+            0,
+            10
+        ) || null;
+        const roomId = src.roomId || src.databaseRoomId || (booking.room && booking.room.code) || snap.roomId || '';
+        const bedId = src.bedId || snap.bedId || ('online-bed-' + Date.now());
+        const rawImages = src.onlineHotelRaw && src.onlineHotelRaw.images;
+        const image = (proRow.hotelDetails && proRow.hotelDetails.image) ||
+            onlineHotel.image ||
+            (Array.isArray(rawImages) && rawImages.length ? rawImages[0] : '') ||
+            '';
+        const checkInTime = onlineHotel.check_in_time || src.check_in_time || '15:00:00';
+        const checkOutTime = onlineHotel.check_out_time || src.check_out_time || '12:00:00';
+
+        let stamp = src.online_price_breakdown
+            || src.dmc_profile_markup
+            || (src.price_payload && (src.price_payload.online_price_breakdown || src.price_payload.dmc_profile_markup))
+            || (snap.online_price_breakdown || snap.dmc_profile_markup)
+            || (booking.online_price_breakdown || booking.dmc_profile_markup)
+            || null;
+        let hotelPrice = stamp
+            ? (toNum(stamp.hotel_price != null ? stamp.hotel_price : stamp.base_price) || Math.max(0, stayTotal - toNum(stamp.markup_amount)))
+            : stayTotal;
+        // Re-apply Pro DMC hotel markup on save when listing only held the base (402 → 422.10).
+        stamp = ensureOnlineHotelMarkup(hotelPrice > 0 ? hotelPrice : stayTotal, currency, stamp);
+        if (stamp) {
+            hotelPrice = toNum(stamp.hotel_price != null ? stamp.hotel_price : stamp.base_price) || hotelPrice;
+            stayTotal = toNum(stamp.total_price != null ? stamp.total_price : stamp.price) || stayTotal;
+        }
+        const priceStamp = stamp ? {
+            currency: stamp.currency || currency,
+            hotel_price: hotelPrice,
+            base_price: hotelPrice,
+            markup_amount: toNum(stamp.markup_amount),
+            markup_type: stamp.markup_type || 'percentage',
+            markup_value: toNum(stamp.markup_value),
+            markup_kind: 'hotel',
+            price: stayTotal,
+            total_price: stayTotal,
+            dmc_id: stamp.dmc_id || null
+        } : null;
+        const pricePayload = {
+            room_total: hotelPrice,
+            meal_total: 0,
+            base_grand_total: hotelPrice,
+            grand_total: stayTotal,
+            nights: nights,
+            currency: currency,
+            is_online: true,
+            breakdown: [],
+            dmc_profile_markup: priceStamp,
+            online_price_breakdown: priceStamp
+        };
+        // Per-night avgs (same basis as mapOnlineHotelToTour / create listing).
+        // beds.price stays as stay total for Lite; avgCost/avgSell keep edit hydrate correct.
+        const perNightBase = nights > 0 ? Math.round((hotelPrice / nights) * 100) / 100 : hotelPrice;
+        const perNightSell = nights > 0 ? Math.round((stayTotal / nights) * 100) / 100 : stayTotal;
+
+        return {
+            fullName: proRow.fullName || '',
+            email: proRow.email || '',
+            phone: proRow.phone || '',
+            countryCode: proRow.countryCode || '',
+            address1: proRow.address1 || '',
+            address2: proRow.address2 != null ? proRow.address2 : null,
+            state: proRow.state || 'State not provided',
+            zip: proRow.zip || '',
+            specialRequests: proRow.specialRequests != null ? proRow.specialRequests : null,
+            id: null,
+            bookingType: 'enquiry',
+            bookingDate: [checkIn, checkOut],
+            hotelDetails: {
+                hotel_id: hotelId,
+                hotel_name: hotelName,
+                image: image,
+                location: city || onlineHotel.address || '',
+                checkInTime: checkInTime,
+                checkOutTime: checkOutTime,
+                cancellation_charge: null,
+                country: country,
+                city: city
+            },
+            priceMode: 'online',
+            priceModeId: dmcId,
+            is_adhoc: false,
+            adhoc_price: null,
+            price_payload: pricePayload,
+            helperPriceResult: Object.assign({}, pricePayload),
+            room_total_base: hotelPrice,
+            room_total: hotelPrice,
+            meal_total: 0,
+            base_grand_total: hotelPrice,
+            grand_total: stayTotal,
+            dmc_profile_markup: priceStamp,
+            online_price_breakdown: priceStamp,
+            meal_plan: mealPlan,
+            hotel_name: hotelName,
+            hotel_unique_id: hotelId,
+            hotel_id: hotelId,
+            room_type: roomType,
+            bed_label: bedType,
+            number_of_rooms: roomsCount,
+            stay_start: checkIn,
+            stay_end: checkOut,
+            stay_label: formatStayLabel(checkIn, checkOut),
+            selected_adults: adults,
+            selected_children: children,
+            selected_children_no_bed: 0,
+            selected_children_with_bed: 0,
+            selected_infants: infants,
+            selected_persons: persons,
+            rooms: [{
+                room_id: roomId,
+                room_type: roomType,
+                occupancy: persons <= 1 ? 'single' : 'double',
+                selected_persons: persons,
+                selected_adults: adults,
+                selected_children: children,
+                selected_children_no_bed: 0,
+                selected_children_with_bed: 0,
+                selected_infants: infants,
+                number_of_rooms: roomsCount,
+                breakfast_included: 0,
+                supplement_breakfast_included: 0,
+                beds: [{
+                    bed_id: bedId,
+                    bed_type: bedType,
+                    baby_cot: 0,
+                    baby_cot_price: 0,
+                    baby_cot_cost: 0,
+                    head_count: persons,
+                    max_occupancy: persons,
+                    extra_bed: 0,
+                    extra_bed_price: 0,
+                    extra_bed_cost: 0,
+                    // Stay totals on price/cost/sell (Lite); avg* = per-night for Pro edit listing
+                    price: stayTotal,
+                    cost: stayTotal,
+                    sell: stayTotal,
+                    cost_price: stayTotal,
+                    avgCost: perNightBase,
+                    avgSell: perNightSell,
+                    mealTypes: [mealPlan],
+                    meal_plan: mealPlan
+                }]
+            }],
+            totalPrice: stayTotal,
+            price: stayTotal,
+            cost: perNightBase,
+            sell: perNightSell,
+            avgCost: perNightBase,
+            avgSell: perNightSell,
+            cost_price: stayTotal,
+            transfer_options: null,
+            child_with_bed: null,
+            child_without_bed: null,
+            children: children,
+            children_price: null,
+            child_meal_factor: null,
+            extra_bed: null,
+            tour_id: proRow.tour_id != null ? String(proRow.tour_id) : (src.tour_id != null ? String(src.tour_id) : null),
+            city: city,
+            country: country,
+            currency: currency,
+            remarks: src.remarks || sel.remarks || snap.remarks || '',
+            supplement: false,
+            isOnlineHotel: true,
+            hotelSourceType: 'online',
+            onlineHotelSource: src.onlineHotelSource || snap.onlineHotelSource || (booking.supplier_code) || null,
+            onlineHotelBooking: booking,
+            api_environment: src.api_environment || booking.api_environment || snap.api_environment || ''
+        };
+    }
+
+    // --- Patch listing / arrival / edit / transform once DOM + host functions exist ---
+    function patchHostFunctions() {
+        if (typeof window.updateAccommodationTable === 'function' && !window.updateAccommodationTable.__epOnlinePatched) {
+            const orig = window.updateAccommodationTable;
+            window.updateAccommodationTable = function () {
+                orig.apply(this, arguments);
+                try {
+                    const tbody = document.getElementById('accommodationTableBody');
+                    if (!tbody || typeof accommodationList === 'undefined') return;
+                    Array.from(tbody.querySelectorAll('tr')).forEach(function (tr, index) {
+                        const hotel = accommodationList[index];
+                        if (!hotel || !(hotel.isOnlineHotel || hotel.hotelSourceType === 'online')) return;
+                        const nameCell = tr.children[1];
+                        if (!nameCell || nameCell.querySelector('.ep-online-badge')) return;
+                        const anchor = nameCell.querySelector('a') || nameCell;
+                        const badge = document.createElement('div');
+                        badge.className = 'mt-1';
+                        badge.innerHTML = onlineHotelBadgeHtml()
+                            + ' <small class="text-muted" style="font-size:0.65rem;">Live API · cost = sell</small>';
+                        anchor.appendChild(badge);
+                        // Online: sell locked to cost (same value)
+                        const sellInput = tr.querySelectorAll('.accommodation-price-field')[1];
+                        if (sellInput) {
+                            sellInput.readOnly = true;
+                            sellInput.style.backgroundColor = '#f5f5f5';
+                            sellInput.title = 'Online hotel: cost and sell are the same';
+                        }
+                    });
+                } catch (e) { console.warn('ep online hotel badge', e); }
+            };
+            window.updateAccommodationTable.__epOnlinePatched = true;
+        }
+
+        if (typeof window.updateTourTable === 'function' && !window.updateTourTable.__epOnlinePatched) {
+            const origTour = window.updateTourTable;
+            window.updateTourTable = function () {
+                origTour.apply(this, arguments);
+                try {
+                    const tbody = document.getElementById('tourTableBody');
+                    if (!tbody || typeof tourList === 'undefined') return;
+                    Array.from(tbody.querySelectorAll('tr')).forEach(function (tr, index) {
+                        const tour = tourList[index];
+                        if (!tour || !(tour.isOnlineAttraction || tour.attractionSourceType === 'online')) return;
+                        const nameCell = tr.children[2];
+                        if (!nameCell || nameCell.querySelector('.ep-online-badge')) return;
+                        const badge = document.createElement('div');
+                        badge.className = 'mt-1';
+                        badge.innerHTML = onlineAttractionBadgeHtml()
+                            + ' <small class="text-muted" style="font-size:0.65rem;">No transfer · cost = sell</small>';
+                        nameCell.appendChild(badge);
+                        // Lock sell fields to match cost for online
+                        [5, 8, 11].forEach(function (colIdx) {
+                            const input = tr.children[colIdx] && tr.children[colIdx].querySelector('input');
+                            if (input) {
+                                input.readOnly = true;
+                                input.disabled = true;
+                                input.style.backgroundColor = '#f5f5f5';
+                                input.title = 'Online attraction: cost and sell are the same';
+                            }
+                        });
+                    });
+                } catch (e) { console.warn('ep online attraction badge', e); }
+            };
+            window.updateTourTable.__epOnlinePatched = true;
+        }
+
+        if (typeof window.recalculateEntryExitPorts === 'function' && !window.recalculateEntryExitPorts.__epOnlinePatched) {
+            const origPorts = window.recalculateEntryExitPorts;
+            window.recalculateEntryExitPorts = function () {
+                // Temporarily hide online hotels from arrival/departure calc (lite parity)
+                if (typeof accommodationList !== 'undefined' && Array.isArray(accommodationList)) {
+                    const backup = accommodationList.slice();
+                    const offlineOnly = accommodationList.filter(function (h) {
+                        return !(h && (h.isOnlineHotel || h.hotelSourceType === 'online' || h.skipArrivalDeparture));
+                    });
+                    accommodationList.length = 0;
+                    Array.prototype.push.apply(accommodationList, offlineOnly);
+                    try {
+                        origPorts.apply(this, arguments);
+                    } finally {
+                        accommodationList.length = 0;
+                        Array.prototype.push.apply(accommodationList, backup);
+                    }
+                    return;
+                }
+                origPorts.apply(this, arguments);
+            };
+            window.recalculateEntryExitPorts.__epOnlinePatched = true;
+        }
+
+        if (typeof window.editAccommodation === 'function' && !window.editAccommodation.__epOnlinePatched) {
+            const origEditH = window.editAccommodation;
+            window.editAccommodation = function (index) {
+                const hotel = (typeof accommodationList !== 'undefined') ? accommodationList[index] : null;
+                if (hotel && (hotel.isOnlineHotel || hotel.hotelSourceType === 'online')) {
+                    window.openEnquiryProOnlineHotel(index);
+                    return;
+                }
+                return origEditH.apply(this, arguments);
+            };
+            window.editAccommodation.__epOnlinePatched = true;
+        }
+
+        if (typeof window.editTour === 'function' && !window.editTour.__epOnlinePatched) {
+            const origEditT = window.editTour;
+            window.editTour = function (index) {
+                const tour = (typeof tourList !== 'undefined') ? tourList[index] : null;
+                if (tour && (tour.isOnlineAttraction || tour.attractionSourceType === 'online')) {
+                    window.openEnquiryProOnlineAttraction(index);
+                    return;
+                }
+                return origEditT.apply(this, arguments);
+            };
+            window.editTour.__epOnlinePatched = true;
+        }
+
+        if (typeof window.transformAccommodationData === 'function' && !window.transformAccommodationData.__epOnlinePatched) {
+            const origTxH = window.transformAccommodationData;
+            window.transformAccommodationData = function () {
+                const rows = origTxH.apply(this, arguments) || [];
+                return rows.map(function (row, idx) {
+                    const src = (typeof accommodationList !== 'undefined') ? accommodationList[idx] : null;
+                    if (!src || !(src.isOnlineHotel || src.hotelSourceType === 'online')) return row;
+                    return mapOnlineHotelToLiteStoreRow(src, row);
+                });
+            };
+            window.transformAccommodationData.__epOnlinePatched = true;
+        }
+
+        if (typeof window.transformTourData === 'function' && !window.transformTourData.__epOnlinePatched) {
+            const origTxT = window.transformTourData;
+            window.transformTourData = function () {
+                const rows = origTxT.apply(this, arguments) || [];
+                return rows.map(function (row, idx) {
+                    const src = (typeof tourList !== 'undefined') ? tourList[idx] : null;
+                    if (!src || !(src.isOnlineAttraction || src.attractionSourceType === 'online')) return row;
+                    row.isOnlineAttraction = true;
+                    row.attractionSourceType = 'online';
+                    row.sku_id = src.sku_id || null;
+                    row.ticket_sku_id = src.ticket_sku_id || null;
+                    row.provider_ticket_id = src.provider_ticket_id || null;
+                    row.lowest_ticket_price = src.lowest_ticket_price || null;
+                    row.highest_ticket_price = src.highest_ticket_price || null;
+                    row.supplier_code = src.supplier_code || 'sg_attractions';
+                    row.api_environment = src.api_environment || null;
+                    row.onlineAttractionRaw = src.onlineAttractionRaw || null;
+                    row.onlineAddSnapshot = src.onlineAddSnapshot || null;
+                    row.Selection = 'withoutTransport';
+                    row.transfer_options = null;
+                    row.transport = null;
+                    row.mode = 'online';
+                    row.city = src.city || src.destination || row.city || '';
+                    row.country = src.country || row.country || '';
+                    row.currency = resolveOnlineServiceCurrency(
+                        src.currency || (src.onlineAddSnapshot && src.onlineAddSnapshot.currency) || row.currency,
+                        row.country || src.country
+                    );
+                    // Sell units are base before DMC (peeled on add). totalPrice is Estimated final.
+                    // Create-order must use cost — see OnlineAttractionOrderService::providerTotalAmount.
+                    row.adultCost = toNum(src.adultCost || src.adultPrice || src.adultSell);
+                    row.childCost = toNum(src.childCost || src.childPrice || src.childSell);
+                    row.infantCost = toNum(src.infantCost || src.infantPrice || src.infantSell);
+                    row.adultSell = toNum(src.adultSell || src.adultCost);
+                    row.childSell = toNum(src.childSell || src.childCost);
+                    row.infantSell = toNum(src.infantSell || src.infantCost);
+                    const adults = Math.max(0, parseInt(row.adultsQty || row.adultCount || src.adultsQty || src.adultCount, 10) || 0);
+                    const children = Math.max(0, parseInt(row.childQty || row.childCount || src.childQty || src.childCount, 10) || 0);
+                    const infants = Math.max(0, parseInt(row.infantQty || row.infants || src.infantQty, 10) || 0);
+                    // Lite/API create-order fields (must be AFTER adults/children — TDZ safe)
+                    row.adultCount = adults;
+                    row.childCount = children;
+                    row.bookingDate = ymdOnly(src.dateTime || src.bookingDate || row.bookingDate || row.dateTime || '') || row.bookingDate;
+                    const providerLine = (row.adultCost * adults) + (row.childCost * children) + (row.infantCost * infants);
+                    const baseLine = (row.adultSell * adults) + (row.childSell * children) + (row.infantSell * infants);
+                    const stamp = src.dmc_profile_markup || src.online_price_breakdown || null;
+                    const sellLine = toNum(stamp && stamp.price) || toNum(src.totalPrice || src.grand_total) || baseLine;
+                    row.totalPrice = sellLine;
+                    row.grand_total = sellLine;
+                    row.base_grand_total = toNum(src.base_grand_total)
+                        || toNum(stamp && stamp.base_price)
+                        || baseLine;
+                    if (stamp) {
+                        row.dmc_profile_markup = stamp;
+                        row.online_price_breakdown = stamp;
+                    }
+                    row.cost = providerLine > 0 ? providerLine : baseLine;
+                    row.sell = sellLine;
+                    row.cost_price = row.cost;
+                    row.provider_unit_price = row.adultCost;
+                    row.provider_total_amount = providerLine > 0 ? providerLine : baseLine;
+                    if (row.ticket_details) {
+                        // adult_price / child_price = provider/base unit (API create-order), not double-marked sell
+                        row.ticket_details.adult_cost = row.adultCost;
+                        row.ticket_details.adult_sell = row.adultSell;
+                        row.ticket_details.adult_price = row.adultCost;
+                        row.ticket_details.child_cost = row.childCost;
+                        row.ticket_details.child_sell = row.childSell;
+                        row.ticket_details.child_price = row.childCost;
+                        row.ticket_details.infant_cost = row.infantCost;
+                        row.ticket_details.infant_sell = row.infantSell;
+                        row.ticket_details.infant_price = row.infantCost;
+                    }
+                    return row;
+                });
+            };
+            window.transformTourData.__epOnlinePatched = true;
+        }
+    }
+
+    function bindSourceToggles() {
+        document.querySelectorAll('.ep-hotel-source-type').forEach(function (radio) {
+            radio.addEventListener('change', function () {
+                if (!this.checked) return;
+                if (this.value === 'online') {
+                    window.openEnquiryProOnlineHotel();
+                }
+            });
+        });
+        document.querySelectorAll('.ep-attraction-source-type').forEach(function (radio) {
+            radio.addEventListener('change', function () {
+                if (!this.checked) return;
+                if (this.value === 'online') {
+                    window.openEnquiryProOnlineAttraction();
+                }
+            });
+        });
+
+        document.getElementById('onlineHotelModal')?.addEventListener('hidden.bs.modal', function () {
+            window.__enquiryProOnlineHotelActive = false;
+            window.__enquiryProOnlineHotelEditIndex = null;
+            window.__enquiryProOnlineHotelEditSnapshot = null;
+            setOnlineHotelAddBtnLabel(false);
+            resetOnlineSourceToggles();
+        });
+        document.getElementById('onlineAttractionModal')?.addEventListener('hidden.bs.modal', function () {
+            window.__enquiryProOnlineAttractionActive = false;
+            window.__enquiryProOnlineAttractionEditIndex = null;
+            window.__enquiryProOnlineAttractionEditSnapshot = null;
+            window.__stpLiteOnlineAttractionRoot = null;
+            setOnlineAttractionAddBtnLabel(false);
+            resetOnlineSourceToggles();
+        });
+    }
+
+    function boot() {
+        patchHostFunctions();
+        bindSourceToggles();
+        // Re-patch after a tick in case host functions redefine later on edit load
+        setTimeout(patchHostFunctions, 800);
+        setTimeout(patchHostFunctions, 2500);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', boot);
+    } else {
+        boot();
+    }
+})();
+</script>
+
+<style>
+.ep-online-source-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: #f3e8ff;
+    border: 1px solid #e9d5ff;
+    border-radius: 6px;
+    padding: 2px 8px;
+    margin-right: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #6b21a8;
+}
+.ep-online-source-toggle .form-check {
+    margin: 0;
+    min-height: 0;
+    padding-left: 1.2rem;
+}
+.ep-online-source-toggle .form-check-input {
+    width: 12px;
+    height: 12px;
+    margin-top: 0.15rem;
+}
+.ep-online-source-toggle .form-check-label {
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.ep-online-badge {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    padding: 2px 6px;
+    border-radius: 4px;
+    vertical-align: middle;
+}
+.ep-online-badge--hotel {
+    background: linear-gradient(135deg, #a855f7, #7c3aed);
+    color: #fff;
+}
+.ep-online-badge--attraction {
+    background: linear-gradient(135deg, #06b6d4, #0891b2);
+    color: #fff;
+}
+</style>
+@endif

@@ -26,6 +26,12 @@ class Ticket extends Model
         'child_price_nri',
         'adult_price_nri',
         'senior_adult_price_nri',
+        'child_cost_price',
+        'adult_cost_price',
+        'senior_adult_cost_price',
+        'child_cost_price_nri',
+        'adult_cost_price_nri',
+        'senior_adult_cost_price_nri',
         'status',
         'created_by',
         'updated_by',
@@ -41,6 +47,12 @@ class Ticket extends Model
         'child_price_nri' => 'float',
         'adult_price_nri' => 'float',
         'senior_adult_price_nri' => 'float',
+        'child_cost_price' => 'float',
+        'adult_cost_price' => 'float',
+        'senior_adult_cost_price' => 'float',
+        'child_cost_price_nri' => 'float',
+        'adult_cost_price_nri' => 'float',
+        'senior_adult_cost_price_nri' => 'float',
         'status' => 'integer',
         'attraction_id' => 'integer',
         'dmc_id' => 'integer',
@@ -55,10 +67,26 @@ class Ticket extends Model
     }
 
     /**
-     * Get the DMC user that created the ticket
+     * Get the DMC user that owns the ticket
      */
     public function dmc()
     {
         return $this->belongsTo(User::class, 'dmc_id', 'userId');
+    }
+
+    /**
+     * User who created the ticket (users.userId).
+     */
+    public function createdByUser()
+    {
+        return $this->belongsTo(User::class, 'created_by', 'userId');
+    }
+
+    /**
+     * User who last updated the ticket (users.userId).
+     */
+    public function updatedByUser()
+    {
+        return $this->belongsTo(User::class, 'updated_by', 'userId');
     }
 }

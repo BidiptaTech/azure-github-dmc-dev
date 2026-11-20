@@ -1,0 +1,361 @@
+/* Professional Proforma Invoice — DomPDF-safe layout */
+.inv {
+  font-family: DejaVu Sans, Arial, Helvetica, sans-serif;
+  color: #333333;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.inv-top {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 8px;
+}
+
+.inv-top td {
+  border: none;
+  vertical-align: top;
+  padding: 4px;
+}
+
+.inv-top-logo {
+  width: 18%;
+}
+
+.inv-top-brand {
+  width: 64%;
+  text-align: center;
+}
+
+.inv-top-number {
+  width: 18%;
+  text-align: right;
+}
+
+.inv-logo {
+  max-width: 120px;
+  max-height: 90px;
+}
+
+.inv-company {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #222222;
+}
+
+.inv-doc-no {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.inv-muted {
+  margin: 2px 0;
+  color: #666666;
+  font-size: 9px;
+}
+
+.inv-doc-title {
+  margin: 10px 0 14px;
+  text-align: center;
+  font-size: 17px;
+  font-weight: 700;
+  color: #2563eb;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.inv-two-col {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 12px 0;
+  margin-bottom: 12px;
+  table-layout: fixed;
+}
+
+.inv-two-col td.inv-col {
+  width: 50%;
+  vertical-align: top;
+  border: none;
+  padding: 0;
+}
+
+.inv-box {
+  background: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.inv-box-full {
+  margin-top: 0;
+}
+
+.inv-box-title {
+  margin: 0 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid #cccccc;
+  font-size: 12px;
+  font-weight: 700;
+  color: #555555;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.inv-kv {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.inv-kv td {
+  border: none;
+  padding: 3px 0;
+  vertical-align: top;
+  font-size: 11px;
+}
+
+.inv-k {
+  width: 34%;
+  font-weight: 700;
+  color: #555555;
+  padding-right: 8px;
+}
+
+.inv-v {
+  color: #333333;
+  word-wrap: break-word;
+}
+
+.inv-section-title {
+  margin: 18px 0 8px;
+  padding: 6px 0;
+  border-bottom: 2px solid #333333;
+  font-size: 15px;
+  font-weight: 700;
+  color: #333333;
+}
+
+.inv-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  vertical-align: middle;
+}
+
+.inv-multi-notice {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid #f59e0b;
+  background: #fffbeb;
+  color: #92400e;
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+.inv-multi-notice p {
+  margin: 0 0 3px;
+}
+
+.inv-city-block {
+  margin: 0 0 18px;
+  padding: 10px 10px 6px;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.inv-city-title {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  background: #1e293b;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 6px;
+}
+
+.inv-city-currency {
+  float: right;
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.inv-service-title {
+  margin: 14px 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #222222;
+}
+
+.inv-city-subtotal {
+  width: 55%;
+  margin-left: auto;
+  margin-top: 4px;
+  margin-bottom: 8px;
+  border-collapse: collapse;
+}
+
+.inv-city-subtotal td {
+  border: 1px solid #cbd5e1;
+  padding: 6px 10px;
+  font-size: 11px;
+  background: #eef2ff;
+  font-weight: 700;
+}
+
+.inv-items {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 10px;
+}
+
+.inv-items th,
+.inv-items td {
+  border: 1px solid #dddddd;
+  padding: 7px 8px;
+  vertical-align: top;
+  font-size: 10.5px;
+}
+
+.inv-items th {
+  background: #f0f0f0;
+  font-weight: 700;
+  text-align: left;
+}
+
+.inv-items .col-desc {
+  width: 48%;
+}
+
+.inv-items .col-date {
+  width: 16%;
+}
+
+.inv-items .col-pax {
+  width: 14%;
+}
+
+.inv-items .col-amt {
+  width: 22%;
+  text-align: right;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.inv-totals {
+  width: 48%;
+  margin-left: auto;
+  margin-top: 12px;
+  margin-bottom: 16px;
+  border-collapse: collapse;
+}
+
+.inv-totals td {
+  border: 1px solid #dddddd;
+  padding: 7px 10px;
+  font-size: 11px;
+}
+
+.inv-totals-label {
+  background: #f7f7f7;
+  font-weight: 700;
+  width: 55%;
+}
+
+.inv-totals-value {
+  text-align: right;
+  font-weight: 600;
+}
+
+.inv-totals-grand td {
+  background: #e8f0fe;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.inv-totals-due td {
+  background: #fff7ed;
+  font-weight: 700;
+}
+
+.inv-terms {
+  background: #ffc0cb;
+  padding: 10px 12px;
+  margin: 16px 0 10px;
+  border-radius: 4px;
+}
+
+.inv-terms p {
+  margin: 0 0 4px;
+}
+
+.inv-terms ol {
+  margin: 4px 0 0 18px;
+  padding: 0;
+}
+
+.inv-terms li {
+  margin-bottom: 3px;
+  font-size: 10px;
+}
+
+.inv-bank {
+  background: #ffc0cb;
+  padding: 10px 12px;
+  margin: 10px 0 14px;
+  border-radius: 4px;
+}
+
+.inv-bank p {
+  margin: 0 0 6px;
+}
+
+.inv-bank-table {
+  margin-bottom: 6px;
+}
+
+.inv-note {
+  margin-top: 14px;
+  padding: 10px;
+  background: #fff3cd;
+  color: #856404;
+  font-size: 10px;
+  border-radius: 4px;
+}
+
+.inv-note p {
+  margin: 0;
+}
+
+.inv-footer {
+  margin-top: 22px;
+  padding-top: 14px;
+  border-top: 2px solid #e0e0e0;
+  text-align: center;
+}
+
+.inv-company-sm {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #333333;
+}
+
+hr {
+  border: none;
+  border-top: 1px solid #e5a0a8;
+  margin: 8px 0;
+}

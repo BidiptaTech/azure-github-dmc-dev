@@ -53,7 +53,24 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'is_active' => 'boolean',
+        'markup_price_attraction' => 'decimal:2',
+        'markup_price_flight' => 'decimal:2',
+        'markup_json' => 'array',
+        'thirdparty' => 'string',
+        'thirdparty_enabled' => 'string',
+        'online_api' => 'boolean',
+        'demo_api' => 'boolean',
+        'live_api' => 'boolean',
     ];
+
+    /**
+     * Whether the account may sign in (null treated as active for legacy rows).
+     */
+    public function isAccountActive(): bool
+    {
+        return (int) ($this->is_active ?? 1) === 1;
+    }
 
     /*
     * Specify User Types.
