@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
+import customParseFormat from "dayjs/plugin/customParseFormat";
 import {
   Box,
   CircularProgress,
@@ -22,6 +23,7 @@ import {
   setPackageData,
 } from "@/slice/tour-packages/tourPackageSlice";
 import { resetPackages } from "@/slice/tour-packages/prePackagesSlice";
+import { fetchProposals } from "@/slice/common/EnquirySlice";
 import {
   RenderHotelDetails,
   RenderAttractionDetails,
@@ -30,6 +32,9 @@ import {
   RenderLocalTransferDetails,
   RenderPortDetails,
 } from "@/components/dashboard/dashboard/db-dashboard/components/renderServices";
+import { appPath } from "@/utils/appPaths";
+
+dayjs.extend(customParseFormat);
 
 const MANAGER_ROLES = [
   "Sales Head(DMC)",
@@ -44,6 +49,11 @@ const SERVICE_META = [
   { key: "attraction", label: "Attraction" },
   { key: "restaurant", label: "Dining" },
   { key: "guide", label: "Guide" },
+];
+
+const LIST_TABS = [
+  { id: "enquiries", label: "Enquiries" },
+  { id: "proposals", label: "Proposals" },
 ];
 
 const modalStyle = {
@@ -61,11 +71,20 @@ const modalStyle = {
   overflow: "auto",
 };
 
+function parseFlexibleDate(value) {
+  if (!value) return null;
+  const formats = ["DD/MM/YYYY", "DD-MM-YYYY", "YYYY-MM-DD", "YYYY/MM/DD"];
+  for (const format of formats) {
+    const d = dayjs(value, format, true);
+    if (d.isValid()) return d;
+  }
+  const fallback = dayjs(value);
+  return fallback.isValid() ? fallback : null;
+}
+
 function statusLabel(enquiry) {
   const raw = (
-    enquiry.status ||
-    enquiry.enquiry_status ||
-    enquiry.status_name ||
+    enquiry.tour_status ||
     ""
   ).toString();
   if (!raw) return "Open";
@@ -89,6 +108,10 @@ function guestLine(enquiry) {
   const children = Number(enquiry.child || 0);
   const infants = Number(enquiry.infant || 0);
   const total = adults + children + infants;
+  if (!total && (enquiry.total_pax || enquiry.pax)) {
+    const pax = Number(enquiry.total_pax || enquiry.pax || 0);
+    return pax ? `${pax} traveller${pax === 1 ? "" : "s"}` : null;
+  }
   const parts = [
     `${adults} adult${adults === 1 ? "" : "s"}`,
     children ? `${children} child${children === 1 ? "" : "ren"}` : null,
@@ -109,9 +132,15 @@ export default function PartnerEnquiryList() {
   const { enquiries, status, error, stats } = useSelector(
     (state) => state.bookingEnquiry
   );
+  const {
+    proposals = [],
+    proposalsStatus,
+    proposalsError,
+  } = useSelector((state) => state.enquiry);
   const userRole = useSelector((state) => state.auth.userRole);
   const selectedAgent = useSelector((state) => state.editing?.agentId);
 
+  const [listTab, setListTab] = useState("enquiries");
   const [searchId, setSearchId] = useState("");
   const [city, setCity] = useState("");
   const [dateRange, setDateRange] = useState("all");
@@ -125,8 +154,9 @@ export default function PartnerEnquiryList() {
   const [refreshing, setRefreshing] = useState(false);
 
   const canConvert = MANAGER_ROLES.includes(userRole);
+  const isProposals = listTab === "proposals";
 
-  const refresh = async () => {
+  const refreshEnquiries = async () => {
     setRefreshing(true);
     try {
       await dispatch(
@@ -144,12 +174,37 @@ export default function PartnerEnquiryList() {
     }
   };
 
-  useEffect(() => {
-    refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedAgent]);
+  const refreshProposals = async () => {
+    setRefreshing(true);
+    try {
+      await dispatch(
+        fetchProposals({
+          ...(selectedAgent ? { agentId: selectedAgent } : {}),
+          reset: true,
+          start: 0,
+          limit: 30,
+        })
+      ).unwrap();
+    } catch {
+      /* proposalsStatus/error from slice */
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
-  const filtered = useMemo(() => {
+  const refresh = () =>
+    isProposals ? refreshProposals() : refreshEnquiries();
+
+  useEffect(() => {
+    if (listTab === "enquiries") {
+      refreshEnquiries();
+    } else {
+      refreshProposals();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAgent, listTab]);
+
+  const filteredEnquiries = useMemo(() => {
     const list = Array.isArray(enquiries) ? enquiries : [];
     return list
       .filter((enquiry) => {
@@ -167,7 +222,8 @@ export default function PartnerEnquiryList() {
         }
         if (dateRange !== "all") {
           const today = dayjs();
-          const checkIn = dayjs(enquiry.check_in_time);
+          const checkIn = parseFlexibleDate(enquiry.check_in_time);
+          if (!checkIn) return false;
           if (dateRange === "upcoming" && checkIn.isBefore(today, "day")) {
             return false;
           }
@@ -183,6 +239,56 @@ export default function PartnerEnquiryList() {
       );
   }, [enquiries, searchId, city, dateRange]);
 
+  const filteredProposals = useMemo(() => {
+    const list = Array.isArray(proposals) ? proposals : [];
+    return list
+      .filter((proposal) => {
+        if (searchId) {
+          const term = searchId.toLowerCase();
+          const displayId = (proposal.display_id || "").toLowerCase();
+          const id = String(proposal.id || "").toLowerCase();
+          if (!displayId.includes(term) && !id.includes(term)) return false;
+        }
+        if (city) {
+          const place = [
+            proposal.city,
+            proposal.destination,
+            proposal.country,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+          if (!place.includes(city.toLowerCase())) return false;
+        }
+        if (dateRange !== "all") {
+          const today = dayjs();
+          const checkIn = parseFlexibleDate(
+            proposal.check_in_time || proposal.check_in
+          );
+          if (!checkIn) return false;
+          if (dateRange === "upcoming" && checkIn.isBefore(today, "day")) {
+            return false;
+          }
+          if (dateRange === "past" && checkIn.isAfter(today, "day")) {
+            return false;
+          }
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        const aDate =
+          parseFlexibleDate(a.created_at) ||
+          parseFlexibleDate(a.check_in_time) ||
+          dayjs(0);
+        const bDate =
+          parseFlexibleDate(b.created_at) ||
+          parseFlexibleDate(b.check_in_time) ||
+          dayjs(0);
+        return bDate.valueOf() - aDate.valueOf();
+      });
+  }, [proposals, searchId, city, dateRange]);
+
+  const filtered = isProposals ? filteredProposals : filteredEnquiries;
   const totalPages = Math.max(1, Math.ceil(filtered.length / rowsPerPage));
   const pageSafe = Math.min(page, totalPages - 1);
   const pageItems = filtered.slice(
@@ -218,57 +324,82 @@ export default function PartnerEnquiryList() {
     }
   };
 
-  if (status === "loading" && (!enquiries || enquiries.length === 0)) {
-    return (
-      <div className="partner-quotes-empty">
-        <CircularProgress size={22} />
-        <span>Loading quick enquiries…</span>
-      </div>
-    );
-  }
+  const handleReviewProposal = (proposal) => {
+    if (!proposal?.id) return;
+    navigate(appPath("bookings"), {
+      state: { openTour: proposal, proposalReview: true },
+    });
+  };
 
-  if (status === "failed") {
-    return (
-      <div className="partner-quotes-empty partner-quotes-empty--error">
-        <span>{error || "Could not load enquiries."}</span>
-        <button type="button" className="partner-btn" onClick={refresh}>
-          Try again
-        </button>
-      </div>
-    );
-  }
+  const switchTab = (next) => {
+    if (next === listTab) return;
+    setListTab(next);
+    setSearchId("");
+    setCity("");
+    setDateRange("all");
+    setPage(0);
+  };
+
+  const listLoading = isProposals
+    ? proposalsStatus === "loading" && (!proposals || proposals.length === 0)
+    : status === "loading" && (!enquiries || enquiries.length === 0);
+
+  const listFailed = isProposals
+    ? proposalsStatus === "failed" && (!proposals || proposals.length === 0)
+    : status === "failed";
 
   return (
     <div className="partner-enquiry">
-      <div className="partner-summary-grid partner-enquiry__stats">
-        <div className="partner-stat" style={{ cursor: "default" }}>
-          <span className="partner-stat__label">Total enquiries</span>
-          <strong className="partner-stat__value">{stats?.total || 0}</strong>
+      {!isProposals ? (
+        <div className="partner-summary-grid partner-enquiry__stats">
+          <div className="partner-stat" style={{ cursor: "default" }}>
+            <span className="partner-stat__label">Total enquiries</span>
+            <strong className="partner-stat__value">{stats?.total || 0}</strong>
+          </div>
+          <div className="partner-stat" style={{ cursor: "default" }}>
+            <span className="partner-stat__label">With hotel</span>
+            <strong className="partner-stat__value">
+              {stats?.withHotel || 0}
+            </strong>
+          </div>
+          <div className="partner-stat" style={{ cursor: "default" }}>
+            <span className="partner-stat__label">With transfers</span>
+            <strong className="partner-stat__value">
+              {(stats?.withPickup || 0) + (stats?.withPort || 0)}
+            </strong>
+          </div>
+          <div className="partner-stat" style={{ cursor: "default" }}>
+            <span className="partner-stat__label">With experiences</span>
+            <strong className="partner-stat__value">
+              {(stats?.withAttractions || 0) +
+                (stats?.withRestaurants || 0) +
+                (stats?.withGuides || 0)}
+            </strong>
+          </div>
         </div>
-        <div className="partner-stat" style={{ cursor: "default" }}>
-          <span className="partner-stat__label">With hotel</span>
-          <strong className="partner-stat__value">{stats?.withHotel || 0}</strong>
-        </div>
-        <div className="partner-stat" style={{ cursor: "default" }}>
-          <span className="partner-stat__label">With transfers</span>
-          <strong className="partner-stat__value">
-            {(stats?.withPickup || 0) + (stats?.withPort || 0)}
-          </strong>
-        </div>
-        <div className="partner-stat" style={{ cursor: "default" }}>
-          <span className="partner-stat__label">With experiences</span>
-          <strong className="partner-stat__value">
-            {(stats?.withAttractions || 0) +
-              (stats?.withRestaurants || 0) +
-              (stats?.withGuides || 0)}
-          </strong>
-        </div>
+      ) : null}
+
+      <div className="partner-seg partner-enquiry__tabs">
+        {LIST_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            className={`partner-seg__btn${
+              listTab === tab.id ? " is-active" : ""
+            }`}
+            onClick={() => switchTab(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       <div className="partner-toolbar partner-enquiry__toolbar">
         <div className="partner-enquiry__filters">
           <div className="partner-field">
-            <label htmlFor="pq-search">Enquiry ID</label>
+            <label htmlFor="pq-search">
+              {isProposals ? "Proposal ID" : "Enquiry ID"}
+            </label>
             <input
               id="pq-search"
               type="search"
@@ -319,9 +450,138 @@ export default function PartnerEnquiryList() {
         </button>
       </div>
 
-      {pageItems.length === 0 ? (
+      {listLoading ? (
         <div className="partner-quotes-empty">
-          <span>No quick enquiries match your filters.</span>
+          <CircularProgress size={22} />
+          <span>
+            {isProposals ? "Loading proposals…" : "Loading quick enquiries…"}
+          </span>
+        </div>
+      ) : listFailed ? (
+        <div className="partner-quotes-empty partner-quotes-empty--error">
+          <span>
+            {isProposals
+              ? proposalsError || "Could not load proposals."
+              : error || "Could not load enquiries."}
+          </span>
+          <button type="button" className="partner-btn" onClick={refresh}>
+            Try again
+          </button>
+        </div>
+      ) : pageItems.length === 0 ? (
+        <div className="partner-quotes-empty">
+          <span>
+            {isProposals
+              ? "No proposals match your filters."
+              : "No quick enquiries match your filters."}
+          </span>
+        </div>
+      ) : isProposals ? (
+        <div className="partner-list">
+          {pageItems.map((proposal) => {
+            const label = statusLabel(proposal);
+            const tone = statusTone(label);
+            const title =
+              proposal.customer_name ||
+              proposal.tour_name ||
+              proposal.display_id ||
+              `Proposal #${proposal.id}`;
+            const place = [
+              proposal.destination || proposal.city,
+              proposal.country,
+            ]
+              .filter(Boolean)
+              .join(", ");
+            const checkIn = parseFlexibleDate(
+              proposal.check_in_time || proposal.check_in
+            );
+            const checkOut = parseFlexibleDate(
+              proposal.check_out_time || proposal.check_out
+            );
+            const dates =
+              checkIn && checkOut
+                ? `${checkIn.format("DD MMM YYYY")} — ${checkOut.format(
+                    "DD MMM YYYY"
+                  )}`
+                : checkIn
+                  ? checkIn.format("DD MMM YYYY")
+                  : null;
+            const guests = guestLine(proposal);
+            const dmcName = proposal.dmc_company_name || null;
+            const multiEnqId = proposal.multi_enq_id || null;
+            const finalAmount = Number(proposal.finalAmountWithTax);
+            const ceilingAmount = Number.isFinite(finalAmount)
+              ? Math.ceil(finalAmount)
+              : null;
+            const currency =
+              String(proposal.currency || "").trim() || "SGD";
+
+            return (
+              <div
+                className="partner-list-item partner-enquiry__item"
+                key={proposal.id || proposal.display_id}
+              >
+                <div className="partner-enquiry__main">
+                  <div className="partner-enquiry__chips">
+                    <span className={`partner-chip partner-chip--${tone}`}>
+                      {label}
+                    </span>
+                    {dmcName ? (
+                      <span
+                        className="partner-chip partner-chip--blue"
+                        title="DMC"
+                      >
+                        {dmcName}
+                      </span>
+                    ) : null}
+                    {multiEnqId ? (
+                      <span
+                        className="partner-chip partner-chip--amber"
+                        title="Multi enquiry ID"
+                      >
+                        {multiEnqId}
+                      </span>
+                    ) : null}
+                  </div>
+                  <h3>{title}</h3>
+                  <p>
+                    {[
+                      proposal.display_id ||
+                        (proposal.id ? `TC-${proposal.id}` : null),
+                      place,
+                      dates,
+                      guests,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                </div>
+                <div className="partner-enquiry__actions">
+                  <div
+                    className={`partner-enquiry__cta${
+                      ceilingAmount != null ? " has-amount" : ""
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      className="partner-btn partner-enquiry__cta-btn"
+                      onClick={() => handleReviewProposal(proposal)}
+                    >
+                      Review proposal →
+                    </button>
+                    {ceilingAmount != null ? (
+                      <span
+                        className="partner-enquiry__cta-amount"
+                        title="Final amount with tax"
+                      >
+                        {currency} {ceilingAmount.toLocaleString()}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       ) : (
         <div className="partner-list">
@@ -345,6 +605,7 @@ export default function PartnerEnquiryList() {
                     enquiry.check_out_time
                   ).format("DD MMM YYYY")}`
                 : null;
+            const dmcName = enquiry.dmc_name || null;
 
             return (
               <div
@@ -352,11 +613,19 @@ export default function PartnerEnquiryList() {
                 key={enquiry.enquiry_id || enquiry.id || enquiry.display_id}
               >
                 <div className="partner-enquiry__main">
-                  <span
-                    className={`partner-chip partner-chip--${tone}`}
-                  >
-                    {label}
-                  </span>
+                  <div className="partner-enquiry__chips">
+                    <span className={`partner-chip partner-chip--${tone}`}>
+                      {label}
+                    </span>
+                    {dmcName ? (
+                      <span
+                        className="partner-chip partner-chip--blue"
+                        title="DMC"
+                      >
+                        {dmcName}
+                      </span>
+                    ) : null}
+                  </div>
                   <h3>{title}</h3>
                   <p>
                     {[
@@ -393,7 +662,9 @@ export default function PartnerEnquiryList() {
                     <button
                       type="button"
                       className="partner-btn partner-btn--primary"
-                      disabled={convertingId === (enquiry.enquiry_id || enquiry.id)}
+                      disabled={
+                        convertingId === (enquiry.enquiry_id || enquiry.id)
+                      }
                       onClick={() => handleConvert(enquiry)}
                     >
                       {convertingId === (enquiry.enquiry_id || enquiry.id)
@@ -401,7 +672,7 @@ export default function PartnerEnquiryList() {
                         : "Create tour →"}
                     </button>
                   )}
-                  <button
+                  {/* <button
                     type="button"
                     className="partner-btn"
                     onClick={() => {
@@ -411,7 +682,7 @@ export default function PartnerEnquiryList() {
                     }}
                   >
                     Review proposal →
-                  </button>
+                  </button> */}
                 </div>
               </div>
             );
@@ -419,7 +690,7 @@ export default function PartnerEnquiryList() {
         </div>
       )}
 
-      {filtered.length > rowsPerPage && (
+      {!listLoading && !listFailed && filtered.length > rowsPerPage && (
         <div className="partner-enquiry__pager">
           <button
             type="button"
@@ -430,7 +701,8 @@ export default function PartnerEnquiryList() {
             ← Previous
           </button>
           <span>
-            Page {pageSafe + 1} of {totalPages} · {filtered.length} enquiries
+            Page {pageSafe + 1} of {totalPages} · {filtered.length}{" "}
+            {isProposals ? "proposals" : "enquiries"}
           </span>
           <button
             type="button"

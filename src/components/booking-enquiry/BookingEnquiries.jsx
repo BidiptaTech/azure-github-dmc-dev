@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Switch,
   FormControlLabel,
@@ -25,6 +25,8 @@ import {
   Badge,
   Snackbar,
   Alert,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import { useLocation } from "react-router-dom";
 import { styled } from "@mui/material/styles";
@@ -44,6 +46,7 @@ import {
   Business as BusinessIcon,
   TravelExplore as TravelIcon,
   Search as SearchIcon,
+  LocationCity as LocationCityIcon,
 } from "@mui/icons-material";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -52,8 +55,14 @@ import {
   clearServiceDetails,
   clearSpecificService,
   updateCalculatedPrice,
+  setCityWiseServiceDetails,
+  clearCityWiseServiceDetails,
 } from "@/slice/common/EnquirySlice";
-import { fetchEnquiryList, clearEnquiryList } from "@/slice/common/enquiryListSlice";
+import {
+  fetchEnquiryList,
+  clearEnquiryList,
+  setActiveEnquiryCity,
+} from "@/slice/common/enquiryListSlice";
 import {
   fetchDMCsByCountry,
   fetchDMCCount,
@@ -299,6 +308,90 @@ const getServiceDescription = (option) => {
   }
 };
 
+const DEFAULT_BOOKING_OPTIONS = {
+  hotel: false,
+  entryExitPort: false,
+  attraction: false,
+  restaurant: false,
+};
+
+const DEFAULT_SERVICE_DETAILS = {
+  hotel: {
+    starCategory: null,
+    compareHotels: "no",
+    preferredHotels: [],
+    remarks: "",
+  },
+  entryExitPort: {
+    portAddress: null,
+    hotelDropOff: null,
+    carType: "sharable",
+    preferredCars: [],
+    remarks: "",
+    showEntryPort: true,
+    showExitPort: false,
+    entryDropoffLocationType: "hotel",
+    exitPickupLocationType: "hotel",
+    exitPortAddress: null,
+    exitPickupLocation: null,
+    destination: null,
+    attractionDropOff: null,
+    restaurantDropOff: null,
+    exitAttractionPickup: null,
+    exitRestaurantPickup: null,
+  },
+  attraction: {
+    selectedAttractions: [],
+    needTransport: false,
+    destinationType: "hotel",
+    destination: null,
+    carType: "sharable",
+    preferredCars: [],
+    remarks: "",
+  },
+  localTour: {
+    preferredCars: [],
+    remarks: "",
+  },
+  tourGuide: {
+    preferredGuides: [],
+    specialRequirements: "",
+  },
+  restaurant: {
+    selectedRestaurants: [],
+    needTransport: false,
+    destinationType: "hotel",
+    destination: null,
+    carType: "sharable",
+    preferredCars: [],
+    remarks: "",
+  },
+};
+
+/** Resolve ordered city names from enquiry_lists response or search location */
+const resolveEnquiryCities = (enquiryListCities, searchLocation) => {
+  if (Array.isArray(enquiryListCities) && enquiryListCities.length > 0) {
+    return enquiryListCities;
+  }
+  const structured = searchLocation?.cities;
+  if (Array.isArray(structured) && structured.length > 0) {
+    return structured
+      .map((c) => c?.city || c?.cityName)
+      .filter(Boolean)
+      .map((c) => String(c).trim());
+  }
+  const rawCity = searchLocation?.city || searchLocation?.cityName || "";
+  if (!rawCity) return [];
+  return [
+    ...new Set(
+      String(rawCity)
+        .split(",")
+        .map((c) => c.trim())
+        .filter(Boolean)
+    ),
+  ];
+};
+
 // Main component
 const BookingEnquiries = ({
   bookingOptions,
@@ -321,6 +414,11 @@ const BookingEnquiries = ({
   
   // Get enquiry list loading state for showing feedback when data is being refreshed
   const enquiryListLoading = useSelector((state) => state.enquiryList.loading);
+  const enquiryListCities = useSelector((state) => state.enquiryList.cities || []);
+  const activeEnquiryCity = useSelector((state) => state.enquiryList.activeCity);
+  const cityWiseServiceDetails = useSelector(
+    (state) => state.enquiry.cityWiseServiceDetails || {}
+  );
   
   // DMC-related state and selectors
   const apiDMCs = useSelector(selectDMCs);
@@ -340,6 +438,16 @@ const BookingEnquiries = ({
   // Determine the active location (priority: Redux > Navigation)
   const activeLocation = locationFromRedux || selectedLocationFromNavigation || 
     (selectedCountryFromNavigation ? { country: selectedCountryFromNavigation.name } : null);
+
+  // City tabs for multi-city enquiry lists
+  const enquiryCities = resolveEnquiryCities(
+    enquiryListCities,
+    enquiryData?.searchLocation || locationFromRedux
+  );
+  const [uiActiveCity, setUiActiveCity] = useState(null);
+  const activeCityTab = uiActiveCity || activeEnquiryCity || enquiryCities[0] || null;
+  // Keep latest drafts in a ref so city-switch handlers always see current form values
+  const cityDraftsRef = useRef({});
   
   // Component state
   const [validationError, setValidationError] = useState(null);
@@ -465,6 +573,9 @@ const BookingEnquiries = ({
     if (selectedDmcsData.length === 0) {
       console.log("🗑️ No DMCs selected - clearing enquiry list");
       dispatch(clearEnquiryList());
+      dispatch(clearCityWiseServiceDetails());
+      cityDraftsRef.current = {};
+      setUiActiveCity(null);
       return;
     }
 
@@ -529,6 +640,9 @@ const BookingEnquiries = ({
       
       // Clear enquiry list data (available hotels, restaurants, attractions, etc.)
       dispatch(clearEnquiryList());
+      dispatch(clearCityWiseServiceDetails());
+      cityDraftsRef.current = {};
+      setUiActiveCity(null);
       console.log("🗑️ Cleared enquiry list data (available options)");
       
       // Clear all selected items from services
@@ -1406,110 +1520,183 @@ const BookingEnquiries = ({
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
-    
-    // Validation: Check if at least one service is selected
-    const hasSelectedService = Object.values(bookingOptions).some(value => value === true);
+
+    // Persist active city draft first, then validate across all cities
+    const currentDraft = {
+      bookingOptions: { ...bookingOptions },
+      selectedServices: Object.keys(bookingOptions).filter((key) => bookingOptions[key]),
+      serviceDetails: {
+        hotel: {
+          starCategory: starCategory || null,
+          compareHotels: compareHotels || "no",
+          preferredHotels: selectedPreferredHotels || [],
+          remarks: hotelRemarks || enquiryData.serviceDetails?.hotel?.remarks || "",
+        },
+        entryExitPort: {
+          portAddress: selectedEntryPort || enquiryData.serviceDetails?.entryExitPort?.portAddress || null,
+          exitPortAddress: selectedExitPort || enquiryData.serviceDetails?.entryExitPort?.exitPortAddress || null,
+          hotelDropOff: selectedHotelDropOff || enquiryData.serviceDetails?.entryExitPort?.hotelDropOff || null,
+          attractionDropOff: selectedAttractionDropOff || enquiryData.serviceDetails?.entryExitPort?.attractionDropOff || null,
+          restaurantDropOff: selectedRestaurantDropOff || enquiryData.serviceDetails?.entryExitPort?.restaurantDropOff || null,
+          exitAttractionPickup: selectedExitAttractionPickup || enquiryData.serviceDetails?.entryExitPort?.exitAttractionPickup || null,
+          exitRestaurantPickup: selectedExitRestaurantPickup || enquiryData.serviceDetails?.entryExitPort?.exitRestaurantPickup || null,
+          carType: enquiryData.serviceDetails?.entryExitPort?.carType || "sharable",
+          preferredCars: selectedEntryExitCars || [],
+          remarks: entryExitPortRemarks || enquiryData.serviceDetails?.entryExitPort?.remarks || "",
+          showEntryPort: showEntryPort !== false,
+          showExitPort: !!showExitPort,
+          entryDropoffLocationType: entryDropoffLocationType || "hotel",
+          exitPickupLocationType: exitPickupLocationType || "hotel",
+          destination: selectedDestinations || null,
+        },
+        attraction: {
+          selectedAttractions: selectedAttractions || [],
+          needTransport: needTransport || false,
+          destinationType: enquiryData.serviceDetails?.attraction?.destinationType || "hotel",
+          destination: enquiryData.serviceDetails?.attraction?.destination || null,
+          carType: enquiryData.serviceDetails?.attraction?.carType || "sharable",
+          preferredCars: selectedAttractionCars || [],
+          remarks: attractionRemarks || enquiryData.serviceDetails?.attraction?.remarks || "",
+        },
+        localTour: {
+          preferredCars: selectedLocalTourCars || [],
+          remarks: localTourRemarks || enquiryData.serviceDetails?.localTour?.remarks || "",
+        },
+        tourGuide: {
+          preferredGuides: selectedGuides || [],
+          specialRequirements: tourGuideSpecialRequirements || enquiryData.serviceDetails?.tourGuide?.specialRequirements || "",
+        },
+        restaurant: {
+          selectedRestaurants: selectedRestaurants || [],
+          needTransport: needTransportType || false,
+          destinationType: enquiryData.serviceDetails?.restaurant?.destinationType || "hotel",
+          destination: enquiryData.serviceDetails?.restaurant?.destination || null,
+          carType: enquiryData.serviceDetails?.restaurant?.carType || "sharable",
+          preferredCars: selectedRestaurantCars || [],
+          remarks: restaurantRemarks || enquiryData.serviceDetails?.restaurant?.remarks || "",
+        },
+      },
+      expandedSections: { ...expandedSections },
+    };
+
+    if (activeCityTab) {
+      cityDraftsRef.current = {
+        ...cityDraftsRef.current,
+        [activeCityTab]: currentDraft,
+      };
+    }
+
+    const allCityDrafts = { ...cityDraftsRef.current };
+    const hasSelectedService = Object.values(allCityDrafts).some((draft) =>
+      Object.values(draft?.bookingOptions || {}).some(Boolean)
+    ) || Object.values(bookingOptions).some((value) => value === true);
+
     if (!hasSelectedService) {
-      setValidationError("Please select at least one service before continuing.");
+      setValidationError("Please select at least one service for a city before continuing.");
       setShowValidationError(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
-    
-    // Ensure all selected services are saved to Redux
-    dispatch(setSelectedServices(
-      Object.keys(bookingOptions).filter(key => bookingOptions[key])
-    ));
-    
-    // Save final data to Redux before moving to next step
-    Object.keys(bookingOptions).forEach((service) => {
-      if (bookingOptions[service]) {
-        // Make sure all form data is saved to Redux
-        switch(service) {
-          case 'hotel':
-            dispatch(updateServiceDetails({
-              service: 'hotel',
-              data: {
-                starCategory: starCategory || null,
-                compareHotels: compareHotels || 'no',
-                preferredHotels: selectedPreferredHotels || [],
-                remarks: enquiryData.serviceDetails?.hotel?.remarks || ""
-              }
-            }));
-            break;
-            
-          case 'entryExitPort':
-            dispatch(updateServiceDetails({
-              service: 'entryExitPort',
-              data: {
-                portAddress: enquiryData.serviceDetails?.entryExitPort?.portAddress || null,
-                hotelDropOff: enquiryData.serviceDetails?.entryExitPort?.hotelDropOff || null,
-                carType: enquiryData.serviceDetails?.entryExitPort?.carType || "sharable",
-                preferredCars: selectedEntryExitCars || [],
-                remarks: enquiryData.serviceDetails?.entryExitPort?.remarks || ""
-              }
-            }));
-            break;
-            
-          case 'attraction':
-            dispatch(updateServiceDetails({
-              service: 'attraction',
-              data: {
-                selectedAttractions: selectedAttractions || [],
-                needTransport: needTransport || false,
-                destinationType: enquiryData.serviceDetails?.attraction?.destinationType || "hotel",
-                destination: enquiryData.serviceDetails?.attraction?.destination || null,
-                carType: enquiryData.serviceDetails?.attraction?.carType || "sharable",
-                preferredCars: selectedAttractionCars || [],
-                remarks: enquiryData.serviceDetails?.attraction?.remarks || ""
-              }
-            }));
-            break;
-            
-          case 'localTour':
-            dispatch(updateServiceDetails({
-              service: 'localTour',
-              data: {
-                preferredCars: selectedLocalTourCars || [],
-                remarks: enquiryData.serviceDetails?.localTour?.remarks || ""
-              }
-            }));
-            break;
-            
-          case 'tourGuide':
-            dispatch(updateServiceDetails({
-              service: 'tourGuide',
-              data: {
-                preferredGuides: selectedGuides || [],
-                specialRequirements: enquiryData.serviceDetails?.tourGuide?.specialRequirements || ""
-              }
-            }));
-            break;
-            
-          case 'restaurant':
-            dispatch(updateServiceDetails({
-              service: 'restaurant',
-              data: {
-                selectedRestaurants: selectedRestaurants || [],
-                needTransport: needTransportType || false,
-                destinationType: enquiryData.serviceDetails?.restaurant?.destinationType || "hotel",
-                destination: enquiryData.serviceDetails?.restaurant?.destination || null,
-                carType: enquiryData.serviceDetails?.restaurant?.carType || "sharable",
-                preferredCars: selectedRestaurantCars || [],
-                remarks: enquiryData.serviceDetails?.restaurant?.remarks || ""
-              }
-            }));
-            break;
-            
-        
-            
-          default:
-            break;
+
+    // Persist full city-wise map for update-enquiry-form payload
+    dispatch(setCityWiseServiceDetails(allCityDrafts));
+    console.log("City-wise service drafts for submission:", allCityDrafts);
+
+    // Flatten selected services (union across cities) + active city details for ConfirmDetails
+    const unionServices = new Set();
+    Object.values(allCityDrafts).forEach((draft) => {
+      Object.keys(draft?.bookingOptions || {}).forEach((key) => {
+        if (draft.bookingOptions[key]) unionServices.add(key);
+      });
+    });
+    dispatch(setSelectedServices([...unionServices]));
+
+    // Merge service selections across cities into flat serviceDetails (for ConfirmDetails / pricing)
+    const merged = JSON.parse(JSON.stringify(DEFAULT_SERVICE_DETAILS));
+    Object.values(allCityDrafts).forEach((draft) => {
+      const d = draft?.serviceDetails || {};
+      if (d.hotel?.preferredHotels?.length) {
+        merged.hotel.preferredHotels = [
+          ...merged.hotel.preferredHotels,
+          ...d.hotel.preferredHotels,
+        ];
+        if (d.hotel.starCategory) merged.hotel.starCategory = d.hotel.starCategory;
+        if (d.hotel.remarks) merged.hotel.remarks = d.hotel.remarks;
+        if (d.hotel.compareHotels) merged.hotel.compareHotels = d.hotel.compareHotels;
+      }
+      if (d.attraction?.selectedAttractions?.length) {
+        merged.attraction.selectedAttractions = [
+          ...merged.attraction.selectedAttractions,
+          ...d.attraction.selectedAttractions,
+        ];
+        merged.attraction.needTransport =
+          merged.attraction.needTransport || !!d.attraction.needTransport;
+        if (d.attraction.remarks) merged.attraction.remarks = d.attraction.remarks;
+        if (d.attraction.preferredCars?.length) {
+          merged.attraction.preferredCars = [
+            ...(merged.attraction.preferredCars || []),
+            ...d.attraction.preferredCars,
+          ];
         }
       }
+      if (d.restaurant?.selectedRestaurants?.length) {
+        merged.restaurant.selectedRestaurants = [
+          ...merged.restaurant.selectedRestaurants,
+          ...d.restaurant.selectedRestaurants,
+        ];
+        merged.restaurant.needTransport =
+          merged.restaurant.needTransport || !!d.restaurant.needTransport;
+        if (d.restaurant.remarks) merged.restaurant.remarks = d.restaurant.remarks;
+        if (d.restaurant.preferredCars?.length) {
+          merged.restaurant.preferredCars = [
+            ...(merged.restaurant.preferredCars || []),
+            ...d.restaurant.preferredCars,
+          ];
+        }
+      }
+      if (d.entryExitPort) {
+        if (d.entryExitPort.preferredCars?.length) {
+          merged.entryExitPort.preferredCars = [
+            ...merged.entryExitPort.preferredCars,
+            ...d.entryExitPort.preferredCars,
+          ];
+        }
+        if (d.entryExitPort.portAddress) {
+          merged.entryExitPort.portAddress = d.entryExitPort.portAddress;
+        }
+        if (d.entryExitPort.exitPortAddress) {
+          merged.entryExitPort.exitPortAddress = d.entryExitPort.exitPortAddress;
+        }
+        if (d.entryExitPort.hotelDropOff) {
+          merged.entryExitPort.hotelDropOff = d.entryExitPort.hotelDropOff;
+        }
+        merged.entryExitPort.showEntryPort =
+          merged.entryExitPort.showEntryPort || d.entryExitPort.showEntryPort !== false;
+        merged.entryExitPort.showExitPort =
+          merged.entryExitPort.showExitPort || !!d.entryExitPort.showExitPort;
+        if (d.entryExitPort.remarks) {
+          merged.entryExitPort.remarks = d.entryExitPort.remarks;
+        }
+      }
+      if (d.localTour?.preferredCars?.length) {
+        merged.localTour.preferredCars = [
+          ...merged.localTour.preferredCars,
+          ...d.localTour.preferredCars,
+        ];
+      }
+      if (d.tourGuide?.preferredGuides?.length) {
+        merged.tourGuide.preferredGuides = [
+          ...merged.tourGuide.preferredGuides,
+          ...d.tourGuide.preferredGuides,
+        ];
+      }
+    });
+
+    Object.keys(merged).forEach((service) => {
+      dispatch(updateServiceDetails({ service, data: merged[service] }));
     });
     
-    console.log("All data saved to Redux state");
+    console.log("All data saved to Redux state (city-wise + merged)");
     
     // Reset all form data (local state only - keep Redux data for ConfirmDetails)
     setStarCategory("");
@@ -1799,8 +1986,295 @@ const BookingEnquiries = ({
     );
   };
 
+  // ----- Multi-city draft snapshot / restore -----
+  const buildCurrentCityDraft = useCallback(() => {
+    const serviceDetails = {
+      hotel: {
+        starCategory: starCategory || null,
+        compareHotels: compareHotels || "no",
+        preferredHotels: selectedPreferredHotels || [],
+        remarks: hotelRemarks || "",
+      },
+      entryExitPort: {
+        portAddress: selectedEntryPort || null,
+        exitPortAddress: selectedExitPort || null,
+        hotelDropOff: selectedHotelDropOff || null,
+        attractionDropOff: selectedAttractionDropOff || null,
+        restaurantDropOff: selectedRestaurantDropOff || null,
+        exitAttractionPickup: selectedExitAttractionPickup || null,
+        exitRestaurantPickup: selectedExitRestaurantPickup || null,
+        carType: enquiryData.serviceDetails?.entryExitPort?.carType || "sharable",
+        preferredCars: selectedEntryExitCars || [],
+        remarks: entryExitPortRemarks || "",
+        showEntryPort: showEntryPort !== false,
+        showExitPort: !!showExitPort,
+        entryDropoffLocationType: entryDropoffLocationType || "hotel",
+        exitPickupLocationType: exitPickupLocationType || "hotel",
+        destination: selectedDestinations || null,
+      },
+      attraction: {
+        selectedAttractions: selectedAttractions || [],
+        needTransport: !!needTransport,
+        destinationType: destinationType || "hotel",
+        destination: selectedDestinations || null,
+        carType: enquiryData.serviceDetails?.attraction?.carType || "sharable",
+        preferredCars: selectedAttractionCars || [],
+        remarks: attractionRemarks || "",
+      },
+      localTour: {
+        preferredCars: selectedLocalTourCars || [],
+        remarks: localTourRemarks || "",
+      },
+      tourGuide: {
+        preferredGuides: selectedGuides || [],
+        specialRequirements: tourGuideSpecialRequirements || "",
+      },
+      restaurant: {
+        selectedRestaurants: selectedRestaurants || [],
+        needTransport: !!needTransportType,
+        destinationType:
+          enquiryData.serviceDetails?.restaurant?.destinationType || "hotel",
+        destination:
+          enquiryData.serviceDetails?.restaurant?.destination || null,
+        carType: enquiryData.serviceDetails?.restaurant?.carType || "sharable",
+        preferredCars: selectedRestaurantCars || [],
+        remarks: restaurantRemarks || "",
+      },
+    };
+
+    return {
+      bookingOptions: { ...bookingOptions },
+      selectedServices: Object.keys(bookingOptions).filter(
+        (key) => bookingOptions[key]
+      ),
+      serviceDetails,
+      expandedSections: { ...expandedSections },
+    };
+  }, [
+    bookingOptions,
+    expandedSections,
+    starCategory,
+    compareHotels,
+    selectedPreferredHotels,
+    hotelRemarks,
+    selectedEntryPort,
+    selectedExitPort,
+    selectedHotelDropOff,
+    selectedAttractionDropOff,
+    selectedRestaurantDropOff,
+    selectedExitAttractionPickup,
+    selectedExitRestaurantPickup,
+    selectedEntryExitCars,
+    entryExitPortRemarks,
+    showEntryPort,
+    showExitPort,
+    entryDropoffLocationType,
+    exitPickupLocationType,
+    selectedDestinations,
+    selectedAttractions,
+    needTransport,
+    destinationType,
+    selectedAttractionCars,
+    attractionRemarks,
+    selectedLocalTourCars,
+    localTourRemarks,
+    selectedGuides,
+    tourGuideSpecialRequirements,
+    selectedRestaurants,
+    needTransportType,
+    selectedRestaurantCars,
+    restaurantRemarks,
+    enquiryData.serviceDetails,
+  ]);
+
+  const applyCityDraft = useCallback(
+    (draft) => {
+      const nextOptions = draft?.bookingOptions || { ...DEFAULT_BOOKING_OPTIONS };
+      const details = draft?.serviceDetails || DEFAULT_SERVICE_DETAILS;
+
+      setBookingOptions(nextOptions);
+      setExpandedSections(
+        draft?.expandedSections || {
+          hotel: !!nextOptions.hotel,
+          entryExitPort: !!nextOptions.entryExitPort,
+          attraction: !!nextOptions.attraction,
+          restaurant: !!nextOptions.restaurant,
+        }
+      );
+
+      setStarCategory(details.hotel?.starCategory || "");
+      setCompareHotels(details.hotel?.compareHotels || "no");
+      setSelectedPreferredHotels(details.hotel?.preferredHotels || []);
+      setHotelRemarks(details.hotel?.remarks || "");
+
+      setSelectedEntryPort(details.entryExitPort?.portAddress || null);
+      setSelectedExitPort(details.entryExitPort?.exitPortAddress || null);
+      setSelectedHotelDropOff(details.entryExitPort?.hotelDropOff || null);
+      setSelectedAttractionDropOff(
+        details.entryExitPort?.attractionDropOff || null
+      );
+      setSelectedRestaurantDropOff(
+        details.entryExitPort?.restaurantDropOff || null
+      );
+      setSelectedExitAttractionPickup(
+        details.entryExitPort?.exitAttractionPickup || null
+      );
+      setSelectedExitRestaurantPickup(
+        details.entryExitPort?.exitRestaurantPickup || null
+      );
+      setSelectedEntryExitCars(details.entryExitPort?.preferredCars || []);
+      setEntryExitPortRemarks(details.entryExitPort?.remarks || "");
+      setShowEntryPort(details.entryExitPort?.showEntryPort !== false);
+      setShowExitPort(!!details.entryExitPort?.showExitPort);
+      setEntryDropoffLocationType(
+        details.entryExitPort?.entryDropoffLocationType || "hotel"
+      );
+      setExitPickupLocationType(
+        details.entryExitPort?.exitPickupLocationType || "hotel"
+      );
+
+      setSelectedAttractions(details.attraction?.selectedAttractions || []);
+      setNeedTransport(!!details.attraction?.needTransport);
+      setDestinationType(details.attraction?.destinationType || "hotel");
+      setSelectedDestinations(details.attraction?.destination || []);
+      setSelectedAttractionCars(details.attraction?.preferredCars || []);
+      setAttractionRemarks(details.attraction?.remarks || "");
+
+      setSelectedLocalTourCars(details.localTour?.preferredCars || []);
+      setLocalTourRemarks(details.localTour?.remarks || "");
+
+      setSelectedGuides(details.tourGuide?.preferredGuides || []);
+      setTourGuideSpecialRequirements(
+        details.tourGuide?.specialRequirements || ""
+      );
+
+      setSelectedRestaurants(details.restaurant?.selectedRestaurants || []);
+      setNeedTransportType(!!details.restaurant?.needTransport);
+      setSelectedRestaurantCars(details.restaurant?.preferredCars || []);
+      setRestaurantRemarks(details.restaurant?.remarks || "");
+
+      // Sync flat Redux serviceDetails for ConfirmDetails / pricing (active city)
+      Object.keys(details).forEach((service) => {
+        dispatch(
+          updateServiceDetails({
+            service,
+            data: details[service],
+          })
+        );
+      });
+      dispatch(
+        setSelectedServices(
+          Object.keys(nextOptions).filter((key) => nextOptions[key])
+        )
+      );
+    },
+    [dispatch, setBookingOptions]
+  );
+
+  const persistCityDraft = useCallback(
+    (cityName, draft) => {
+      if (!cityName || !draft) return;
+      cityDraftsRef.current = {
+        ...cityDraftsRef.current,
+        [cityName]: draft,
+      };
+      dispatch(
+        setCityWiseServiceDetails({
+          city: cityName,
+          data: draft,
+        })
+      );
+    },
+    [dispatch]
+  );
+
+  // Initialize / sync active city tab when cities become available
+  useEffect(() => {
+    if (!enquiryCities.length) return;
+    const preferred =
+      (uiActiveCity && enquiryCities.includes(uiActiveCity) && uiActiveCity) ||
+      (activeEnquiryCity &&
+        enquiryCities.includes(activeEnquiryCity) &&
+        activeEnquiryCity) ||
+      enquiryCities[0];
+
+    if (!uiActiveCity || !enquiryCities.includes(uiActiveCity)) {
+      setUiActiveCity(preferred);
+    }
+    if (preferred && preferred !== activeEnquiryCity) {
+      dispatch(setActiveEnquiryCity(preferred));
+    }
+
+    // Seed empty drafts for new cities
+    enquiryCities.forEach((city) => {
+      if (!cityDraftsRef.current[city] && !cityWiseServiceDetails[city]) {
+        cityDraftsRef.current[city] = {
+          bookingOptions: { ...DEFAULT_BOOKING_OPTIONS },
+          selectedServices: [],
+          serviceDetails: JSON.parse(JSON.stringify(DEFAULT_SERVICE_DETAILS)),
+          expandedSections: {
+            hotel: false,
+            entryExitPort: false,
+            attraction: false,
+            restaurant: false,
+          },
+        };
+      } else if (cityWiseServiceDetails[city] && !cityDraftsRef.current[city]) {
+        cityDraftsRef.current[city] = cityWiseServiceDetails[city];
+      }
+    });
+  }, [
+    enquiryCities,
+    uiActiveCity,
+    activeEnquiryCity,
+    cityWiseServiceDetails,
+    dispatch,
+  ]);
+
+  const handleCityTabChange = (_event, newCity) => {
+    if (!newCity || newCity === activeCityTab) return;
+
+    // Save current city selections before switching
+    if (activeCityTab) {
+      const currentDraft = buildCurrentCityDraft();
+      persistCityDraft(activeCityTab, currentDraft);
+    }
+
+    const nextDraft =
+      cityDraftsRef.current[newCity] ||
+      cityWiseServiceDetails[newCity] || {
+        bookingOptions: { ...DEFAULT_BOOKING_OPTIONS },
+        selectedServices: [],
+        serviceDetails: JSON.parse(JSON.stringify(DEFAULT_SERVICE_DETAILS)),
+        expandedSections: {
+          hotel: false,
+          entryExitPort: false,
+          attraction: false,
+          restaurant: false,
+        },
+      };
+
+    setUiActiveCity(newCity);
+    dispatch(setActiveEnquiryCity(newCity));
+    applyCityDraft(nextDraft);
+  };
+
+  // Any city with at least one service selected counts for validation
+  const anyCityHasService = () => {
+    const drafts = {
+      ...cityWiseServiceDetails,
+      ...cityDraftsRef.current,
+    };
+    if (activeCityTab) {
+      drafts[activeCityTab] = buildCurrentCityDraft();
+    }
+    return Object.values(drafts).some((draft) =>
+      Object.values(draft?.bookingOptions || {}).some(Boolean)
+    );
+  };
+
   const needsDmc = selectedDmcsData.length === 0;
-  const needsService = !Object.values(bookingOptions).some((value) => value === true);
+  const needsService = !anyCityHasService();
 
   return (
     <Box sx={{ width: "100%" }}>
@@ -1890,12 +2364,110 @@ const BookingEnquiries = ({
             </Paper>
           )}
 
-          <Grid container spacing={{ xs: 1, sm: 1.5, md: 1.5 }} alignItems="flex-start">
+          {/* City tabs — filter service catalogue + store selections per city */}
+          {selectedDmcsData.length > 0 && enquiryCities.length > 0 && (
+            <Paper
+              elevation={0}
+              sx={{
+                mb: 1.5,
+                p: 1.5,
+                background: "#fff",
+                borderRadius: "13px",
+                border: "1px solid #e4eaf3",
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
+                <LocationCityIcon sx={{ fontSize: 18, color: "#3554D1", mr: 0.75 }} />
+                <Typography
+                  variant="subtitle1"
+                  sx={{ fontWeight: 600, color: "#14213d", fontSize: "0.95rem" }}
+                >
+                  Select City
+                </Typography>
+                {activeCityTab && (
+                  <Typography
+                    variant="caption"
+                    sx={{ ml: 1.25, color: "#64748b", fontSize: "0.75rem" }}
+                  >
+                    Configuring services for {activeCityTab}
+                  </Typography>
+                )}
+              </Box>
+              <Tabs
+                value={activeCityTab || enquiryCities[0]}
+                onChange={handleCityTabChange}
+                variant={isMobile ? "scrollable" : "standard"}
+                scrollButtons="auto"
+                allowScrollButtonsMobile
+                sx={{
+                  minHeight: 40,
+                  "& .MuiTab-root": {
+                    minHeight: 40,
+                    textTransform: "none",
+                    fontWeight: 600,
+                    fontSize: "0.875rem",
+                    color: "#64748b",
+                  },
+                  "& .Mui-selected": {
+                    color: "#3554D1 !important",
+                  },
+                  "& .MuiTabs-indicator": {
+                    backgroundColor: "#3554D1",
+                    height: 3,
+                    borderRadius: "3px 3px 0 0",
+                  },
+                }}
+              >
+                {enquiryCities.map((city) => {
+                  const draft =
+                    (city === activeCityTab
+                      ? null
+                      : cityDraftsRef.current[city] || cityWiseServiceDetails[city]) ||
+                    null;
+                  const selectedCount = draft
+                    ? Object.values(draft.bookingOptions || {}).filter(Boolean).length
+                    : city === activeCityTab
+                      ? Object.values(bookingOptions).filter(Boolean).length
+                      : 0;
+                  return (
+                    <Tab
+                      key={city}
+                      value={city}
+                      label={
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                          <span>{city}</span>
+                          {selectedCount > 0 && (
+                            <Chip
+                              size="small"
+                              label={selectedCount}
+                              sx={{
+                                height: 20,
+                                fontSize: "0.7rem",
+                                bgcolor: city === activeCityTab ? "#3554D1" : "#e2e8f0",
+                                color: city === activeCityTab ? "#fff" : "#475569",
+                              }}
+                            />
+                          )}
+                        </Box>
+                      }
+                    />
+                  );
+                })}
+              </Tabs>
+            </Paper>
+          )}
+
+          <Grid
+            container
+            spacing={{ xs: 1, sm: 1.5, md: 1.5 }}
+            alignItems="flex-start"
+            key={activeCityTab || "services"}
+          >
             {Object.keys(bookingOptions)
               // Local Tour & Tour Guide temporarily hidden (commented out of bookingOptions)
               .filter((option) => option !== "localTour" && option !== "tourGuide")
               .map((option) => (
-              <Grid item xs={12} sm={12} md={6} lg={6} key={option}>
+              <Grid item xs={12} sm={12} md={6} lg={6} key={`${activeCityTab || "city"}-${option}`}>
               <StyledCard
                 selected={bookingOptions[option]}
                 serviceType={option}

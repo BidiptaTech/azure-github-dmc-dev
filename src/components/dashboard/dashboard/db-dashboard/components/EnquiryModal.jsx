@@ -48,18 +48,20 @@ const EnquiryModal = ({
       const actual = parseFloat(item.actual_price);
       const current = parseFloat(item.current_price);
       const currency = String(item?.currency || "").trim() || "SGD";
+      // Ceil to match displayed prices and initial negotiated amounts
+      // (parents seed countryEnquiryAmounts with Math.ceil(current_price)).
       map[country] = {
         country,
         currency,
         actual_price: Number.isFinite(actual)
-          ? actual
+          ? Math.ceil(actual)
           : Number.isFinite(current)
-            ? current
+            ? Math.ceil(current)
             : 0,
         current_price: Number.isFinite(current)
-          ? current
+          ? Math.ceil(current)
           : Number.isFinite(actual)
-            ? actual
+            ? Math.ceil(actual)
             : 0,
       };
     });

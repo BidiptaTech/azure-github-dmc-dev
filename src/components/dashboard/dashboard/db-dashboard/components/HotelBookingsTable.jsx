@@ -17,6 +17,7 @@ import { Typography, Box, Chip, Avatar, alpha, Snackbar, Alert, Modal, TextField
 import { selectSelectedDmcLogo, selectSelectedDmcCompanyName } from "../../../../../slice/dmc/dmcSlice"; // Import DMC slice selectors
 import { singleBooking } from "@/slice/common/commonSlice";
 import { fetchViewDetails } from "@/slice/common/ViewDetails";
+import { useBookingDetailMode } from "@/components/workspace/BookingDetailModeContext";
 
 // Function to capitalize first letter
 const capitalizeFirstLetter = (string) => {
@@ -77,6 +78,7 @@ const getStatusStyle = (statusText) => {
 };
 
 const HotelBookingsTable = React.memo(({ onCountChange }) => {
+  const { hideCancel } = useBookingDetailMode();
   const dispatch = useDispatch();
   const { bookings, status, error } = useSelector((state) => state.viewDetails);
   const [selectedBooking, setSelectedBooking] = useState(null);
@@ -588,7 +590,7 @@ const HotelBookingsTable = React.memo(({ onCountChange }) => {
                         >
                           View
                         </Button>
-                      {tourStatus !== "Actual" && (
+                      {!hideCancel && tourStatus !== "Actual" && (
                         <Button
                           variant="contained"
                           size="small"

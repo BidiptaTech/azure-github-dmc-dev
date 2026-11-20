@@ -66,6 +66,7 @@ import TourPackagesEmbed from "./pages/workspace/TourPackagesEmbed";
 import PreDefinePackagesEmbed from "./pages/workspace/PreDefinePackagesEmbed";
 import BookingEnquiryEmbed from "./pages/workspace/BookingEnquiryEmbed";
 import LegacyDashboardRedirect from "./pages/workspace/LegacyDashboardRedirect";
+import DmcSignIn from "./pages/dmc-signin/DmcSignIn";
 
 const AUTO_LOGOUT_TIME = 7 * 24 * 60 * 60 * 1000;
 
@@ -109,6 +110,12 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login onLogin={handleLogin} />} />
+          <Route
+            path="/agent/sign-in"
+            element={<Login onLogin={handleLogin} />}
+          />
+          <Route path="/travos" element={<DmcSignIn />} />
+          <Route path="/travos/" element={<DmcSignIn />} />
           <Route path="/register" element={<Register />} />
           <Route path="/verify-otp" element={<OTPVerification />} />
           <Route path="/" element={<LandingPage />} />

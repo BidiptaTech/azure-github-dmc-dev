@@ -24,6 +24,7 @@ import AirportShuttleIcon from "@mui/icons-material/AirportShuttle";
 import PaymentsIcon from "@mui/icons-material/Payments";
 import { singleBooking } from "@/slice/common/commonSlice";
 import { fetchViewDetails } from "@/slice/common/ViewDetails";
+import { useBookingDetailMode } from "@/components/workspace/BookingDetailModeContext";
 
 // Function to capitalize first letter
 const capitalizeFirstLetter = (string) => {
@@ -84,6 +85,7 @@ const getStatusStyle = (statusText) => {
 };
 
 const LocalTransfer = React.memo(({ onCountChange}) => {
+  const { hideCancel } = useBookingDetailMode();
   const dispatch = useDispatch();
   const { bookings, status, error } = useSelector((state) => state.viewDetails);
   console.log("bookings", bookings, "status", status, "error", error);
@@ -704,7 +706,7 @@ const LocalTransfer = React.memo(({ onCountChange}) => {
                         >
                           View
                         </Button>
-                        {tourStatus !== "Actual" && (
+                        {!hideCancel && tourStatus !== "Actual" && (
                         <Button
                           variant="contained"
                           size="small"

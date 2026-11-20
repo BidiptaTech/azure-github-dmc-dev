@@ -46,17 +46,15 @@ export default function TourPackages({ mode = "packages" } = {}) {
     <div className={`partner-tour-packages${isBuilding ? " is-building" : ""}`}>
       {!isBuilding ? (
         <div className="partner-plan-hero partner-tour-packages__hero">
-          {!isPlanMode ? (
-            <div className="partner-tour-packages__back">
-              <button
-                type="button"
-                className="partner-btn partner-btn--secondary"
-                onClick={() => navigate(appPath("packages"))}
-              >
-                ← Back to packages
-              </button>
-            </div>
-          ) : null}
+          <button
+            type="button"
+            className="partner-back"
+            onClick={() =>
+              navigate(isPlanMode ? appPath("bookings") : appPath("packages"))
+            }
+          >
+            {isPlanMode ? "← My bookings" : "← Packages"}
+          </button>
           <Hero1
             pageKicker={isPlanMode ? "Plan a trip" : "Tour packages"}
             pageTitle={heroTitle}

@@ -169,12 +169,13 @@ const Counter = ({
               <Grid item xs={6}>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <Avatar sx={{ 
-                    bgcolor: 'primary.light', 
+                    bgcolor: '#42A5F5', 
+                    color: '#fff',
                     width: { xs: 24, sm: 28 }, 
                     height: { xs: 24, sm: 28 }, 
                     mr: { xs: 0.5, sm: 1 } 
                   }}>
-                    <MaleIcon sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }} />
+                    <MaleIcon sx={{ fontSize: { xs: '0.875rem', sm: '1rem' }, color: '#fff' }} />
                   </Avatar>
                   <Typography 
                     variant="body2" 
@@ -233,12 +234,13 @@ const Counter = ({
               <Grid item xs={6}>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <Avatar sx={{ 
-                    bgcolor: 'secondary.light', 
+                    bgcolor: '#BA68C8', 
+                    color: '#fff',
                     width: { xs: 24, sm: 28 }, 
                     height: { xs: 24, sm: 28 }, 
                     mr: { xs: 0.5, sm: 1 } 
                   }}>
-                    <FemaleIcon sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }} />
+                    <FemaleIcon sx={{ fontSize: { xs: '0.875rem', sm: '1rem' }, color: '#fff' }} />
                   </Avatar>
                   <Typography 
                     variant="body2" 
