@@ -54,14 +54,22 @@
         $spdOfflineTax = 0.0;
         $spdOfflineTotal = 0.0;
         $spdOfflineRemaining = 0.0;
-        $spdOnlineTotal = max($spdInvoiceTotal, round($spdOnlinePaid, 2));
-        $spdOnlineBase = max($spdInvoiceBase, round($spdOnlinePaid, 2));
+        // Prefer exact online paid / invoice amounts — do not inflate with ceil'd package totals
+        // (e.g. 34.90 paid must not show BASE/TOTAL 35.00).
+        $spdOnlinePaidRounded = round($spdOnlinePaid, 2);
+        if ($spdOnlinePaidRounded > 0.009) {
+            $spdOnlineTotal = $spdOnlinePaidRounded;
+            $spdOnlineBase = $spdOnlinePaidRounded;
+        } else {
+            $spdOnlineTotal = round($spdInvoiceTotal, 2);
+            $spdOnlineBase = round($spdInvoiceBase, 2);
+        }
         $spdOnlineTax = $spdInvoiceTax;
-        $spdOnlineSettled = $spdAcceptance->onlinePortionSettled($tour) || $spdOnlinePaid > 0.009;
+        $spdOnlineSettled = $spdAcceptance->onlinePortionSettled($tour) || $spdOnlinePaidRounded > 0.009;
         $spdOnlineRemaining = $spdOnlineSettled
             ? 0.0
-            : max(0, round($spdOnlineTotal - $spdOnlinePaid, 2));
-        if ($spdOnlineSettled && $spdOnlinePaid <= 0.009) {
+            : max(0, round($spdOnlineTotal - $spdOnlinePaidRounded, 2));
+        if ($spdOnlineSettled && $spdOnlinePaidRounded <= 0.009) {
             $spdOnlinePaid = $spdOnlineTotal;
         }
     } else {

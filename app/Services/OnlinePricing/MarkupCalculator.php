@@ -35,7 +35,8 @@ class MarkupCalculator
     }
 
     /**
-     * Final online sell price — keep exact cents (no whole-unit ceil).
+     * Final customer-facing price — keep cents (e.g. 1.00 + 7% = 1.07).
+     * Do not ceil to whole units: that turned SGD 1.07 into 2.00 on attractions.
      */
     private function finalizePrice(float $price): float
     {

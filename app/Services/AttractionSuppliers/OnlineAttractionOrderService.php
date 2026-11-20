@@ -61,6 +61,7 @@ class OnlineAttractionOrderService
     {
         $candidates = [
             $order->order_ref_no ?? null,
+            $attraction['order_reference_id'] ?? null,
             $attraction['external_order_ref_id'] ?? null,
             $attraction['attraction_order_ref_id'] ?? null,
         ];
@@ -289,6 +290,7 @@ class OnlineAttractionOrderService
             return $attraction;
         }
 
+        $attraction['order_reference_id'] = $ref;
         $attraction['external_order_ref_id'] = $ref;
         $attraction['attraction_order_ref_id'] = $ref;
         if ($status !== null && $status !== '') {
@@ -539,12 +541,16 @@ class OnlineAttractionOrderService
             $first = $vouchers[0] ?? null;
             if (is_array($first)) {
                 $code = trim((string) ($first['code'] ?? $first['voucher_code'] ?? ''));
-                $download = trim((string) ($first['download_link'] ?? $first['voucher'] ?? ''));
+                $download = trim((string) ($first['download_link'] ?? $first['voucher'] ?? $first['voucher_url'] ?? $first['voucher_image'] ?? ''));
+                $image = trim((string) ($first['voucher'] ?? $first['voucher_url'] ?? $first['voucher_image'] ?? $first['download_link'] ?? ''));
                 if ($code !== '') {
                     $attraction['voucher_code'] = $code;
                 }
                 if ($download !== '') {
                     $attraction['voucher_download_link'] = $download;
+                }
+                if ($image !== '') {
+                    $attraction['voucher_image'] = $image;
                 }
             }
         }
@@ -845,14 +851,19 @@ class OnlineAttractionOrderService
             $ticketSku = $ticketId;
         }
 
-        // Prefer cost / provider unit — Pro stores sell (with DMC markup) in adult_price
-        $unit = (float) (
-            $attraction['adultCost']
-            ?? $attraction['ticket_details']['adult_cost']
-            ?? $attraction['adultPrice']
-            ?? $attraction['ticket_details']['adult_price']
-            ?? 0
-        );
+        // Fallback only when live fetchTickets is unavailable. Prefer peeling stamped
+        // catalog prices; never use DMC sell / provider_total_amount (commercial totals).
+        $unit = $this->rawCatalogUnitFromAttractionPayload($attraction);
+        if ($unit <= 0) {
+            $unit = (float) (
+                $attraction['provider_unit_price']
+                ?? $attraction['adultCost']
+                ?? $attraction['ticket_details']['adult_cost']
+                ?? $attraction['cost_price']
+                ?? $attraction['cost']
+                ?? 0
+            );
+        }
 
         return [
             'sku_id' => $ticketSku,
@@ -1042,49 +1053,155 @@ class OnlineAttractionOrderService
     }
 
     /**
-     * Provider net total (not DMC markup). /order/create validates:
-     * total_amount === catalog_unit_price × item_quantity_1 (single SKU line).
-     * Do not mix adult/child sell prices from the Pro form — that caused
-     * "Total amount discrepancy" (e.g. 3×$1 + 1×$6 = $9 vs expected 4×$1 = $4).
+     * Provider catalog total for /order/create and credit checks.
+     * Supplier validates: total_amount === catalog_unit_price × item_quantity_1.
+     *
+     * Always prefer the live ticket unit from fetchTickets (raw catalog, no TravClicks
+     * admin/DMC markup). Pro "cost"/"provider_total_amount" are commercial fields after
+     * peel and caused "Total amount discrepancy" (e.g. sent 13.00 vs catalog 10.00).
      *
      * @param  array<string, mixed>  $attraction
      * @param  array{sku_id?: string, ticket_id?: string, adult_price?: float}  $ticket
      */
     private function providerTotalAmount(array $attraction, int $adults, int $children, int $quantity, array $ticket = []): string
     {
-        $raw = [];
-        if (is_array($attraction['onlineAttractionRaw'] ?? null)) {
-            $raw = $attraction['onlineAttractionRaw'];
-        } elseif (is_array($attraction['raw'] ?? null)) {
-            $raw = $attraction['raw'];
+        $qty = max(1, $quantity > 0 ? $quantity : ($adults + $children));
+
+        // 1) Live catalog unit from resolveProviderTicket → adapter fetchTickets (no markup).
+        $unit = (float) ($ticket['adult_price'] ?? 0);
+
+        // 2) Raw ticket price embedded in onlineAttractionRaw (before UI markup), if present.
+        if ($unit <= 0) {
+            $unit = $this->rawCatalogUnitFromAttractionPayload($attraction);
         }
 
-        $low = (float) ($raw['lowest_ticket_price'] ?? $attraction['lowest_ticket_price'] ?? 0);
-        $high = (float) ($raw['highest_ticket_price'] ?? $attraction['highest_ticket_price'] ?? $low);
-        $wantPremium = stripos((string) ($attraction['ticketName'] ?? $attraction['ticketId'] ?? ''), 'premium') !== false;
-        $unit = ($wantPremium && $high > 0) ? $high : $low;
-
-        // Prefer live/resolved catalog unit from the ticket SKU
-        $ticketUnit = (float) ($ticket['adult_price'] ?? 0);
-        if ($ticketUnit > 0) {
-            $unit = $ticketUnit;
-        }
-
-        // Fall back to provider cost fields only (never sell / DMC markup)
+        // 3) Last resort: stored cost fields (may still drift if markup peel is incomplete).
         if ($unit <= 0) {
             $unit = (float) (
-                $attraction['adultCost']
+                $attraction['provider_unit_price']
+                ?? $attraction['adultCost']
                 ?? $attraction['ticket_details']['adult_cost']
-                ?? $attraction['adultPrice']
-                ?? $attraction['ticket_details']['adult_price']
+                ?? $attraction['cost_price']
+                ?? $attraction['cost']
                 ?? 0
             );
         }
 
-        $qty = max(1, $quantity > 0 ? $quantity : ($adults + $children));
-        $total = $unit * $qty;
+        if ($unit <= 0) {
+            $raw = [];
+            if (is_array($attraction['onlineAttractionRaw'] ?? null)) {
+                $raw = $attraction['onlineAttractionRaw'];
+            } elseif (is_array($attraction['raw'] ?? null)) {
+                $raw = $attraction['raw'];
+            }
+            $low = (float) ($raw['lowest_ticket_price'] ?? $attraction['lowest_ticket_price'] ?? 0);
+            $high = (float) ($raw['highest_ticket_price'] ?? $attraction['highest_ticket_price'] ?? $low);
+            $wantPremium = stripos((string) ($attraction['ticketName'] ?? $attraction['ticketId'] ?? ''), 'premium') !== false;
+            $unit = ($wantPremium && $high > 0) ? $high : $low;
+        }
 
-        return number_format(max(0, $total), 2, '.', '');
+        return number_format(max(0, $unit * $qty), 2, '.', '');
+    }
+
+    /**
+     * Best-effort raw catalog unit from the attraction JSON (undo markup when rules are stamped).
+     *
+     * @param  array<string, mixed>  $attraction
+     */
+    private function rawCatalogUnitFromAttractionPayload(array $attraction): float
+    {
+        $ticketSku = trim((string) (
+            $attraction['ticket_sku_id']
+            ?? $attraction['provider_ticket_id']
+            ?? $attraction['ticketId']
+            ?? $attraction['ticket_id']
+            ?? ''
+        ));
+        $sources = [];
+        foreach (['onlineAttractionRaw', 'onlineAddSnapshot'] as $key) {
+            if (is_array($attraction[$key] ?? null)) {
+                $sources[] = $attraction[$key];
+            }
+        }
+        if (is_array($attraction['onlineAddSnapshot']['onlineAttractionRaw'] ?? null)) {
+            $sources[] = $attraction['onlineAddSnapshot']['onlineAttractionRaw'];
+        }
+
+        foreach ($sources as $source) {
+            $ticketLists = [];
+            foreach (['tickets', 'ticketDetails'] as $listKey) {
+                if (is_array($source[$listKey] ?? null)) {
+                    $ticketLists[] = $source[$listKey];
+                }
+            }
+            foreach ($ticketLists as $list) {
+                foreach ($list as $row) {
+                    if (! is_array($row)) {
+                        continue;
+                    }
+                    $rowSku = trim((string) (
+                        $row['sku_id'] ?? $row['ticketId'] ?? $row['ticket_id'] ?? $row['ticket_sku_id'] ?? ''
+                    ));
+                    if ($ticketSku !== '' && $rowSku !== '' && strcasecmp($rowSku, $ticketSku) !== 0) {
+                        continue;
+                    }
+                    $marked = 0.0;
+                    $price = $row['price'] ?? null;
+                    if (is_numeric($price)) {
+                        $marked = (float) $price;
+                    } elseif (is_array($price)) {
+                        $marked = (float) ($price['adult'] ?? $price['price'] ?? 0);
+                    } else {
+                        $marked = (float) ($row['adult_price'] ?? $row['adult'] ?? 0);
+                    }
+                    if ($marked <= 0) {
+                        continue;
+                    }
+                    // Prefer undoing stamped markup stack when present (admin + DMC).
+                    $raw = $this->peelAttractionMarkupToCatalog($marked, is_array($row['markup'] ?? null) ? $row['markup'] : null);
+                    if ($raw > 0) {
+                        return $raw;
+                    }
+
+                    return $marked;
+                }
+            }
+        }
+
+        return 0.0;
+    }
+
+    /**
+     * Reverse AttractionPriceMarkupApplier stack to recover supplier catalog unit.
+     *
+     * @param  array<string, mixed>|null  $markup
+     */
+    private function peelAttractionMarkupToCatalog(float $marked, ?array $markup): float
+    {
+        if ($marked <= 0 || $markup === null) {
+            return 0.0;
+        }
+
+        $value = $marked;
+        // Undo DMC rule first (applied last), then admin.
+        foreach (['dmc_rule', 'admin_rule'] as $ruleKey) {
+            $rule = is_array($markup[$ruleKey] ?? null) ? $markup[$ruleKey] : null;
+            if ($rule === null) {
+                continue;
+            }
+            $type = strtolower(trim((string) ($rule['type'] ?? $rule['markup_type'] ?? '')));
+            $amount = (float) ($rule['amount'] ?? $rule['value'] ?? $rule['markup_value'] ?? 0);
+            if ($amount <= 0) {
+                continue;
+            }
+            if ($type === 'percentage' || $type === 'percent') {
+                $value = $value / (1 + ($amount / 100));
+            } elseif ($type === 'flat' || $type === 'fixed') {
+                $value = $value - $amount;
+            }
+        }
+
+        return $value > 0 ? round($value, 2) : 0.0;
     }
 
     /**

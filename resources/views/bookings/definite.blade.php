@@ -3403,13 +3403,21 @@
         $discountAmount = $tourDiscountMoney;
         // Price after markup and discount = Gross + Markup − Discount (business calculation).
         $priceAfterFoc = max(0, $grossTourAmount + $tourMarkupMoney - $tourDiscountMoney);
-        $netPayableBase = (int) ceil($priceAfterFoc);
+        $tourIsOnlineOnly = strtolower(trim((string) ($tour->order_classification ?? ''))) === 'online'
+            || app(\App\Services\Payment\OrderClassificationService::class)->classifyTour($tour)
+                === \App\Services\Payment\OrderClassificationService::ONLINE;
+        // Online keep exact sell (34.90); offline package totals stay whole-number ceil.
+        $netPayableBase = $tourIsOnlineOnly
+            ? round($priceAfterFoc, 2)
+            : (float) ((int) ceil($priceAfterFoc));
         // Prefer converted country payable totals (already include markup/discount at negotiation time).
         if ($hasConvertedPricing && $convertedPayableFromDetails > 0) {
-            $netPayableBase = (int) ceil($convertedPayableFromDetails);
+            $netPayableBase = $tourIsOnlineOnly
+                ? round($convertedPayableFromDetails, 2)
+                : (float) ((int) ceil($convertedPayableFromDetails));
         }
         $baseAmount = $lastNegotiatedAmount > 0
-            ? (float) ceil($lastNegotiatedAmount)
+            ? ($tourIsOnlineOnly ? round((float) $lastNegotiatedAmount, 2) : (float) ceil($lastNegotiatedAmount))
             : (float) $netPayableBase;
         $netTourAmount = $baseAmount;
         $negotiationDiscount = max(0, $netPayableBase - $baseAmount);
@@ -7605,7 +7613,12 @@ function loadIndividualHotelContent(tourId, hotelOrderIndex, bookingIndex, modal
                 transferOptions: hotelData.transfer_options || null,
                 // Approval status
                 isApprove: hotelData.is_approve || false,
-                referenceId: hotelData.reference_id || hotelData.display_reference_id || null,
+                // Online: supplier booking ref; offline: orders.reference_id (not our ONLINE-… agency id)
+                referenceId: hotelData.display_reference_id
+                    || hotelData.supplier_booking_reference
+                    || hotelData.mg_booking_id
+                    || hotelData.reference_id
+                    || null,
                 actualDueDate: hotelData.actual_due_date || null,
                 displayDueDate: hotelData.display_due_date || null,
                 approvalFile: hotelData.approval_file || null,

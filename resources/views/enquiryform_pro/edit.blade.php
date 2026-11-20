@@ -9678,6 +9678,29 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
     function syncTourListPaxQtyFromHeader(forceValue) {
         if (typeof tourList === 'undefined' || !Array.isArray(tourList)) return;
         tourList.forEach(function (tour) {
+            // Online attractions keep modal guest counts (do not force header child/infant min=1).
+            if (tour.isOnlineAttraction || tour.attractionSourceType === 'online') {
+                const snap = tour.onlineAddSnapshot || {};
+                if (snap && (snap.adults != null || snap.children != null || snap.infants != null)) {
+                    tour.adultsQty = Math.max(0, parseInt(snap.adults, 10) || 0);
+                    tour.childQty = Math.max(0, parseInt(snap.children, 10) || 0);
+                    tour.infantQty = Math.max(0, parseInt(snap.infants, 10) || 0);
+                } else {
+                    tour.adultsQty = Math.max(0, parseInt(tour.adultsQty, 10) || 0);
+                    tour.childQty = Math.max(0, parseInt(tour.childQty, 10) || 0);
+                    tour.infantQty = Math.max(0, parseInt(tour.infantQty ?? tour.infant, 10) || 0);
+                }
+                tour.infant = tour.infantQty;
+                if (!(tour.childQty > 0)) {
+                    tour.childCost = 0;
+                    tour.childSell = 0;
+                }
+                if (!(tour.infantQty > 0)) {
+                    tour.infantCost = 0;
+                    tour.infantSell = 0;
+                }
+                return;
+            }
             tour.adultsQty = clampTourSitePaxQty(forceValue === true ? 0 : tour.adultsQty, 'adult');
             tour.childQty = clampTourSitePaxQty(forceValue === true ? 0 : tour.childQty, 'child');
             tour.infantQty = clampTourSitePaxQty(forceValue === true ? 0 : (tour.infantQty ?? tour.infant), 'infant');
@@ -26018,6 +26041,19 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
             if (dateTimeValue && !dateTimeValue.includes('T')) {
                 dateTimeValue = dateTimeValue + 'T10:00';
             }
+            const isOnlineTour = !!(tour.isOnlineAttraction || tour.attractionSourceType === 'online');
+            const adultsQtyVal = Math.max(0, parseInt(tour.adultsQty, 10) || 0);
+            const childQtyVal = Math.max(0, parseInt(tour.childQty, 10) || 0);
+            const infantQtyVal = Math.max(0, parseInt(tour.infantQty ?? tour.infant, 10) || 0);
+            const adultQtyAttrs = isOnlineTour
+                ? `value="${adultsQtyVal}" min="0" readonly disabled title="Edit guests in Online Attraction modal" style="background-color: #f5f5f5; cursor: not-allowed;"`
+                : `value="${adultsQtyVal}" min="${tourPaxBounds.adultMin}" max="${tourPaxBounds.adultMax}" ${tourPaxBounds.adults <= 0 ? 'disabled' : ''} onchange="updateTourField(${index}, 'adultsQty', this.value); this.value = tourList[${index}].adultsQty;" ${tourPaxBounds.adults <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}`;
+            const childQtyAttrs = isOnlineTour
+                ? `value="${childQtyVal}" min="0" readonly disabled title="Edit guests in Online Attraction modal" style="background-color: #f5f5f5; cursor: not-allowed;"`
+                : `value="${childQtyVal}" min="${tourPaxBounds.childMin}" max="${tourPaxBounds.childMax}" ${tourPaxBounds.children <= 0 ? 'disabled' : ''} onchange="updateTourField(${index}, 'childQty', this.value); this.value = tourList[${index}].childQty;" ${tourPaxBounds.children <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}`;
+            const infantQtyAttrs = isOnlineTour
+                ? `value="${infantQtyVal}" min="0" readonly disabled title="Edit guests in Online Attraction modal" style="background-color: #f5f5f5; cursor: not-allowed;"`
+                : `value="${infantQtyVal}" min="${tourPaxBounds.infantMin || 0}" max="${tourPaxBounds.infantMax || 0}" ${(tourPaxBounds.infants || 0) <= 0 ? 'disabled' : ''} onchange="updateTourField(${index}, 'infantQty', this.value); this.value = tourList[${index}].infantQty;" ${(tourPaxBounds.infants || 0) <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}`;
             
             return `
             <tr>
@@ -26031,15 +26067,15 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
                     </a>
                     ${typeof enquiryProPriceBreakBtnHtml === 'function' ? enquiryProPriceBreakBtnHtml('tour', index) : ''}
                 </td>
-                <td><input type="number" value="${tour.adultsQty}" min="${tourPaxBounds.adultMin}" max="${tourPaxBounds.adultMax}" ${tourPaxBounds.adults <= 0 ? 'disabled' : ''} onchange="updateTourField(${index}, 'adultsQty', this.value); this.value = tourList[${index}].adultsQty;" ${tourPaxBounds.adults <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}></td>
+                <td><input type="number" ${adultQtyAttrs}></td>
                 <td><input type="text" value="${parseFloat(String(tour.adultCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${(parseFloat(String(tour.adultSell).replace(/[^0-9.-]/g, '') || 0) || 0).toFixed(2)}" title="Sell before DMC markup" onchange="updateTourField(${index}, 'adultSell', this.value); updateTourTable(); recalculateTotals();" step="1"></td>
                 ${(typeof enquiryProMarkupPriceTdHtml === 'function' ? enquiryProMarkupPriceTdHtml(tour.adultSell, 'other') : '')}
-                <td><input type="number" value="${tour.childQty}" min="${tourPaxBounds.childMin}" max="${tourPaxBounds.childMax}" ${tourPaxBounds.children <= 0 ? 'disabled' : ''} onchange="updateTourField(${index}, 'childQty', this.value); this.value = tourList[${index}].childQty;" ${tourPaxBounds.children <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}></td>
+                <td><input type="number" ${childQtyAttrs}></td>
                 <td><input type="text" value="${parseFloat(String(tour.childCost).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${(parseFloat(String(tour.childSell).replace(/[^0-9.-]/g, '') || 0) || 0).toFixed(2)}" title="Sell before DMC markup" onchange="updateTourField(${index}, 'childSell', this.value); updateTourTable(); recalculateTotals();" step="1"></td>
                 ${(typeof enquiryProMarkupPriceTdHtml === 'function' ? enquiryProMarkupPriceTdHtml(tour.childSell, 'other') : '')}
-                <td><input type="number" value="${tour.infantQty || 0}" min="${tourPaxBounds.infantMin || 0}" max="${tourPaxBounds.infantMax || 0}" ${(tourPaxBounds.infants || 0) <= 0 ? 'disabled' : ''} onchange="updateTourField(${index}, 'infantQty', this.value); this.value = tourList[${index}].infantQty;" ${(tourPaxBounds.infants || 0) <= 0 ? 'style="background-color: #f5f5f5; cursor: not-allowed;"' : ''}></td>
+                <td><input type="number" ${infantQtyAttrs}></td>
                 <td><input type="text" value="${parseFloat(String(tour.infantCost || 0).replace(/[^0-9.-]/g, '') || 0).toFixed(2)}" readonly style="background-color: #f5f5f5;"></td>
                 <td><input type="number" value="${(parseFloat(String(tour.infantSell || 0).replace(/[^0-9.-]/g, '') || 0) || 0).toFixed(2)}" title="Sell before DMC markup" onchange="updateTourField(${index}, 'infantSell', this.value); updateTourTable(); recalculateTotals();" step="1"></td>
                 ${(typeof enquiryProMarkupPriceTdHtml === 'function' ? enquiryProMarkupPriceTdHtml(tour.infantSell || 0, 'other') : '')}
@@ -26299,14 +26335,19 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
     function updateTourField(index, field, value) {
         if (tourList[index]) {
             const tour = tourList[index];
-            if (field === 'adultsQty' && typeof clampTourSitePaxQty === 'function') {
+            const isOnlineTour = !!(tour.isOnlineAttraction || tour.attractionSourceType === 'online');
+            // Online guest counts come from the booking modal — do not force header min=1.
+            if (!isOnlineTour && field === 'adultsQty' && typeof clampTourSitePaxQty === 'function') {
                 value = clampTourSitePaxQty(value, 'adult');
             }
-            if (field === 'childQty' && typeof clampTourSitePaxQty === 'function') {
+            if (!isOnlineTour && field === 'childQty' && typeof clampTourSitePaxQty === 'function') {
                 value = clampTourSitePaxQty(value, 'child');
             }
-            if (field === 'infantQty' && typeof clampTourSitePaxQty === 'function') {
+            if (!isOnlineTour && field === 'infantQty' && typeof clampTourSitePaxQty === 'function') {
                 value = clampTourSitePaxQty(value, 'infant');
+            }
+            if (isOnlineTour && (field === 'adultsQty' || field === 'childQty' || field === 'infantQty')) {
+                value = Math.max(0, parseInt(value, 10) || 0);
             }
             tour[field] = value;
             if (field === 'infantQty') tour.infant = value;
@@ -37590,6 +37631,11 @@ exitPortData.push({
                 }
             }
             
+            if (tour.isOnlineAttraction || tour.attractionSourceType === 'online') {
+                tourData.isOnlineAttraction = true;
+                tourData.attractionSourceType = 'online';
+                tourData.mode = 'online';
+            }
             if (typeof enquiryProCopyStoredMarkupMeta === 'function') {
                 enquiryProCopyStoredMarkupMeta(tourData, tour);
             }
@@ -41549,6 +41595,16 @@ exitPortData.push({
             infantSell: parseFloat(data.infantSell || data.infant_sell || 0),
             cost: parseFloat(data.cost || 0),
             sell: parseFloat(data.sell || 0),
+            totalPrice: parseFloat(data.totalPrice || data.grand_total || data.sell || 0) || 0,
+            grand_total: parseFloat(data.grand_total || data.totalPrice || data.sell || 0) || 0,
+            base_grand_total: parseFloat(
+                data.base_grand_total
+                ?? (data.dmc_profile_markup && data.dmc_profile_markup.base_price)
+                ?? (data.online_price_breakdown && data.online_price_breakdown.base_price)
+                ?? 0
+            ) || null,
+            dmc_profile_markup: data.dmc_profile_markup || data.online_price_breakdown || null,
+            online_price_breakdown: data.online_price_breakdown || data.dmc_profile_markup || null,
             supplement: data.supplement || false,
             focServiceDiscount: resolveFocServiceDiscountFromPayload(data),
             destination: data.destination || data.country || data.city || '',
@@ -41585,6 +41641,52 @@ exitPortData.push({
             voucher_download_link: data.voucher_download_link || null,
             vouchers: Array.isArray(data.vouchers) ? data.vouchers : []
         };
+
+        // Online: restore modal guest counts; keep Sell as base (peel only if units look marked).
+        if (tour.isOnlineAttraction) {
+            const snap = tour.onlineAddSnapshot || {};
+            if (snap && (snap.adults != null || snap.children != null || snap.infants != null)) {
+                tour.adultsQty = Math.max(0, parseInt(snap.adults, 10) || 0);
+                tour.childQty = Math.max(0, parseInt(snap.children, 10) || 0);
+                tour.infantQty = Math.max(0, parseInt(snap.infants, 10) || 0);
+                tour.infant = tour.infantQty;
+            }
+            if (!(tour.childQty > 0)) {
+                tour.childCost = 0;
+                tour.childSell = 0;
+            }
+            if (!(tour.infantQty > 0)) {
+                tour.infantCost = 0;
+                tour.infantSell = 0;
+            }
+            if (typeof enquiryProSplitDmcMarkupFromFinal === 'function') {
+                const adultsN = Math.max(0, parseInt(tour.adultsQty, 10) || 0);
+                const childrenN = Math.max(0, parseInt(tour.childQty, 10) || 0);
+                const infantsN = Math.max(0, parseInt(tour.infantQty, 10) || 0);
+                const ticketGuess = (tour.adultSell * adultsN) + (tour.childSell * childrenN) + (tour.infantSell * infantsN);
+                const storedFinal = parseFloat(
+                    (tour.dmc_profile_markup && tour.dmc_profile_markup.price)
+                    || tour.totalPrice || tour.grand_total || 0
+                ) || 0;
+                const storedBase = parseFloat(tour.base_grand_total || 0) || 0;
+                const sellMatchesBase = storedBase > 0 && Math.abs(ticketGuess - storedBase) < 0.05;
+                const sellMatchesFinal = storedFinal > 0 && Math.abs(ticketGuess - storedFinal) < 0.05;
+                if (!sellMatchesBase && sellMatchesFinal) {
+                    if (tour.adultSell > 0) tour.adultSell = enquiryProSplitDmcMarkupFromFinal(tour.adultSell, 'other').base_price;
+                    if (tour.childSell > 0) tour.childSell = enquiryProSplitDmcMarkupFromFinal(tour.childSell, 'other').base_price;
+                    if (tour.infantSell > 0) tour.infantSell = enquiryProSplitDmcMarkupFromFinal(tour.infantSell, 'other').base_price;
+                    if (!(tour.adultCost > 0)) tour.adultCost = tour.adultSell;
+                    if (!(tour.childCost > 0)) tour.childCost = tour.childSell;
+                    if (!(tour.infantCost > 0)) tour.infantCost = tour.infantSell;
+                }
+                if (!(storedBase > 0) && storedFinal > 0) {
+                    const peeled = enquiryProSplitDmcMarkupFromFinal(storedFinal, 'other');
+                    tour.base_grand_total = peeled.base_price;
+                    tour.dmc_profile_markup = peeled;
+                    tour.online_price_breakdown = peeled;
+                }
+            }
+        }
         
         // Check for transferInfo directly in data (priority) or transfer_options or transferId
         const transferInfo = data.transferInfo || null;
