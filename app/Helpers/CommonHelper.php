@@ -2389,6 +2389,65 @@ class CommonHelper
     }
 
     /**
+     * DMC company contact block for hotel/restaurant/attraction booking email previews & sends.
+     *
+     * @param  int|null  $dmcId  Prefer tour.dmc_id when available
+     * @return array{name: string, email: string, phone: string}
+     */
+    public static function getBookingEmailSignature(?int $dmcId = null, $authUser = null): array
+    {
+        $authUser = $authUser ?: Auth::user();
+        $resolvedId = $dmcId ? (int) $dmcId : 0;
+
+        if ($resolvedId <= 0 && $authUser) {
+            $resolvedId = (int) (self::getDmcId($authUser) ?: 0);
+        }
+
+        $dmcUser = null;
+        if ($resolvedId > 0) {
+            $dmcUser = User::where('userId', $resolvedId)->first();
+        }
+        if (!$dmcUser && $authUser) {
+            $dmcUser = $authUser;
+        }
+
+        $name = trim((string) ($dmcUser->company_name ?? $dmcUser->name ?? 'DMC'));
+        $email = trim((string) ($dmcUser->email ?? ''));
+        $phoneRaw = trim((string) ($dmcUser->phone ?? ''));
+        $countryCode = trim((string) ($dmcUser->country_code ?? ''));
+        $phone = $phoneRaw !== ''
+            ? (($countryCode !== '' ? '+' . ltrim($countryCode, '+') . ' ' : '') . $phoneRaw)
+            : '';
+
+        return [
+            'name' => $name !== '' ? $name : 'DMC',
+            'email' => $email,
+            'phone' => $phone,
+        ];
+    }
+
+    /**
+     * Plain-text signature lines for booking confirmation emails.
+     */
+    public static function formatBookingEmailSignature(?array $signature = null): string
+    {
+        $signature = $signature ?: self::getBookingEmailSignature();
+        $name = trim((string) ($signature['name'] ?? 'DMC'));
+        $email = trim((string) ($signature['email'] ?? ''));
+        $phone = trim((string) ($signature['phone'] ?? ''));
+
+        $lines = ["Best regards,", $name !== '' ? $name : 'DMC'];
+        if ($email !== '') {
+            $lines[] = 'Email: ' . $email;
+        }
+        if ($phone !== '') {
+            $lines[] = 'Phone: ' . $phone;
+        }
+
+        return implode("\n", $lines);
+    }
+
+    /**
      * Send a hotel booking confirmation email with a custom subject and body
      * (plain text body is wrapped in a minimal HTML email container).
      *

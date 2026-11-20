@@ -13,8 +13,12 @@
 <link href="https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css" rel="stylesheet" />
 <!-- CSRF Token -->
 <meta name="csrf-token" content="{{ csrf_token() }}">
+@php
+    $bookingEmailSignature = \App\Helpers\CommonHelper::getBookingEmailSignature();
+@endphp
 <script>
     window.bookingCurrency = @json($currency ?? 'SGD');
+    window.bookingEmailSignature = @json($bookingEmailSignature);
     window.tourNegotiationHistory = @json($tourNegotiationHistory ?? []);
     window.tourActiveServiceCounts = @json($tourActiveServiceCounts ?? []);
     window.rejectServicePageTourStatus = 'Actual';
@@ -7070,11 +7074,41 @@ window.approveIndividualAttraction = function(tourId, attractionOrderIndex, book
     createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'approve', actualCancelDateStr, attractionOrderId);
 }
 
-// Override any previous definitions - this is the correct attraction reject function
+// Hotel-style cancel: message modal → API (voucher internal). No reason/code form.
 window.rejectIndividualAttraction = function(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
-    showRejectServiceAlert('attraction', () => {
-        createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'reject', actualCancelDateStr);
-    }, tourId);
+    var withoutRefund = window.__cancelWithoutRefund === true;
+    window.__cancelWithoutRefund = false;
+    window.__attractionCancelVoucherMode = false;
+    showRejectServiceAlert('attraction', function () {
+        var token = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+        var payload = {
+            tour_id: tourId,
+            attraction_order_index: attractionOrderIndex,
+            booking_index: bookingIndex,
+            cancel_reason: withoutRefund ? 'Cancelled without refund' : 'Rejected for refund processing'
+        };
+        if (withoutRefund) payload.without_refund = 1;
+        fetch(@json(url('/booking/reject-attraction-booking')), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': token
+            },
+            body: JSON.stringify(payload)
+        }).then(function (r) { return r.json().catch(function () { return { success: false }; }); })
+          .then(function (data) {
+            if (data && data.success) {
+                if (withoutRefund) {
+                    window.location.reload();
+                } else {
+                    window.location.href = @json(route('bookings.refunds'));
+                }
+            } else {
+                alert((data && data.message) || 'Could not cancel attraction.');
+            }
+          });
+    }, tourId, withoutRefund);
 }
 
 function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, action, actualCancelDateStr=null, attractionOrderId=null) {
@@ -20803,21 +20837,39 @@ function approveIndividualAttraction(tourId, attractionOrderIndex, bookingIndex,
 }
 
 function rejectIndividualAttraction(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr=null) {
-    showRejectServiceAlert('attraction', () => {
-        try {
-            const attractionDetailsModal = document.getElementById('attractionDetailsModal' + tourId);
-            if (attractionDetailsModal) {
-                const attractionModal = bootstrap.Modal.getInstance(attractionDetailsModal);
-                if (attractionModal) attractionModal.hide();
+    // Prefer window override (hotel-style cancel → API, no reason/code form)
+    if (window.rejectIndividualAttraction && window.rejectIndividualAttraction !== rejectIndividualAttraction) {
+        return window.rejectIndividualAttraction(tourId, attractionOrderIndex, bookingIndex, actualCancelDateStr);
+    }
+    var withoutRefund = window.__cancelWithoutRefund === true;
+    window.__cancelWithoutRefund = false;
+    window.__attractionCancelVoucherMode = false;
+    showRejectServiceAlert('attraction', function () {
+        var token = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+        var payload = {
+            tour_id: tourId,
+            attraction_order_index: attractionOrderIndex,
+            booking_index: bookingIndex,
+            cancel_reason: withoutRefund ? 'Cancelled without refund' : 'Rejected for refund processing'
+        };
+        if (withoutRefund) payload.without_refund = 1;
+        fetch(@json(url('/booking/reject-attraction-booking')), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': token
+            },
+            body: JSON.stringify(payload)
+        }).then(function (r) { return r.json().catch(function () { return { success: false }; }); })
+          .then(function (data) {
+            if (data && data.success) {
+                window.location.href = withoutRefund ? window.location.href : @json(route('bookings.refunds'));
+            } else {
+                alert((data && data.message) || 'Could not cancel attraction.');
             }
-            setTimeout(() => {
-                createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, 'reject', actualCancelDateStr);
-            }, 300);
-        } catch (error) {
-            console.error('Error opening individual attraction reject modal:', error);
-            alert('Error opening reject modal. Please try again.');
-        }
-    }, tourId);
+          });
+    }, tourId, withoutRefund);
 }
 
 function createAndShowIndividualAttractionModal(tourId, attractionOrderIndex, bookingIndex, action, actualCancelDateStr=null, attractionOrderId=null) {
@@ -25255,8 +25307,7 @@ document.addEventListener('change', function(e) {
         content += `${fullRow('')}\n`;
         content += `${fullRow('For any queries or modifications, please contact us immediately.')}\n`;
         content += `${endBorder}\n\n`;
-        
-        // content += `Best regards,\nNam Ho Singapore`;
+        content += buildBookingEmailSignature();
         
         return content;
     }
@@ -25295,10 +25346,21 @@ document.addEventListener('change', function(e) {
         content += `${border}\n${sectionHeader('IMPORTANT NOTES')}\n${sectionBorder}\n`;
         content += `${row('Note', 'Please contact us for complete hotel details')}\n`;
         content += `${endBorder}\n\n`;
-        
-        // content += `Best regards,\nNam Ho Singapore`;
+        content += buildBookingEmailSignature();
         
         return content;
+    }
+
+    // DMC company name + email + phone for booking email previews
+    function buildBookingEmailSignature() {
+        const sig = window.bookingEmailSignature || {};
+        const name = String(sig.name || 'DMC').trim() || 'DMC';
+        const email = String(sig.email || '').trim();
+        const phone = String(sig.phone || '').trim();
+        let block = `Best regards,\n${name}`;
+        if (email) block += `\nEmail: ${email}`;
+        if (phone) block += `\nPhone: ${phone}`;
+        return block;
     }
 
     // Helper function to pad text to the right

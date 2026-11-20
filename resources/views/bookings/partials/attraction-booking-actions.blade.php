@@ -37,6 +37,22 @@
                     title="View and manage uploaded files">
                 <i class="ri-file-list-3-line me-1"></i>View Files
             </button>
+            @if($canReject && $allowOrderCancel)
+            <button type="button" class="btn btn-sm svc-btn svc-btn-reject"
+                    onclick="window.__cancelWithoutRefund=false; window.__attractionCancelVoucherMode=false; (window.rejectIndividualAttraction ? window.rejectIndividualAttraction({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}) : rejectIndividualAttraction({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}))"
+                    title="Cancel this attraction with refund">
+                <i class="ri-close-line me-1"></i>Cancel with refund
+            </button>
+            <button type="button" class="btn btn-sm svc-btn svc-btn-cancel-zero"
+                    onclick="window.__cancelWithoutRefund=true; window.__attractionCancelVoucherMode=false; (window.rejectIndividualAttraction ? window.rejectIndividualAttraction({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}) : rejectIndividualAttraction({{ $tour->tour_id }}, {{ $index }}, {{ $bookingIndex }}))"
+                    title="Cancel this attraction without refund">
+                <i class="ri-close-circle-line me-1"></i>Cancel without refund
+            </button>
+            @elseif($canReject && ! $allowOrderCancel)
+            <span class="text-muted small" title="Only one service — cancel the tour instead">
+                <i class="ri-information-line me-1"></i>Cancel tour to refund
+            </span>
+            @endif
         @elseif($canEditApprove || $canReject)
             @if($canEditApprove)
             <button type="button" class="btn btn-sm svc-btn svc-btn-edit"

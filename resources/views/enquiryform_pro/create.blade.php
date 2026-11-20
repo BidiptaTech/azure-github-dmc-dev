@@ -34360,13 +34360,23 @@ function filterArrivalVehiclesByServiceType(preferredCity) {
         }
         
         // Transform and add service data in required format (await async functions)
-        const { entryPortData, exitPortData } = await transformArrivalDepartureData();
-        const transformedAccommodations = transformAccommodationData();
-        const transformedTours = transformTourData();
-        const transformedMeals = transformMealData();
-        const transformedGuides = transformGuideData();
-        const transformedTransfers = await transformTransferData();
-        const transformedMiscellaneous = transformMiscellaneousData();
+        let entryPortData, exitPortData, transformedAccommodations, transformedTours,
+            transformedMeals, transformedGuides, transformedTransfers, transformedMiscellaneous;
+        try {
+            ({ entryPortData, exitPortData } = await transformArrivalDepartureData());
+            transformedAccommodations = transformAccommodationData();
+            transformedTours = transformTourData();
+            transformedMeals = transformMealData();
+            transformedGuides = transformGuideData();
+            transformedTransfers = await transformTransferData();
+            transformedMiscellaneous = transformMiscellaneousData();
+        } catch (transformErr) {
+            console.error('Enquiry transform failed before save:', transformErr);
+            window._enquiryProSubmitting = false;
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.innerHTML = submitBtnOriginalHtml; }
+            alert('Could not prepare booking data: ' + (transformErr && transformErr.message ? transformErr.message : 'transform error'));
+            return;
+        }
         
         // Add entry_port (Arrival)
         if (entryPortData.length > 0) {
