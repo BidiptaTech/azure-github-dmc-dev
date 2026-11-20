@@ -3365,6 +3365,16 @@ class HotelBookingController extends Controller
         $content .= $fullRow('For any queries or modifications, please contact us immediately.') . "\n";
         $content .= $endBorder . "\n\n";
 
+        $tourDmcId = null;
+        try {
+            $tourDmcId = DB::table('tours')->where('tour_id', $tourId)->value('dmc_id');
+        } catch (\Exception $e) {
+            $tourDmcId = null;
+        }
+        $content .= CommonHelper::formatBookingEmailSignature(
+            CommonHelper::getBookingEmailSignature($tourDmcId ? (int) $tourDmcId : null)
+        );
+
         return $content;
     }
 
